@@ -1,0 +1,71 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "xtask"]
+default-members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.89"
+license = "Apache-2.0"
+repository = "https://github.com/thewoodfish/Nineveh"
+homepage = "https://github.com/thewoodfish/Nineveh"
+authors = ["Nineveh contributors"]
+publish = false
+
+[workspace.dependencies]
+# Internal
+nineveh-core = { path = "crates/nineveh-core" }
+nineveh-ingest = { path = "crates/nineveh-ingest" }
+
+# gRPC / protobuf: tonic and prost move in lockstep, bump together.
+tonic = { version = "0.14.6", default-features = false }
+tonic-prost = "0.14.6"
+tonic-prost-build = "0.14.6"
+prost = "0.14.4"
+protox = "0.9.1"
+
+# Async
+tokio = { version = "1.53.1", default-features = false }
+tokio-stream = "0.1.19"
+futures = { version = "0.3.34", default-features = false, features = ["std"] }
+
+# Errors, secrets, CLI, observability
+thiserror = "2.0.20"
+anyhow = "1.0.104"
+secrecy = "0.10.3"
+clap = { version = "4.6.6", features = ["derive", "env"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Library code returns errors; it never aborts the process. Tests are exempt
+# (see clippy.toml). Binaries opt out locally where an abort is intended.
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+print_stdout = "deny"
+print_stderr = "deny"
+# Integer casts are a correctness hazard in a system built on u64/u128 versions and
+# amounts: convert with `TryFrom` and handle the failure.
+cast_possible_truncation = "deny"
+cast_sign_loss = "deny"
+cast_possible_wrap = "deny"
+module_name_repetitions = "allow"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

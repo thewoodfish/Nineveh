@@ -1,0 +1,6 @@
+# Tests may assert with unwrap/expect/panic; library code may not (see Cargo.toml).
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-print-in-tests = true
+allow-dbg-in-tests = true

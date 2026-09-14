@@ -1,0 +1,8 @@
+repository: https://github.com/aptos-labs/aptos-core
+commit: 0ef358e7c2e87e01c9973979fdf9fd6bc293b2cf
+path: protos/proto
+files:
+  - aptos/indexer/v1/raw_data.proto
+  - aptos/indexer/v1/filter.proto
+  - aptos/transaction/v1/transaction.proto
+  - aptos/util/timestamp/timestamp.proto

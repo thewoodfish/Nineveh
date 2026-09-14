@@ -1,0 +1,29 @@
+[package]
+name = "nineveh-ingest"
+description = "Aptos Transaction Stream client for Nineveh: ordered, gap-checked delivery by version."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+nineveh-core.workspace = true
+prost.workspace = true
+secrecy.workspace = true
+thiserror.workspace = true
+tonic = { workspace = true, features = ["codegen", "channel", "tls-ring", "tls-webpki-roots", "gzip", "zstd"] }
+tonic-prost.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+
+[lints]
+workspace = true

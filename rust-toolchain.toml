@@ -1,0 +1,6 @@
+# Pinned for reproducible builds and lint results. Bump deliberately, in its own PR.
+# The declared MSRV (workspace `rust-version`) is checked separately in CI.
+[toolchain]
+channel = "1.98.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"
