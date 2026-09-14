@@ -1,0 +1,106 @@
+{
+ "address": "0x5",
+ "name": "bulk_order_types",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "BulkOrder",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "order_request",
+       "type": "0x5::bulk_order_types::BulkOrderRequest<T0>"
+      },
+      {
+       "name": "order_id",
+       "type": "0x5::order_book_types::OrderId"
+      },
+      {
+       "name": "unique_priority_idx",
+       "type": "0x5::order_book_types::IncreasingIdx"
+      },
+      {
+       "name": "creation_time_micros",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "BulkOrderRequest",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "account",
+       "type": "address"
+      },
+      {
+       "name": "order_sequence_number",
+       "type": "u64"
+      },
+      {
+       "name": "bid_prices",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "bid_sizes",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "ask_prices",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "ask_sizes",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "metadata",
+       "type": "T0"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

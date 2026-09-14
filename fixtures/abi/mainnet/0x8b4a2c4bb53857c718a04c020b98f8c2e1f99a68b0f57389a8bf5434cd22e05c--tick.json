@@ -1,0 +1,119 @@
+{
+ "address": "0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c",
+ "name": "tick",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "liquidity_gross",
+     "type": "u128"
+    },
+    {
+     "name": "liquidity_net",
+     "type": "0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c::i128::I128"
+    },
+    {
+     "name": "fee_growth_outside_a",
+     "type": "u128"
+    },
+    {
+     "name": "fee_growth_outside_b",
+     "type": "u128"
+    },
+    {
+     "name": "tick_cumulative_outside",
+     "type": "u64"
+    },
+    {
+     "name": "seconds_per_liquidity_oracle_outside",
+     "type": "u128"
+    },
+    {
+     "name": "seconds_per_liquidity_incentive_outside",
+     "type": "u128"
+    },
+    {
+     "name": "emissions_per_liquidity_incentive_outside",
+     "type": "vector<u128>"
+    },
+    {
+     "name": "seconds_outside",
+     "type": "u64"
+    },
+    {
+     "name": "initialized",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "TickInfo",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "pool_id",
+     "type": "address"
+    },
+    {
+     "name": "tick",
+     "type": "0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c::i32::I32"
+    },
+    {
+     "name": "liquidity_gross_before",
+     "type": "u128"
+    },
+    {
+     "name": "liquidity_gross_after",
+     "type": "u128"
+    },
+    {
+     "name": "liquidity_net_before",
+     "type": "0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c::i128::I128"
+    },
+    {
+     "name": "liquidity_net_after",
+     "type": "0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c::i128::I128"
+    },
+    {
+     "name": "flipped",
+     "type": "bool"
+    },
+    {
+     "name": "fee_growth_updated",
+     "type": "bool"
+    },
+    {
+     "name": "fee_growth_outside_a_before",
+     "type": "u128"
+    },
+    {
+     "name": "fee_growth_outside_b_before",
+     "type": "u128"
+    },
+    {
+     "name": "emissions_per_liquidity_incentive_outside_before",
+     "type": "vector<u128>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "TickUpdatedEventV2",
+   "variants": []
+  }
+ ]
+}

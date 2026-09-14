@@ -1,0 +1,40 @@
+{
+ "address": "0x1",
+ "name": "transaction_fee",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "total_charge_gas_units",
+     "type": "u64"
+    },
+    {
+     "name": "execution_gas_units",
+     "type": "u64"
+    },
+    {
+     "name": "io_gas_units",
+     "type": "u64"
+    },
+    {
+     "name": "storage_fee_octas",
+     "type": "u64"
+    },
+    {
+     "name": "storage_fee_refund_octas",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "FeeStatement",
+   "variants": []
+  }
+ ]
+}

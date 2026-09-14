@@ -1,0 +1,179 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "collateral_balance_sheet",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "AssetBalance",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "asset_type",
+       "type": "0x1::object::Object<0x1::fungible_asset::Metadata>"
+      },
+      {
+       "name": "balance",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": true,
+   "is_native": false,
+   "name": "CollateralBalanceChangeEvent",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "asset_type",
+       "type": "0x1::object::Object<0x1::fungible_asset::Metadata>"
+      },
+      {
+       "name": "balance_type",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::collateral_balance_sheet::CollateralBalanceType"
+      },
+      {
+       "name": "delta",
+       "type": "i64"
+      },
+      {
+       "name": "offset_balance_after",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::i64_aggregator::I64Snapshot"
+      },
+      {
+       "name": "change_type",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::collateral_balance_sheet::CollateralBalanceChangeType"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "CollateralBalanceChangeType",
+   "variants": [
+    {
+     "fields": [],
+     "name": "UserMovement"
+    },
+    {
+     "fields": [],
+     "name": "Fee"
+    },
+    {
+     "fields": [],
+     "name": "PnL"
+    },
+    {
+     "fields": [],
+     "name": "Margin"
+    },
+    {
+     "fields": [],
+     "name": "Liquidation"
+    },
+    {
+     "fields": [],
+     "name": "TestOnly"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "CollateralBalanceType",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "account",
+       "type": "address"
+      }
+     ],
+     "name": "Cross"
+    },
+    {
+     "fields": [
+      {
+       "name": "account",
+       "type": "address"
+      },
+      {
+       "name": "market",
+       "type": "0x1::object::Object<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_market::PerpMarket>"
+      }
+     ],
+     "name": "Isolated"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "CollateralBalances",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "primary_balance",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::i64_aggregator::I64Aggregator"
+      },
+      {
+       "name": "secondary_balances",
+       "type": "vector<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::collateral_balance_sheet::AssetBalance>"
+      },
+      {
+       "name": "reserved_amount",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

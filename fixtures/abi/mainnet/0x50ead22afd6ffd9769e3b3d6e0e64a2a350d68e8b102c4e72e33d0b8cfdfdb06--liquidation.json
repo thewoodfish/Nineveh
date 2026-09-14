@@ -1,0 +1,30 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "liquidation",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "MarginCallContinuation",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "slippage_to_test",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

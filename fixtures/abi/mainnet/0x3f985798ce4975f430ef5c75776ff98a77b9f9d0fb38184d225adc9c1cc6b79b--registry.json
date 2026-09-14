@@ -1,0 +1,29 @@
+{
+ "address": "0x3f985798ce4975f430ef5c75776ff98a77b9f9d0fb38184d225adc9c1cc6b79b",
+ "name": "registry",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "benchmark",
+     "type": "u256"
+    },
+    {
+     "name": "observation_timestamp",
+     "type": "u256"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Benchmark",
+   "variants": []
+  }
+ ]
+}

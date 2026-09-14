@@ -1,0 +1,348 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "perp_positions",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "Action",
+   "variants": [
+    {
+     "fields": [],
+     "name": "OpenLong"
+    },
+    {
+     "fields": [],
+     "name": "CloseLong"
+    },
+    {
+     "fields": [],
+     "name": "OpenShort"
+    },
+    {
+     "fields": [],
+     "name": "CloseShort"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PerpPosition",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "size",
+       "type": "u64"
+      },
+      {
+       "name": "entry_px_times_size_sum",
+       "type": "u128"
+      },
+      {
+       "name": "avg_acquire_entry_px",
+       "type": "u64"
+      },
+      {
+       "name": "user_leverage",
+       "type": "u8"
+      },
+      {
+       "name": "is_long",
+       "type": "bool"
+      },
+      {
+       "name": "is_isolated",
+       "type": "bool"
+      },
+      {
+       "name": "funding_index_at_last_update",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::price_management::AccumulativeIndex"
+      },
+      {
+       "name": "unrealized_funding_amount_before_last_update",
+       "type": "i64"
+      },
+      {
+       "name": "timestamp",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": true,
+   "is_native": false,
+   "name": "PositionUpdateEvent",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "market",
+       "type": "0x1::object::Object<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_market::PerpMarket>"
+      },
+      {
+       "name": "user",
+       "type": "address"
+      },
+      {
+       "name": "is_long",
+       "type": "bool"
+      },
+      {
+       "name": "size",
+       "type": "u64"
+      },
+      {
+       "name": "user_leverage",
+       "type": "u8"
+      },
+      {
+       "name": "entry_price_times_size_sum",
+       "type": "u128"
+      },
+      {
+       "name": "is_isolated",
+       "type": "bool"
+      },
+      {
+       "name": "funding_index_at_last_update",
+       "type": "i128"
+      },
+      {
+       "name": "unrealized_funding_amount_before_last_update",
+       "type": "i64"
+      },
+      {
+       "name": "full_sized_tp",
+       "type": "0x1::option::Option<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::pending_order_tracker::FullSizedTpSlForEvent>"
+      },
+      {
+       "name": "fixed_sized_tps",
+       "type": "vector<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::pending_order_tracker::FixedSizedTpSlForEvent>"
+      },
+      {
+       "name": "full_sized_sl",
+       "type": "0x1::option::Option<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::pending_order_tracker::FullSizedTpSlForEvent>"
+      },
+      {
+       "name": "fixed_sized_sls",
+       "type": "vector<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::pending_order_tracker::FixedSizedTpSlForEvent>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": true,
+   "is_native": false,
+   "name": "TradeEvent",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "account",
+       "type": "address"
+      },
+      {
+       "name": "market",
+       "type": "0x1::object::Object<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_market::PerpMarket>"
+      },
+      {
+       "name": "action",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_positions::Action"
+      },
+      {
+       "name": "source",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_positions::TradeTriggerSource"
+      },
+      {
+       "name": "order_id",
+       "type": "0x1::option::Option<0x5::order_book_types::OrderId>"
+      },
+      {
+       "name": "client_order_id",
+       "type": "0x1::option::Option<0x1::string::String>"
+      },
+      {
+       "name": "size",
+       "type": "u64"
+      },
+      {
+       "name": "price",
+       "type": "u64"
+      },
+      {
+       "name": "builder_code",
+       "type": "0x1::option::Option<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::builder_code_registry::BuilderCode>"
+      },
+      {
+       "name": "realized_pnl",
+       "type": "i64"
+      },
+      {
+       "name": "realized_funding_cost",
+       "type": "i64"
+      },
+      {
+       "name": "fee",
+       "type": "i64"
+      },
+      {
+       "name": "fill_id",
+       "type": "u128"
+      },
+      {
+       "name": "is_taker",
+       "type": "bool"
+      },
+      {
+       "name": "fee_distribution",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::fee_distribution::FeeDistribution"
+      }
+     ],
+     "name": "V1"
+    },
+    {
+     "fields": [
+      {
+       "name": "account",
+       "type": "address"
+      },
+      {
+       "name": "market",
+       "type": "0x1::object::Object<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_market::PerpMarket>"
+      },
+      {
+       "name": "action",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_positions::Action"
+      },
+      {
+       "name": "source",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_positions::TradeTriggerSource"
+      },
+      {
+       "name": "order_id",
+       "type": "0x1::option::Option<0x5::order_book_types::OrderId>"
+      },
+      {
+       "name": "client_order_id",
+       "type": "0x1::option::Option<0x1::string::String>"
+      },
+      {
+       "name": "size",
+       "type": "u64"
+      },
+      {
+       "name": "price",
+       "type": "u64"
+      },
+      {
+       "name": "builder_code",
+       "type": "0x1::option::Option<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::builder_code_registry::BuilderCode>"
+      },
+      {
+       "name": "realized_pnl",
+       "type": "i64"
+      },
+      {
+       "name": "realized_funding_cost",
+       "type": "i64"
+      },
+      {
+       "name": "fee",
+       "type": "i64"
+      },
+      {
+       "name": "fill_id",
+       "type": "u128"
+      },
+      {
+       "name": "is_taker",
+       "type": "bool"
+      },
+      {
+       "name": "fee_distribution",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::fee_distribution::FeeDistribution"
+      },
+      {
+       "name": "counter_party_account",
+       "type": "address"
+      }
+     ],
+     "name": "V2"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "TradeTriggerSource",
+   "variants": [
+    {
+     "fields": [],
+     "name": "OrderFill"
+    },
+    {
+     "fields": [],
+     "name": "MarginCall"
+    },
+    {
+     "fields": [],
+     "name": "BackStopLiquidation"
+    },
+    {
+     "fields": [],
+     "name": "ADL"
+    },
+    {
+     "fields": [],
+     "name": "MarketDelisted"
+    }
+   ]
+  }
+ ]
+}

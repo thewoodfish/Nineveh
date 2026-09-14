@@ -1,0 +1,120 @@
+{
+ "address": "0x1",
+ "name": "object",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "self",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "DeriveRef",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "self",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ExtendRef",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "inner",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Object",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "guid_creation_num",
+     "type": "u64"
+    },
+    {
+     "name": "owner",
+     "type": "address"
+    },
+    {
+     "name": "allow_ungated_transfer",
+     "type": "bool"
+    },
+    {
+     "name": "transfer_events",
+     "type": "0x1::event::EventHandle<0x1::object::TransferEvent>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ObjectCore",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "object",
+     "type": "address"
+    },
+    {
+     "name": "from",
+     "type": "address"
+    },
+    {
+     "name": "to",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "TransferEvent",
+   "variants": []
+  }
+ ]
+}

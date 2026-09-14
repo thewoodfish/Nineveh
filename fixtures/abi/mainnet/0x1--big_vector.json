@@ -1,0 +1,35 @@
+{
+ "address": "0x1",
+ "name": "big_vector",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "buckets",
+     "type": "0x1::table_with_length::TableWithLength<u64, vector<T0>>"
+    },
+    {
+     "name": "end_index",
+     "type": "u64"
+    },
+    {
+     "name": "bucket_size",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "BigVector",
+   "variants": []
+  }
+ ]
+}

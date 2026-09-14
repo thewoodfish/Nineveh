@@ -1,0 +1,145 @@
+{
+ "address": "0x1",
+ "name": "big_ordered_map",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "store"
+     ]
+    },
+    {
+     "constraints": [
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "BigOrderedMap",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "root",
+       "type": "0x1::big_ordered_map::Node<T0, T1>"
+      },
+      {
+       "name": "nodes",
+       "type": "0x1::storage_slots_allocator::StorageSlotsAllocator<0x1::big_ordered_map::Node<T0, T1>>"
+      },
+      {
+       "name": "min_leaf_index",
+       "type": "u64"
+      },
+      {
+       "name": "max_leaf_index",
+       "type": "u64"
+      },
+      {
+       "name": "constant_kv_size",
+       "type": "bool"
+      },
+      {
+       "name": "inner_max_degree",
+       "type": "u16"
+      },
+      {
+       "name": "leaf_max_degree",
+       "type": "u16"
+      }
+     ],
+     "name": "BPlusTreeMap"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "Child",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "node_index",
+       "type": "0x1::storage_slots_allocator::StoredSlot"
+      }
+     ],
+     "name": "Inner"
+    },
+    {
+     "fields": [
+      {
+       "name": "value",
+       "type": "T0"
+      }
+     ],
+     "name": "Leaf"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "store"
+     ]
+    },
+    {
+     "constraints": [
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "Node",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "is_leaf",
+       "type": "bool"
+      },
+      {
+       "name": "children",
+       "type": "0x1::ordered_map::OrderedMap<T0, 0x1::big_ordered_map::Child<T1>>"
+      },
+      {
+       "name": "prev",
+       "type": "u64"
+      },
+      {
+       "name": "next",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

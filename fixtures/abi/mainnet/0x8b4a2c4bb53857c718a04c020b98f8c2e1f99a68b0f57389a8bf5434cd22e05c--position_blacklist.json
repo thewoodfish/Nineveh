@@ -1,0 +1,23 @@
+{
+ "address": "0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c",
+ "name": "position_blacklist",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "addresses",
+     "type": "0x1::smart_vector::SmartVector<address>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "PositionBlackList",
+   "variants": []
+  }
+ ]
+}

@@ -1,0 +1,33 @@
+{
+ "address": "0x1",
+ "name": "table",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "handle",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop"
+     ]
+    },
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Table",
+   "variants": []
+  }
+ ]
+}

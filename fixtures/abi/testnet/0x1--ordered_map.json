@@ -1,0 +1,67 @@
+{
+ "address": "0x1",
+ "name": "ordered_map",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "key",
+     "type": "T0"
+    },
+    {
+     "name": "value",
+     "type": "T1"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    },
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Entry",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": []
+    },
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "OrderedMap",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "entries",
+       "type": "vector<0x1::ordered_map::Entry<T0, T1>>"
+      }
+     ],
+     "name": "SortedVectorMap"
+    }
+   ]
+  }
+ ]
+}

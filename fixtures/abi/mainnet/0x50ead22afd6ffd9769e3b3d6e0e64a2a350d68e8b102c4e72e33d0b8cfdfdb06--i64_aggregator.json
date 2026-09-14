@@ -1,0 +1,47 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "i64_aggregator",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "offset_balance",
+     "type": "0x1::aggregator_v2::Aggregator<u64>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "I64Aggregator",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "I64Snapshot",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "offset_balance",
+       "type": "0x1::aggregator_v2::AggregatorSnapshot<u64>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

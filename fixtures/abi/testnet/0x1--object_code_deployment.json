@@ -1,0 +1,41 @@
+{
+ "address": "0x1",
+ "name": "object_code_deployment",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "extend_ref",
+     "type": "0x1::object::ExtendRef"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ManagingRefs",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "object_address",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "Publish",
+   "variants": []
+  }
+ ]
+}

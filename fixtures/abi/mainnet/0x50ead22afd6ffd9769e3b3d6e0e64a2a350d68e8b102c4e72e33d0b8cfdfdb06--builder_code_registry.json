@@ -1,0 +1,29 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "builder_code_registry",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "builder",
+     "type": "address"
+    },
+    {
+     "name": "fees",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "BuilderCode",
+   "variants": []
+  }
+ ]
+}

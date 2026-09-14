@@ -1,0 +1,44 @@
+{
+ "address": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f",
+ "name": "order_book",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "OrderBook",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "single_order_book",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::single_order_book::SingleOrderBook<T0>"
+      },
+      {
+       "name": "bulk_order_book",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::bulk_order_book::BulkOrderBook<T0>"
+      },
+      {
+       "name": "price_time_idx",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::price_time_index::PriceTimeIndex"
+      }
+     ],
+     "name": "UnifiedV1"
+    }
+   ]
+  }
+ ]
+}

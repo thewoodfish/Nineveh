@@ -1,0 +1,150 @@
+{
+ "address": "0x5",
+ "name": "single_order_types",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "SingleOrder",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "order_request",
+       "type": "0x5::single_order_types::SingleOrderRequest<T0>"
+      },
+      {
+       "name": "unique_priority_idx",
+       "type": "0x5::order_book_types::IncreasingIdx"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "OrderWithState",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "order",
+       "type": "0x5::single_order_types::SingleOrder<T0>"
+      },
+      {
+       "name": "is_active",
+       "type": "bool"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "SingleOrderRequest",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "account",
+       "type": "address"
+      },
+      {
+       "name": "order_id",
+       "type": "0x5::order_book_types::OrderId"
+      },
+      {
+       "name": "client_order_id",
+       "type": "0x1::option::Option<0x1::string::String>"
+      },
+      {
+       "name": "price",
+       "type": "u64"
+      },
+      {
+       "name": "orig_size",
+       "type": "u64"
+      },
+      {
+       "name": "remaining_size",
+       "type": "u64"
+      },
+      {
+       "name": "is_bid",
+       "type": "bool"
+      },
+      {
+       "name": "trigger_condition",
+       "type": "0x1::option::Option<0x5::order_book_types::TriggerCondition>"
+      },
+      {
+       "name": "time_in_force",
+       "type": "0x5::order_book_types::TimeInForce"
+      },
+      {
+       "name": "creation_time_micros",
+       "type": "u64"
+      },
+      {
+       "name": "metadata",
+       "type": "T0"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

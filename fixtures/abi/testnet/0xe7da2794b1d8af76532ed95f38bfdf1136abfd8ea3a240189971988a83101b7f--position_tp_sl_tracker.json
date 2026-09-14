@@ -1,0 +1,41 @@
+{
+ "address": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f",
+ "name": "position_tp_sl_tracker",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "trigger_price",
+     "type": "u64"
+    },
+    {
+     "name": "account",
+     "type": "address"
+    },
+    {
+     "name": "limit_price",
+     "type": "0x1::option::Option<u64>"
+    },
+    {
+     "name": "is_full_size",
+     "type": "bool"
+    },
+    {
+     "name": "builder_code",
+     "type": "0x1::option::Option<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::builder_code_registry::BuilderCode>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "PriceIndexKey",
+   "variants": []
+  }
+ ]
+}

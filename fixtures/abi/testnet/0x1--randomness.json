@@ -1,0 +1,32 @@
+{
+ "address": "0x1",
+ "name": "randomness",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "epoch",
+     "type": "u64"
+    },
+    {
+     "name": "round",
+     "type": "u64"
+    },
+    {
+     "name": "seed",
+     "type": "0x1::option::Option<vector<u8>>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "PerBlockRandomness",
+   "variants": []
+  }
+ ]
+}

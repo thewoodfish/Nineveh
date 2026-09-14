@@ -1,0 +1,23 @@
+{
+ "address": "0x1",
+ "name": "timestamp",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "microseconds",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "CurrentTimeMicroseconds",
+   "variants": []
+  }
+ ]
+}

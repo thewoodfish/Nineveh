@@ -1,0 +1,39 @@
+{
+ "address": "0x1",
+ "name": "smart_vector",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "inline_vec",
+     "type": "vector<T0>"
+    },
+    {
+     "name": "big_vec",
+     "type": "0x1::option::Option<0x1::big_vector::BigVector<T0>>"
+    },
+    {
+     "name": "inline_capacity",
+     "type": "0x1::option::Option<u64>"
+    },
+    {
+     "name": "bucket_size",
+     "type": "0x1::option::Option<u64>"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "SmartVector",
+   "variants": []
+  }
+ ]
+}

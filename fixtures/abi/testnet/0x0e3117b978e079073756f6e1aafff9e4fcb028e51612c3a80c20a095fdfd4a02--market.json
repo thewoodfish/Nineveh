@@ -1,0 +1,136 @@
+{
+ "address": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02",
+ "name": "market",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "size",
+     "type": "u64"
+    },
+    {
+     "name": "price",
+     "type": "u64"
+    },
+    {
+     "name": "user",
+     "type": "address"
+    },
+    {
+     "name": "order_access_key",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Order",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "name",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "lot_size",
+     "type": "u64"
+    },
+    {
+     "name": "tick_size",
+     "type": "u64"
+    },
+    {
+     "name": "min_size",
+     "type": "u64"
+    },
+    {
+     "name": "event_counter",
+     "type": "u64"
+    },
+    {
+     "name": "borrow_amount_in_market",
+     "type": "u64"
+    },
+    {
+     "name": "lend_amount_in_market",
+     "type": "u64"
+    },
+    {
+     "name": "lends",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::red_black_tree::Tree<0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::market::Order>"
+    },
+    {
+     "name": "borrows",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::red_black_tree::Tree<0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::market::Order>"
+    },
+    {
+     "name": "next_access_key_id",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "OrderBook",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "seq_id",
+     "type": "u64"
+    },
+    {
+     "name": "market_id",
+     "type": "u64"
+    },
+    {
+     "name": "side",
+     "type": "bool"
+    },
+    {
+     "name": "market_order_id",
+     "type": "u128"
+    },
+    {
+     "name": "maker",
+     "type": "address"
+    },
+    {
+     "name": "taker",
+     "type": "address"
+    },
+    {
+     "name": "size",
+     "type": "u64"
+    },
+    {
+     "name": "price",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "TakerEvent",
+   "variants": []
+  }
+ ]
+}

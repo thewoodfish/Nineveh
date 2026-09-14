@@ -1,0 +1,47 @@
+{
+ "address": "0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c",
+ "name": "rate_limiter",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store",
+    "key"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "RateLimiter",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "capacity",
+       "type": "u64"
+      },
+      {
+       "name": "current_amount",
+       "type": "u64"
+      },
+      {
+       "name": "refill_interval",
+       "type": "u64"
+      },
+      {
+       "name": "last_refill_timestamp",
+       "type": "u64"
+      },
+      {
+       "name": "fractional_accumulated",
+       "type": "u64"
+      }
+     ],
+     "name": "TokenBucket"
+    }
+   ]
+  }
+ ]
+}

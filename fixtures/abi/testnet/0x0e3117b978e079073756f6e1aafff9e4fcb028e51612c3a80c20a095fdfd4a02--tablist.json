@@ -1,0 +1,82 @@
+{
+ "address": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02",
+ "name": "tablist",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "value",
+     "type": "T1"
+    },
+    {
+     "name": "previous",
+     "type": "0x1::option::Option<T0>"
+    },
+    {
+     "name": "next",
+     "type": "0x1::option::Option<T0>"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    },
+    {
+     "constraints": [
+      "store"
+     ]
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Node",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "table",
+     "type": "0x1::table_with_length::TableWithLength<T0, 0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::tablist::Node<T0, T1>>"
+    },
+    {
+     "name": "head",
+     "type": "0x1::option::Option<T0>"
+    },
+    {
+     "name": "tail",
+     "type": "0x1::option::Option<T0>"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    },
+    {
+     "constraints": [
+      "store"
+     ]
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Tablist",
+   "variants": []
+  }
+ ]
+}

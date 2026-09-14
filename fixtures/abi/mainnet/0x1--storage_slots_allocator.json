@@ -1,0 +1,104 @@
+{
+ "address": "0x1",
+ "name": "storage_slots_allocator",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "Link",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "value",
+       "type": "T0"
+      }
+     ],
+     "name": "Occupied"
+    },
+    {
+     "fields": [
+      {
+       "name": "next",
+       "type": "u64"
+      }
+     ],
+     "name": "Vacant"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "StorageSlotsAllocator",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "slots",
+       "type": "0x1::option::Option<0x1::table_with_length::TableWithLength<u64, 0x1::storage_slots_allocator::Link<T0>>>"
+      },
+      {
+       "name": "new_slot_index",
+       "type": "u64"
+      },
+      {
+       "name": "should_reuse",
+       "type": "bool"
+      },
+      {
+       "name": "reuse_head_index",
+       "type": "u64"
+      },
+      {
+       "name": "reuse_spare_count",
+       "type": "u32"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "slot_index",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "StoredSlot",
+   "variants": []
+  }
+ ]
+}

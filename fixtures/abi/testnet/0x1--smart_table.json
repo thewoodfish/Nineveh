@@ -1,0 +1,84 @@
+{
+ "address": "0x1",
+ "name": "smart_table",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "hash",
+     "type": "u64"
+    },
+    {
+     "name": "key",
+     "type": "T0"
+    },
+    {
+     "name": "value",
+     "type": "T1"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    },
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Entry",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "buckets",
+     "type": "0x1::table_with_length::TableWithLength<u64, vector<0x1::smart_table::Entry<T0, T1>>>"
+    },
+    {
+     "name": "num_buckets",
+     "type": "u64"
+    },
+    {
+     "name": "level",
+     "type": "u8"
+    },
+    {
+     "name": "size",
+     "type": "u64"
+    },
+    {
+     "name": "split_load_threshold",
+     "type": "u8"
+    },
+    {
+     "name": "target_bucket_size",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    },
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "SmartTable",
+   "variants": []
+  }
+ ]
+}

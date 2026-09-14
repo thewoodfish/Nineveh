@@ -12,6 +12,7 @@ publish.workspace = true
 
 [dependencies]
 nineveh-core.workspace = true
+nineveh-proto.workspace = true
 prost.workspace = true
 secrecy.workspace = true
 thiserror.workspace = true

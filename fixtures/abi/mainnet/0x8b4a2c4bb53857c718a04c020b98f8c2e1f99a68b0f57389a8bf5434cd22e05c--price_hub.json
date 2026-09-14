@@ -1,0 +1,86 @@
+{
+ "address": "0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c",
+ "name": "price_hub",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "Feed",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "identifier",
+       "type": "0x7e783b349d3e89cf5931af376ebeadbfab855b3fa239b7ada8f5a92fbea6b387::price_identifier::PriceIdentifier"
+      },
+      {
+       "name": "max_interval",
+       "type": "u64"
+      },
+      {
+       "name": "max_confidence",
+       "type": "u64"
+      }
+     ],
+     "name": "Pyth"
+    },
+    {
+     "fields": [
+      {
+       "name": "benchmark",
+       "type": "0x3f985798ce4975f430ef5c75776ff98a77b9f9d0fb38184d225adc9c1cc6b79b::registry::Benchmark"
+      },
+      {
+       "name": "feed_id",
+       "type": "vector<u8>"
+      },
+      {
+       "name": "max_interval",
+       "type": "u64"
+      }
+     ],
+     "name": "ChainLink"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "precision",
+     "type": "u64"
+    },
+    {
+     "name": "primary_feeder",
+     "type": "0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c::price_hub::Feed"
+    },
+    {
+     "name": "second_feeder",
+     "type": "0x1::option::Option<0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c::price_hub::Feed>"
+    },
+    {
+     "name": "tolerance",
+     "type": "u256"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "AggPriceConfig",
+   "variants": []
+  }
+ ]
+}

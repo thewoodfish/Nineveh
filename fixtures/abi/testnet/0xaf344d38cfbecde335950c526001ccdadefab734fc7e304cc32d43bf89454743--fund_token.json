@@ -1,0 +1,201 @@
+{
+ "address": "0xaf344d38cfbecde335950c526001ccdadefab734fc7e304cc32d43bf89454743",
+ "name": "fund_token",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "account",
+     "type": "address"
+    },
+    {
+     "name": "tx_type",
+     "type": "u64"
+    },
+    {
+     "name": "date",
+     "type": "u64"
+    },
+    {
+     "name": "memo",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "tx_id",
+     "type": "u64"
+    },
+    {
+     "name": "params",
+     "type": "0x1::string::String"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Activity",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "account",
+     "type": "address"
+    },
+    {
+     "name": "trade_ref_id",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "tx_id",
+     "type": "u64"
+    },
+    {
+     "name": "timestamp",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "CreateTransactionRequestEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "date",
+     "type": "u64"
+    },
+    {
+     "name": "last_price",
+     "type": "u64"
+    },
+    {
+     "name": "shareholders",
+     "type": "0x1::smart_table::SmartTable<address, 0xaf344d38cfbecde335950c526001ccdadefab734fc7e304cc32d43bf89454743::fund_token::ShareHolder>"
+    },
+    {
+     "name": "shareholder_accounts",
+     "type": "vector<address>"
+    },
+    {
+     "name": "shareholder_accounts_counter",
+     "type": "u64"
+    },
+    {
+     "name": "shareholder_accounts_with_pending_transactions",
+     "type": "vector<address>"
+    },
+    {
+     "name": "shareholder_accounts_with_pending_transactions_counter",
+     "type": "u64"
+    },
+    {
+     "name": "pending_transactions",
+     "type": "0x1::smart_table::SmartTable<u64, 0xaf344d38cfbecde335950c526001ccdadefab734fc7e304cc32d43bf89454743::fund_token::TransactionPending>"
+    },
+    {
+     "name": "pending_transactions_nonce",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ManagedShareHolders",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "account",
+     "type": "address"
+    },
+    {
+     "name": "request_ids",
+     "type": "vector<u64>"
+    },
+    {
+     "name": "activities",
+     "type": "0x1::simple_map::SimpleMap<u64, 0xaf344d38cfbecde335950c526001ccdadefab734fc7e304cc32d43bf89454743::fund_token::Activity>"
+    },
+    {
+     "name": "activities_counter",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ShareHolder",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "account",
+     "type": "address"
+    },
+    {
+     "name": "destination",
+     "type": "address"
+    },
+    {
+     "name": "trade_ref_id",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "tx_type",
+     "type": "u64"
+    },
+    {
+     "name": "date",
+     "type": "u64"
+    },
+    {
+     "name": "amount",
+     "type": "u64"
+    },
+    {
+     "name": "self_service",
+     "type": "bool"
+    },
+    {
+     "name": "memo",
+     "type": "0x1::string::String"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "TransactionPending",
+   "variants": []
+  }
+ ]
+}

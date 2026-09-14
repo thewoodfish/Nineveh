@@ -1,0 +1,151 @@
+{
+ "address": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f",
+ "name": "perp_engine_types",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "ChildTpSlOrder",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "trigger_price",
+       "type": "u64"
+      },
+      {
+       "name": "parent_order_id",
+       "type": "0x5::order_book_types::OrderId"
+      },
+      {
+       "name": "limit_price",
+       "type": "0x1::option::Option<u64>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "OrderMetadata",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "is_reduce_only",
+       "type": "bool"
+      },
+      {
+       "name": "use_backstop_liquidation_margin",
+       "type": "bool"
+      },
+      {
+       "name": "is_margin_call",
+       "type": "bool"
+      },
+      {
+       "name": "twap",
+       "type": "0x1::option::Option<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::perp_engine_types::TwapMetadata>"
+      },
+      {
+       "name": "tp_sl",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::perp_engine_types::TpSlMetadata"
+      },
+      {
+       "name": "builder_code",
+       "type": "0x1::option::Option<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::builder_code_registry::BuilderCode>"
+      }
+     ],
+     "name": "V1_RETAIL"
+    },
+    {
+     "fields": [
+      {
+       "name": "builder_code",
+       "type": "0x1::option::Option<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::builder_code_registry::BuilderCode>"
+      }
+     ],
+     "name": "V1_BULK"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "TpSlMetadata",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "tp",
+       "type": "0x1::option::Option<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::perp_engine_types::ChildTpSlOrder>"
+      },
+      {
+       "name": "sl",
+       "type": "0x1::option::Option<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::perp_engine_types::ChildTpSlOrder>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "TwapMetadata",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "start_time_seconds",
+       "type": "u64"
+      },
+      {
+       "name": "frequency_seconds",
+       "type": "u64"
+      },
+      {
+       "name": "end_time_seconds",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,23 @@
+{
+ "address": "0x1",
+ "name": "aptos_coin",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "dummy_field",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "AptosCoin",
+   "variants": []
+  }
+ ]
+}

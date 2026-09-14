@@ -1,0 +1,48 @@
+{
+ "address": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02",
+ "name": "fee_table",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "tiers",
+     "type": "vector<0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::fee_table::FeeTier>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "FeeTable",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "base",
+     "type": "u64"
+    },
+    {
+     "name": "rate",
+     "type": "u32"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "FeeTier",
+   "variants": []
+  }
+ ]
+}

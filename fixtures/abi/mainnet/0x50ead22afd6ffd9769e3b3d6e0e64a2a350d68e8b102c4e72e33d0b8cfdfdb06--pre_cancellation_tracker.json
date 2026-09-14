@@ -1,0 +1,59 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "pre_cancellation_tracker",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "expiration_time",
+     "type": "u64"
+    },
+    {
+     "name": "account_order_id",
+     "type": "0x5::order_book_types::AccountClientOrderId"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ExpirationAndOrderId",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PreCancellationTracker",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "pre_cancellation_window_secs",
+       "type": "u64"
+      },
+      {
+       "name": "expiration_with_order_ids",
+       "type": "0x1::big_ordered_map::BigOrderedMap<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::pre_cancellation_tracker::ExpirationAndOrderId, bool>"
+      },
+      {
+       "name": "account_order_ids",
+       "type": "0x1::big_ordered_map::BigOrderedMap<0x5::order_book_types::AccountClientOrderId, u64>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

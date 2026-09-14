@@ -1,0 +1,58 @@
+{
+ "address": "0xe5c5befe31ce06bc1f2fd31210988aac08af6d821b039935557a6f14c03471be",
+ "name": "stablecoin",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "store_owner",
+     "type": "address"
+    },
+    {
+     "name": "store",
+     "type": "address"
+    },
+    {
+     "name": "amount",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "Deposit",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "store_owner",
+     "type": "address"
+    },
+    {
+     "name": "store",
+     "type": "address"
+    },
+    {
+     "name": "amount",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "Withdraw",
+   "variants": []
+  }
+ ]
+}

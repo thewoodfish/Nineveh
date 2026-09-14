@@ -1,0 +1,33 @@
+{
+ "address": "0x1",
+ "name": "type_info",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "account_address",
+     "type": "address"
+    },
+    {
+     "name": "module_name",
+     "type": "vector<u8>"
+    },
+    {
+     "name": "struct_name",
+     "type": "vector<u8>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "TypeInfo",
+   "variants": []
+  }
+ ]
+}

@@ -1,0 +1,59 @@
+{
+ "address": "0x4",
+ "name": "aptos_token",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "mutator_ref",
+     "type": "0x1::option::Option<0x4::collection::MutatorRef>"
+    },
+    {
+     "name": "royalty_mutator_ref",
+     "type": "0x1::option::Option<0x4::royalty::MutatorRef>"
+    },
+    {
+     "name": "mutable_description",
+     "type": "bool"
+    },
+    {
+     "name": "mutable_uri",
+     "type": "bool"
+    },
+    {
+     "name": "mutable_token_description",
+     "type": "bool"
+    },
+    {
+     "name": "mutable_token_name",
+     "type": "bool"
+    },
+    {
+     "name": "mutable_token_properties",
+     "type": "bool"
+    },
+    {
+     "name": "mutable_token_uri",
+     "type": "bool"
+    },
+    {
+     "name": "tokens_burnable_by_creator",
+     "type": "bool"
+    },
+    {
+     "name": "tokens_freezable_by_creator",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "AptosCollection",
+   "variants": []
+  }
+ ]
+}

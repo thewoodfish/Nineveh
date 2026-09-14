@@ -1,0 +1,51 @@
+{
+ "address": "0x4",
+ "name": "royalty",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "inner",
+     "type": "0x1::object::ExtendRef"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MutatorRef",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "numerator",
+     "type": "u64"
+    },
+    {
+     "name": "denominator",
+     "type": "u64"
+    },
+    {
+     "name": "payee_address",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Royalty",
+   "variants": []
+  }
+ ]
+}

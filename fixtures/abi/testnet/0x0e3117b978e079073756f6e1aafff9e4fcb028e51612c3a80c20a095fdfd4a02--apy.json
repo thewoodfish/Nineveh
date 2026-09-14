@@ -1,0 +1,36 @@
+{
+ "address": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02",
+ "name": "apy",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "amount",
+     "type": "u64"
+    },
+    {
+     "name": "market_id",
+     "type": "u64"
+    },
+    {
+     "name": "user",
+     "type": "address"
+    },
+    {
+     "name": "reward_amount",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "BorrowRerollEvent",
+   "variants": []
+  }
+ ]
+}

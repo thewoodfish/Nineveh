@@ -1,0 +1,81 @@
+{
+ "address": "0xd8ffac0550688430db9b37094987b20eb7020aad2f8a740028f64faa498897c8",
+ "name": "storage",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "nft_owner",
+     "type": "0x1::simple_map::SimpleMap<u64, address>"
+    },
+    {
+     "name": "instantly_nft_list",
+     "type": "vector<u64>"
+    },
+    {
+     "name": "offer_nft_list",
+     "type": "vector<u64>"
+    },
+    {
+     "name": "offer_nft_map",
+     "type": "0x1::simple_map::SimpleMap<u64, 0xd8ffac0550688430db9b37094987b20eb7020aad2f8a740028f64faa498897c8::storage::OfferRecord>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ListedNFT",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "offer_price",
+     "type": "u256"
+    },
+    {
+     "name": "offer_time",
+     "type": "u256"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Offer",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "user_offer_list",
+     "type": "vector<address>"
+    },
+    {
+     "name": "user_offer_map",
+     "type": "0x1::simple_map::SimpleMap<address, 0xd8ffac0550688430db9b37094987b20eb7020aad2f8a740028f64faa498897c8::storage::Offer>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "OfferRecord",
+   "variants": []
+  }
+ ]
+}

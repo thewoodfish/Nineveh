@@ -1,0 +1,113 @@
+{
+ "address": "0x92af222254470faeda82d447067ce14b38ceafedb4c7ea462bf6b1e98cecf1f8",
+ "name": "namespace",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "data",
+     "type": "0x1::option::Option<T0>"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "store"
+     ]
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Container",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "project_address",
+     "type": "address"
+    },
+    {
+     "name": "namespace",
+     "type": "0x1::object::Object<0x92af222254470faeda82d447067ce14b38ceafedb4c7ea462bf6b1e98cecf1f8::namespace::NamespaceCore>"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "DataFetchedByWitness",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "project_info",
+     "type": "address"
+    },
+    {
+     "name": "extend_ref",
+     "type": "0x1::object::ExtendRef"
+    },
+    {
+     "name": "transfer_ref",
+     "type": "0x1::object::TransferRef"
+    },
+    {
+     "name": "parent",
+     "type": "0x1::option::Option<address>"
+    },
+    {
+     "name": "children",
+     "type": "vector<address>"
+    },
+    {
+     "name": "created_at",
+     "type": "u64"
+    },
+    {
+     "name": "updated_at",
+     "type": "u64"
+    },
+    {
+     "name": "is_verified",
+     "type": "bool"
+    },
+    {
+     "name": "attributes",
+     "type": "0x1::smart_table::SmartTable<0x1::string::String, 0x1::string::String>"
+    },
+    {
+     "name": "access_count",
+     "type": "u64"
+    },
+    {
+     "name": "last_accessed",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "NamespaceCore",
+   "variants": []
+  }
+ ]
+}

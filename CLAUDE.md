@@ -60,12 +60,15 @@ Rust workspace (`crates/nineveh-*`) plus a `studio/` web app. Crates are created
 they get real code; the dependency direction between them is enforced by
 `scripts/check-deps.sh` (ADR 0005).
 
-- `nineveh-core`     — shared domain types (Version, ChainId, Network, …). No I/O, no async.
-- `nineveh-ingest`   — Transaction Stream gRPC client (tonic) over vendored, pinned protos
-                       (ADR 0001). Ordered, gap-checked delivery; backpressure.
+- `nineveh-core`     — shared domain types: Version, Network, Address, TypeTag, exact
+                       U256/I256, decoded Move `Value`. No I/O, no async.
+- `nineveh-proto`    — Transaction Stream message types (prost only) generated from the
+                       vendored, pinned protos in `proto/` (ADRs 0001, 0010).
+- `nineveh-ingest`   — Transaction Stream gRPC client (tonic). Ordered, gap-checked
+                       delivery; backpressure.
 - `nineveh-decode`   — type-directed decoding of the stream's JSON-rendered Move values
                        (events, resources, table items) against layouts pinned in
-                       `nineveh.lock`. Nested structs, `vector<Struct>`, generics.
+                       `nineveh.lock` (ADR 0010). Nested structs, enums, generics.
 - `nineveh-expr`     — the reducer expression language: typed, total, exact u8–u256
                        integer arithmetic (ADR 0007).
 - `nineveh-engine`   — the pure fold: `StateView × Records → ChangeSet`. No I/O.
@@ -86,6 +89,8 @@ they get real code; the dependency direction between them is enforced by
 - `studio/`          — the dashboard (Next.js/React + Tailwind, TypeScript). NOT a Rust
                        crate. Talks to `nineveh-control` + the project's API. See below.
 - `xtask/`           — repo automation (`cargo xtask codegen [--check]`). Not published.
+- `fixtures/`        — real stream transactions (`<network>/*.pb`) and the trimmed module
+                       ABIs they need (`abi/<network>/`), for offline decode tests.
 - `docs/adr/`        — architecture decision records. Read the relevant ADR before
                        changing a decision; supersede it with a new ADR, don't edit it.
 

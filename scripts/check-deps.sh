@@ -10,6 +10,7 @@ cd "$(dirname "$0")/.."
 
 rules=(
   "nineveh-core     tokio sqlx tonic"
+  "nineveh-proto    tokio sqlx tonic"
   "nineveh-config   tokio sqlx tonic"
   "nineveh-expr     tokio sqlx tonic"
   "nineveh-decode   tokio sqlx"

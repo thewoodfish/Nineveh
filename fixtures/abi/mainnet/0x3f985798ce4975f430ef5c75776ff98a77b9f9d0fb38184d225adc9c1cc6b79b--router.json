@@ -1,0 +1,28 @@
+{
+ "address": "0x3f985798ce4975f430ef5c75776ff98a77b9f9d0fb38184d225adc9c1cc6b79b",
+ "name": "router",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "feed_ids",
+     "type": "vector<vector<u8>>"
+    },
+    {
+     "name": "benchmarks",
+     "type": "vector<0x3f985798ce4975f430ef5c75776ff98a77b9f9d0fb38184d225adc9c1cc6b79b::registry::Benchmark>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "FeedRead",
+   "variants": []
+  }
+ ]
+}

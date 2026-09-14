@@ -1,0 +1,169 @@
+{
+ "address": "0xd8ffac0550688430db9b37094987b20eb7020aad2f8a740028f64faa498897c8",
+ "name": "lending_pool",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "borrow_amount",
+     "type": "u256"
+    },
+    {
+     "name": "repaid_amount",
+     "type": "u256"
+    },
+    {
+     "name": "total_collateral_amount",
+     "type": "u256"
+    },
+    {
+     "name": "lasted_update_time",
+     "type": "u64"
+    },
+    {
+     "name": "health_factor",
+     "type": "u256"
+    },
+    {
+     "name": "available_to_borrow",
+     "type": "u256"
+    },
+    {
+     "name": "collateral_list",
+     "type": "vector<u64>"
+    },
+    {
+     "name": "collateral_map",
+     "type": "0x1::simple_map::SimpleMap<u64, 0xd8ffac0550688430db9b37094987b20eb7020aad2f8a740028f64faa498897c8::lending_pool::NFT>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Borrower",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "deposit_amount",
+     "type": "u256"
+    },
+    {
+     "name": "lasted_update_time",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Lender",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "total_deposit",
+     "type": "u256"
+    },
+    {
+     "name": "deposit_apy",
+     "type": "u256"
+    },
+    {
+     "name": "borrow_apy",
+     "type": "u256"
+    },
+    {
+     "name": "lender_list",
+     "type": "vector<address>"
+    },
+    {
+     "name": "lender_map",
+     "type": "0x1::simple_map::SimpleMap<address, 0xd8ffac0550688430db9b37094987b20eb7020aad2f8a740028f64faa498897c8::lending_pool::Lender>"
+    },
+    {
+     "name": "borrower_list",
+     "type": "vector<address>"
+    },
+    {
+     "name": "borrower_map",
+     "type": "0x1::simple_map::SimpleMap<address, 0xd8ffac0550688430db9b37094987b20eb7020aad2f8a740028f64faa498897c8::lending_pool::Borrower>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Market",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "reserve",
+     "type": "0x1::coin::Coin<T0>"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MarketReserve",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "price",
+     "type": "u256"
+    },
+    {
+     "name": "ltv",
+     "type": "u256"
+    },
+    {
+     "name": "liquidation_threshold",
+     "type": "u256"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "NFT",
+   "variants": []
+  }
+ ]
+}

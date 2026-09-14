@@ -1,0 +1,353 @@
+{
+ "address": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02",
+ "name": "user",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "id",
+     "type": "u64"
+    },
+    {
+     "name": "user_address",
+     "type": "address"
+    },
+    {
+     "name": "market_id",
+     "type": "u64"
+    },
+    {
+     "name": "side",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "CloseContractEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "id",
+     "type": "u64"
+    },
+    {
+     "name": "maturity_timestamp",
+     "type": "u64"
+    },
+    {
+     "name": "principal_amount",
+     "type": "u64"
+    },
+    {
+     "name": "annual_interest_amount",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Contract",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "principal_amount",
+     "type": "u64"
+    },
+    {
+     "name": "annual_interest_amount",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Counters",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "id",
+     "type": "u64"
+    },
+    {
+     "name": "user_address",
+     "type": "address"
+    },
+    {
+     "name": "market_id",
+     "type": "u64"
+    },
+    {
+     "name": "side",
+     "type": "bool"
+    },
+    {
+     "name": "maturity_timestamp",
+     "type": "u64"
+    },
+    {
+     "name": "principal_amount",
+     "type": "u64"
+    },
+    {
+     "name": "annual_interest_amount",
+     "type": "u64"
+    },
+    {
+     "name": "protocol_fee_amount",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "CreateContractEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "liquidation_step",
+     "type": "u8"
+    },
+    {
+     "name": "markets_not_sanitized",
+     "type": "u64"
+    },
+    {
+     "name": "markets_not_netted",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "LiquidationState",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "lend_reroll_order",
+     "type": "u128"
+    },
+    {
+     "name": "lend_reroll_rate",
+     "type": "u64"
+    },
+    {
+     "name": "lend_reroll_until",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MarketSettings",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "period_divisor",
+     "type": "u64"
+    },
+    {
+     "name": "overpayment",
+     "type": "u64"
+    },
+    {
+     "name": "repaid",
+     "type": "u64"
+    },
+    {
+     "name": "claimed",
+     "type": "u64"
+    },
+    {
+     "name": "fee",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::user::Register"
+    },
+    {
+     "name": "bid_total",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::user::Counters"
+    },
+    {
+     "name": "ask_total",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::user::Counters"
+    },
+    {
+     "name": "borrow_amount_in_market",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::user::Counters"
+    },
+    {
+     "name": "borrow",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::ref_linked_list::LinkedList<0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::user::Contract>"
+    },
+    {
+     "name": "lend",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::ref_linked_list::LinkedList<0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::user::Contract>"
+    },
+    {
+     "name": "market_settings",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::user::MarketSettings"
+    },
+    {
+     "name": "lot_size",
+     "type": "u64"
+    },
+    {
+     "name": "tick_size",
+     "type": "u64"
+    },
+    {
+     "name": "min_size",
+     "type": "u64"
+    },
+    {
+     "name": "asks",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::tablist::Tablist<u64, 0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::user::Order>"
+    },
+    {
+     "name": "bids",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::tablist::Tablist<u64, 0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::user::Order>"
+    },
+    {
+     "name": "base_total",
+     "type": "u64"
+    },
+    {
+     "name": "base_available",
+     "type": "u64"
+    },
+    {
+     "name": "base_ceiling",
+     "type": "u64"
+    },
+    {
+     "name": "netted",
+     "type": "bool"
+    },
+    {
+     "name": "sanitized",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MarketState",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "market_ids",
+     "type": "vector<u64>"
+    },
+    {
+     "name": "states",
+     "type": "0x1::table::Table<u64, 0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::user::MarketState>"
+    },
+    {
+     "name": "liquidation_state",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::user::LiquidationState"
+    },
+    {
+     "name": "contract_counter",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MarketStates",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "market_order_id",
+     "type": "u128"
+    },
+    {
+     "name": "size",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Order",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "integral",
+     "type": "u64"
+    },
+    {
+     "name": "fractional",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Register",
+   "variants": []
+  }
+ ]
+}

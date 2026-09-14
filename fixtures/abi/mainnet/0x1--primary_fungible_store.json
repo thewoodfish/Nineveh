@@ -1,0 +1,23 @@
+{
+ "address": "0x1",
+ "name": "primary_fungible_store",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "metadata_derive_ref",
+     "type": "0x1::object::DeriveRef"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "DeriveRefPod",
+   "variants": []
+  }
+ ]
+}

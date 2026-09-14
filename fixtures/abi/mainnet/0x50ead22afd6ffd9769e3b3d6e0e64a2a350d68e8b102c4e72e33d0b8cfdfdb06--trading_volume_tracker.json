@@ -1,0 +1,126 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "trading_volume_tracker",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "DayVolume",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "day_since_epoch",
+       "type": "u64"
+      },
+      {
+       "name": "volume",
+       "type": "u128"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "TradingVolumeBucket",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "global_history",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::trading_volume_tracker::VolumeHistory"
+      },
+      {
+       "name": "user_taker_volume_history",
+       "type": "0x1::table::Table<address, 0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::trading_volume_tracker::VolumeHistory>"
+      },
+      {
+       "name": "user_maker_volume_history",
+       "type": "0x1::table::Table<address, 0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::trading_volume_tracker::VolumeHistory>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "TradingVolumeBucketType",
+   "variants": [
+    {
+     "fields": [],
+     "name": "Perp"
+    },
+    {
+     "fields": [],
+     "name": "Spot"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "VolumeHistory",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "latest_day_since_epoch",
+       "type": "u64"
+      },
+      {
+       "name": "latest_day_volume",
+       "type": "0x1::aggregator_v2::Aggregator<u128>"
+      },
+      {
+       "name": "history",
+       "type": "vector<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::trading_volume_tracker::DayVolume>"
+      },
+      {
+       "name": "total_volume_in_window",
+       "type": "u128"
+      },
+      {
+       "name": "total_volume_all_time",
+       "type": "0x1::aggregator_v2::Aggregator<u128>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

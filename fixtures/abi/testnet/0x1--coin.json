@@ -1,0 +1,215 @@
+{
+ "address": "0x1",
+ "name": "coin",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "amount",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "DepositEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "amount",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "WithdrawEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "dummy_field",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "BurnCapability",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "value",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Coin",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "name",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "symbol",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "decimals",
+     "type": "u8"
+    },
+    {
+     "name": "supply",
+     "type": "0x1::option::Option<0x1::optional_aggregator::OptionalAggregator>"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "CoinInfo",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "coin",
+     "type": "0x1::coin::Coin<T0>"
+    },
+    {
+     "name": "frozen",
+     "type": "bool"
+    },
+    {
+     "name": "deposit_events",
+     "type": "0x1::event::EventHandle<0x1::coin::DepositEvent>"
+    },
+    {
+     "name": "withdraw_events",
+     "type": "0x1::event::EventHandle<0x1::coin::WithdrawEvent>"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "CoinStore",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "dummy_field",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MintCapability",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "type",
+     "type": "0x1::type_info::TypeInfo"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "PairedCoinType",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "mint_ref_opt",
+     "type": "0x1::option::Option<0x1::fungible_asset::MintRef>"
+    },
+    {
+     "name": "transfer_ref_opt",
+     "type": "0x1::option::Option<0x1::fungible_asset::TransferRef>"
+    },
+    {
+     "name": "burn_ref_opt",
+     "type": "0x1::option::Option<0x1::fungible_asset::BurnRef>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "PairedFungibleAssetRefs",
+   "variants": []
+  }
+ ]
+}

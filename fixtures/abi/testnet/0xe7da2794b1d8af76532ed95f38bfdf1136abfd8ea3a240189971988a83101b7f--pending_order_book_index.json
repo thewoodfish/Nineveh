@@ -1,0 +1,105 @@
+{
+ "address": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f",
+ "name": "pending_order_book_index",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "price",
+     "type": "u64"
+    },
+    {
+     "name": "tie_breaker",
+     "type": "0x5::order_book_types::DecreasingIdx"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingDownOrderKey",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingOrderBookIndex",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "price_move_down_index",
+       "type": "0x1::big_ordered_map::BigOrderedMap<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_book_index::PendingDownOrderKey, 0x5::order_book_types::OrderId>"
+      },
+      {
+       "name": "price_move_up_index",
+       "type": "0x1::big_ordered_map::BigOrderedMap<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_book_index::PendingUpOrderKey, 0x5::order_book_types::OrderId>"
+      },
+      {
+       "name": "time_based_index",
+       "type": "0x1::big_ordered_map::BigOrderedMap<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_book_index::PendingTimeKey, 0x5::order_book_types::OrderId>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "time",
+     "type": "u64"
+    },
+    {
+     "name": "tie_breaker",
+     "type": "0x5::order_book_types::IncreasingIdx"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingTimeKey",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "price",
+     "type": "u64"
+    },
+    {
+     "name": "tie_breaker",
+     "type": "0x5::order_book_types::IncreasingIdx"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingUpOrderKey",
+   "variants": []
+  }
+ ]
+}

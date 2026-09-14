@@ -1,0 +1,204 @@
+{
+ "address": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f",
+ "name": "pending_order_tracker",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingMarketState",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "pending_margin",
+       "type": "u64"
+      },
+      {
+       "name": "pending_single_longs",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_tracker::PendingOrderSummary"
+      },
+      {
+       "name": "pending_single_shorts",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_tracker::PendingOrderSummary"
+      },
+      {
+       "name": "pending_bulk_longs",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_tracker::PendingOrderSummary"
+      },
+      {
+       "name": "pending_bulk_shorts",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_tracker::PendingOrderSummary"
+      },
+      {
+       "name": "reduce_only_orders",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_tracker::ReduceOnlyOrders"
+      },
+      {
+       "name": "tp_reqs",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_tracker::PendingTpSLs"
+      },
+      {
+       "name": "sl_reqs",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_tracker::PendingTpSLs"
+      },
+      {
+       "name": "pending_order_ids",
+       "type": "0x1::option::Option<0x1::big_ordered_map::BigOrderedMap<0x5::order_book_types::OrderId, u64>>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingOrderSummary",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "price_size_sum",
+       "type": "u128"
+      },
+      {
+       "name": "size_sum",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingTpSLs",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "full_sized",
+       "type": "0x1::option::Option<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_tracker::PendingTpSlKey>"
+      },
+      {
+       "name": "fixed_sized",
+       "type": "vector<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_tracker::PendingTpSlKey>"
+      },
+      {
+       "name": "pending_order_based_tp_sl_count",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingTpSlKey",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "price_index",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::position_tp_sl_tracker::PriceIndexKey"
+      },
+      {
+       "name": "order_id",
+       "type": "0x5::order_book_types::OrderId"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "ReduceOnlyOrderInfo",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "order_id",
+       "type": "0x5::order_book_types::OrderId"
+      },
+      {
+       "name": "size",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "ReduceOnlyOrders",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "total_size",
+       "type": "u64"
+      },
+      {
+       "name": "orders",
+       "type": "vector<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_tracker::ReduceOnlyOrderInfo>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,109 @@
+{
+ "address": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02",
+ "name": "red_black_tree",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "key",
+     "type": "u128"
+    },
+    {
+     "name": "values",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::linked_list::LinkedList<T0>"
+    },
+    {
+     "name": "parentNodeKey",
+     "type": "u128"
+    },
+    {
+     "name": "leftChildNodeKey",
+     "type": "u128"
+    },
+    {
+     "name": "rightChildNodeKey",
+     "type": "u128"
+    },
+    {
+     "name": "parentNodeKeyIsSet",
+     "type": "bool"
+    },
+    {
+     "name": "leftChildNodeKeyIsSet",
+     "type": "bool"
+    },
+    {
+     "name": "rightChildNodeKeyIsSet",
+     "type": "bool"
+    },
+    {
+     "name": "isRed",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Node",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "keyCount",
+     "type": "u128"
+    },
+    {
+     "name": "valueCount",
+     "type": "u128"
+    },
+    {
+     "name": "maxKey",
+     "type": "u128"
+    },
+    {
+     "name": "minKey",
+     "type": "u128"
+    },
+    {
+     "name": "rootNodeKey",
+     "type": "u128"
+    },
+    {
+     "name": "nodes",
+     "type": "0x1::table::Table<u128, 0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::red_black_tree::Node<T0>>"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Tree",
+   "variants": []
+  }
+ ]
+}

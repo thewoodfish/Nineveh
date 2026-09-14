@@ -1,0 +1,48 @@
+{
+ "address": "0x1",
+ "name": "optional_aggregator",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "value",
+     "type": "u128"
+    },
+    {
+     "name": "limit",
+     "type": "u128"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Integer",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "aggregator",
+     "type": "0x1::option::Option<0x1::aggregator::Aggregator>"
+    },
+    {
+     "name": "integer",
+     "type": "0x1::option::Option<0x1::optional_aggregator::Integer>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "OptionalAggregator",
+   "variants": []
+  }
+ ]
+}

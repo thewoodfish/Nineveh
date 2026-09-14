@@ -1,0 +1,401 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "async_matching_engine",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingRequest",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "_0",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::async_matching_engine::PendingOrder"
+      }
+     ],
+     "name": "Order"
+    },
+    {
+     "fields": [
+      {
+       "name": "_0",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::async_matching_engine::PendingTwap"
+      }
+     ],
+     "name": "Twap"
+    },
+    {
+     "fields": [
+      {
+       "name": "_0",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::async_matching_engine::ContinuedPendingOrder"
+      }
+     ],
+     "name": "ContinuedOrder"
+    },
+    {
+     "fields": [
+      {
+       "name": "user",
+       "type": "address"
+      },
+      {
+       "name": "batch_key",
+       "type": "u128"
+      }
+     ],
+     "name": "BackstopLiquidation"
+    },
+    {
+     "fields": [
+      {
+       "name": "user",
+       "type": "address"
+      },
+      {
+       "name": "continuation",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::liquidation::MarginCallContinuation"
+      },
+      {
+       "name": "batch_key",
+       "type": "u128"
+      }
+     ],
+     "name": "MarginCall"
+    },
+    {
+     "fields": [
+      {
+       "name": "batch_key",
+       "type": "u128"
+      }
+     ],
+     "name": "CheckADL"
+    },
+    {
+     "fields": [
+      {
+       "name": "adl_price",
+       "type": "u64"
+      },
+      {
+       "name": "batch_key",
+       "type": "u128"
+      }
+     ],
+     "name": "TriggerADL"
+    },
+    {
+     "fields": [
+      {
+       "name": "mark_px",
+       "type": "u64"
+      },
+      {
+       "name": "batch_key",
+       "type": "u128"
+      }
+     ],
+     "name": "CommitMarkPrice"
+    },
+    {
+     "fields": [
+      {
+       "name": "payload",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::async_matching_engine::QueueBackstopLiquidationsAndADLPayload"
+      },
+      {
+       "name": "batch_key",
+       "type": "u128"
+      }
+     ],
+     "name": "QueueBackstopLiquidationsAndADL"
+    },
+    {
+     "fields": [
+      {
+       "name": "payload",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::async_matching_engine::QueueMarginCallLiquidationsPayload"
+      },
+      {
+       "name": "batch_key",
+       "type": "u128"
+      }
+     ],
+     "name": "QueueMarginCallLiquidations"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "AsyncMatchingEngine",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "pending_requests",
+       "type": "0x1::big_ordered_map::BigOrderedMap<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::async_matching_engine::PendingRequestKey, 0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::async_matching_engine::PendingRequest>"
+      },
+      {
+       "name": "async_matching_enabled",
+       "type": "bool"
+      },
+      {
+       "name": "backstop_liquidations_in_queue",
+       "type": "0x1::big_ordered_map::BigOrderedMap<address, bool>"
+      },
+      {
+       "name": "margin_call_liquidations_in_queue",
+       "type": "0x1::big_ordered_map::BigOrderedMap<address, bool>"
+      },
+      {
+       "name": "mark_prices_in_queue",
+       "type": "vector<u64>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "ContinuedPendingOrder",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "order_args",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_order::PerpOrderRequestExtendedArgs"
+      },
+      {
+       "name": "order_metadata",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_engine_types::OrderMetadata"
+      },
+      {
+       "name": "remaining_size",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingOrder",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "order_args",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_order::PerpOrderRequestExtendedArgs"
+      },
+      {
+       "name": "order_metadata",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_engine_types::OrderMetadata"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingRequestKey",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "time",
+       "type": "u64"
+      },
+      {
+       "name": "priority",
+       "type": "u8"
+      },
+      {
+       "name": "tie_breaker",
+       "type": "u128"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PendingTwap",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "account",
+       "type": "address"
+      },
+      {
+       "name": "order_id",
+       "type": "0x5::order_book_types::OrderId"
+      },
+      {
+       "name": "is_buy",
+       "type": "bool"
+      },
+      {
+       "name": "orig_size",
+       "type": "u64"
+      },
+      {
+       "name": "instance_remaining_size",
+       "type": "0x1::option::Option<u64>"
+      },
+      {
+       "name": "remaining_size",
+       "type": "u64"
+      },
+      {
+       "name": "is_reduce_only",
+       "type": "bool"
+      },
+      {
+       "name": "twap_start_time_s",
+       "type": "u64"
+      },
+      {
+       "name": "twap_frequency_s",
+       "type": "u64"
+      },
+      {
+       "name": "twap_end_time_s",
+       "type": "u64"
+      },
+      {
+       "name": "builder_code",
+       "type": "0x1::option::Option<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::builder_code_registry::BuilderCode>"
+      },
+      {
+       "name": "client_order_id",
+       "type": "0x1::option::Option<0x1::string::String>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "QueueBackstopLiquidationsAndADLPayload",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "backstop_liquidations",
+       "type": "vector<address>"
+      },
+      {
+       "name": "backstop_liquidation_keys",
+       "type": "vector<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::async_matching_engine::PendingRequestKey>"
+      },
+      {
+       "name": "check_adl_key",
+       "type": "0x1::option::Option<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::async_matching_engine::PendingRequestKey>"
+      },
+      {
+       "name": "any_backstop_liquidation_added",
+       "type": "bool"
+      },
+      {
+       "name": "needs_adl_check",
+       "type": "bool"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "QueueMarginCallLiquidationsPayload",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "margin_call_liquidations",
+       "type": "vector<address>"
+      },
+      {
+       "name": "margin_call_liquidation_keys",
+       "type": "vector<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::async_matching_engine::PendingRequestKey>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

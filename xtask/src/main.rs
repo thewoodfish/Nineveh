@@ -6,6 +6,10 @@
 //! Bindings are checked in rather than generated in a build script. That way
 //! downstream builds need no protobuf compiler, and every proto bump shows up as a
 //! reviewable diff.
+//!
+//! Codegen runs in two passes. The message types go to `nineveh-proto`, which needs
+//! only `prost`, so the decoder can read transactions without an async runtime. The
+//! gRPC client goes to `nineveh-ingest` and refers to those messages by extern path.
 
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
@@ -48,39 +52,85 @@ enum Mode {
     Check,
 }
 
+/// Where one codegen pass writes its bindings, relative to the workspace root.
+#[derive(Clone, Copy)]
+enum Pass {
+    /// Message types only, into `nineveh-proto`.
+    Messages,
+    /// The gRPC client only, into `nineveh-ingest`.
+    Client,
+}
+
+impl Pass {
+    const ALL: [Self; 2] = [Self::Messages, Self::Client];
+
+    fn checked_in(self) -> &'static str {
+        match self {
+            Self::Messages => "crates/nineveh-proto/src/generated",
+            Self::Client => "crates/nineveh-ingest/src/proto/generated",
+        }
+    }
+
+    fn check_dir(self) -> &'static str {
+        match self {
+            Self::Messages => "target/xtask/codegen-check/messages",
+            Self::Client => "target/xtask/codegen-check/client",
+        }
+    }
+}
+
 fn codegen(mode: Mode) -> Result<()> {
     let root = workspace_root();
-    let proto_dir = root.join("crates/nineveh-ingest/proto");
-    let checked_in = root.join("crates/nineveh-ingest/src/proto/generated");
-
-    let out_dir = match mode {
-        Mode::Write => checked_in.clone(),
-        Mode::Check => root.join("target/xtask/codegen-check"),
-    };
-    reset_dir(&out_dir)?;
-
+    let proto_dir = root.join("crates/nineveh-proto/proto");
     let entrypoints: Vec<PathBuf> = PROTO_ENTRYPOINTS
         .iter()
         .map(|p| proto_dir.join(p))
         .collect();
-    let fds = protox::compile(&entrypoints, [&proto_dir])
-        .with_context(|| format!("compiling protos under {}", proto_dir.display()))?;
 
-    tonic_prost_build::configure()
-        .build_client(true)
-        .build_server(false)
-        .build_transport(false)
-        .emit_rerun_if_changed(false)
-        .out_dir(&out_dir)
-        .compile_fds(fds)
-        .context("generating Rust bindings")?;
+    let mut stale = Vec::new();
+    for pass in Pass::ALL {
+        let checked_in = root.join(pass.checked_in());
+        let out_dir = match mode {
+            Mode::Write => checked_in.clone(),
+            Mode::Check => root.join(pass.check_dir()),
+        };
+        reset_dir(&out_dir)?;
 
-    match mode {
-        Mode::Write => {
-            println!("wrote bindings to {}", checked_in.display());
-            Ok(())
+        let fds = protox::compile(&entrypoints, [&proto_dir])
+            .with_context(|| format!("compiling protos under {}", proto_dir.display()))?;
+        let builder = tonic_prost_build::configure()
+            .build_server(false)
+            .build_transport(false)
+            .emit_rerun_if_changed(false)
+            .out_dir(&out_dir);
+        let builder = match pass {
+            Pass::Messages => builder.build_client(false),
+            Pass::Client => builder
+                .build_client(true)
+                .extern_path(".aptos", "::nineveh_proto::aptos"),
+        };
+        builder
+            .compile_fds(fds)
+            .context("generating Rust bindings")?;
+        // Packages with nothing left to generate come out empty; don't check them in.
+        remove_empty(&out_dir)?;
+
+        match mode {
+            Mode::Write => println!("wrote bindings to {}", checked_in.display()),
+            Mode::Check => stale.extend(compare_dirs(&out_dir, &checked_in)?),
         }
-        Mode::Check => compare_dirs(&out_dir, &checked_in),
+    }
+
+    if stale.is_empty() {
+        if mode == Mode::Check {
+            println!("bindings are up to date");
+        }
+        Ok(())
+    } else {
+        bail!(
+            "generated bindings are stale ({}); run `cargo xtask codegen` and commit the result",
+            stale.join(", ")
+        )
     }
 }
 
@@ -110,7 +160,19 @@ fn rs_files(dir: &Path) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-fn compare_dirs(fresh: &Path, checked_in: &Path) -> Result<()> {
+fn remove_empty(dir: &Path) -> Result<()> {
+    for path in rs_files(dir)? {
+        let contents =
+            fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+        if contents.trim().is_empty() {
+            fs::remove_file(&path).with_context(|| format!("removing {}", path.display()))?;
+        }
+    }
+    Ok(())
+}
+
+/// The paths, relative to the workspace, of files that differ between the two dirs.
+fn compare_dirs(fresh: &Path, checked_in: &Path) -> Result<Vec<String>> {
     let names = |dir: &Path| -> Result<Vec<String>> {
         Ok(rs_files(dir)?
             .iter()
@@ -123,18 +185,10 @@ fn compare_dirs(fresh: &Path, checked_in: &Path) -> Result<()> {
     for name in fresh_names.iter().chain(&checked_names) {
         let a = fs::read(fresh.join(name)).ok();
         let b = fs::read(checked_in.join(name)).ok();
-        if a != b && !stale.contains(name) {
-            stale.push(name.clone());
+        let path = checked_in.join(name).display().to_string();
+        if a != b && !stale.contains(&path) {
+            stale.push(path);
         }
     }
-
-    if stale.is_empty() {
-        println!("bindings are up to date");
-        Ok(())
-    } else {
-        bail!(
-            "generated bindings are stale ({}); run `cargo xtask codegen` and commit the result",
-            stale.join(", ")
-        )
-    }
+    Ok(stale)
 }

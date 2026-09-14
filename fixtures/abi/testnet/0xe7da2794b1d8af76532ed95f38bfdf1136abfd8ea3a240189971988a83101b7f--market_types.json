@@ -1,0 +1,167 @@
+{
+ "address": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f",
+ "name": "market_types",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": true,
+   "is_native": false,
+   "name": "BulkOrderPlacedEvent",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "parent",
+       "type": "address"
+      },
+      {
+       "name": "market",
+       "type": "address"
+      },
+      {
+       "name": "order_id",
+       "type": "u128"
+      },
+      {
+       "name": "sequence_number",
+       "type": "u64"
+      },
+      {
+       "name": "user",
+       "type": "address"
+      },
+      {
+       "name": "bid_prices",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "bid_sizes",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "ask_prices",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "ask_sizes",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "cancelled_bid_prices",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "cancelled_bid_sizes",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "cancelled_ask_prices",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "cancelled_ask_sizes",
+       "type": "vector<u64>"
+      },
+      {
+       "name": "previous_seq_num",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "Market",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "parent",
+       "type": "address"
+      },
+      {
+       "name": "market",
+       "type": "address"
+      },
+      {
+       "name": "config",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::market_types::MarketConfig"
+      },
+      {
+       "name": "order_book",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::order_book::OrderBook<T0>"
+      },
+      {
+       "name": "secondary_resources_ref",
+       "type": "0x1::object::ExtendRef"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "MarketConfig",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "allow_self_trade",
+       "type": "bool"
+      },
+      {
+       "name": "allow_events_emission",
+       "type": "bool"
+      },
+      {
+       "name": "pre_cancellation_window_secs",
+       "type": "u64"
+      },
+      {
+       "name": "enable_dead_mans_switch",
+       "type": "bool"
+      },
+      {
+       "name": "min_keep_alive_time_secs",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

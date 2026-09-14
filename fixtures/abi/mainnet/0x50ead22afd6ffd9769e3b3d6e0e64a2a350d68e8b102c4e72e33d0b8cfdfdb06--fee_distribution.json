@@ -1,0 +1,83 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "fee_distribution",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "FeeDistribution",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "balance_type",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::collateral_balance_sheet::CollateralBalanceType"
+      },
+      {
+       "name": "position_fee_delta",
+       "type": "i64"
+      },
+      {
+       "name": "treasury_fee_delta",
+       "type": "i64"
+      },
+      {
+       "name": "builder_or_referrer_fees",
+       "type": "0x1::option::Option<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::fee_distribution::FeeWithDestination>"
+      }
+     ],
+     "name": "RegularTrade_V1"
+    },
+    {
+     "fields": [
+      {
+       "name": "balance_type",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::collateral_balance_sheet::CollateralBalanceType"
+      },
+      {
+       "name": "position_fee_delta",
+       "type": "i64"
+      }
+     ],
+     "name": "MarginCall_V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "FeeWithDestination",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "address",
+       "type": "address"
+      },
+      {
+       "name": "fees",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

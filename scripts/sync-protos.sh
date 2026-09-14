@@ -15,7 +15,7 @@ if [[ ! "$rev" =~ ^[0-9a-f]{40}$ ]]; then
 fi
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-dest="$root/crates/nineveh-ingest/proto"
+dest="$root/crates/nineveh-proto/proto"
 base="https://raw.githubusercontent.com/aptos-labs/aptos-core/$rev/protos/proto"
 
 files=(

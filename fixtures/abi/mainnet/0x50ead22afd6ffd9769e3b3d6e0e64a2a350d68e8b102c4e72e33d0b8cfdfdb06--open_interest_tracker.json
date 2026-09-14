@@ -1,0 +1,67 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "open_interest_tracker",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "OpenInterestTracker",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "max_open_interest",
+       "type": "u64"
+      },
+      {
+       "name": "current_open_interest",
+       "type": "u64"
+      },
+      {
+       "name": "max_notional_open_interest",
+       "type": "u64"
+      },
+      {
+       "name": "lot_size",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": true,
+   "is_native": false,
+   "name": "OpenInterestUpdateEvent",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "market",
+       "type": "0x1::object::Object<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::perp_market::PerpMarket>"
+      },
+      {
+       "name": "current_open_interest",
+       "type": "u64"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

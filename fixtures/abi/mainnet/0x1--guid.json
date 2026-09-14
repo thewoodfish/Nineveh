@@ -1,0 +1,47 @@
+{
+ "address": "0x1",
+ "name": "guid",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "id",
+     "type": "0x1::guid::ID"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "GUID",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "creation_num",
+     "type": "u64"
+    },
+    {
+     "name": "addr",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ID",
+   "variants": []
+  }
+ ]
+}

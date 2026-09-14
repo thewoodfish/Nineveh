@@ -1,0 +1,40 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "bulk_order_book",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "BulkOrderBook",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "orders",
+       "type": "0x1::big_ordered_map::BigOrderedMap<address, 0x5::bulk_order_types::BulkOrder<T0>>"
+      },
+      {
+       "name": "order_id_to_address",
+       "type": "0x1::big_ordered_map::BigOrderedMap<0x5::order_book_types::OrderId, address>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

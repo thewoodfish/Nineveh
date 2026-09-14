@@ -1,0 +1,143 @@
+{
+ "address": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02",
+ "name": "protocol",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "available_to_claim",
+     "type": "u64"
+    },
+    {
+     "name": "emergency_withdraw_future_interest",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Counters",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "initial",
+     "type": "u32"
+    },
+    {
+     "name": "reset",
+     "type": "u32"
+    },
+    {
+     "name": "maintenance",
+     "type": "u32"
+    },
+    {
+     "name": "critical",
+     "type": "u32"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "LtvParams",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "name",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "permissions",
+     "type": "u32"
+    },
+    {
+     "name": "decimals",
+     "type": "u8"
+    },
+    {
+     "name": "years",
+     "type": "u32"
+    },
+    {
+     "name": "base_type",
+     "type": "0x1::type_info::TypeInfo"
+    },
+    {
+     "name": "lot_size",
+     "type": "u64"
+    },
+    {
+     "name": "tick_size",
+     "type": "u64"
+    },
+    {
+     "name": "min_size",
+     "type": "u64"
+    },
+    {
+     "name": "period_divisor",
+     "type": "u32"
+    },
+    {
+     "name": "contract_bucket_time",
+     "type": "u64"
+    },
+    {
+     "name": "fee_tiers",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::fee_table::FeeTable"
+    },
+    {
+     "name": "liquidator_tiers",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::fee_table::FeeTable"
+    },
+    {
+     "name": "reroller_tiers",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::fee_table::FeeTable"
+    },
+    {
+     "name": "ltv_params",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::protocol::LtvParams"
+    },
+    {
+     "name": "price_id",
+     "type": "0xa4f44e66477c22b2df40f9a1f22869a557f0efd2611f16170afde07377d76df6::price_identifier::PriceIdentifier"
+    },
+    {
+     "name": "max_price",
+     "type": "u64"
+    },
+    {
+     "name": "counters",
+     "type": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::protocol::Counters"
+    },
+    {
+     "name": "fee",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Market",
+   "variants": []
+  }
+ ]
+}

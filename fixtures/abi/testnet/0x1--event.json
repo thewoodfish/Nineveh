@@ -1,0 +1,34 @@
+{
+ "address": "0x1",
+ "name": "event",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "counter",
+     "type": "u64"
+    },
+    {
+     "name": "guid",
+     "type": "0x1::guid::GUID"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "EventHandle",
+   "variants": []
+  }
+ ]
+}

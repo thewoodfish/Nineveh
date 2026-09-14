@@ -1,0 +1,174 @@
+{
+ "address": "0x5",
+ "name": "order_book_types",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "account",
+     "type": "address"
+    },
+    {
+     "name": "client_order_id",
+     "type": "0x1::string::String"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "AccountClientOrderId",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "idx",
+     "type": "u128"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "DecreasingIdx",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "idx",
+     "type": "u128"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "IncreasingIdx",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "order_id",
+     "type": "u128"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "OrderId",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "type",
+     "type": "u16"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "OrderType",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "TimeInForce",
+   "variants": [
+    {
+     "fields": [],
+     "name": "GTC"
+    },
+    {
+     "fields": [],
+     "name": "POST_ONLY"
+    },
+    {
+     "fields": [],
+     "name": "IOC"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "TriggerCondition",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "_0",
+       "type": "u64"
+      }
+     ],
+     "name": "PriceMoveAbove"
+    },
+    {
+     "fields": [
+      {
+       "name": "_0",
+       "type": "u64"
+      }
+     ],
+     "name": "PriceMoveBelow"
+    },
+    {
+     "fields": [
+      {
+       "name": "_0",
+       "type": "u64"
+      }
+     ],
+     "name": "TimeBased"
+    }
+   ]
+  }
+ ]
+}

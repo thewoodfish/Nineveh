@@ -1,0 +1,45 @@
+{
+ "address": "0x1",
+ "name": "stake",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "successful_proposals",
+     "type": "u64"
+    },
+    {
+     "name": "failed_proposals",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "IndividualValidatorPerformance",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "validators",
+     "type": "vector<0x1::stake::IndividualValidatorPerformance>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ValidatorPerformance",
+   "variants": []
+  }
+ ]
+}

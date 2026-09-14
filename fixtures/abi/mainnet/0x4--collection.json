@@ -1,0 +1,122 @@
+{
+ "address": "0x4",
+ "name": "collection",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "current_supply",
+     "type": "0x1::aggregator_v2::Aggregator<u64>"
+    },
+    {
+     "name": "total_minted",
+     "type": "0x1::aggregator_v2::Aggregator<u64>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ConcurrentSupply",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "self",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MutatorRef",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "creator",
+     "type": "address"
+    },
+    {
+     "name": "description",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "name",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "uri",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "mutation_events",
+     "type": "0x1::event::EventHandle<0x4::collection::MutationEvent>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Collection",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "collection",
+     "type": "address"
+    },
+    {
+     "name": "index",
+     "type": "0x1::aggregator_v2::AggregatorSnapshot<u64>"
+    },
+    {
+     "name": "token",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "Mint",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "mutated_field_name",
+     "type": "0x1::string::String"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MutationEvent",
+   "variants": []
+  }
+ ]
+}

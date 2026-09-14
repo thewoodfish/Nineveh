@@ -1,0 +1,31 @@
+{
+ "address": "0x1",
+ "name": "aggregator",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "handle",
+     "type": "address"
+    },
+    {
+     "name": "key",
+     "type": "address"
+    },
+    {
+     "name": "limit",
+     "type": "u128"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Aggregator",
+   "variants": []
+  }
+ ]
+}

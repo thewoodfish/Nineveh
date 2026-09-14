@@ -1,0 +1,44 @@
+{
+ "address": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f",
+ "name": "single_order_book",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "SingleOrderBook",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "orders",
+       "type": "0x1::big_ordered_map::BigOrderedMap<0x5::order_book_types::OrderId, 0x5::single_order_types::OrderWithState<T0>>"
+      },
+      {
+       "name": "client_order_ids",
+       "type": "0x1::big_ordered_map::BigOrderedMap<0x5::order_book_types::AccountClientOrderId, 0x5::order_book_types::OrderId>"
+      },
+      {
+       "name": "pending_orders",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::pending_order_book_index::PendingOrderBookIndex"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

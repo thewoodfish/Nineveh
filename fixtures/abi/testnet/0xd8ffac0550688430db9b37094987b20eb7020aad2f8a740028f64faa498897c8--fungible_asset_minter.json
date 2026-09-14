@@ -1,0 +1,23 @@
+{
+ "address": "0xd8ffac0550688430db9b37094987b20eb7020aad2f8a740028f64faa498897c8",
+ "name": "fungible_asset_minter",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "fa_generator_extend_ref",
+     "type": "0x1::object::ExtendRef"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "FungibleAssetCreator",
+   "variants": []
+  }
+ ]
+}

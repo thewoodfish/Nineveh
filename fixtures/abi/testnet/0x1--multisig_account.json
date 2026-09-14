@@ -1,0 +1,401 @@
+{
+ "address": "0x1",
+ "name": "multisig_account",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "owner",
+     "type": "address"
+    },
+    {
+     "name": "sequence_number",
+     "type": "u64"
+    },
+    {
+     "name": "approved",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "VoteEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "owners_added",
+     "type": "vector<address>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "AddOwnersEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "creator",
+     "type": "address"
+    },
+    {
+     "name": "sequence_number",
+     "type": "u64"
+    },
+    {
+     "name": "transaction",
+     "type": "0x1::multisig_account::MultisigTransaction"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "CreateTransactionEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "sequence_number",
+     "type": "u64"
+    },
+    {
+     "name": "num_rejections",
+     "type": "u64"
+    },
+    {
+     "name": "executor",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ExecuteRejectedTransactionEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "abort_location",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "error_type",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "error_code",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ExecutionError",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "old_metadata",
+     "type": "0x1::simple_map::SimpleMap<0x1::string::String, vector<u8>>"
+    },
+    {
+     "name": "new_metadata",
+     "type": "0x1::simple_map::SimpleMap<0x1::string::String, vector<u8>>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MetadataUpdatedEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "owners",
+     "type": "vector<address>"
+    },
+    {
+     "name": "num_signatures_required",
+     "type": "u64"
+    },
+    {
+     "name": "transactions",
+     "type": "0x1::table::Table<u64, 0x1::multisig_account::MultisigTransaction>"
+    },
+    {
+     "name": "last_executed_sequence_number",
+     "type": "u64"
+    },
+    {
+     "name": "next_sequence_number",
+     "type": "u64"
+    },
+    {
+     "name": "signer_cap",
+     "type": "0x1::option::Option<0x1::account::SignerCapability>"
+    },
+    {
+     "name": "metadata",
+     "type": "0x1::simple_map::SimpleMap<0x1::string::String, vector<u8>>"
+    },
+    {
+     "name": "add_owners_events",
+     "type": "0x1::event::EventHandle<0x1::multisig_account::AddOwnersEvent>"
+    },
+    {
+     "name": "remove_owners_events",
+     "type": "0x1::event::EventHandle<0x1::multisig_account::RemoveOwnersEvent>"
+    },
+    {
+     "name": "update_signature_required_events",
+     "type": "0x1::event::EventHandle<0x1::multisig_account::UpdateSignaturesRequiredEvent>"
+    },
+    {
+     "name": "create_transaction_events",
+     "type": "0x1::event::EventHandle<0x1::multisig_account::CreateTransactionEvent>"
+    },
+    {
+     "name": "vote_events",
+     "type": "0x1::event::EventHandle<0x1::multisig_account::VoteEvent>"
+    },
+    {
+     "name": "execute_rejected_transaction_events",
+     "type": "0x1::event::EventHandle<0x1::multisig_account::ExecuteRejectedTransactionEvent>"
+    },
+    {
+     "name": "execute_transaction_events",
+     "type": "0x1::event::EventHandle<0x1::multisig_account::TransactionExecutionSucceededEvent>"
+    },
+    {
+     "name": "transaction_execution_failed_events",
+     "type": "0x1::event::EventHandle<0x1::multisig_account::TransactionExecutionFailedEvent>"
+    },
+    {
+     "name": "metadata_updated_events",
+     "type": "0x1::event::EventHandle<0x1::multisig_account::MetadataUpdatedEvent>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MultisigAccount",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "payload",
+     "type": "0x1::option::Option<vector<u8>>"
+    },
+    {
+     "name": "payload_hash",
+     "type": "0x1::option::Option<vector<u8>>"
+    },
+    {
+     "name": "votes",
+     "type": "0x1::simple_map::SimpleMap<address, bool>"
+    },
+    {
+     "name": "creator",
+     "type": "address"
+    },
+    {
+     "name": "creation_time_secs",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MultisigTransaction",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "owners_removed",
+     "type": "vector<address>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "RemoveOwnersEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "executor",
+     "type": "address"
+    },
+    {
+     "name": "sequence_number",
+     "type": "u64"
+    },
+    {
+     "name": "transaction_payload",
+     "type": "vector<u8>"
+    },
+    {
+     "name": "num_approvals",
+     "type": "u64"
+    },
+    {
+     "name": "execution_error",
+     "type": "0x1::multisig_account::ExecutionError"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "TransactionExecutionFailedEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "multisig_account",
+     "type": "address"
+    },
+    {
+     "name": "executor",
+     "type": "address"
+    },
+    {
+     "name": "sequence_number",
+     "type": "u64"
+    },
+    {
+     "name": "transaction_payload",
+     "type": "vector<u8>"
+    },
+    {
+     "name": "num_approvals",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "TransactionExecutionSucceeded",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "executor",
+     "type": "address"
+    },
+    {
+     "name": "sequence_number",
+     "type": "u64"
+    },
+    {
+     "name": "transaction_payload",
+     "type": "vector<u8>"
+    },
+    {
+     "name": "num_approvals",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "TransactionExecutionSucceededEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "old_num_signatures_required",
+     "type": "u64"
+    },
+    {
+     "name": "new_num_signatures_required",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "UpdateSignaturesRequiredEvent",
+   "variants": []
+  }
+ ]
+}

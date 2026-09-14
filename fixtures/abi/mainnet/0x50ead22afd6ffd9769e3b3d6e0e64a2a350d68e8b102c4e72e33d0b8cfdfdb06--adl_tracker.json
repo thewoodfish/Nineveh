@@ -1,0 +1,104 @@
+{
+ "address": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06",
+ "name": "adl_tracker",
+ "structs": [
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "entry_px",
+     "type": "u64"
+    },
+    {
+     "name": "timestamp",
+     "type": "i64"
+    },
+    {
+     "name": "account",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ADLKey",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "ADLTracker",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "long_positions",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::adl_tracker::LeverageBuckets"
+      },
+      {
+       "name": "short_positions",
+       "type": "0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::adl_tracker::LeverageBuckets"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "leverage",
+     "type": "u8"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ADLValue",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "LeverageBuckets",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "buckets",
+       "type": "vector<0x1::big_ordered_map::BigOrderedMap<0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::adl_tracker::ADLKey, 0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06::adl_tracker::ADLValue>>"
+      },
+      {
+       "name": "cutoffs",
+       "type": "vector<u8>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

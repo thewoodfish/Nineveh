@@ -8,7 +8,7 @@ use tonic::transport::{ClientTlsConfig, Endpoint};
 use tracing::debug;
 
 use crate::contiguity::Contiguity;
-use crate::proto::indexer::raw_data_client::RawDataClient;
+use crate::proto::client::raw_data_client::RawDataClient;
 use crate::proto::indexer::{GetTransactionsRequest, TransactionsResponse};
 use crate::proto::transaction::Transaction;
 use crate::{IngestError, StreamConfig};

@@ -1,0 +1,98 @@
+{
+ "address": "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02",
+ "name": "linked_list",
+ "structs": [
+  {
+   "abilities": [
+    "store",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "nodes",
+     "type": "0x1::table_with_length::TableWithLength<u128, 0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02::linked_list::Node<T0>>"
+    },
+    {
+     "name": "nodeKeys",
+     "type": "0x1::table_with_length::TableWithLength<T0, vector<u128>>"
+    },
+    {
+     "name": "keyCounter",
+     "type": "u128"
+    },
+    {
+     "name": "length",
+     "type": "u128"
+    },
+    {
+     "name": "head",
+     "type": "u128"
+    },
+    {
+     "name": "tail",
+     "type": "u128"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "LinkedList",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "key",
+     "type": "u128"
+    },
+    {
+     "name": "value",
+     "type": "T0"
+    },
+    {
+     "name": "nextKey",
+     "type": "u128"
+    },
+    {
+     "name": "nextKeyIsSet",
+     "type": "bool"
+    },
+    {
+     "name": "prevKey",
+     "type": "u128"
+    },
+    {
+     "name": "prevKeyIsSet",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": [
+      "copy",
+      "drop",
+      "store"
+     ]
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Node",
+   "variants": []
+  }
+ ]
+}

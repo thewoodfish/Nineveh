@@ -1,0 +1,78 @@
+{
+ "address": "0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c",
+ "name": "lp",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "token_a",
+     "type": "0x1::object::Object<0x1::fungible_asset::Metadata>"
+    },
+    {
+     "name": "token_b",
+     "type": "0x1::object::Object<0x1::fungible_asset::Metadata>"
+    },
+    {
+     "name": "fee_tier",
+     "type": "u8"
+    },
+    {
+     "name": "lp_amount",
+     "type": "u64"
+    },
+    {
+     "name": "transfer_ref",
+     "type": "0x1::object::TransferRef"
+    },
+    {
+     "name": "delete_ref",
+     "type": "0x1::object::DeleteRef"
+    },
+    {
+     "name": "extend_ref",
+     "type": "0x1::object::ExtendRef"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "LPObjectRef",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "burn_ref",
+     "type": "0x1::fungible_asset::BurnRef"
+    },
+    {
+     "name": "mint_ref",
+     "type": "0x1::fungible_asset::MintRef"
+    },
+    {
+     "name": "transfer_ref",
+     "type": "0x1::fungible_asset::TransferRef"
+    },
+    {
+     "name": "extend_ref",
+     "type": "0x1::object::ExtendRef"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "LPTokenRefs",
+   "variants": []
+  }
+ ]
+}

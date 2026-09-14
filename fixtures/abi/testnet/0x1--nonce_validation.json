@@ -1,0 +1,77 @@
+{
+ "address": "0x1",
+ "name": "nonce_validation",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "nonces_ordered_by_exp_time",
+     "type": "0x1::big_ordered_map::BigOrderedMap<0x1::nonce_validation::NonceKeyWithExpTime, bool>"
+    },
+    {
+     "name": "nonce_to_exp_time_map",
+     "type": "0x1::big_ordered_map::BigOrderedMap<0x1::nonce_validation::NonceKey, u64>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Bucket",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "sender_address",
+     "type": "address"
+    },
+    {
+     "name": "nonce",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "NonceKey",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "txn_expiration_time",
+     "type": "u64"
+    },
+    {
+     "name": "sender_address",
+     "type": "address"
+    },
+    {
+     "name": "nonce",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "NonceKeyWithExpTime",
+   "variants": []
+  }
+ ]
+}

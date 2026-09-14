@@ -1,0 +1,28 @@
+{
+ "address": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f",
+ "name": "perp_market",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [],
+   "generic_type_params": [],
+   "is_enum": true,
+   "is_event": false,
+   "is_native": false,
+   "name": "PerpMarket",
+   "variants": [
+    {
+     "fields": [
+      {
+       "name": "market",
+       "type": "0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::market_types::Market<0xe7da2794b1d8af76532ed95f38bfdf1136abfd8ea3a240189971988a83101b7f::perp_engine_types::OrderMetadata>"
+      }
+     ],
+     "name": "V1"
+    }
+   ]
+  }
+ ]
+}

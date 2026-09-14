@@ -1,0 +1,61 @@
+{
+ "address": "0xd8ffac0550688430db9b37094987b20eb7020aad2f8a740028f64faa498897c8",
+ "name": "exchange",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "extend_ref_list",
+     "type": "0x1::simple_map::SimpleMap<u64, 0x1::object::ExtendRef>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "ExchangeCreators",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "extend_ref_list",
+     "type": "0x1::simple_map::SimpleMap<u64, 0x1::object::ExtendRef>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "FlashLoanCreators",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "reserve",
+     "type": "0x1::coin::Coin<T0>"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MarketReserve",
+   "variants": []
+  }
+ ]
+}

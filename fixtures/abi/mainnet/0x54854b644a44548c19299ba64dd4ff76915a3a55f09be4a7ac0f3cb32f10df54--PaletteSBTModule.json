@@ -1,0 +1,222 @@
+{
+ "address": "0x54854b644a44548c19299ba64dd4ff76915a3a55f09be4a7ac0f3cb32f10df54",
+ "name": "PaletteSBTModule",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "token_name_to_token_address",
+     "type": "0x1::smart_table::SmartTable<0x1::string::String, address>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "CollectionMintHistory",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "total_minted",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "CollectionMintInfo",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "collection_mutator_ref",
+     "type": "0x4::collection::MutatorRef"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "CollectionMutators",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "creator",
+     "type": "address"
+    },
+    {
+     "name": "collection_name",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "description",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "name",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "uri",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "soul_bound_to",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "TokenMinted",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "permissions",
+     "type": "0x1::simple_map::SimpleMap<address, 0x54854b644a44548c19299ba64dd4ff76915a3a55f09be4a7ac0f3cb32f10df54::PaletteSBTModule::Permissions>"
+    },
+    {
+     "name": "initial_locked_state",
+     "type": "bool"
+    },
+    {
+     "name": "collection_creator",
+     "type": "address"
+    },
+    {
+     "name": "collection_owner",
+     "type": "address"
+    },
+    {
+     "name": "resource_account_address",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "CollectionConfig",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "max_balance_per_user",
+     "type": "u64"
+    },
+    {
+     "name": "user_balances",
+     "type": "0x1::smart_table::SmartTable<address, u64>"
+    },
+    {
+     "name": "collection_max_supply",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "CollectionLimits",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "can_mint",
+     "type": "bool"
+    },
+    {
+     "name": "can_burn",
+     "type": "bool"
+    },
+    {
+     "name": "can_lock",
+     "type": "bool"
+    },
+    {
+     "name": "can_unlock",
+     "type": "bool"
+    },
+    {
+     "name": "can_transfer",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Permissions",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "mutator_ref",
+     "type": "0x4::token::MutatorRef"
+    },
+    {
+     "name": "burn_ref",
+     "type": "0x4::token::BurnRef"
+    },
+    {
+     "name": "transfer_ref",
+     "type": "0x1::object::TransferRef"
+    },
+    {
+     "name": "uri",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "is_locked",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "SBTToken",
+   "variants": []
+  }
+ ]
+}

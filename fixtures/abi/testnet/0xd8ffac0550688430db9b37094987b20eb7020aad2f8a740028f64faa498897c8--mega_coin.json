@@ -1,0 +1,65 @@
+{
+ "address": "0xd8ffac0550688430db9b37094987b20eb7020aad2f8a740028f64faa498897c8",
+ "name": "mega_coin",
+ "structs": [
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "coin",
+     "type": "0x1::coin::Coin<T0>"
+    },
+    {
+     "name": "mint_cap",
+     "type": "0x1::coin::MintCapability<T0>"
+    },
+    {
+     "name": "burn_cap",
+     "type": "0x1::coin::BurnCapability<T0>"
+    }
+   ],
+   "generic_type_params": [
+    {
+     "constraints": []
+    }
+   ],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "CoinCapability",
+   "variants": []
+  },
+  {
+   "abilities": [],
+   "fields": [
+    {
+     "name": "dummy_field",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MegaAPT",
+   "variants": []
+  },
+  {
+   "abilities": [],
+   "fields": [
+    {
+     "name": "dummy_field",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MockAPT",
+   "variants": []
+  }
+ ]
+}

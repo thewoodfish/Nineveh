@@ -1,0 +1,130 @@
+{
+ "address": "0x4",
+ "name": "token",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "inner",
+     "type": "0x1::option::Option<0x1::object::DeleteRef>"
+    },
+    {
+     "name": "self",
+     "type": "0x1::option::Option<address>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "BurnRef",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "self",
+     "type": "address"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MutatorRef",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "mutated_field_name",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "old_value",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "new_value",
+     "type": "0x1::string::String"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "MutationEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "collection",
+     "type": "0x1::object::Object<0x4::collection::Collection>"
+    },
+    {
+     "name": "index",
+     "type": "u64"
+    },
+    {
+     "name": "description",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "name",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "uri",
+     "type": "0x1::string::String"
+    },
+    {
+     "name": "mutation_events",
+     "type": "0x1::event::EventHandle<0x4::token::MutationEvent>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Token",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "key"
+   ],
+   "fields": [
+    {
+     "name": "index",
+     "type": "0x1::aggregator_v2::AggregatorSnapshot<u64>"
+    },
+    {
+     "name": "name",
+     "type": "0x1::aggregator_v2::DerivedStringSnapshot"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "TokenIdentifiers",
+   "variants": []
+  }
+ ]
+}

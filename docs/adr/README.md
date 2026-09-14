@@ -32,3 +32,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0007](0007-typed-total-expression-language.md) | Reducers use a typed, total expression language | Accepted |
 | [0008](0008-move-postgres-type-mapping.md) | Move → Postgres → API type mapping | Accepted |
 | [0009](0009-toolchain-and-engineering-baseline.md) | Toolchain and engineering baseline | Accepted |
+| [0010](0010-lock-format-and-decode-boundary.md) | Pin layouts in a JSON lock; decode protos without a runtime | Accepted |

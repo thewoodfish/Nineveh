@@ -7,7 +7,7 @@ backed by a fixture captured from testnet or mainnet on 2026-09-14 (M0 spike B).
 Fixture paths are relative to `fixtures/<network>/`. Inspect one with:
 
 ```sh
-cd crates/nineveh-ingest/proto && protoc --decode=aptos.transaction.v1.Transaction \
+cd crates/nineveh-proto/proto && protoc --decode=aptos.transaction.v1.Transaction \
   -I . aptos/transaction/v1/transaction.proto < ../../../fixtures/<network>/<file>.pb
 ```
 
@@ -21,6 +21,8 @@ cd crates/nineveh-ingest/proto && protoc --decode=aptos.transaction.v1.Transacti
 | `u8`, `u16` | JSON number | `testnet-11196227787.pb` | `"inner_max_degree":102` (u16) |
 | `u32` | JSON number (expected) | not yet observed | |
 | `u64`, `u128`, `u256` | decimal **string** | `testnet-11196227786.pb` | `FungibleStore.balance` = `"18441553330519219599"`, **above 2^63**, so it overflows `BIGINT` (ADR 0008) |
+| `i64`, `i128` | decimal **string**, `-` for negatives | `mainnet-7205731421.pb` | `AccumulativeIndex.index` (i128) = `"-6294071852848"`; `PerpPosition` i64 fields. Signed integers are used by real contracts. |
+| `i8`, `i16`, `i32`, `i256` | JSON number / decimal string (expected, like unsigned) | not yet observed | |
 | `bool` | `true` / `false` | `testnet-11196227786.pb` | `"frozen":false` |
 | `address` | `0x` hex with **leading zeros stripped** | `testnet-11196227807.pb` | `proposer` has 63 hex digits; `0xa` in `testnet-11196227786.pb`. Normalize to 64. |
 | `vector<u8>` | `0x` hex string | `testnet-11196227807.pb` | `"previous_block_votes_bitvec":"0xf600"`. From the JSON alone this looks the same as a short address, so only the layout can tell them apart. |
@@ -54,6 +56,12 @@ cd crates/nineveh-ingest/proto && protoc --decode=aptos.transaction.v1.Transacti
 
 ## Still to capture
 
-`u32`, `String` (pinned against an ABI), a standalone (non-group) `DeleteResource`, and
-removing one member while its group survives. Capture these from a purpose-deployed test
-contract in M1.
+`u32`, `i8`–`i32`, `i256`, `String` (pinned against an ABI), a standalone (non-group)
+`DeleteResource`, and removing one member while its group survives. Capture these from a
+purpose-deployed test contract in M1.
+
+## Tests
+
+`crates/nineveh-decode/tests/fixtures.rs` decodes every event, resource and table item in
+every fixture against a lock built from the trimmed module ABIs in `fixtures/abi/`, and
+asserts each convention above against the fixture it names.

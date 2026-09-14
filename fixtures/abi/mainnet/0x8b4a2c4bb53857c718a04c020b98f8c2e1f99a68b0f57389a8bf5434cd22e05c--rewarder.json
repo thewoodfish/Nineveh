@@ -1,0 +1,135 @@
+{
+ "address": "0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c",
+ "name": "rewarder",
+ "structs": [
+  {
+   "abilities": [
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "pool_id",
+     "type": "address"
+    },
+    {
+     "name": "position_id",
+     "type": "address"
+    },
+    {
+     "name": "reward_fa",
+     "type": "0x1::object::Object<0x1::fungible_asset::Metadata>"
+    },
+    {
+     "name": "amount",
+     "type": "u64"
+    },
+    {
+     "name": "owner",
+     "type": "address"
+    },
+    {
+     "name": "index",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": true,
+   "is_native": false,
+   "name": "ClaimRewardsEvent",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "emissions_per_liquidity_inside",
+     "type": "u128"
+    },
+    {
+     "name": "amount_owned",
+     "type": "u64"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "PositionReward",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "copy",
+    "drop",
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "reward_store",
+     "type": "0x1::object::Object<0x1::fungible_asset::FungibleStore>"
+    },
+    {
+     "name": "emissions_per_second",
+     "type": "u64"
+    },
+    {
+     "name": "emissions_per_second_max",
+     "type": "u64"
+    },
+    {
+     "name": "emissions_per_liquidity_start",
+     "type": "u128"
+    },
+    {
+     "name": "emissions_per_liquidity_latest",
+     "type": "u128"
+    },
+    {
+     "name": "user_owed",
+     "type": "u64"
+    },
+    {
+     "name": "pause",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Rewarder",
+   "variants": []
+  },
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "rewarders",
+     "type": "vector<0x8b4a2c4bb53857c718a04c020b98f8c2e1f99a68b0f57389a8bf5434cd22e05c::rewarder::Rewarder>"
+    },
+    {
+     "name": "last_updated_time",
+     "type": "u64"
+    },
+    {
+     "name": "pause",
+     "type": "bool"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "RewarderManager",
+   "variants": []
+  }
+ ]
+}

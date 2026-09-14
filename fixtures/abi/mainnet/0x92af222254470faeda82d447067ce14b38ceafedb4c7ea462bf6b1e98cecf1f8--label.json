@@ -1,0 +1,27 @@
+{
+ "address": "0x92af222254470faeda82d447067ce14b38ceafedb4c7ea462bf6b1e98cecf1f8",
+ "name": "label",
+ "structs": [
+  {
+   "abilities": [
+    "store"
+   ],
+   "fields": [
+    {
+     "name": "enums",
+     "type": "0x1::smart_vector::SmartVector<0x1::string::String>"
+    },
+    {
+     "name": "labels",
+     "type": "0x1::smart_table::SmartTable<address, 0x1::smart_vector::SmartVector<0x1::string::String>>"
+    }
+   ],
+   "generic_type_params": [],
+   "is_enum": false,
+   "is_event": false,
+   "is_native": false,
+   "name": "Label",
+   "variants": []
+  }
+ ]
+}
