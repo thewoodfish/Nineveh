@@ -50,12 +50,46 @@ impl StructLayout {
         fields.map(|f| &f.ty)
     }
 
-    /// The named field's declared type, for a plain struct.
+    /// The declared type of field `name`.
+    ///
+    /// For an enum, the field may be declared by several variants (versioned layouts
+    /// like `V1`/`V2` usually repeat their fields); it's found when every variant that
+    /// declares it gives it the same type.
     #[must_use]
     pub fn field(&self, name: &str) -> Option<&TypeTag> {
         match &self.body {
             Body::Struct(fields) => fields.iter().find(|f| f.name == *name).map(|f| &f.ty),
-            Body::Enum(_) => None,
+            Body::Enum(variants) => {
+                let mut declared = variants
+                    .iter()
+                    .filter_map(|v| v.fields.iter().find(|f| f.name == *name))
+                    .map(|f| &f.ty);
+                let first = declared.next()?;
+                declared.all(|ty| ty == first).then_some(first)
+            }
+        }
+    }
+
+    /// The fields every value of this type has: all of a struct's fields, or for an
+    /// enum the fields that every variant declares with the same type. These are the
+    /// fields a reducer can read without knowing the variant.
+    #[must_use]
+    pub fn common_fields(&self) -> Vec<&Field> {
+        match &self.body {
+            Body::Struct(fields) => fields.iter().collect(),
+            Body::Enum(variants) => {
+                let Some((first, rest)) = variants.split_first() else {
+                    return Vec::new();
+                };
+                first
+                    .fields
+                    .iter()
+                    .filter(|f| {
+                        rest.iter()
+                            .all(|v| v.fields.iter().any(|g| g.name == f.name && g.ty == f.ty))
+                    })
+                    .collect()
+            }
         }
     }
 }
@@ -111,5 +145,55 @@ pub(crate) mod framework {
 
     pub(crate) fn is_big_ordered_map(name: &StructName) -> bool {
         name.is(Address::ONE, "big_ordered_map", "BigOrderedMap")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn field(name: &str, ty: &str) -> Field {
+        Field {
+            name: name.parse().unwrap(),
+            ty: ty.parse().unwrap(),
+        }
+    }
+
+    fn versioned() -> StructLayout {
+        StructLayout {
+            type_params: 0,
+            body: Body::Enum(vec![
+                Variant {
+                    name: "V1".parse().unwrap(),
+                    fields: vec![field("account", "address"), field("size", "u64")],
+                },
+                Variant {
+                    name: "V2".parse().unwrap(),
+                    fields: vec![
+                        field("account", "address"),
+                        field("size", "u128"),
+                        field("counter_party", "address"),
+                    ],
+                },
+            ]),
+            is_event: true,
+            group: None,
+        }
+    }
+
+    #[test]
+    fn enum_fields_resolve_only_when_variants_agree() {
+        let layout = versioned();
+        assert_eq!(layout.field("account"), Some(&TypeTag::Address));
+        assert_eq!(layout.field("counter_party"), Some(&TypeTag::Address));
+        assert_eq!(layout.field("size"), None, "V1 and V2 disagree on its type");
+        assert_eq!(layout.field("nope"), None);
+
+        let common: Vec<&str> = layout
+            .common_fields()
+            .iter()
+            .map(|f| f.name.as_str())
+            .collect();
+        assert_eq!(common, ["account"]);
     }
 }

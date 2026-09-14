@@ -83,8 +83,9 @@ they get real code; the dependency direction between them is enforced by
                        transactional outbox written by the reducer commit (ADR 0006).
 - `nineveh-control`  — control-plane API the Studio talks to: create/manage projects,
                        keys, processor status, backfill progress, logs.
-- `nineveh-config`   — parse/validate project configs (YAML). Ergonomic surface for
-                       non-Rust teams; treat it as product UX.
+- `nineveh-config`   — parse/validate `nineveh.yaml`, then resolve it against the lock
+                       (ADR 0011; user reference in `docs/config.md`). Located,
+                       rustc-style diagnostics. Product UX for non-Rust teams.
 - `nineveh-cli`      — scaffold, validate, run, backfill, replay. Binary name: `nineveh`.
 - `studio/`          — the dashboard (Next.js/React + Tailwind, TypeScript). NOT a Rust
                        crate. Talks to `nineveh-control` + the project's API. See below.

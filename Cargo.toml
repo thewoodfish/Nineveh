@@ -15,6 +15,7 @@ publish = false
 
 [workspace.dependencies]
 # Internal
+nineveh-config = { path = "crates/nineveh-config" }
 nineveh-core = { path = "crates/nineveh-core" }
 nineveh-decode = { path = "crates/nineveh-decode" }
 nineveh-ingest = { path = "crates/nineveh-ingest" }
@@ -41,6 +42,8 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
+# YAML for project configs: spans on every value, alias-bomb budgets, duplicate-key errors.
+serde-saphyr = { version = "1.2.0", default-features = false, features = ["deserialize"] }
 
 # Exact Move integers (u256; i256 is built on it in nineveh-core).
 ruint = { version = "1.17.2", default-features = false, features = ["std"] }

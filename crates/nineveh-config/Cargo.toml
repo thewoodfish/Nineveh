@@ -1,0 +1,26 @@
+[package]
+name = "nineveh-config"
+description = "Parse, validate and resolve Nineveh project configs (nineveh.yaml) with located diagnostics."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+nineveh-core.workspace = true
+nineveh-decode.workspace = true
+serde.workspace = true
+serde-saphyr.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+nineveh-proto.workspace = true
+prost.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

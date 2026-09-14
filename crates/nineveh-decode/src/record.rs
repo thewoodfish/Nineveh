@@ -84,9 +84,20 @@ impl TableMatcher {
         let layout = lock
             .get(&parent.name)
             .ok_or_else(|| SelectionError::NoLayout(parent.name.clone()))?;
-        let declared = layout.field(field).ok_or_else(|| SelectionError::NoField {
-            parent: Box::new(parent.clone()),
-            field: field.to_owned(),
+        let declared = layout.field(field).ok_or_else(|| {
+            let in_some_variant = matches!(&layout.body, crate::layout::Body::Enum(variants)
+                if variants.iter().any(|v| v.fields.iter().any(|f| f.name == *field)));
+            if in_some_variant {
+                SelectionError::VariantsDisagree {
+                    parent: Box::new(parent.clone()),
+                    field: field.to_owned(),
+                }
+            } else {
+                SelectionError::NoField {
+                    parent: Box::new(parent.clone()),
+                    field: field.to_owned(),
+                }
+            }
         })?;
         let not_table = || SelectionError::NotATable {
             parent: Box::new(parent.clone()),
@@ -123,7 +134,8 @@ impl TableMatcher {
     }
 
     /// The `(key_type, value_type)` the stream reports for this container's items.
-    fn item_types(&self) -> (TypeTag, TypeTag) {
+    #[must_use]
+    pub fn item_types(&self) -> (TypeTag, TypeTag) {
         match self.container {
             Container::Table => (self.key.clone(), self.value.clone()),
             Container::SmartTable => (
@@ -273,6 +285,12 @@ pub enum SelectionError {
 
     #[error("`{parent}` has no field `{field}`")]
     NoField {
+        parent: Box<StructTag>,
+        field: String,
+    },
+
+    #[error("`{parent}`'s variants give field `{field}` different types")]
+    VariantsDisagree {
         parent: Box<StructTag>,
         field: String,
     },
