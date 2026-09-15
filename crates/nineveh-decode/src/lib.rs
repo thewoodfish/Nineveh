@@ -19,12 +19,14 @@ mod abi;
 mod json;
 mod layout;
 mod lock;
+mod metadata;
 mod record;
 
 pub use abi::{BuildError, FieldAbi, LockBuilder, ModuleAbi, ModuleId, StructAbi, VariantAbi};
 pub use json::{Decoder, Reason, ValueError};
 pub use layout::{Body, Field, StructLayout, Variant};
 pub use lock::{FORMAT as LOCK_FORMAT, LockError, Lockfile};
+pub use metadata::{MetadataError, resource_group_members};
 pub use record::{
     Container, DecodeError, DecodeErrorKind, DecodedTransaction, Origin, Record, RecordData,
     Selection, SelectionError, SourceId, TableMatcher, TransactionDecoder, TypeMatcher,
