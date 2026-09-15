@@ -20,14 +20,11 @@ axum.workspace = true
 clap.workspace = true
 nineveh-api.workspace = true
 nineveh-config.workspace = true
+nineveh-control.workspace = true
 nineveh-core.workspace = true
 nineveh-decode.workspace = true
-nineveh-ingest.workspace = true
-nineveh-pipeline.workspace = true
 nineveh-realtime.workspace = true
-nineveh-store.workspace = true
 secrecy.workspace = true
-serde_json.workspace = true
 sqlx.workspace = true
 tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "signal", "time"] }
 tower-http.workspace = true
