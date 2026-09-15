@@ -338,7 +338,15 @@ impl<C: Chain> ControlPlane<C> {
             )));
         }
         let (loaded, lock_text) = self.prepare(&config, text).await?;
-        registry::insert(&self.pool, &name, config.network.as_str(), text, &lock_text).await?;
+        registry::insert(
+            &self.pool,
+            &name,
+            config.network.as_str(),
+            text,
+            &lock_text,
+            None,
+        )
+        .await?;
         let record = self.record(&name).await?;
         let mut entry = self.entry(
             &name,

@@ -17,11 +17,12 @@
 //!    cursor and the fold recomputes the same batch.
 //!
 //! The control plane's [`registry`] of projects lives beside the builds, in the
-//! `nineveh` schema (ADR 0017).
+//! `nineveh` schema (ADR 0017), with its [`accounts`], sessions and API keys (ADR 0018).
 //!
 //! Every build records a fingerprint of its config, lock and Nineveh's semantics, and
 //! [`Store::open`] refuses to extend a schema built from anything else.
 
+pub mod accounts;
 mod cells;
 mod codec;
 mod error;

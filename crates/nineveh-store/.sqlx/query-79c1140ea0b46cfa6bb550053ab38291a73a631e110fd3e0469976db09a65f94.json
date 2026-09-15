@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM nineveh.oauth_states\n         WHERE created_at < now() - make_interval(mins => $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "79c1140ea0b46cfa6bb550053ab38291a73a631e110fd3e0469976db09a65f94"
+}

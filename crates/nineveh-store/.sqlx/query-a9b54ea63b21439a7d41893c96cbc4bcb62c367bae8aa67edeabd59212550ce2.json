@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, project,\n             (last_used_at IS NULL OR last_used_at < now() - interval '1 minute') AS \"stale!\"\n           FROM nineveh.api_keys WHERE key_hash = $1 AND revoked_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "project",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "stale!",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bytea"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "a9b54ea63b21439a7d41893c96cbc4bcb62c367bae8aa67edeabd59212550ce2"
+}

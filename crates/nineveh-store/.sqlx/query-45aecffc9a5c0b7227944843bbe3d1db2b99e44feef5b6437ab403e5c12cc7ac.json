@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO nineveh.sessions (token_hash, account_id, expires_at)\n         VALUES ($1, $2, now() + make_interval(days => $3))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bytea",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "45aecffc9a5c0b7227944843bbe3d1db2b99e44feef5b6437ab403e5c12cc7ac"
+}
