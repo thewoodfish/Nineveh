@@ -148,8 +148,24 @@ fn filter_addresses_are_written_as_the_stream_writes_event_types() {
     );
 }
 
-/// Streams testnet with the generated filter and checks the server delivers the
-/// fixture's transaction. Run with `APTOS_API_KEY` set:
+/// Streams the fixture's version from testnet with a generated filter, returning the
+/// versions delivered.
+async fn stream_one(key: &str, project: &Project) -> Vec<u64> {
+    let mut config = StreamConfig::hosted(nineveh_core::Network::Testnet, Version::new(FIXTURE));
+    config.api_key = Some(key.to_owned().into());
+    config.transactions_count = Some(1);
+    config.filter = stream_filter(project);
+    assert!(config.filter.is_some());
+    let mut stream = TransactionStream::connect(config).await.unwrap();
+    let mut delivered = Vec::new();
+    while let Some(batch) = stream.next_batch().await.unwrap() {
+        delivered.extend(batch.transactions.iter().map(|tx| tx.version));
+    }
+    delivered
+}
+
+/// Checks the server delivers the fixture's transaction for the generated filter, and
+/// nothing for a filter it doesn't match. Run with `APTOS_API_KEY` set:
 /// `cargo test -p nineveh-pipeline --test filter -- --ignored`.
 #[tokio::test]
 #[ignore = "needs APTOS_API_KEY and the network"]
@@ -157,18 +173,33 @@ async fn the_server_matches_the_generated_filter() {
     let Ok(key) = std::env::var("APTOS_API_KEY") else {
         panic!("set APTOS_API_KEY (a Geomi testnet key) to run this test");
     };
-    let mut config = StreamConfig::hosted(nineveh_core::Network::Testnet, Version::new(FIXTURE));
-    config.api_key = Some(key.into());
-    config.transactions_count = Some(1);
-    config.filter = stream_filter(&market_events());
-    let mut stream = TransactionStream::connect(config).await.unwrap();
-    let mut delivered = Vec::new();
-    while let Some(batch) = stream.next_batch().await.unwrap() {
-        delivered.extend(batch.transactions.iter().map(|tx| tx.version));
-    }
     assert_eq!(
-        delivered,
+        stream_one(&key, &market_events()).await,
         [FIXTURE],
         "the filter must match the fixture's event"
+    );
+
+    // A control: the same version, filtered on an event it doesn't emit.
+    let config = parse(
+        "\
+name: other
+network: testnet
+sources:
+  deposits: { event: 0xcafe::vault::DepositEvent }
+state:
+  deposit_log: { log: deposits }
+",
+    )
+    .unwrap();
+    let mut builder = LockBuilder::new(config.network);
+    for module in vault::modules() {
+        builder.add_module(module);
+    }
+    let lock = builder.build(&config.roots()).unwrap();
+    let other = config.resolve(&lock).unwrap();
+    assert_eq!(
+        stream_one(&key, &other).await,
+        Vec::<u64>::new(),
+        "a filter the transaction doesn't match delivers nothing"
     );
 }

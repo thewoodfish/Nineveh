@@ -63,6 +63,12 @@ versions each run:
 1.5–3× the unfiltered rate, because the server still walks every version. With a filter,
 `transactions_count` counts versions scanned, not matches.
 
+**Filter addresses are normalized by the server** (checked on testnet, 2026-09-15). For
+`0x0e3117b…::user::CreateContractEvent` at version 6,000,029,471, the stream's own 63-digit
+form and the full 64-digit form both delivered the transaction, and a filter on an
+event it doesn't emit delivered nothing. The live check is
+`cargo test -p nineveh-pipeline --test filter -- --ignored`.
+
 ## History
 
 The stream served every range we asked for on both networks, from genesis (version 0)

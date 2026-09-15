@@ -48,10 +48,10 @@ fn event_type(name: &StructName) -> BooleanTransactionFilter {
         filter: Some(boolean_transaction_filter::Filter::ApiFilter(ApiFilter {
             filter: Some(api_filter::Filter::EventFilter(EventFilter {
                 struct_type: Some(MoveStructTagFilter {
-                    // The stream renders type addresses with leading zeros stripped.
-                    // The server matches this form whether it compares strings as
-                    // rendered or normalizes both sides; the live test in
-                    // tests/filter.rs checks it on an address whose first nibble is 0.
+                    // The stream's own rendering, leading zeros stripped. The server
+                    // normalizes filter addresses (on testnet, 2026-09-15, the short
+                    // and full forms of a 63-digit address both matched), so either
+                    // form works; tests/filter.rs has the live check.
                     address: Some(name.address.to_short_string()),
                     module: Some(name.module.as_str().to_owned()),
                     name: Some(name.name.as_str().to_owned()),
