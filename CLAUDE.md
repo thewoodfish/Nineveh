@@ -193,8 +193,8 @@ fast interactions, no clutter. When building UI, read the frontend-design skill 
 - `cargo xtask codegen` — regenerate Transaction Stream bindings from vendored protos;
   `--check` fails on drift (CI). Bump protos with `scripts/sync-protos.sh <sha>`.
 - `scripts/check-deps.sh` — enforce crate dependency direction (CI).
-- `NINEVEH_TEST_DATABASE_URL=postgres:///nineveh_test cargo test -p nineveh-store` —
-  the store's Postgres tests (they skip without it, and fail in CI without it).
+- `NINEVEH_TEST_DATABASE_URL=postgres:///nineveh_test cargo test -p nineveh-store -p nineveh-pipeline` —
+  the Postgres-backed tests (they skip without it, and fail in CI without it).
   Don't set `DATABASE_URL`: it switches sqlx's macros to checking against a live DB.
 - `scripts/sqlx-prepare.sh` — regenerate `crates/nineveh-store/.sqlx/` after changing
   a `query!` or a migration; commit the result (CI builds with `SQLX_OFFLINE=true`).

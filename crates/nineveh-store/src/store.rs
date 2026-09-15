@@ -83,14 +83,13 @@ impl Store {
                 });
             }
             None => {
-                let mut ddl = format!("CREATE SCHEMA {};\n", ident(schema));
+                let mut ddl = vec![format!("CREATE SCHEMA {}", ident(schema))];
                 for table in &tables {
-                    for statement in table.create(schema) {
-                        ddl.push_str(&statement);
-                        ddl.push_str(";\n");
-                    }
+                    ddl.extend(table.create(schema));
                 }
-                sqlx::raw_sql(&ddl).execute(&mut *tx).await?;
+                for statement in &ddl {
+                    unprepared(&mut tx, statement).await?;
+                }
                 let config = project.config();
                 sqlx::query!(
                     "INSERT INTO nineveh.projects (schema_name, project, network, fingerprint)
@@ -125,9 +124,8 @@ impl Store {
         migrate(pool).await?;
         let mut tx = pool.begin().await?;
         lock_schema(&mut tx, schema).await?;
-        sqlx::raw_sql(&format!("DROP SCHEMA IF EXISTS {} CASCADE", ident(schema)))
-            .execute(&mut *tx)
-            .await?;
+        let drop = format!("DROP SCHEMA IF EXISTS {} CASCADE", ident(schema));
+        unprepared(&mut tx, &drop).await?;
         sqlx::query!(
             "DELETE FROM nineveh.projects WHERE schema_name = $1",
             schema
@@ -528,6 +526,20 @@ fn fingerprint(project: &Project, lock: &Lockfile) -> Result<String, StoreError>
         let _ = write!(hex, "{byte:02x}");
     }
     Ok(hex)
+}
+
+/// Run one DDL statement without preparing it: each runs once per schema, so there's
+/// nothing to cache. Not `sqlx::raw_sql`, whose future isn't `Send`, which would keep
+/// the pipeline off spawned tasks.
+async fn unprepared(
+    tx: &mut Transaction<'static, Postgres>,
+    statement: &str,
+) -> Result<(), StoreError> {
+    sqlx::query(statement)
+        .persistent(false)
+        .execute(&mut **tx)
+        .await?;
+    Ok(())
 }
 
 /// Serialize `open` and `reset` on one schema across processes.

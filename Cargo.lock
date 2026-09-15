@@ -1642,6 +1642,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "nineveh-pipeline"
+version = "0.0.0"
+dependencies = [
+ "nineveh-config",
+ "nineveh-core",
+ "nineveh-decode",
+ "nineveh-engine",
+ "nineveh-ingest",
+ "nineveh-proto",
+ "nineveh-store",
+ "nineveh-testkit",
+ "proptest",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tonic",
+ "tracing",
+]
+
+[[package]]
 name = "nineveh-proto"
 version = "0.0.0"
 dependencies = [

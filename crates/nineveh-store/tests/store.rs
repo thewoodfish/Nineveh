@@ -481,3 +481,16 @@ async fn schema_names_are_validated() {
         "Nineveh's tables survive"
     );
 }
+
+/// The pipeline runs on spawned tasks, so every store future must be `Send`. This only
+/// has to compile.
+#[allow(dead_code, reason = "a compile-time check")]
+fn futures_are_send(pool: &PgPool, project: &Project, lock: &Lockfile, store: &mut Store) {
+    fn send<T: Send>(_: T) {}
+    send(nineveh_store::migrate(pool));
+    send(Store::open(pool.clone(), "x", project, lock));
+    send(Store::reset(pool, "x"));
+    send(store.load(Vec::new()));
+    send(store.scan(TableId::Handles));
+    send(store.commit(&ChangeSet::default()));
+}

@@ -21,6 +21,7 @@ nineveh-decode = { path = "crates/nineveh-decode" }
 nineveh-engine = { path = "crates/nineveh-engine" }
 nineveh-expr = { path = "crates/nineveh-expr" }
 nineveh-ingest = { path = "crates/nineveh-ingest" }
+nineveh-pipeline = { path = "crates/nineveh-pipeline" }
 nineveh-proto = { path = "crates/nineveh-proto" }
 nineveh-store = { path = "crates/nineveh-store" }
 nineveh-testkit = { path = "crates/nineveh-testkit" }
