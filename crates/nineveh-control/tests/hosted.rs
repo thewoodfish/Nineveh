@@ -106,6 +106,21 @@ async fn create(app: &Router, token: &str, name: &str) {
     assert_eq!(status, StatusCode::CREATED, "{created}");
 }
 
+/// Poll `uri` until it answers 200: a project's tables exist once its pipeline has
+/// opened its store, a moment after it's created.
+async fn wait_for_ok(app: &Router, token: Option<&str>, uri: &str) -> Value {
+    let mut last = (StatusCode::OK, Value::Null);
+    for _ in 0..100 {
+        let (status, _, body) = call_as(app, token, Method::GET, uri, None).await;
+        if status == StatusCode::OK {
+            return body;
+        }
+        last = (status, body);
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    panic!("{uri} never answered 200: {} {}", last.0, last.1);
+}
+
 fn names(projects: &Value) -> Vec<String> {
     projects
         .as_array()
@@ -263,8 +278,8 @@ async fn accounts_reach_only_their_projects_and_keys_reach_one_project() {
     let (status, _, _) = call_as(&app, Some(&key), Method::GET, &tables, None).await;
     assert_eq!(status, StatusCode::OK);
     let rows = format!("/projects/{alices}/v1/tables/deposit_event?count=exact&apikey={key}");
-    let (status, body) = call(&app, Method::GET, &rows, None).await;
-    assert_eq!(status, StatusCode::OK, "{body}");
+    let body = wait_for_ok(&app, None, &rows).await;
+    assert!(body["count"].is_number(), "{body}");
     let header_request = axum::http::Request::builder()
         .uri(&tables)
         .header("apikey", &key)
