@@ -89,7 +89,9 @@ they get real code; the dependency direction between them is enforced by
 - `nineveh-config`   — parse/validate `nineveh.yaml`, then resolve it against the lock
                        (ADR 0011; user reference in `docs/config.md`). Located,
                        rustc-style diagnostics. Product UX for non-Rust teams.
-- `nineveh-cli`      — scaffold, validate, run, backfill, replay. Binary name: `nineveh`.
+- `nineveh-cli`      — the `nineveh` binary: `init` (pin ABIs, resolve `start_version:
+                       auto`, ADR 0015), `validate`, `run` (parallel backfill, then the
+                       tail), `replay`.
 - `nineveh-testkit`  — shared test workloads: a synthetic vault contract rendered as
                        real stream transactions, with a model to check against.
                        Dev-dependency only.
@@ -199,6 +201,12 @@ fast interactions, no clutter. When building UI, read the frontend-design skill 
 - `scripts/sqlx-prepare.sh` — regenerate `crates/nineveh-store/.sqlx/` after changing
   a `query!` or a migration; commit the result (CI builds with `SQLX_OFFLINE=true`).
 - `cargo deny check` — advisories, licenses, sources (CI).
+- `nineveh init | validate | run | replay --yes` (`cargo run -p nineveh-cli --`) — in a
+  directory with `nineveh.yaml`. Needs `APTOS_API_KEY` (init, run) and
+  `NINEVEH_DATABASE_URL` (run, replay).
+- Live checks against testnet, `#[ignore]`d in CI: `cargo test -p nineveh-ingest -p
+  nineveh-pipeline -p nineveh-cli -- --ignored` with `APTOS_API_KEY` and
+  `NINEVEH_TEST_DATABASE_URL` set.
 - `cargo run --release -p nineveh-ingest --example stream_probe -- --network testnet
   --start <v> --count <n>` — measure the stream / find fixture candidates. Needs
   `APTOS_API_KEY` (a Geomi key).
