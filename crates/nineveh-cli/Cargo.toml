@@ -24,6 +24,7 @@ nineveh-control.workspace = true
 nineveh-core.workspace = true
 nineveh-decode.workspace = true
 nineveh-realtime.workspace = true
+nineveh-store.workspace = true
 secrecy.workspace = true
 sqlx.workspace = true
 tokio = { workspace = true, features = ["macros", "net", "rt-multi-thread", "signal", "time"] }

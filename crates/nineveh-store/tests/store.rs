@@ -527,6 +527,9 @@ async fn a_commit_with_changes_wakes_listeners() {
 #[tokio::test]
 async fn schema_names_are_validated() {
     let Some(pool) = pool().await else { return };
+    // Nineveh's tables exist, as they do once anything has built: every refusal below
+    // happens before migrating, and they must survive it.
+    nineveh_store::migrate(&pool).await.unwrap();
     let (lock, project) = vault::project();
     for bad in ["Vault", "_vault", "vault; drop table x", ""] {
         let err = Store::open(pool.clone(), bad, &project, &lock)

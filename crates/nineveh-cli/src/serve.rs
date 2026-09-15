@@ -25,6 +25,11 @@ pub(crate) async fn start(
     health: watch::Receiver<Option<Health>>,
     listen: SocketAddr,
 ) -> Result<()> {
+    // Nineveh's own tables, so a database nothing has built into yet answers "no
+    // build" rather than failing.
+    nineveh_store::migrate(&pool)
+        .await
+        .context("creating Nineveh's tables")?;
     let api = Arc::new(Api::new(pool.clone(), schema, project, health));
     let feed = nineveh_realtime::Feed::start(pool, schema)
         .await
