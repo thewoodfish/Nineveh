@@ -56,6 +56,19 @@ impl Address {
             self.to_string()
         }
     }
+
+    /// The form the Transaction Stream renders: leading zeros stripped, so `0x1`, and
+    /// `0xe3117b…` with 63 digits for an address whose first nibble is zero.
+    #[must_use]
+    pub fn to_short_string(&self) -> String {
+        let full = self.to_string();
+        let digits = full[2..].trim_start_matches('0');
+        if digits.is_empty() {
+            "0x0".to_owned()
+        } else {
+            format!("0x{digits}")
+        }
+    }
 }
 
 impl fmt::Display for Address {
@@ -163,6 +176,16 @@ mod tests {
         assert_eq!(Address::special(0xf).to_standard_string(), "0xf");
         assert_eq!(Address::special(0x10).to_standard_string().len(), 66);
         assert_eq!(Address::ZERO.to_standard_string(), "0x0");
+    }
+
+    #[test]
+    fn short_form_matches_the_stream() {
+        // An event type's address from testnet-6000029471.pb, first nibble zero.
+        let stream = "0xe3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02";
+        let addr: Address = stream.parse().unwrap();
+        assert_eq!(addr.to_short_string(), stream);
+        assert_eq!(Address::special(0x10).to_short_string(), "0x10");
+        assert_eq!(Address::ZERO.to_short_string(), "0x0");
     }
 
     #[test]

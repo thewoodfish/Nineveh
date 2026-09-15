@@ -1654,6 +1654,8 @@ dependencies = [
  "nineveh-store",
  "nineveh-testkit",
  "proptest",
+ "prost",
+ "serde_json",
  "sqlx",
  "thiserror",
  "tokio",

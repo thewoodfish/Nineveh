@@ -74,6 +74,10 @@ supported yet: small maps keep their entries inside the struct itself.
 Resources are needed alongside events: many contracts expose their real state only as
 resource writes, and state kept in tables never appears as a resource write at all.
 
+A project whose sources are all `event:` sources streams only the transactions that emit
+those events. Any `resource:` or `table:` source means streaming every transaction,
+because the stream can't filter on resource or table writes.
+
 ## State tables
 
 Every table is built one way: `reduce`, `mirror` or `log`.

@@ -25,12 +25,14 @@
 
 mod config;
 mod error;
+mod filter;
 mod pipeline;
 mod source;
 mod status;
 
 pub use config::PipelineConfig;
 pub use error::PipelineError;
+pub use filter::stream_filter;
 pub use pipeline::{Outcome, Pipeline};
 pub use source::{BatchStream, Source, StreamSource};
 pub use status::{Phase, Status};
