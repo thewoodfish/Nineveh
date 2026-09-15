@@ -28,6 +28,8 @@ pub(crate) struct RunOptions {
     /// Streams for backfill: ranges up to the chain's current version are read this
     /// many at a time.
     pub(crate) streams: usize,
+    /// Versions per backfill range.
+    pub(crate) chunk: u64,
     pub(crate) api_key: Option<SecretString>,
 }
 
@@ -69,7 +71,9 @@ pub(crate) async fn run(paths: &Paths, options: &RunOptions) -> Result<()> {
     let mut config = PipelineConfig::new(loaded.start);
     config.until = options.until.map(Version::new);
     if options.streams > 1 {
-        config.parallel = Some(Parallel::new(options.streams, ledger.ledger_version));
+        let mut parallel = Parallel::new(options.streams, ledger.ledger_version);
+        parallel.chunk_versions = options.chunk;
+        config.parallel = Some(parallel);
     }
 
     let pipeline = Pipeline::new(

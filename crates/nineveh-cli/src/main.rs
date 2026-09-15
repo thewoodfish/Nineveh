@@ -83,6 +83,9 @@ struct RunArgs {
     /// Streams to backfill with at once, up to the chain's current version.
     #[arg(long, default_value_t = 4)]
     streams: usize,
+    /// Versions per backfill range.
+    #[arg(long, default_value_t = 1_000_000)]
+    chunk: u64,
     #[command(flatten)]
     key: ApiKey,
 }
@@ -94,6 +97,7 @@ impl RunArgs {
             schema: self.schema.clone(),
             until: self.until,
             streams: self.streams.max(1),
+            chunk: self.chunk.max(1),
             api_key: self.key.secret(),
         }
     }
