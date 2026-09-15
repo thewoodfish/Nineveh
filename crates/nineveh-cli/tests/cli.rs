@@ -114,7 +114,8 @@ fn replay_needs_confirmation() {
     assert!(text(&out.stderr).contains("--yes"), "{}", text(&out.stderr));
 }
 
-/// `init`, `run`, a resume and the rebuild hint, against testnet and Postgres. Run with
+/// `init`, `run`, a resume and a rebuild after a rule change, against testnet and
+/// Postgres. Run with
 /// `APTOS_API_KEY` and `NINEVEH_TEST_DATABASE_URL` set:
 /// `cargo test -p nineveh-cli --test cli -- --ignored`.
 #[test]
@@ -189,12 +190,34 @@ state:
     assert!(stderr.contains("from=6000029501"), "{stderr}");
     assert!(stderr.contains("cursor=Some(6000030000)"), "{stderr}");
 
-    // A changed rule can't extend the build.
+    // A changed rule rebuilds beside the served build, then swaps it in.
+    let opened = || -> i64 {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let pool = sqlx::PgPool::connect(&database).await.unwrap();
+            sqlx::query_scalar::<_, i64>(&format!(
+                r#"SELECT coalesce(sum(opened), 0)::bigint FROM "{schema}".open_contracts"#
+            ))
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+        })
+    };
+    let before = opened();
+    assert!(before > 0);
     fs::write(dir.join("nineveh.yaml"), yaml("6000029000", "opened + 2")).unwrap();
     let out = run(&["run", "--schema", &schema, "--until", "6000030000"]);
-    assert!(!out.status.success());
+    assert!(out.status.success(), "{}", text(&out.stderr));
+    let stderr = text(&out.stderr);
+    assert!(stderr.contains("rebuilding"), "{stderr}");
+    assert!(stderr.contains("swapped in the rebuild"), "{stderr}");
+    assert_eq!(opened(), 2 * before, "the new rule's state is served");
+
+    // The swapped-in build resumes like any other.
+    let out = run(&["run", "--schema", &schema, "--until", "6000030000"]);
+    assert!(out.status.success(), "{}", text(&out.stderr));
     assert!(
-        text(&out.stderr).contains("nineveh replay --yes"),
+        !text(&out.stderr).contains("rebuilding"),
         "{}",
         text(&out.stderr)
     );

@@ -384,6 +384,85 @@ async fn a_changed_config_needs_a_rebuild_but_formatting_does_not() {
 }
 
 #[tokio::test]
+async fn a_shadow_build_swaps_in_atomically() {
+    let Some(pool) = pool().await else { return };
+    let (lock, project) = vault::project();
+    let changed = vault::CONFIG.replace("deposits + 1", "deposits + 2");
+    let (lock2, project2) = project_from(&changed);
+    let live = fresh_schema(&pool, "live").await;
+    let shadow = nineveh_store::shadow_name(&live).unwrap();
+    Store::reset(&pool, &shadow).await.unwrap();
+    let (txs, _) = vault::transactions(&[
+        Op::Deposit { user: 0, amount: 5 },
+        Op::Deposit { user: 0, amount: 6 },
+        Op::Deposit { user: 1, amount: 7 },
+    ]);
+    let decoded = vault::decode(&lock, &project, &txs);
+
+    // The live build has two transactions; the shadow, under the new rule, all three.
+    run_batched(&pool, &live, &project, &lock, &decoded[..2], &[1], &[]).await;
+    run_batched(&pool, &shadow, &project2, &lock2, &decoded, &[2], &[]).await;
+    let shadow_feed = outbox(&pool, &shadow).await;
+
+    Store::swap(&pool, &live, &shadow).await.unwrap();
+
+    // `live` is now the shadow's build: its fingerprint, cursor, rows and feed.
+    let store = Store::open(pool.clone(), &live, &project2, &lock2)
+        .await
+        .unwrap();
+    assert_eq!(store.cursor(), Some(decoded[2].version));
+    let deposits: Vec<(String, String)> = sqlx::query_as(&format!(
+        r#"SELECT "user", deposits::text FROM "{live}".balances ORDER BY "user""#
+    ))
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        deposits,
+        [
+            (vault::user(0).to_string(), "4".to_owned()),
+            (vault::user(1).to_string(), "2".to_owned()),
+        ]
+    );
+    assert_eq!(
+        outbox(&pool, &live).await,
+        shadow_feed,
+        "the shadow's feed moved"
+    );
+    assert!(outbox(&pool, &shadow).await.is_empty());
+
+    // The shadow is gone, and the old config no longer fits `live`.
+    let exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1)",
+    )
+    .bind(&shadow)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(!exists);
+    let err = Store::open(pool.clone(), &live, &project, &lock)
+        .await
+        .unwrap_err();
+    assert!(matches!(err, StoreError::Rebuild { .. }), "{err}");
+
+    // Swapping from a shadow that isn't there changes nothing.
+    let err = Store::swap(&pool, &live, &shadow).await.unwrap_err();
+    assert!(matches!(err, StoreError::Missing(_)), "{err}");
+    assert_eq!(outbox(&pool, &live).await, shadow_feed);
+    Store::reset(&pool, &live).await.unwrap();
+}
+
+#[test]
+fn shadow_names_are_reserved() {
+    assert_eq!(nineveh_store::shadow_name("vault").unwrap(), "vault__next");
+    assert!(nineveh_store::shadow_name("vault__next").is_err());
+    assert!(
+        nineveh_store::shadow_name(&"a".repeat(60)).is_err(),
+        "too long for the suffix"
+    );
+}
+
+#[tokio::test]
 async fn a_second_writer_and_stale_batches_are_refused() {
     let Some(pool) = pool().await else { return };
     let (lock, project) = vault::project();

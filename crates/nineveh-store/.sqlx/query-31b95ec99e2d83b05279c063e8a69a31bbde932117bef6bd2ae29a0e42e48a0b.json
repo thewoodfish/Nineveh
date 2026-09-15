@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO nineveh.projects\n                 (schema_name, project, network, fingerprint, cursor, created_at, updated_at)\n             SELECT $1, project, network, fingerprint, cursor, created_at, now()\n             FROM nineveh.projects WHERE schema_name = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "31b95ec99e2d83b05279c063e8a69a31bbde932117bef6bd2ae29a0e42e48a0b"
+}

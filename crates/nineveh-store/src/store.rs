@@ -52,8 +52,8 @@ impl Store {
     /// # Errors
     ///
     /// [`StoreError::Rebuild`] if the schema was built from a different config, lock
-    /// or Nineveh version; replay the project to rebuild it. Otherwise, if the database
-    /// fails.
+    /// or Nineveh version: rebuild it into [`shadow_name`] and [`Store::swap`] it in
+    /// (ADR 0016). Otherwise, if the database fails.
     pub async fn open(
         pool: PgPool,
         schema: &str,
@@ -132,6 +132,70 @@ impl Store {
         )
         .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    /// Replace the build in `live` with the one in `shadow`, in one transaction: the
+    /// shadow's tables, cursor and change feed move to `live`, and the old build is
+    /// dropped (ADR 0016). Readers see the old build or the new one, never a mix.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError::Missing`] if `shadow` has no build, or if the database fails.
+    pub async fn swap(pool: &PgPool, live: &str, shadow: &str) -> Result<(), StoreError> {
+        check_schema(live)?;
+        check_schema(shadow)?;
+        migrate(pool).await?;
+        let mut tx = pool.begin().await?;
+        // Always in this order, so two swaps can't deadlock.
+        lock_schema(&mut tx, live).await?;
+        lock_schema(&mut tx, shadow).await?;
+        sqlx::query_scalar!(
+            "SELECT schema_name FROM nineveh.projects WHERE schema_name = $1 FOR UPDATE",
+            shadow
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| StoreError::Missing(shadow.to_owned()))?;
+
+        let drop = format!("DROP SCHEMA IF EXISTS {} CASCADE", ident(live));
+        unprepared(&mut tx, &drop).await?;
+        let rename = format!("ALTER SCHEMA {} RENAME TO {}", ident(shadow), ident(live));
+        unprepared(&mut tx, &rename).await?;
+        // The old build's row goes, and its change feed with it (ON DELETE CASCADE).
+        // The shadow's row and feed are re-keyed to `live`.
+        sqlx::query!("DELETE FROM nineveh.projects WHERE schema_name = $1", live)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query!(
+            "INSERT INTO nineveh.projects
+                 (schema_name, project, network, fingerprint, cursor, created_at, updated_at)
+             SELECT $1, project, network, fingerprint, cursor, created_at, now()
+             FROM nineveh.projects WHERE schema_name = $2",
+            live,
+            shadow
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "UPDATE nineveh.changes SET schema_name = $1 WHERE schema_name = $2",
+            live,
+            shadow
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "DELETE FROM nineveh.projects WHERE schema_name = $1",
+            shadow
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query("SELECT pg_notify($1, $2)")
+            .bind(NOTIFY_CHANNEL)
+            .bind(live)
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
         Ok(())
     }
@@ -554,6 +618,25 @@ async fn lock_schema(
     .fetch_one(&mut **tx)
     .await?;
     Ok(())
+}
+
+/// The suffix of the schema a rebuild of `schema` goes into (ADR 0016).
+const SHADOW_SUFFIX: &str = "__next";
+
+/// The schema a rebuild of `live` builds into before [`Store::swap`] moves it in.
+///
+/// # Errors
+///
+/// If `live` isn't a valid schema name, is itself a shadow, or is too long to take
+/// the suffix.
+pub fn shadow_name(live: &str) -> Result<String, StoreError> {
+    check_schema(live)?;
+    if live.ends_with(SHADOW_SUFFIX) {
+        return Err(StoreError::ReservedSchema(live.to_owned()));
+    }
+    let shadow = format!("{live}{SHADOW_SUFFIX}");
+    check_schema(&shadow)?;
+    Ok(shadow)
 }
 
 /// Refuse names that aren't identifiers, and schemas that belong to Nineveh or

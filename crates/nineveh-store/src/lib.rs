@@ -26,4 +26,4 @@ mod layout;
 mod store;
 
 pub use error::StoreError;
-pub use store::{Loaded, NOTIFY_CHANNEL, Store, migrate};
+pub use store::{Loaded, NOTIFY_CHANNEL, Store, migrate, shadow_name};

@@ -27,7 +27,7 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0002](0002-decode-json-against-pinned-layouts.md) | Decode the stream's JSON against pinned Move layouts | Accepted |
 | [0003](0003-table-item-sources.md) | Table items are a first-class source kind | Accepted; matching superseded by 0012 |
 | [0004](0004-server-side-filtering-policy.md) | Filter server-side only when it can't under-cover | Accepted |
-| [0005](0005-pure-fold-atomic-commit.md) | Pure fold, atomic commit, one-way dependencies | Accepted |
+| [0005](0005-pure-fold-atomic-commit.md) | Pure fold, atomic commit, one-way dependencies | Accepted; rebuild details in 0016 |
 | [0006](0006-transactional-outbox.md) | Change feeds come from a transactional outbox | Accepted; feed granularity superseded by 0014 |
 | [0007](0007-typed-total-expression-language.md) | Reducers use a typed, total expression language | Accepted |
 | [0008](0008-move-postgres-type-mapping.md) | Move → Postgres → API type mapping | Accepted |
@@ -38,3 +38,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0013](0013-fold-semantics-and-row-shapes.md) | Fold semantics, row shapes, and the missing-key retry | Accepted |
 | [0014](0014-state-schema-layout.md) | Store each build in its own schema, keyed by exact bytes and fingerprinted | Accepted |
 | [0015](0015-resolve-auto-start-at-init.md) | Resolve `start_version: auto` at init from the Indexer API, pinned in the lock | Accepted |
+| [0016](0016-shadow-rebuild-and-swap.md) | Rebuild into a shadow schema and swap it in | Accepted |

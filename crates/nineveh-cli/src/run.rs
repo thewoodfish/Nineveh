@@ -1,16 +1,23 @@
 //! `nineveh run` and `nineveh replay`: build a project's state and keep it current.
+//!
+//! When the config or lock changes what's built, `run` rebuilds into a shadow schema
+//! while the old build stays served, and swaps it in once it has caught up with the
+//! chain (ADR 0016). `replay` does the same with an unchanged config.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
+use nineveh_config::Project;
 use nineveh_core::Version;
+use nineveh_decode::Lockfile;
 use nineveh_ingest::{RestClient, StreamConfig};
 use nineveh_pipeline::{
     Outcome, Parallel, Pipeline, PipelineConfig, PipelineError, Status, StreamSource, stream_filter,
 };
-use nineveh_store::{Store, StoreError};
-use secrecy::SecretString;
+use nineveh_store::{Store, StoreError, shadow_name};
+use secrecy::{ExposeSecret, SecretString};
+use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use tokio::sync::watch;
 use tracing::{info, warn};
@@ -34,118 +41,189 @@ pub(crate) struct RunOptions {
 }
 
 pub(crate) async fn run(paths: &Paths, options: &RunOptions) -> Result<()> {
-    let loaded = load(paths)?;
-    let network = loaded.project.config().network;
-    let schema = options
-        .schema
-        .clone()
-        .unwrap_or_else(|| loaded.project.config().name.name.clone());
-
-    // The chain's current version bounds parallel backfill: ranges past it would
-    // only wait for the chain.
-    let rest = RestClient::hosted(network, options.api_key.as_ref())?;
-    let ledger = rest
-        .ledger()
-        .await
-        .context("reading the ledger's version")?;
-    if let Some(expected) = network.chain_id()
-        && ledger.chain_id != expected
-    {
-        bail!(
-            "the {network} REST API reports chain {}, not {expected}",
-            ledger.chain_id
-        );
-    }
-
-    let pool = PgPoolOptions::new()
-        .max_connections(4)
-        .connect(secrecy::ExposeSecret::expose_secret(&options.database_url))
-        .await
-        .context("connecting to Postgres")?;
-
-    let mut stream = StreamConfig::hosted(network, loaded.start);
-    stream.api_key.clone_from(&options.api_key);
-    stream.filter = stream_filter(&loaded.project);
-    let filtered = stream.filter.is_some();
-
-    let mut config = PipelineConfig::new(loaded.start);
-    config.until = options.until.map(Version::new);
-    if options.streams > 1 {
-        let mut parallel = Parallel::new(options.streams, ledger.ledger_version);
-        parallel.chunk_versions = options.chunk;
-        config.parallel = Some(parallel);
-    }
-
-    let pipeline = Pipeline::new(
-        StreamSource::new(stream),
-        pool,
-        &schema,
-        Arc::new(loaded.project),
-        Arc::new(loaded.lock),
-        config,
-    );
-    info!(
-        %schema,
-        %network,
-        start = loaded.start.get(),
-        chain = ledger.ledger_version.get(),
-        filtered,
-        streams = options.streams,
-        "running"
-    );
-    let reporter = tokio::spawn(report_progress(pipeline.status(), ledger.ledger_version));
-    let shutdown = async {
-        if tokio::signal::ctrl_c().await.is_ok() {
-            info!("stopping after the current commit");
-        }
-    };
-    let result = pipeline.run(shutdown).await;
-    reporter.abort();
-
-    match result {
-        Ok(Outcome::Finished { cursor } | Outcome::Stopped { cursor }) => {
-            info!(%schema, cursor = ?cursor.map(Version::get), "stopped");
-            Ok(())
-        }
-        Ok(other) => {
-            info!(?other, "stopped");
-            Ok(())
-        }
-        Err(PipelineError::Store(StoreError::Rebuild { .. })) => bail!(
-            "schema `{schema}` was built from a different config, lock or Nineveh version; \
-             run `nineveh replay --yes` to rebuild it"
-        ),
-        Err(error) => {
-            if let Some(version) = error.halted_at() {
-                bail!("halted at version {version}: {error}");
-            }
-            Err(error.into())
-        }
-    }
+    Runner::new(paths, options).await?.run(false).await
 }
 
-/// `nineveh replay`: drop the project's state and build it again from its start.
+/// `nineveh replay`: build the project again from its start, beside the served build,
+/// and swap it in.
 pub(crate) async fn replay(paths: &Paths, options: &RunOptions, confirmed: bool) -> Result<()> {
-    let loaded = load(paths)?;
-    let schema = options
-        .schema
-        .clone()
-        .unwrap_or_else(|| loaded.project.config().name.name.clone());
     if !confirmed {
+        let loaded = load(paths)?;
+        let schema = options
+            .schema
+            .clone()
+            .unwrap_or_else(|| loaded.project.config().name.name.clone());
         bail!(
-            "replay drops schema `{schema}`, its cursor and its change feed, then rebuilds \
-             from version {}; pass --yes to do it",
+            "replay rebuilds `{schema}` from version {} and then replaces its tables, cursor \
+             and change feed; pass --yes to do it",
             loaded.start
         );
     }
-    let pool = PgPoolOptions::new()
-        .max_connections(1)
-        .connect(secrecy::ExposeSecret::expose_secret(&options.database_url))
-        .await
-        .context("connecting to Postgres")?;
-    Store::reset(&pool, &schema).await?;
-    warn!(%schema, "dropped; rebuilding");
-    run(paths, options).await
+    Runner::new(paths, options).await?.run(true).await
+}
+
+/// Everything a run needs, loaded once.
+struct Runner {
+    project: Arc<Project>,
+    lock: Arc<Lockfile>,
+    start: Version,
+    schema: String,
+    pool: PgPool,
+    /// The chain's version when the run began: where backfill ends and a rebuild
+    /// swaps in.
+    tip: Version,
+    options: RunOptions,
+    /// Set by Ctrl-C.
+    stop: watch::Receiver<bool>,
+}
+
+impl Runner {
+    async fn new(paths: &Paths, options: &RunOptions) -> Result<Self> {
+        let loaded = load(paths)?;
+        let network = loaded.project.config().network;
+        let schema = options
+            .schema
+            .clone()
+            .unwrap_or_else(|| loaded.project.config().name.name.clone());
+
+        let rest = RestClient::hosted(network, options.api_key.as_ref())?;
+        let ledger = rest
+            .ledger()
+            .await
+            .context("reading the ledger's version")?;
+        if let Some(expected) = network.chain_id()
+            && ledger.chain_id != expected
+        {
+            bail!(
+                "the {network} REST API reports chain {}, not {expected}",
+                ledger.chain_id
+            );
+        }
+        let pool = PgPoolOptions::new()
+            .max_connections(4)
+            .connect(options.database_url.expose_secret())
+            .await
+            .context("connecting to Postgres")?;
+
+        let (stop, stopped) = watch::channel(false);
+        tokio::spawn(async move {
+            if tokio::signal::ctrl_c().await.is_ok() {
+                info!("stopping after the current commit");
+                let _ = stop.send(true);
+            }
+        });
+
+        Ok(Self {
+            project: Arc::new(loaded.project),
+            lock: Arc::new(loaded.lock),
+            start: loaded.start,
+            schema,
+            pool,
+            tip: ledger.ledger_version,
+            options: options.clone(),
+            stop: stopped,
+        })
+    }
+
+    async fn run(&self, replay: bool) -> Result<()> {
+        let rebuild = replay
+            || matches!(
+                Store::open(self.pool.clone(), &self.schema, &self.project, &self.lock).await,
+                Err(StoreError::Rebuild { .. })
+            );
+        if rebuild {
+            let shadow = shadow_name(&self.schema)?;
+            if replay {
+                Store::reset(&self.pool, &shadow).await?;
+            } else if let Err(StoreError::Rebuild { .. }) =
+                Store::open(self.pool.clone(), &shadow, &self.project, &self.lock).await
+            {
+                // A rebuild under an earlier config: start it over.
+                Store::reset(&self.pool, &shadow).await?;
+            }
+            let target = self.options.until.map_or(self.tip, Version::new);
+            warn!(
+                schema = %self.schema,
+                %shadow,
+                through = target.get(),
+                "rebuilding: the current build stays served until the new one catches up"
+            );
+            if let Outcome::Finished { .. } = self.pipeline(&shadow, Some(target)).await? {
+                Store::swap(&self.pool, &self.schema, &shadow).await?;
+                info!(schema = %self.schema, "swapped in the rebuild");
+            } else {
+                info!(%shadow, "stopped; running again resumes the rebuild");
+                return Ok(());
+            }
+            if self.options.until.is_some() {
+                return Ok(());
+            }
+        }
+        let until = self.options.until.map(Version::new);
+        self.pipeline(&self.schema, until).await?;
+        Ok(())
+    }
+
+    /// Run a pipeline into `schema` until `until`, Ctrl-C, or a failure.
+    async fn pipeline(&self, schema: &str, until: Option<Version>) -> Result<Outcome> {
+        let network = self.project.config().network;
+        let mut stream = StreamConfig::hosted(network, self.start);
+        stream.api_key.clone_from(&self.options.api_key);
+        stream.filter = stream_filter(&self.project);
+        let filtered = stream.filter.is_some();
+
+        let mut config = PipelineConfig::new(self.start);
+        config.until = until;
+        if self.options.streams > 1 {
+            let mut parallel = Parallel::new(self.options.streams, self.tip);
+            parallel.chunk_versions = self.options.chunk;
+            config.parallel = Some(parallel);
+        }
+        let pipeline = Pipeline::new(
+            StreamSource::new(stream),
+            self.pool.clone(),
+            schema,
+            Arc::clone(&self.project),
+            Arc::clone(&self.lock),
+            config,
+        );
+        info!(
+            %schema,
+            %network,
+            start = self.start.get(),
+            chain = self.tip.get(),
+            filtered,
+            streams = self.options.streams,
+            "running"
+        );
+        let reporter = tokio::spawn(report_progress(pipeline.status(), self.tip));
+        let mut stop = self.stop.clone();
+        let shutdown = async move {
+            let _ = stop.wait_for(|stopped| *stopped).await;
+        };
+        let result = pipeline.run(shutdown).await;
+        reporter.abort();
+
+        match result {
+            Ok(outcome) => {
+                let cursor = match outcome {
+                    Outcome::Finished { cursor } | Outcome::Stopped { cursor } => cursor,
+                    _ => None,
+                };
+                info!(%schema, cursor = ?cursor.map(Version::get), "stopped");
+                Ok(outcome)
+            }
+            Err(error) => {
+                if let Some(version) = error.halted_at() {
+                    bail!("halted at version {version}: {error}");
+                }
+                if let PipelineError::Store(StoreError::Rebuild { .. }) = error {
+                    bail!("schema `{schema}` changed while running; run again to rebuild it");
+                }
+                Err(error.into())
+            }
+        }
+    }
 }
 
 /// Log the cursor, lag and rate every few seconds while the pipeline runs.
