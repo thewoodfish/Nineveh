@@ -1,0 +1,16 @@
+[package]
+name = "NinevehCounter"
+version = "1.0.0"
+upgrade_policy = "compatible"
+
+[addresses]
+counter = "_"
+
+# For `aptos move test --dev`; publishing sets the real address.
+[dev-addresses]
+counter = "0xc001"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-framework.git"
+rev = "mainnet"
+subdir = "aptos-framework"

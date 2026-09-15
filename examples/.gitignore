@@ -1,0 +1,4 @@
+# The publishing account's private key lives here: never commit it.
+.aptos/
+# Move build output.
+build/

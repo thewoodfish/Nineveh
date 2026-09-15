@@ -1,0 +1,43 @@
+# Example contracts
+
+Four Move contracts to try Nineveh on, from the smallest thing it follows to the
+patterns production contracts use. Each is published at an address of its own, so
+pasting one into Studio's **New project** shows just that contract.
+
+| | Contract | What it shows in Nineveh |
+|---|---|---|
+| 1 | [`counter`](01-counter/sources/counter.move) | The basics: an event becomes a log table, a resource at each account becomes a mirror table. |
+| 2 | [`guestbook`](02-guestbook/sources/guestbook.move) | Strings and optional fields, and a `Table` whose items come and go: erased entries disappear from the mirror. |
+| 3 | [`market`](03-market/sources/market.move) | A `SmartTable` of listings and a `Table` of balances, plus [`nineveh.yaml`](03-market/nineveh.yaml) with `reduce` rules for totals the contract never stores. |
+| 4 | [`arena`](04-arena/sources/arena.move) | Move 2 enums: a versioned event (`V1`, then `V2`), a resource that upgrades from `V1` to `V2` in place, and label enums inside them. |
+
+## Try them in Studio
+
+The addresses they're published at are in [`deployed.env`](deployed.env). For each one:
+
+1. **New project**, network **testnet**, paste the address, **Inspect**.
+2. Tick what to follow:
+   - **counter**: `Incremented`, `Reset`, and the `Counter` resource.
+   - **guestbook**: the events, and the `Guestbook.entries` table.
+   - **market**: the events, and the `Market.listings` and `Market.credits` tables.
+   - **arena**: `Played`, and the `Record` resource.
+3. Choose **All of its history**. These contracts are new, so there's little to backfill, and
+   a table source needs to see the write that created its table.
+4. **Create**. Then run `./play.sh` (below) and watch rows arrive.
+
+For the market, try the reduce tables too: open the project's **Config**, replace it
+with [`03-market/nineveh.yaml`](03-market/nineveh.yaml) (with `MARKET` replaced by the
+address), and save. You get `sellers` and `buyers` tables with counts and totals.
+
+## Publish them yourself
+
+You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) (`brew install aptos`).
+
+```sh
+./setup.sh    # two testnet accounts; fund any it can't at the faucet link it prints
+./deploy.sh   # publishes all four, each at its own object address; writes deployed.env
+./play.sh     # keeps them busy: two accounts count, sign, trade and play, until Ctrl-C
+```
+
+Keys live in `.aptos/config.yaml` here, which git ignores. Each contract has unit
+tests: `aptos move test --package-dir 01-counter --dev`.

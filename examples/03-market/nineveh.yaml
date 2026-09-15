@@ -1,0 +1,45 @@
+# The market, with totals the contract never stores, built by reduce rules.
+# Replace MARKET with the address the market is published at (see ../README.md), then
+# paste this into a project's Config in Studio, or run it with the CLI.
+name: market
+network: testnet
+start_version: auto
+
+sources:
+  listed:    { event: "MARKET::market::Listed" }
+  sold:      { event: "MARKET::market::Sold" }
+  cancelled: { event: "MARKET::market::Cancelled" }
+  listings:  { table: "MARKET::market::Market.listings" }
+  credits:   { table: "MARKET::market::Market.credits" }
+
+state:
+  # What's for sale right now: rows appear on list and disappear on buy or cancel.
+  open_listings: { mirror: listings }
+  # Everyone's credits.
+  balances: { mirror: credits }
+  # Every sale, in order.
+  sales: { log: sold }
+
+  # Per seller: listed, sold, cancelled, and revenue after fees.
+  sellers:
+    key: [seller]
+    columns:
+      seller:    address
+      listed:    { type: u64, default: 0 }
+      sold:      { type: u64, default: 0 }
+      cancelled: { type: u64, default: 0 }
+      revenue:   { type: u64, default: 0 }
+    reduce:
+      - { on: listed,    set: { listed: "listed + 1" } }
+      - { on: sold,      set: { sold: "sold + 1", revenue: "revenue + price - fee" } }
+      - { on: cancelled, set: { cancelled: "cancelled + 1" } }
+
+  # Per buyer: purchases and credits spent.
+  buyers:
+    key: [buyer]
+    columns:
+      buyer:  address
+      bought: { type: u64, default: 0 }
+      spent:  { type: u64, default: 0 }
+    reduce:
+      - { on: sold, set: { bought: "bought + 1", spent: "spent + price" } }

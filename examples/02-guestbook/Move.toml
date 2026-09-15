@@ -1,0 +1,16 @@
+[package]
+name = "NinevehGuestbook"
+version = "1.0.0"
+upgrade_policy = "compatible"
+
+[addresses]
+guestbook = "_"
+
+# For `aptos move test --dev`; publishing sets the real address.
+[dev-addresses]
+guestbook = "0xc002"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-framework.git"
+rev = "mainnet"
+subdir = "aptos-framework"
