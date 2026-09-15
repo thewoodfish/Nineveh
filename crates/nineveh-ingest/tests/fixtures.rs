@@ -75,3 +75,44 @@ fn every_fixture_decodes_and_matches_its_name() {
         assert!(tx.info.is_some(), "{name}: missing TransactionInfo");
     }
 }
+
+/// The REST client against testnet: ledger info, a module whose bytecode matches the
+/// fixture, and a module that doesn't exist. Run with `APTOS_API_KEY` set:
+/// `cargo test -p nineveh-ingest --test fixtures -- --ignored`.
+#[tokio::test]
+#[ignore = "needs APTOS_API_KEY and the network"]
+async fn rest_client_reads_testnet() {
+    use nineveh_core::{Address, ChainId, Network};
+    use nineveh_ingest::RestClient;
+
+    let key = std::env::var("APTOS_API_KEY")
+        .map(secrecy::SecretString::from)
+        .ok();
+    let rest = RestClient::hosted(Network::Testnet, key.as_ref()).unwrap();
+
+    let ledger = rest.ledger().await.unwrap();
+    assert_eq!(ledger.chain_id, ChainId::TESTNET);
+    assert!(ledger.oldest_ledger_version < ledger.ledger_version);
+
+    let object = rest.module(Address::ONE, "object").await.unwrap().unwrap();
+    let fixture = fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/modules/testnet/0x1--object.mv"),
+    )
+    .unwrap();
+    assert_eq!(object.bytecode.get(..4), fixture.get(..4));
+    assert_eq!(object.abi["name"], "object");
+
+    assert!(
+        rest.module(Address::ONE, "no_such_module")
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        rest.module(Address::special(0xa), "nothing")
+            .await
+            .unwrap()
+            .is_none(),
+        "an account without modules"
+    );
+}
