@@ -1,0 +1,32 @@
+[package]
+name = "nineveh-realtime"
+description = "Nineveh's change feed: a project's row changes as Server-Sent Events, tailing the transactional outbox."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum.workspace = true
+futures.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing.workspace = true
+
+[dev-dependencies]
+nineveh-config.workspace = true
+nineveh-decode.workspace = true
+nineveh-engine.workspace = true
+nineveh-store.workspace = true
+nineveh-testkit.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+tower.workspace = true
+
+[lints]
+workspace = true

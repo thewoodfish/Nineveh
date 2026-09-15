@@ -24,6 +24,7 @@ nineveh-api = { path = "crates/nineveh-api" }
 nineveh-ingest = { path = "crates/nineveh-ingest" }
 nineveh-pipeline = { path = "crates/nineveh-pipeline" }
 nineveh-proto = { path = "crates/nineveh-proto" }
+nineveh-realtime = { path = "crates/nineveh-realtime" }
 nineveh-store = { path = "crates/nineveh-store" }
 nineveh-testkit = { path = "crates/nineveh-testkit" }
 
