@@ -31,6 +31,6 @@ pub use model::{
     StartVersion, StateTable, Subscription, TableKind, Trigger,
 };
 pub use resolve::{
-    CompiledExpr, Input, Project, ResolvedAction, ResolvedRule, ResolvedTable, Scope,
+    CompiledExpr, Input, Project, ResolvedAction, ResolvedRule, ResolvedTable, Scope, Watcher,
 };
 pub use validate::parse;

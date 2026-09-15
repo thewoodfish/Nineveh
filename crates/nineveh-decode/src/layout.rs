@@ -14,6 +14,8 @@ pub struct StructLayout {
     pub body: Body,
     /// Declared `#[event]`.
     pub is_event: bool,
+    /// Has the `key` ability, so it's stored at an address as a resource.
+    pub is_resource: bool,
     /// The resource group this struct belongs to, such as `0x1::object::ObjectGroup`.
     ///
     /// Group members are deleted by a single `DeleteResource` of the group type, never
@@ -177,6 +179,7 @@ mod tests {
                 },
             ]),
             is_event: true,
+            is_resource: false,
             group: None,
         }
     }

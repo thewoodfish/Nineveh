@@ -35,6 +35,8 @@ pub struct StructAbi {
     pub is_event: bool,
     #[serde(default)]
     pub is_enum: bool,
+    #[serde(default)]
+    pub abilities: Vec<String>,
     pub generic_type_params: Vec<serde::de::IgnoredAny>,
     pub fields: Vec<FieldAbi>,
     #[serde(default)]
@@ -188,6 +190,7 @@ impl LockBuilder {
             type_params,
             body,
             is_event: abi.is_event,
+            is_resource: abi.abilities.iter().any(|a| a == "key"),
             group: self.groups.get(name).cloned(),
         })
     }

@@ -547,23 +547,47 @@ fn the_lock_must_be_for_the_same_network() {
 }
 
 #[test]
-fn tables_with_indistinguishable_items_are_rejected() {
+fn tables_with_identical_item_types_resolve_with_parent_watchers() {
     // TradingVolumeBucket holds two Table<address, VolumeHistory>: taker and maker.
+    // Their items are told apart by handle, learned from the bucket (ADR 0012).
     let yaml = format!(
         "\
 name: perp
 network: mainnet
 sources:
   taker: {{ table: {PERP}::trading_volume_tracker::TradingVolumeBucket.user_taker_volume_history }}
+  maker: {{ table: {PERP}::trading_volume_tracker::TradingVolumeBucket.user_maker_volume_history }}
 state:
   taker: {{ mirror: taker }}
+  maker: {{ mirror: maker }}
 "
     );
-    let errors = resolve_errors(&yaml);
-    assert!(
-        errors.as_slice()[0]
-            .message
-            .contains("TradingVolumeBucket.user_maker_volume_history` holds a table with the same key and value types"),
-        "{errors}"
+    let config = parse(&yaml).unwrap();
+    let lock = lock_for(&config);
+    let project = config.resolve(&lock).unwrap();
+    let watchers = project.watchers();
+    assert_eq!(watchers.len(), 2);
+    assert_eq!(
+        watchers[0].table_source,
+        project.source_id("taker").unwrap()
     );
+    assert_eq!(watchers[0].field.as_str(), "user_taker_volume_history");
+    assert!(project.watcher(watchers[1].id).is_some());
+}
+
+#[test]
+fn key_expressions_read_only_the_record() {
+    let yaml = palette_yaml().replace(
+        "      - on: mints\n        set:",
+        "      - on: mints\n        key: { soul_bound_to: \"creator\" }\n        when: \"minted < 100\"\n        set:",
+    );
+    let config = parse(&yaml).unwrap();
+    let lock = lock_for(&config);
+    assert!(
+        config.clone().resolve(&lock).is_ok(),
+        "`when` may read the row"
+    );
+    let bad = yaml.replace("soul_bound_to: \"creator\"", "soul_bound_to: \"last_uri\"");
+    let errors = resolve_errors(&bad);
+    assert_eq!(errors.as_slice()[0].message, "unknown name `last_uri`");
 }

@@ -73,7 +73,8 @@ they get real code; the dependency direction between them is enforced by
                        u8–u256 and i8–i256 (ADR 0007; user reference in
                        `docs/expressions.md`). Config resolution compiles every rule.
 - `nineveh-engine`   — the pure fold: `StateView × Records → ChangeSet`. No I/O.
-                       Deterministic, replayable (ADR 0005).
+                       Deterministic, replayable (ADRs 0005, 0012, 0013); the replay
+                       property test is `tests/replay.rs`.
 - `nineveh-pipeline` — wires ingest → decode → fold → commit with bounded channels,
                        supervision, retries, metrics.
 - `nineveh-store`    — Postgres via sqlx. Schema generated from the project config,

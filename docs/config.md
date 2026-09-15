@@ -63,8 +63,13 @@ Each source is one of:
 
 A generic struct named without type arguments (`0x1::coin::CoinStore`) matches every
 instantiation. With arguments (`0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>`), it
-matches exactly that one. A `table:` source on a generic struct needs its type arguments,
-because items are matched by the table's key and value types.
+matches exactly that one. A `table:` source on a generic struct needs its type arguments.
+
+A `table:` source follows exactly the tables held in that field. Nineveh learns each
+table's handle when the struct holding it is written, so two tables with the same key
+and value types, or another contract's table of the same types, never mix. The holding
+struct must be stored as a resource or as a table value. `BigOrderedMap` fields aren't
+supported yet: small maps keep their entries inside the struct itself.
 
 Resources are needed alongside events: many contracts expose their real state only as
 resource writes, and state kept in tables never appears as a resource write at all.
@@ -127,6 +132,10 @@ balances:
 
 Any `set` rule may be the one that creates a row, so every non-key column needs a value
 from each `set` rule: set it there, give it a `default`, or make it `nullable`.
+
+Rules run in the order they're listed, each seeing the one before. Within one `set`,
+every expression sees the row as it was before the rule, so `set: { a: "b", b: "a" }`
+swaps. A `key` expression reads only the record, since the key is what finds the row.
 
 **What a rule's expressions can read.** Columns of the row are read by name. From the
 record:

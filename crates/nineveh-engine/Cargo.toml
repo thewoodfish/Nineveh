@@ -1,0 +1,27 @@
+[package]
+name = "nineveh-engine"
+description = "Nineveh's pure fold: decoded records into state-table changes, deterministic and replayable."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+nineveh-config.workspace = true
+nineveh-core.workspace = true
+nineveh-decode.workspace = true
+nineveh-expr.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+nineveh-proto.workspace = true
+proptest.workspace = true
+prost.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

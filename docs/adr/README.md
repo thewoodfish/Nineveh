@@ -35,3 +35,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0010](0010-lock-format-and-decode-boundary.md) | Pin layouts in a JSON lock; decode protos without a runtime | Accepted |
 | [0011](0011-project-config-semantics.md) | Project config: two-phase loading and explicit row semantics | Accepted |
 | [0012](0012-attribute-table-items-by-handle.md) | Attribute table items by handle, learned from their parent | Accepted |
+| [0013](0013-fold-semantics-and-row-shapes.md) | Fold semantics, row shapes, and the missing-key retry | Accepted |

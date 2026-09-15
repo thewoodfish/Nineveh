@@ -3,7 +3,7 @@
 
 use nineveh_core::{Identifier, StructTag, TypeTag};
 use nineveh_decode::{
-    Body, Lockfile, Selection, SelectionError, SourceId, TableMatcher, TypeMatcher,
+    Body, Container, Lockfile, Selection, SelectionError, SourceId, TableMatcher, TypeMatcher,
 };
 use nineveh_expr::{ColumnVar, Compiled, Env, IntType, Structs, Type, compile};
 
@@ -17,6 +17,7 @@ pub struct Project {
     selection: Selection,
     inputs: Vec<Input>,
     tables: Vec<ResolvedTable>,
+    watchers: Vec<Watcher>,
 }
 
 impl Project {
@@ -53,6 +54,36 @@ impl Project {
     pub fn tables(&self) -> &[ResolvedTable] {
         &self.tables
     }
+
+    /// The hidden sources that watch table sources' parents, to learn their handles.
+    #[must_use]
+    pub fn watchers(&self) -> &[Watcher] {
+        &self.watchers
+    }
+
+    /// The watcher with this id, if it is one.
+    #[must_use]
+    pub fn watcher(&self, id: SourceId) -> Option<&Watcher> {
+        self.watchers.iter().find(|w| w.id == id)
+    }
+}
+
+/// A table source whose parent needs a watcher: its id, parent, field and container.
+type PendingWatcher = (SourceId, StructTag, Identifier, Container);
+
+/// A hidden source that decodes a table source's parent struct wherever the stream
+/// shows it (as a resource, or as a table value) so the engine can learn which table
+/// handles belong to the source (ADR 0012).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Watcher {
+    /// The id the watcher's records carry. Watcher ids follow the config's sources.
+    pub id: SourceId,
+    /// The table source whose handles this watcher learns.
+    pub table_source: SourceId,
+    pub parent: StructTag,
+    /// The parent field holding the table.
+    pub field: Identifier,
+    pub container: Container,
 }
 
 fn source_id(index: usize) -> SourceId {
@@ -193,47 +224,28 @@ impl Config {
             );
         }
 
-        let mut selection = Selection::new();
-        let mut inputs = Vec::new();
-        for (index, source) in self.sources.iter().enumerate() {
-            let id = source_id(index);
-            let at = source.type_span;
-            let input = match &source.kind {
-                SourceKind::Event(tag) => matcher(lock, tag).and_then(|m| {
-                    selection.add_event(lock, id, m.clone())?;
-                    Ok(Input::Event(m))
-                }),
-                SourceKind::Resource(tag) => matcher(lock, tag).and_then(|m| {
-                    selection.add_resource(lock, id, m.clone())?;
-                    Ok(Input::Resource(m))
-                }),
-                SourceKind::Table { parent, field } => {
-                    TableMatcher::for_field(lock, parent, field.as_str()).map(|m| {
-                        if let Some(other) = colliding_table(lock, parent, field, &m) {
-                            diagnostics.push(
-                                Diagnostic::new(
-                                    format!(
-                                        "table items can't be told apart: `{other}` holds a table \
-                                         with the same key and value types"
-                                    ),
-                                    at,
-                                )
-                                .help(
-                                    "items are matched by type until handle attribution \
-                                     (ADR 0012) lands, so both tables' items would land here",
-                                ),
-                            );
-                        }
-                        selection.add_table(id, &m);
-                        Input::Table(m)
-                    })
-                }
-            };
-            match input {
-                Ok(input) => inputs.push(input),
-                Err(e) => diagnostics.push(selection_diagnostic(&e, at)),
+        let (mut selection, inputs, pending_watchers) = self.sources(lock, &mut diagnostics);
+
+        // Each table source's parent is watched wherever it can appear: as a resource
+        // (if it is one) and as a table value.
+        let mut watchers = Vec::new();
+        for (table_source, parent, field, container) in pending_watchers {
+            let id = source_id(self.sources.len() + watchers.len());
+            if lock.get(&parent.name).is_some_and(|l| l.is_resource)
+                && let Err(e) = selection.add_resource(lock, id, TypeMatcher::Exact(parent.clone()))
+            {
+                diagnostics.push(selection_diagnostic(&e, None));
             }
+            selection.add_table_values(id, TypeTag::Struct(Box::new(parent.clone())));
+            watchers.push(Watcher {
+                id,
+                table_source,
+                parent,
+                field,
+                container,
+            });
         }
+
         // Tables and rules can't be checked against sources that didn't resolve.
         if let Some(diagnostics) = Diagnostics::from_vec(std::mem::take(&mut diagnostics)) {
             return Err(diagnostics);
@@ -269,8 +281,74 @@ impl Config {
                 selection,
                 inputs,
                 tables,
+                watchers,
             }),
         }
+    }
+
+    /// Resolve every source into the decode selection, collecting the table sources
+    /// whose parents need watching.
+    fn sources(
+        &self,
+        lock: &Lockfile,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> (Selection, Vec<Input>, Vec<PendingWatcher>) {
+        let mut selection = Selection::new();
+        let mut inputs = Vec::new();
+        let mut pending_watchers = Vec::new();
+        for (index, source) in self.sources.iter().enumerate() {
+            let id = source_id(index);
+            let at = source.type_span;
+            let input = match &source.kind {
+                SourceKind::Event(tag) => matcher(lock, tag).and_then(|m| {
+                    selection.add_event(lock, id, m.clone())?;
+                    Ok(Input::Event(m))
+                }),
+                SourceKind::Resource(tag) => matcher(lock, tag).and_then(|m| {
+                    let is_group_member = lock.get(&tag.name).is_some_and(|l| l.group.is_some());
+                    if is_group_member && matches!(m, TypeMatcher::AnyInstance(_)) {
+                        diagnostics.push(
+                            Diagnostic::new(
+                                format!(
+                                    "`{}` is a generic resource-group member; name its type \
+                                     arguments",
+                                    tag.name
+                                ),
+                                at,
+                            )
+                            .help(
+                                "a group delete removes every member at an address, and which \
+                                 instantiations exist there isn't tracked",
+                            ),
+                        );
+                    }
+                    selection.add_resource(lock, id, m.clone())?;
+                    Ok(Input::Resource(m))
+                }),
+                SourceKind::Table { parent, field } => {
+                    TableMatcher::for_field(lock, parent, field.as_str()).map(|m| {
+                        if m.container == Container::BigOrderedMap {
+                            diagnostics.push(
+                                Diagnostic::new("BigOrderedMap sources aren't supported yet", at)
+                                    .help(
+                                        "small maps keep their entries inside the parent struct, \
+                                     which the engine doesn't read yet; use a `resource` source \
+                                     on the parent meanwhile",
+                                    ),
+                            );
+                        }
+                        pending_watchers.push((id, parent.clone(), field.clone(), m.container));
+                        selection.add_table(id, &m);
+                        Input::Table(m)
+                    })
+                }
+            };
+            match input {
+                Ok(input) => inputs.push(input),
+                Err(e) => diagnostics.push(selection_diagnostic(&e, at)),
+            }
+        }
+        (selection, inputs, pending_watchers)
     }
 
     fn id_of(&self, source: &Named) -> SourceId {
@@ -300,17 +378,23 @@ impl Config {
 
         let vars = column_vars(key, columns);
         let structs = LockStructs(lock);
-        let env = Env {
+        let row_env = Env {
             columns: &vars,
             record: &scope.fields,
             source: rule.on.source.as_str(),
             structs: &structs,
         };
+        // A key picks the row, so it can only read the record.
+        let key_env = Env {
+            columns: &[],
+            ..row_env
+        };
         let compile_expr = |expr: &Expr,
+                            env: &Env<'_>,
                             target: &Type,
                             diagnostics: &mut Vec<Diagnostic>|
          -> Option<CompiledExpr> {
-            match compile(&expr.text, &env, target) {
+            match compile(&expr.text, env, target) {
                 Ok(compiled) => Some(CompiledExpr {
                     source: expr.clone(),
                     compiled,
@@ -333,7 +417,7 @@ impl Config {
             };
             let target = column_type(column);
             if let Some((_, expr)) = rule.key.iter().find(|(n, _)| n.name == column_name.name) {
-                if let Some(c) = compile_expr(expr, &target, diagnostics) {
+                if let Some(c) = compile_expr(expr, &key_env, &target, diagnostics) {
                     bindings.push((column_name.name.clone(), c));
                 }
                 continue;
@@ -344,7 +428,7 @@ impl Config {
                         text: format!("{}.{}", rule.on.source, column_name),
                         span: rule.on.span,
                     };
-                    if let Some(c) = compile_expr(&implicit, &target, diagnostics) {
+                    if let Some(c) = compile_expr(&implicit, &key_env, &target, diagnostics) {
                         bindings.push((column_name.name.clone(), c));
                     }
                 }
@@ -355,7 +439,7 @@ impl Config {
         let when = rule
             .when
             .as_ref()
-            .and_then(|w| compile_expr(w, &Type::Bool, diagnostics));
+            .and_then(|w| compile_expr(w, &row_env, &Type::Bool, diagnostics));
         let action = match &rule.action {
             Action::Delete => ResolvedAction::Delete,
             Action::Set(assignments) => ResolvedAction::Set(
@@ -363,7 +447,8 @@ impl Config {
                     .iter()
                     .filter_map(|(name, expr)| {
                         let column = columns.iter().find(|c| c.name.name == name.name)?;
-                        let compiled = compile_expr(expr, &column_type(column), diagnostics)?;
+                        let compiled =
+                            compile_expr(expr, &row_env, &column_type(column), diagnostics)?;
                         Some((name.name.clone(), compiled))
                     })
                     .collect(),
@@ -553,51 +638,6 @@ fn struct_scope(lock: &Lockfile, m: &TypeMatcher) -> Scope {
         }
     }
     scope
-}
-
-/// Another field in the lock whose table items have the same stream types as `m`'s.
-///
-/// Only non-generic parents are compared; a generic parent's item types depend on its
-/// instantiation.
-fn colliding_table(
-    lock: &Lockfile,
-    parent: &StructTag,
-    field: &Identifier,
-    m: &TableMatcher,
-) -> Option<String> {
-    let items = m.item_types();
-    for (name, layout) in lock.structs() {
-        if layout.type_params > 0 {
-            continue;
-        }
-        let tag = StructTag {
-            name: name.clone(),
-            type_args: Vec::new(),
-        };
-        let names: Vec<&Identifier> = match &layout.body {
-            Body::Struct(fields) => fields.iter().map(|f| &f.name).collect(),
-            Body::Enum(variants) => {
-                let mut names: Vec<&Identifier> = variants
-                    .iter()
-                    .flat_map(|v| v.fields.iter().map(|f| &f.name))
-                    .collect();
-                names.sort();
-                names.dedup();
-                names
-            }
-        };
-        for other in names {
-            if tag == *parent && other == field {
-                continue;
-            }
-            if let Ok(candidate) = TableMatcher::for_field(lock, &tag, other.as_str())
-                && candidate.item_types() == items
-            {
-                return Some(format!("{name}.{other}"));
-            }
-        }
-    }
-    None
 }
 
 fn selection_diagnostic(e: &SelectionError, at: Option<Span>) -> Diagnostic {

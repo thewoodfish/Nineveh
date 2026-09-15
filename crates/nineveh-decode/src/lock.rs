@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 use crate::layout::{Body, Builtin, Field, StructLayout, Variant, visit_struct_names};
 
 /// The lock format this build reads and writes.
-pub const FORMAT: u32 = 1;
+///
+/// Format 2 added `resource` (ADR 0012).
+pub const FORMAT: u32 = 2;
 
 /// The contents of `nineveh.lock`: every struct layout a project can meet, keyed by
 /// struct name.
@@ -214,6 +216,8 @@ struct StructRepr {
     variants: Option<Vec<VariantRepr>>,
     #[serde(default, skip_serializing_if = "is_false")]
     event: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    resource: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     group: Option<StructName>,
 }
@@ -264,6 +268,7 @@ impl StructRepr {
             fields,
             variants,
             event: layout.is_event,
+            resource: layout.is_resource,
             group: layout.group.clone(),
         }
     }
@@ -293,6 +298,7 @@ impl StructRepr {
             type_params: self.type_params,
             body,
             is_event: self.event,
+            is_resource: self.resource,
             group: self.group,
         })
     }
@@ -335,7 +341,7 @@ mod tests {
     use super::*;
 
     const LOCK: &str = r#"{
-  "format": 1,
+  "format": 2,
   "network": "testnet",
   "structs": {
     "0x1::coin::Coin": {
@@ -358,7 +364,8 @@ mod tests {
           "name": "frozen",
           "type": "bool"
         }
-      ]
+      ],
+      "resource": true
     },
     "0x0000000000000000000000000000000000000000000000000000000000000abc::vault::Position": {
       "variants": [
@@ -415,10 +422,10 @@ mod tests {
 
     #[test]
     fn rejects_unknown_formats_and_fields() {
-        let future = LOCK.replace("\"format\": 1", "\"format\": 2");
+        let future = LOCK.replace("\"format\": 2", "\"format\": 3");
         assert!(matches!(
             Lockfile::from_json(&future),
-            Err(LockError::UnsupportedFormat(2))
+            Err(LockError::UnsupportedFormat(3))
         ));
         let extra = LOCK.replace("\"type_params\": 1,", "\"type_params\": 1, \"x\": 0,");
         assert!(matches!(

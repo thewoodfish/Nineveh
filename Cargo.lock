@@ -1222,6 +1222,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nineveh-engine"
+version = "0.0.0"
+dependencies = [
+ "nineveh-config",
+ "nineveh-core",
+ "nineveh-decode",
+ "nineveh-expr",
+ "nineveh-proto",
+ "proptest",
+ "prost",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "nineveh-expr"
 version = "0.0.0"
 dependencies = [

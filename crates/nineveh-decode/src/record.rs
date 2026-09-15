@@ -182,6 +182,10 @@ pub struct Selection {
     group_members: HashMap<StructName, Vec<SourceId>>,
     table_items: HashMap<(TypeTag, TypeTag), Vec<(SourceId, Container)>>,
     table_keys: HashMap<TypeTag, Vec<(SourceId, Container)>>,
+    /// Sources taking every table item whose value has the keyed type, whatever the
+    /// key type: how the engine watches for table-holding parents stored as table
+    /// values (ADR 0012).
+    table_values: HashMap<TypeTag, Vec<SourceId>>,
 }
 
 impl Selection {
@@ -247,10 +251,18 @@ impl Selection {
             .push((id, matcher.container));
     }
 
+    /// Select every table item whose value is a `value_type`, whatever its key type.
+    pub fn add_table_values(&mut self, id: SourceId, value_type: TypeTag) {
+        self.table_values.entry(value_type).or_default().push(id);
+    }
+
     /// Whether this selection can match anything.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.events.is_empty() && self.resources.is_empty() && self.table_items.is_empty()
+        self.events.is_empty()
+            && self.resources.is_empty()
+            && self.table_items.is_empty()
+            && self.table_values.is_empty()
     }
 }
 
@@ -382,6 +394,12 @@ pub enum RecordData {
         container: Container,
         handle: Address,
         key: Value,
+        value: Value,
+    },
+    /// An item selected by its value type alone (see
+    /// [`Selection::add_table_values`]): its key isn't decoded.
+    TableValue {
+        handle: Address,
         value: Value,
     },
     /// An item delete. The stream gives no value type for deletes, so this is
@@ -527,13 +545,30 @@ impl<'a> TransactionDecoder<'a> {
                     .as_ref()
                     .ok_or(DecodeErrorKind::MissingTableData)?;
                 let types = (parse_type(&data.key_type)?, parse_type(&data.value_type)?);
-                let Some(sources) = self.selection.table_items.get(&types) else {
+                let by_items = self.selection.table_items.get(&types);
+                let by_value = self.selection.table_values.get(&types.1);
+                if by_items.is_none() && by_value.is_none() {
+                    return Ok(());
+                }
+                let handle = parse_address(&write.handle)?;
+                let value = self.decode_str(&types.1, &data.value)?;
+                // Value watchers need only the value; the key's type may not even be
+                // in the lock.
+                for &source in by_value.into_iter().flatten() {
+                    out.push(Record {
+                        source,
+                        origin,
+                        data: RecordData::TableValue {
+                            handle,
+                            value: value.clone(),
+                        },
+                    });
+                }
+                let Some(by_items) = by_items else {
                     return Ok(());
                 };
-                let handle = parse_address(&write.handle)?;
                 let key = self.decode_str(&types.0, &data.key)?;
-                let value = self.decode_str(&types.1, &data.value)?;
-                for &(source, container) in sources {
+                for &(source, container) in by_items {
                     out.push(Record {
                         source,
                         origin,

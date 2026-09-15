@@ -437,7 +437,7 @@ mod tests {
     fn lock() -> Lockfile {
         Lockfile::from_json(
             r#"{
-              "format": 1, "network": "testnet",
+              "format": 2, "network": "testnet",
               "structs": {
                 "0x1::object::Object": {"type_params": 1, "fields": [{"name": "inner", "type": "address"}]},
                 "0xabc::m::Pair": {"type_params": 2, "fields": [

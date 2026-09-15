@@ -18,6 +18,7 @@ publish = false
 nineveh-config = { path = "crates/nineveh-config" }
 nineveh-core = { path = "crates/nineveh-core" }
 nineveh-decode = { path = "crates/nineveh-decode" }
+nineveh-engine = { path = "crates/nineveh-engine" }
 nineveh-expr = { path = "crates/nineveh-expr" }
 nineveh-ingest = { path = "crates/nineveh-ingest" }
 nineveh-proto = { path = "crates/nineveh-proto" }

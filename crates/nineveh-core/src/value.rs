@@ -9,7 +9,11 @@ use crate::{Address, I256, Identifier, U256};
 /// `String` and `Option<T>` get their own variants because they map to their own
 /// column types (ADR 0008). Every other struct, including `Object<T>`, stays a
 /// [`Value::Struct`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// Values are totally ordered and hashable so they can key state rows. Integers of
+/// the same type order numerically; the order between different variants is fixed but
+/// otherwise meaningless.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Value {
     Bool(bool),
     U8(u8),
