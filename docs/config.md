@@ -86,7 +86,17 @@ vaults: { mirror: vaults }
 
 Keeps the latest value of each resource (by address) or table item (by table and key)
 from a `resource` or `table` source, and deletes it when the chain does. Columns come
-from the source's layout.
+from the source's layout: the key columns first, then one column per field of the value's
+struct, typed as in [Column types](#column-types).
+
+| Source | Key columns |
+| --- | --- |
+| `resource` | `address`, plus `type` for a generic struct named without type arguments |
+| `table` | `handle`, `key` |
+
+A table value that isn't a struct is stored in one `value` column, and so is an enum,
+since its fields depend on the variant. A field that isn't a valid column name, or has
+the same name as a key column, is an error. Build that table with `reduce` instead.
 
 ### `log`: every event
 
@@ -94,8 +104,9 @@ from the source's layout.
 deposit_log: { log: deposits }
 ```
 
-One append-only row per event from an `event` source. Columns come from the event's
-layout.
+One append-only row per event from an `event` source. The key is `version` and
+`event_index` (the event's position in its transaction), followed by one column per
+field of the event.
 
 ### `reduce`: your own fold
 

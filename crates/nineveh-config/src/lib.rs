@@ -23,6 +23,7 @@ mod diagnostic;
 mod model;
 mod raw;
 mod resolve;
+mod schema;
 mod validate;
 
 pub use diagnostic::{Diagnostic, Diagnostics, Span};
@@ -33,4 +34,5 @@ pub use model::{
 pub use resolve::{
     CompiledExpr, Input, Project, ResolvedAction, ResolvedRule, ResolvedTable, Scope, Watcher,
 };
+pub use schema::{Projection, SchemaColumn, TableSchema, column_for};
 pub use validate::parse;

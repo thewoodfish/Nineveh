@@ -16,6 +16,9 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   RUSTFLAGS: -D warnings
+  # sqlx checks nineveh-store's queries against the recorded `.sqlx/` data, never a
+  # live database (regenerate with scripts/sqlx-prepare.sh).
+  SQLX_OFFLINE: "true"
 
 # Actions are pinned to full commit SHAs; the trailing comment names the release.
 # The toolchain comes from rust-toolchain.toml, which rustup installs on first use.
@@ -35,6 +38,19 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nineveh
+          POSTGRES_PASSWORD: nineveh
+          POSTGRES_DB: nineveh_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nineveh" --health-interval 2s --health-timeout 5s
+          --health-retries 20
+    env:
+      NINEVEH_TEST_DATABASE_URL: postgres://nineveh:nineveh@localhost:5432/nineveh_test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2

@@ -1,6 +1,6 @@
 [package]
-name = "nineveh-engine"
-description = "Nineveh's pure fold: decoded records into state-table changes, deterministic and replayable."
+name = "nineveh-store"
+description = "Nineveh's Postgres store: state schemas generated from config, and the atomic commit of state, cursor and outbox."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,15 +14,16 @@ publish.workspace = true
 nineveh-config.workspace = true
 nineveh-core.workspace = true
 nineveh-decode.workspace = true
-nineveh-expr.workspace = true
+nineveh-engine.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-nineveh-proto.workspace = true
 nineveh-testkit.workspace = true
 proptest.workspace = true
-prost.workspace = true
-serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true

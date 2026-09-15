@@ -61,6 +61,10 @@ pub struct RowChange {
     pub table: u32,
     pub key: Key,
     pub kind: ChangeKind,
+    /// The row after the change; `None` for a delete. A key changed twice in one
+    /// batch has two changes, each with its own row, so the feed doesn't depend on
+    /// how the stream is batched.
+    pub row: Option<Row>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

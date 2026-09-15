@@ -1,6 +1,6 @@
 [package]
-name = "nineveh-engine"
-description = "Nineveh's pure fold: decoded records into state-table changes, deterministic and replayable."
+name = "nineveh-testkit"
+description = "Shared test workloads for Nineveh's crates: a synthetic contract rendered as real stream transactions."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,14 +14,8 @@ publish.workspace = true
 nineveh-config.workspace = true
 nineveh-core.workspace = true
 nineveh-decode.workspace = true
-nineveh-expr.workspace = true
-thiserror.workspace = true
-
-[dev-dependencies]
 nineveh-proto.workspace = true
-nineveh-testkit.workspace = true
 proptest.workspace = true
-prost.workspace = true
 serde_json.workspace = true
 
 [lints]

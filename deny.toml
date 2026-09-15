@@ -6,7 +6,14 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
-ignore = []
+ignore = [
+  # ruint shift overflow flags (fixed in 1.20.0, which needs Rust 1.90; MSRV is 1.89).
+  # Not reachable here: the only shift on a Move integer is `U256::MAX.wrapping_shr(1)`
+  # in nineveh-core, far below the 2^32 shift amounts that truncate, and the
+  # formatting hang needs a no-alloc build of a non-limb-aligned width, while Nineveh
+  # uses std and 256 bits. Drop this when the MSRV reaches 1.90 and ruint is bumped.
+  { id = "RUSTSEC-2026-0220", reason = "unreachable: no affected shifts; std build of U256 only" },
+]
 
 [licenses]
 version = 2

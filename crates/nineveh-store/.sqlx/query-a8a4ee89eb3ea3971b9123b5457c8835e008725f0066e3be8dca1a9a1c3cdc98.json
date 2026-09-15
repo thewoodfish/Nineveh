@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO nineveh.changes\n                     (schema_name, version, seq, table_name, op, key, new_row)\n                 SELECT $1::text, * FROM UNNEST(\n                     $2::bigint[], $3::integer[], $4::text[], $5::text[],\n                     $6::text[]::jsonb[], $7::text[]::jsonb[])",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8Array",
+        "Int4Array",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a8a4ee89eb3ea3971b9123b5457c8835e008725f0066e3be8dca1a9a1c3cdc98"
+}

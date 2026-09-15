@@ -1,6 +1,6 @@
 # 0006. Change feeds come from a transactional outbox
 
-- Status: Accepted
+- Status: Accepted; feed granularity and `seq` numbering superseded by [0014](0014-state-schema-layout.md)
 - Date: 2026-09-14
 
 ## Context

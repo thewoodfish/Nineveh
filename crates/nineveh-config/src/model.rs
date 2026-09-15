@@ -56,6 +56,86 @@ impl Config {
         roots.dedup();
         roots
     }
+
+    /// Everything in the config that shapes derived state, as canonical text: the
+    /// network, start version, sources and state tables, without spans, comments or
+    /// layout. Two configs with the same canonical text build the same state from
+    /// the same lock, so a state schema records a hash of it (ADR 0005). The project's
+    /// name, `api` and `realtime` don't change what's built and aren't included.
+    #[must_use]
+    pub fn canonical(&self) -> String {
+        use fmt::Write as _;
+        let mut out = String::new();
+        let start = match self.start_version {
+            StartVersion::Auto => "auto".to_owned(),
+            StartVersion::Version(v) => v.to_string(),
+        };
+        // Writing to a String can't fail.
+        let _ = writeln!(out, "network {}\nstart {start}", self.network);
+        for source in &self.sources {
+            let _ = match &source.kind {
+                SourceKind::Event(tag) | SourceKind::Resource(tag) => {
+                    writeln!(
+                        out,
+                        "source {} {} {tag}",
+                        source.name,
+                        source.kind.keyword()
+                    )
+                }
+                SourceKind::Table { parent, field } => {
+                    writeln!(out, "source {} table {parent}.{field}", source.name)
+                }
+            };
+        }
+        let expr = |e: &Expr| format!("{:?}", e.text);
+        for table in &self.state {
+            let _ = match &table.kind {
+                TableKind::Mirror { source } => {
+                    writeln!(out, "table {} mirror {source}", table.name)
+                }
+                TableKind::Log { source } => writeln!(out, "table {} log {source}", table.name),
+                TableKind::Reduce {
+                    key,
+                    columns,
+                    rules,
+                } => {
+                    let key: Vec<&str> = key.iter().map(Named::as_str).collect();
+                    let _ = writeln!(out, "table {} reduce key {}", table.name, key.join(","));
+                    for c in columns {
+                        let _ = writeln!(
+                            out,
+                            "  column {} {} nullable={} default={:?}",
+                            c.name, c.ty, c.nullable, c.default
+                        );
+                    }
+                    for rule in rules {
+                        let _ = write!(
+                            out,
+                            "  rule on {} deleted={}",
+                            rule.on.source, rule.on.deleted
+                        );
+                        if let Some(when) = &rule.when {
+                            let _ = write!(out, " when {}", expr(when));
+                        }
+                        for (name, e) in &rule.key {
+                            let _ = write!(out, " key {name}={}", expr(e));
+                        }
+                        match &rule.action {
+                            Action::Delete => out.push_str(" delete"),
+                            Action::Set(set) => {
+                                for (name, e) in set {
+                                    let _ = write!(out, " set {name}={}", expr(e));
+                                }
+                            }
+                        }
+                        out.push('\n');
+                    }
+                    Ok(())
+                }
+            };
+        }
+        out
+    }
 }
 
 fn visit(ty: &TypeTag, roots: &mut Vec<StructName>) {

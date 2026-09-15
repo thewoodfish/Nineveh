@@ -195,6 +195,7 @@ impl Fold<'_, '_, '_> {
             table: index,
             key: key.clone(),
             kind,
+            row: new.clone(),
         });
         self.overlay.insert((TableId::State(index), key), new);
     }

@@ -9,6 +9,7 @@ use nineveh_expr::{ColumnVar, Compiled, Env, IntType, Structs, Type, compile};
 
 use crate::diagnostic::{Diagnostic, Diagnostics, Span};
 use crate::model::{Action, Column, ColumnType, Config, Expr, Named, Rule, SourceKind, TableKind};
+use crate::schema::{TableSchema, table_schema};
 
 /// A config resolved against its lock: ready to decode, fold and serve.
 #[derive(Debug, Clone)]
@@ -17,6 +18,7 @@ pub struct Project {
     selection: Selection,
     inputs: Vec<Input>,
     tables: Vec<ResolvedTable>,
+    schemas: Vec<TableSchema>,
     watchers: Vec<Watcher>,
 }
 
@@ -53,6 +55,12 @@ impl Project {
     #[must_use]
     pub fn tables(&self) -> &[ResolvedTable] {
         &self.tables
+    }
+
+    /// Each state table's stored columns, in `config().state` order.
+    #[must_use]
+    pub fn schemas(&self) -> &[TableSchema] {
+        &self.schemas
     }
 
     /// The hidden sources that watch table sources' parents, to learn their handles.
@@ -252,7 +260,25 @@ impl Config {
         }
 
         let mut tables = Vec::new();
+        let mut schemas = Vec::new();
         for table in &self.state {
+            let (input, source_span) = match &table.kind {
+                TableKind::Mirror { source } | TableKind::Log { source } => {
+                    let id = self.id_of(source);
+                    (
+                        inputs.get(usize::try_from(id.0).unwrap_or(usize::MAX)),
+                        source.span,
+                    )
+                }
+                TableKind::Reduce { .. } => (None, None),
+            };
+            schemas.push(table_schema(
+                lock,
+                table,
+                input,
+                source_span,
+                &mut diagnostics,
+            ));
             let resolved = match &table.kind {
                 TableKind::Mirror { source } => ResolvedTable::Mirror {
                     source: self.id_of(source),
@@ -281,6 +307,7 @@ impl Config {
                 selection,
                 inputs,
                 tables,
+                schemas,
                 watchers,
             }),
         }

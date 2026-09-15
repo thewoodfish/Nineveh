@@ -12,8 +12,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use nineveh_config::{
-    Action, ColumnType, Config, Diagnostics, Input, ResolvedAction, ResolvedTable, StartVersion,
-    TableKind, parse,
+    Action, ColumnType, Config, Diagnostics, Input, Projection, ResolvedAction, ResolvedTable,
+    StartVersion, TableKind, parse,
 };
 use nineveh_core::{Address, Network, Value};
 use nineveh_decode::{LockBuilder, Lockfile, ModuleAbi, RecordData, TransactionDecoder};
@@ -590,4 +590,187 @@ fn key_expressions_read_only_the_record() {
     let bad = yaml.replace("soul_bound_to: \"creator\"", "soul_bound_to: \"last_uri\"");
     let errors = resolve_errors(&bad);
     assert_eq!(errors.as_slice()[0].message, "unknown name `last_uri`");
+}
+
+#[test]
+fn every_table_gets_typed_columns() {
+    let yaml = palette_yaml();
+    let config = parse(&yaml).unwrap();
+    let lock = lock_for(&config);
+    let project = config.resolve(&lock).unwrap();
+    let columns = |table: usize| -> Vec<(String, ColumnType, bool, Projection)> {
+        project.schemas()[table]
+            .columns
+            .iter()
+            .map(|c| (c.name.clone(), c.ty, c.nullable, c.from.clone()))
+            .collect()
+    };
+    let field = |i, name: &str| Projection::Field(i, name.parse().unwrap());
+
+    // A reduce table has the columns it declares, keyed as declared.
+    assert_eq!(
+        columns(0),
+        [
+            (
+                "soul_bound_to".into(),
+                ColumnType::Address,
+                false,
+                Projection::Row(0)
+            ),
+            ("minted".into(), ColumnType::U64, false, Projection::Row(1)),
+            (
+                "last_uri".into(),
+                ColumnType::String,
+                true,
+                Projection::Row(2)
+            ),
+        ]
+    );
+    assert_eq!(project.schemas()[0].key, [0]);
+
+    // A resource mirror: its address, then the resource's fields.
+    assert_eq!(
+        columns(1),
+        [
+            (
+                "address".into(),
+                ColumnType::Address,
+                false,
+                Projection::Row(0)
+            ),
+            (
+                "max_balance_per_user".into(),
+                ColumnType::U64,
+                false,
+                field(1, "max_balance_per_user")
+            ),
+            (
+                "user_balances".into(),
+                ColumnType::Json,
+                false,
+                field(1, "user_balances")
+            ),
+            (
+                "collection_max_supply".into(),
+                ColumnType::U64,
+                false,
+                field(1, "collection_max_supply")
+            ),
+        ]
+    );
+
+    // A table mirror: handle and key, then a scalar value in one column.
+    assert_eq!(
+        columns(2),
+        [
+            (
+                "handle".into(),
+                ColumnType::Address,
+                false,
+                Projection::Row(0)
+            ),
+            ("key".into(), ColumnType::Address, false, Projection::Row(1)),
+            ("value".into(), ColumnType::U64, false, Projection::Row(2)),
+        ]
+    );
+    assert_eq!(project.schemas()[2].key, [0, 1]);
+
+    // A log: version and event index, then the event's fields.
+    let log = columns(3);
+    assert_eq!(
+        log[..3],
+        [
+            ("version".into(), ColumnType::U64, false, Projection::Row(0)),
+            (
+                "event_index".into(),
+                ColumnType::U32,
+                false,
+                Projection::Row(1)
+            ),
+            (
+                "creator".into(),
+                ColumnType::Address,
+                false,
+                field(2, "creator")
+            ),
+        ]
+    );
+    assert_eq!(log.len(), 2 + 6);
+}
+
+#[test]
+fn fields_that_cant_be_columns_are_reported() {
+    let yaml = "\
+name: clash
+network: testnet
+sources:
+  things: { resource: 0xbeef::m::Thing }
+  pings:  { event: 0xbeef::m::Ping }
+state:
+  things: { mirror: things }
+  pings:  { log: pings }
+";
+    let abi: ModuleAbi = serde_json::from_str(
+        r#"{"address": "0xbeef", "name": "m", "structs": [
+          {"name": "Thing", "abilities": ["key"], "generic_type_params": [],
+           "fields": [{"name": "address", "type": "address"}, {"name": "Weird", "type": "u8"}]},
+          {"name": "Ping", "is_event": true, "abilities": ["drop", "store"], "generic_type_params": [],
+           "fields": [{"name": "version", "type": "u64"}, {"name": "ok", "type": "bool"}]}
+        ]}"#,
+    )
+    .unwrap();
+    let config = parse(yaml).unwrap();
+    let mut builder = LockBuilder::new(config.network);
+    builder.add_module(abi);
+    let lock = builder.build(&config.roots()).unwrap();
+    let errors = config.resolve(&lock).unwrap_err();
+    let messages: Vec<&str> = errors
+        .as_slice()
+        .iter()
+        .map(|d| d.message.as_str())
+        .collect();
+    // Struct names print their address at full width (AIP-40).
+    let module = format!("{}::m", "0xbeef".parse::<Address>().unwrap());
+    assert_eq!(
+        messages,
+        [
+            format!(
+                "table `things` can't store field `address` of `{module}::Thing`: the name \
+                 clashes with a key column"
+            ),
+            format!(
+                "table `things` can't store field `Weird` of `{module}::Thing`: the name isn't \
+                 a valid column name (lower snake case, at most 63 characters, not starting \
+                 with `_`)"
+            ),
+            format!(
+                "table `pings` can't store field `version` of `{module}::Ping`: the name \
+                 clashes with a key column"
+            ),
+        ]
+    );
+    // Each points at the source the table names, and suggests a reduce table.
+    let rendered = errors.render("nineveh.yaml", yaml);
+    assert!(
+        rendered.contains("things: { mirror: things }"),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("build this table with `reduce`"),
+        "{rendered}"
+    );
+}
+
+#[test]
+fn the_canonical_form_ignores_formatting_but_not_meaning() {
+    let yaml = palette_yaml();
+    let canonical = parse(&yaml).unwrap().canonical();
+    let reformatted = format!("# a comment\n{}", yaml.replace(":    {", ": {"));
+    assert_eq!(parse(&reformatted).unwrap().canonical(), canonical);
+    // Serving and webhooks don't change what's built.
+    let served = yaml.replace("api: { graphql: false }", "api: { graphql: true }");
+    assert_eq!(parse(&served).unwrap().canonical(), canonical);
+    // Rules do.
+    let changed = yaml.replace("minted + 1", "minted + 2");
+    assert_ne!(parse(&changed).unwrap().canonical(), canonical);
 }

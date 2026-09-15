@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO nineveh.projects (schema_name, project, network, fingerprint)\n                     VALUES ($1, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c4165a3ffa203f9c6dc125d94513781c4f4aaaff9371fe6f78da54c985ad75e9"
+}

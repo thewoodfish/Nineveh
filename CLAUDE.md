@@ -77,8 +77,9 @@ they get real code; the dependency direction between them is enforced by
                        property test is `tests/replay.rs`.
 - `nineveh-pipeline` — wires ingest → decode → fold → commit with bounded channels,
                        supervision, retries, metrics.
-- `nineveh-store`    — Postgres via sqlx. Schema generated from the project config,
-                       migrations, soft/hard upgrade handling.
+- `nineveh-store`    — Postgres via sqlx. A schema per build generated from the project
+                       config; the one atomic commit of rows, outbox and cursor; build
+                       fingerprints (ADR 0014).
 - `nineveh-api`      — axum REST + async-graphql over state tables, generated from config.
                        Reads state only, never the chain.
 - `nineveh-realtime` — change feeds + subscriptions + signed webhooks, tailing the
@@ -89,6 +90,9 @@ they get real code; the dependency direction between them is enforced by
                        (ADR 0011; user reference in `docs/config.md`). Located,
                        rustc-style diagnostics. Product UX for non-Rust teams.
 - `nineveh-cli`      — scaffold, validate, run, backfill, replay. Binary name: `nineveh`.
+- `nineveh-testkit`  — shared test workloads: a synthetic vault contract rendered as
+                       real stream transactions, with a model to check against.
+                       Dev-dependency only.
 - `studio/`          — the dashboard (Next.js/React + Tailwind, TypeScript). NOT a Rust
                        crate. Talks to `nineveh-control` + the project's API. See below.
 - `xtask/`           — repo automation (`cargo xtask codegen [--check]`). Not published.
@@ -189,6 +193,11 @@ fast interactions, no clutter. When building UI, read the frontend-design skill 
 - `cargo xtask codegen` — regenerate Transaction Stream bindings from vendored protos;
   `--check` fails on drift (CI). Bump protos with `scripts/sync-protos.sh <sha>`.
 - `scripts/check-deps.sh` — enforce crate dependency direction (CI).
+- `NINEVEH_TEST_DATABASE_URL=postgres:///nineveh_test cargo test -p nineveh-store` —
+  the store's Postgres tests (they skip without it, and fail in CI without it).
+  Don't set `DATABASE_URL`: it switches sqlx's macros to checking against a live DB.
+- `scripts/sqlx-prepare.sh` — regenerate `crates/nineveh-store/.sqlx/` after changing
+  a `query!` or a migration; commit the result (CI builds with `SQLX_OFFLINE=true`).
 - `cargo deny check` — advisories, licenses, sources (CI).
 - `cargo run --release -p nineveh-ingest --example stream_probe -- --network testnet
   --start <v> --count <n>` — measure the stream / find fixture candidates. Needs

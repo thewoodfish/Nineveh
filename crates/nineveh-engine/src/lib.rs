@@ -18,6 +18,13 @@ mod error;
 mod fold;
 mod state;
 
+/// The version of the fold's semantics, the expression language's included.
+///
+/// Bump it whenever the same config and inputs can fold to different state or a
+/// different change feed. A state schema records the version it was built with, so a
+/// build made under other semantics is rebuilt rather than extended (ADR 0005).
+pub const SEMANTICS_VERSION: u32 = 1;
+
 pub use error::{FoldError, Halt};
 pub use fold::Engine;
 pub use state::{

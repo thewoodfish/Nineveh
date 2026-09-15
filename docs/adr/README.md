@@ -28,7 +28,7 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0003](0003-table-item-sources.md) | Table items are a first-class source kind | Accepted; matching superseded by 0012 |
 | [0004](0004-server-side-filtering-policy.md) | Filter server-side only when it can't under-cover | Accepted |
 | [0005](0005-pure-fold-atomic-commit.md) | Pure fold, atomic commit, one-way dependencies | Accepted |
-| [0006](0006-transactional-outbox.md) | Change feeds come from a transactional outbox | Accepted |
+| [0006](0006-transactional-outbox.md) | Change feeds come from a transactional outbox | Accepted; feed granularity superseded by 0014 |
 | [0007](0007-typed-total-expression-language.md) | Reducers use a typed, total expression language | Accepted |
 | [0008](0008-move-postgres-type-mapping.md) | Move → Postgres → API type mapping | Accepted |
 | [0009](0009-toolchain-and-engineering-baseline.md) | Toolchain and engineering baseline | Accepted |
@@ -36,3 +36,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0011](0011-project-config-semantics.md) | Project config: two-phase loading and explicit row semantics | Accepted |
 | [0012](0012-attribute-table-items-by-handle.md) | Attribute table items by handle, learned from their parent | Accepted |
 | [0013](0013-fold-semantics-and-row-shapes.md) | Fold semantics, row shapes, and the missing-key retry | Accepted |
+| [0014](0014-state-schema-layout.md) | Store each build in its own schema, keyed by exact bytes and fingerprinted | Accepted |
