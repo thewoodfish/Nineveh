@@ -1,0 +1,24 @@
+[package]
+name = "nineveh-control"
+description = "Nineveh's control plane: inspect contracts, scaffold configs, and create, run and serve many projects from one process."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+nineveh-config.workspace = true
+nineveh-core.workspace = true
+nineveh-decode.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+
+[lints]
+workspace = true

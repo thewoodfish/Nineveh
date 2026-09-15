@@ -39,3 +39,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0014](0014-state-schema-layout.md) | Store each build in its own schema, keyed by exact bytes and fingerprinted | Accepted |
 | [0015](0015-resolve-auto-start-at-init.md) | Resolve `start_version: auto` at init from the Indexer API, pinned in the lock | Accepted |
 | [0016](0016-shadow-rebuild-and-swap.md) | Rebuild into a shadow schema and swap it in | Accepted |
+| [0017](0017-local-control-plane.md) | Run projects under a control plane that Studio drives | Accepted |

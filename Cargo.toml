@@ -16,6 +16,7 @@ publish = false
 [workspace.dependencies]
 # Internal
 nineveh-config = { path = "crates/nineveh-config" }
+nineveh-control = { path = "crates/nineveh-control" }
 nineveh-core = { path = "crates/nineveh-core" }
 nineveh-decode = { path = "crates/nineveh-decode" }
 nineveh-engine = { path = "crates/nineveh-engine" }

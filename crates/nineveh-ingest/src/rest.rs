@@ -160,6 +160,61 @@ impl RestClient {
             .map_err(|reason| RestError::Response { url, reason })
     }
 
+    /// Every module published at `address`, in the fullnode's order: none if the
+    /// account doesn't exist or holds no code.
+    ///
+    /// # Errors
+    ///
+    /// If a request fails or a response isn't a list of modules.
+    pub async fn modules(&self, address: Address) -> Result<Vec<Module>, RestError> {
+        const PAGE: usize = 100;
+        let mut modules = Vec::new();
+        let mut start: Option<String> = None;
+        loop {
+            let mut url = format!("{}/accounts/{address}/modules?limit={PAGE}", self.base);
+            if let Some(cursor) = &start {
+                url.push_str("&start=");
+                url.push_str(cursor);
+            }
+            let failed = |source| RestError::Request {
+                url: url.clone(),
+                source,
+            };
+            let response = self.http.get(&url).send().await.map_err(failed)?;
+            let status = response.status();
+            // The next page starts at this cursor; there is none after the last page.
+            let next = response
+                .headers()
+                .get("x-aptos-cursor")
+                .and_then(|v| v.to_str().ok())
+                .filter(|v| v.chars().all(|c| c.is_ascii_alphanumeric()))
+                .map(ToOwned::to_owned);
+            let text = response.text().await.map_err(failed)?;
+            if !status.is_success() {
+                let error: ApiError = serde_json::from_str(&text).unwrap_or_default();
+                if status.as_u16() == 404
+                    && error.error_code.as_deref() == Some("account_not_found")
+                {
+                    return Ok(modules);
+                }
+                return Err(RestError::Status {
+                    url,
+                    status: status.as_u16(),
+                    message: error.message.unwrap_or(text),
+                });
+            }
+            let page = parse_modules(&text).map_err(|reason| RestError::Response {
+                url: url.clone(),
+                reason,
+            })?;
+            modules.extend(page);
+            match next {
+                Some(cursor) if start.as_deref() != Some(cursor.as_str()) => start = Some(cursor),
+                _ => return Ok(modules),
+            }
+        }
+    }
+
     /// The first transaction that touched `address`, from the Indexer API: `None` if
     /// none has.
     ///
@@ -314,6 +369,15 @@ struct RawModule {
 
 fn parse_module(text: &str) -> Result<Module, String> {
     let raw: RawModule = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    module_from(raw)
+}
+
+fn parse_modules(text: &str) -> Result<Vec<Module>, String> {
+    let raw: Vec<RawModule> = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    raw.into_iter().map(module_from).collect()
+}
+
+fn module_from(raw: RawModule) -> Result<Module, String> {
     let hex = raw
         .bytecode
         .strip_prefix("0x")
@@ -364,6 +428,16 @@ mod tests {
         assert!(parse_module(r#"{"bytecode":"0xa1c","abi":{}}"#).is_err());
         assert!(parse_module(r#"{"bytecode":"a11c","abi":{}}"#).is_err());
         assert!(parse_module(r#"{"bytecode":"0xzz","abi":{}}"#).is_err());
+
+        let page = parse_modules(
+            r#"[{"bytecode":"0xa11ceb0b","abi":{"name":"a"}},
+                {"bytecode":"0x00","abi":{"name":"b"}}]"#,
+        )
+        .unwrap();
+        assert_eq!(page.len(), 2);
+        assert_eq!(page[1].abi["name"], "b");
+        assert!(parse_modules("[]").unwrap().is_empty());
+        assert!(parse_modules(r#"[{"bytecode":"0xzz","abi":{}}]"#).is_err());
     }
 
     #[test]

@@ -1837,6 +1837,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nineveh-control"
+version = "0.0.0"
+dependencies = [
+ "nineveh-config",
+ "nineveh-core",
+ "nineveh-decode",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "nineveh-core"
 version = "0.0.0"
 dependencies = [
