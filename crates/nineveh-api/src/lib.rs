@@ -45,6 +45,9 @@ pub struct Health {
     pub schema: String,
     /// The last committed version there, as a decimal string.
     pub cursor: Option<String>,
+    /// Where the build started, as a decimal string: with `cursor` and
+    /// `chain_version`, how far a backfill has come.
+    pub start_version: Option<String>,
     /// The chain's version when the pipeline started, as a decimal string.
     pub chain_version: Option<String>,
     /// Seconds between now and the last committed transaction's block time.

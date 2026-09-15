@@ -217,6 +217,7 @@ impl Runner {
         );
         let reporter = tokio::spawn(report_progress(
             pipeline.status(),
+            self.start,
             self.tip,
             schema.to_owned(),
             self.health.clone(),
@@ -262,6 +263,7 @@ impl Runner {
 /// Publish the pipeline's health every second, and log it every ten.
 async fn report_progress(
     mut status: watch::Receiver<Status>,
+    start: Version,
     chain: Version,
     schema: String,
     health: watch::Sender<Option<Health>>,
@@ -291,6 +293,7 @@ async fn report_progress(
             phase: format!("{:?}", current.phase).to_lowercase(),
             schema: schema.clone(),
             cursor: current.cursor.map(|c| c.get().to_string()),
+            start_version: Some(start.get().to_string()),
             chain_version: Some(chain.get().to_string()),
             lag_secs: lag,
             versions_per_sec: rate,
