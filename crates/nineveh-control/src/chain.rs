@@ -93,20 +93,41 @@ impl ChainError {
     }
 }
 
-/// Aptos Labs' hosted APIs, with a Geomi API key.
+/// Aptos Labs' hosted APIs. Geomi keys are per network, so a control plane running
+/// projects on more than one network holds a key for each, and `any` for the rest.
 #[derive(Debug, Clone)]
 pub struct Hosted {
-    api_key: Option<SecretString>,
+    keys: Vec<(Network, SecretString)>,
+    any: Option<SecretString>,
 }
 
 impl Hosted {
+    /// One key for every network, or none at all.
     #[must_use]
     pub fn new(api_key: Option<SecretString>) -> Self {
-        Self { api_key }
+        Self {
+            keys: Vec::new(),
+            any: api_key,
+        }
+    }
+
+    /// Use `key` for `network`, whatever [`Hosted::new`] was given.
+    #[must_use]
+    pub fn with_key(mut self, network: Network, key: SecretString) -> Self {
+        self.keys.retain(|(n, _)| *n != network);
+        self.keys.push((network, key));
+        self
+    }
+
+    fn key(&self, network: Network) -> Option<&SecretString> {
+        self.keys
+            .iter()
+            .find_map(|(n, key)| (*n == network).then_some(key))
+            .or(self.any.as_ref())
     }
 
     fn rest(&self, network: Network) -> Result<RestClient, ChainError> {
-        Ok(RestClient::hosted(network, self.api_key.as_ref())?)
+        Ok(RestClient::hosted(network, self.key(network))?)
     }
 }
 
@@ -175,8 +196,27 @@ impl Chain for Hosted {
 
     fn source(&self, network: Network, start: Version, project: &Project) -> StreamSource {
         let mut stream = StreamConfig::hosted(network, start);
-        stream.api_key.clone_from(&self.api_key);
+        stream.api_key = self.key(network).cloned();
         stream.filter = stream_filter(project);
         StreamSource::new(stream)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_networks_own_key_wins_over_the_general_one() {
+        let hosted = Hosted::new(Some(SecretString::from("any")))
+            .with_key(Network::Devnet, SecretString::from("devnet"));
+        let key = |network| {
+            hosted
+                .key(network)
+                .map(|k| secrecy::ExposeSecret::expose_secret(k).to_owned())
+        };
+        assert_eq!(key(Network::Devnet).as_deref(), Some("devnet"));
+        assert_eq!(key(Network::Testnet).as_deref(), Some("any"));
+        assert_eq!(Hosted::new(None).key(Network::Testnet).map(|_| ()), None);
     }
 }

@@ -94,6 +94,15 @@ enum Command {
         chunk: u64,
         #[command(flatten)]
         key: ApiKey,
+        /// A Geomi key for testnet, over --api-key. Keys are per network.
+        #[arg(long, env = "APTOS_API_KEY_TESTNET", hide_env_values = true)]
+        api_key_testnet: Option<String>,
+        /// A Geomi key for mainnet, over --api-key.
+        #[arg(long, env = "APTOS_API_KEY_MAINNET", hide_env_values = true)]
+        api_key_mainnet: Option<String>,
+        /// A Geomi key for devnet, over --api-key.
+        #[arg(long, env = "APTOS_API_KEY_DEVNET", hide_env_values = true)]
+        api_key_devnet: Option<String>,
         /// A GitHub OAuth app's client id: with its secret, people sign in and projects
         /// need API keys. Without it, no sign-in, on loopback only.
         #[arg(long, env = "NINEVEH_GITHUB_CLIENT_ID")]
@@ -205,6 +214,9 @@ async fn dispatch(cli: Cli) -> Result<()> {
             streams,
             chunk,
             key,
+            api_key_testnet,
+            api_key_mainnet,
+            api_key_devnet,
             github_client_id,
             github_client_secret,
             public_url,
@@ -218,10 +230,19 @@ async fn dispatch(cli: Cli) -> Result<()> {
                      NINEVEH_GITHUB_CLIENT_SECRET"
                 ),
             };
+            let network_keys = [
+                (nineveh_core::Network::Testnet, api_key_testnet),
+                (nineveh_core::Network::Mainnet, api_key_mainnet),
+                (nineveh_core::Network::Devnet, api_key_devnet),
+            ]
+            .into_iter()
+            .filter_map(|(network, key)| Some((network, SecretString::from(key?))))
+            .collect();
             up::up(up::UpOptions {
                 database_url: SecretString::from(database_url),
                 listen,
                 api_key: key.secret(),
+                network_keys,
                 streams: streams.max(1),
                 chunk: chunk.max(1),
                 github,

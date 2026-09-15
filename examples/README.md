@@ -15,7 +15,8 @@ pasting one into Studio's **New project** shows just that contract.
 
 The addresses they're published at are in `deployed.<network>.env`. For each one:
 
-1. **New project**, network **testnet**, paste the address, **Inspect**.
+1. **New project**, the network you published to (**devnet** for the addresses in
+   `deployed.devnet.env`), paste the address, **Inspect**.
 2. Tick what to follow:
    - **counter**: `Incremented`, `Reset`, and the `Counter` resource.
    - **guestbook**: the events, and the `Guestbook.entries` table.
@@ -49,6 +50,9 @@ NETWORK=devnet ./setup.sh && NETWORK=devnet ./deploy.sh && NETWORK=devnet ./play
 
 Set `NODE_API_KEY` to a [Geomi](https://geomi.dev) key for the network you're using:
 without one these calls share the anonymous per-IP rate limit, and start failing.
+
+Devnet is reset about once a week, and everything published there goes with it: run
+`deploy.sh` again (after deleting `deployed.devnet.env`) to publish afresh.
 
 Keys live in `.aptos/config.yaml` here, which git ignores. Each contract has unit
 tests: `aptos move test --package-dir 01-counter --dev`.

@@ -19,6 +19,8 @@ pub(crate) struct UpOptions {
     pub(crate) database_url: SecretString,
     pub(crate) listen: SocketAddr,
     pub(crate) api_key: Option<SecretString>,
+    /// Keys for particular networks, over `api_key`.
+    pub(crate) network_keys: Vec<(nineveh_core::Network, SecretString)>,
     pub(crate) streams: usize,
     pub(crate) chunk: u64,
     /// A GitHub OAuth app, for hosted mode.
@@ -58,8 +60,14 @@ pub(crate) async fn up(options: UpOptions) -> Result<()> {
         .connect(options.database_url.expose_secret())
         .await
         .context("connecting to Postgres")?;
+    let chain = options
+        .network_keys
+        .into_iter()
+        .fold(Hosted::new(options.api_key), |chain, (network, key)| {
+            chain.with_key(network, key)
+        });
     let plane = ControlPlane::start(
-        Arc::new(Hosted::new(options.api_key)),
+        Arc::new(chain),
         pool,
         RunOptions {
             until: None,
