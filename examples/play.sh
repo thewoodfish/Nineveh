@@ -2,12 +2,19 @@
 # Keep the examples busy so Studio has something live to show: two accounts count,
 # sign the guestbook, trade in the market and play the arena, a transaction every few
 # seconds, until Ctrl-C. Run ./deploy.sh first.
+#
+#   ./play.sh
+#   NETWORK=devnet ./play.sh
+#
+# Set NODE_API_KEY to a Geomi key for the network, or these calls share the anonymous
+# per-IP rate limit with everyone else and start failing.
 set -uo pipefail
 cd "$(dirname "$0")"
+NETWORK=${NETWORK:-testnet}
 # shellcheck source=/dev/null
-source deployed.env
-A=nineveh-publisher
-B=nineveh-player
+source "deployed.$NETWORK.env"
+A="nineveh-publisher-$NETWORK"
+B="nineveh-player-$NETWORK"
 
 run() { # run PROFILE FUNCTION [ARGS...]
   local profile=$1 function=$2
