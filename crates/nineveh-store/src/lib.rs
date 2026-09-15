@@ -16,6 +16,9 @@
 //!    before the commit loses nothing; the next [`Store::open`] resumes from the
 //!    cursor and the fold recomputes the same batch.
 //!
+//! The control plane's [`registry`] of projects lives beside the builds, in the
+//! `nineveh` schema (ADR 0017).
+//!
 //! Every build records a fingerprint of its config, lock and Nineveh's semantics, and
 //! [`Store::open`] refuses to extend a schema built from anything else.
 
@@ -23,6 +26,7 @@ mod cells;
 mod codec;
 mod error;
 mod layout;
+pub mod registry;
 mod store;
 
 pub use error::StoreError;

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM nineveh.projects WHERE schema_name IN ($1, $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5be1dc8b4ddd1682c257830ff473bdb4f8dd2c7d9900ead58056a391094c2d65"
+}

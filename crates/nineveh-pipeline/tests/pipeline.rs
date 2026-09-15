@@ -102,6 +102,9 @@ struct Scripted {
     /// A fault for each open, in order; opens after the script runs out are clean.
     faults: Mutex<VecDeque<Option<Fault>>>,
     opens: AtomicUsize,
+    /// After the last response, stay open with nothing to send, as the live stream
+    /// does at the chain's tip, rather than end.
+    quiet: bool,
 }
 
 impl Scripted {
@@ -114,7 +117,13 @@ impl Scripted {
             end,
             faults: Mutex::new(VecDeque::new()),
             opens: AtomicUsize::new(0),
+            quiet: false,
         }
+    }
+
+    fn quiet(mut self) -> Self {
+        self.quiet = true;
+        self
     }
 
     fn with_faults(self, faults: impl IntoIterator<Item = Option<Fault>>) -> Self {
@@ -175,6 +184,7 @@ impl Scripted {
             responses,
             fault,
             served: 0,
+            quiet: self.quiet,
         })
     }
 }
@@ -183,11 +193,16 @@ struct ScriptedStream {
     responses: VecDeque<Batch>,
     fault: Option<Fault>,
     served: usize,
+    quiet: bool,
 }
 
 impl BatchStream for ScriptedStream {
-    fn next(&mut self) -> impl Future<Output = Result<Option<Batch>, IngestError>> + Send {
-        ready(self.next_now())
+    // Lazy, so a `next` dropped before it's polled takes nothing: cancel-safe.
+    async fn next(&mut self) -> Result<Option<Batch>, IngestError> {
+        if self.quiet && self.responses.is_empty() && self.fault.is_none() {
+            pending::<()>().await;
+        }
+        self.next_now()
     }
 }
 
@@ -500,6 +515,42 @@ async fn shutdown_stops_a_live_pipeline_between_commits() {
         }
     );
     assert_eq!(pipeline.status().borrow().phase, Phase::Stopped);
+    check_against_memory(&pool, &schema, &transactions).await;
+    Store::reset(&pool, &schema).await.unwrap();
+}
+
+/// At the chain's tip the stream goes quiet. What it has delivered must be committed
+/// then, not held back until more arrives to fill the decode tasks.
+#[tokio::test]
+async fn a_quiet_stream_still_commits_what_it_delivered() {
+    let Some(pool) = pool().await else { return };
+    let (transactions, _) = vault::transactions(&[
+        Op::Deposit { user: 0, amount: 5 },
+        Op::Deposit { user: 1, amount: 7 },
+    ]);
+    let schema = fresh_schema(&pool, "quiet").await;
+    let pipeline = build(
+        &pool,
+        &schema,
+        Scripted::new(transactions.clone(), vec![1], false).quiet(),
+        config(1_001, None),
+    );
+    let mut status = pipeline.status();
+    let shutdown = async move {
+        status
+            .wait_for(|s| s.cursor == Some(Version::new(1_002)))
+            .await
+            .unwrap();
+    };
+    let outcome = tokio::time::timeout(Duration::from_secs(10), pipeline.run(shutdown))
+        .await
+        .expect("both responses are committed while the stream is quiet");
+    assert_eq!(
+        outcome.unwrap(),
+        Outcome::Stopped {
+            cursor: Some(Version::new(1_002))
+        }
+    );
     check_against_memory(&pool, &schema, &transactions).await;
     Store::reset(&pool, &schema).await.unwrap();
 }

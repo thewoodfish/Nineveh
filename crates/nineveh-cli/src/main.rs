@@ -6,6 +6,7 @@
 //! nineveh run [--serve]        # build the state in Postgres and keep it current
 //! nineveh serve                # serve the state API and change feed
 //! nineveh replay --yes         # drop the state and build it again
+//! nineveh up                   # the control plane: create and run projects from Studio
 //! ```
 //!
 //! `APTOS_API_KEY` is a Geomi key for the Transaction Stream and the REST and Indexer
@@ -25,6 +26,7 @@ mod init;
 mod project;
 mod run;
 mod serve;
+mod up;
 
 use project::Paths;
 use run::RunOptions;
@@ -74,6 +76,24 @@ enum Command {
         /// Confirm dropping the schema, its cursor and its change feed.
         #[arg(long)]
         yes: bool,
+    },
+    /// Run the control plane Studio drives: create projects from a contract address,
+    /// and run and serve every project in the database, until Ctrl-C.
+    Up {
+        /// Postgres for the projects' registry and state.
+        #[arg(long, env = "NINEVEH_DATABASE_URL", hide_env_values = true)]
+        database_url: String,
+        /// Address to listen on.
+        #[arg(long, default_value = serve::DEFAULT_LISTEN)]
+        listen: SocketAddr,
+        /// Streams each project backfills with at once.
+        #[arg(long, default_value_t = 4)]
+        streams: usize,
+        /// Versions per backfill range.
+        #[arg(long, default_value_t = 1_000_000)]
+        chunk: u64,
+        #[command(flatten)]
+        key: ApiKey,
     },
 }
 
@@ -161,6 +181,22 @@ async fn dispatch(cli: Cli) -> Result<()> {
             listen,
         } => serve::serve(&paths, &database_url, schema, listen).await,
         Command::Replay { run, yes } => run::replay(&paths, &run.options(), yes).await,
+        Command::Up {
+            database_url,
+            listen,
+            streams,
+            chunk,
+            key,
+        } => {
+            up::up(up::UpOptions {
+                database_url: SecretString::from(database_url),
+                listen,
+                api_key: key.secret(),
+                streams: streams.max(1),
+                chunk: chunk.max(1),
+            })
+            .await
+        }
     }
 }
 

@@ -272,7 +272,8 @@ impl<C: Chain> Runner<C> {
     }
 }
 
-/// Publish the pipeline's health every second, and log it every ten.
+/// Publish the pipeline's health on every change and at least every second (for lag),
+/// and log it every ten seconds.
 async fn report_progress(
     mut status: watch::Receiver<Status>,
     start: Version,
@@ -280,16 +281,23 @@ async fn report_progress(
     schema: String,
     health: watch::Sender<Option<Health>>,
 ) {
+    const SAMPLE: Duration = Duration::from_secs(10);
     let mut last: Option<(Instant, u64)> = None;
     let mut rate = None;
     let mut interval = tokio::time::interval(Duration::from_secs(1));
-    let mut tick: u64 = 0;
     loop {
-        interval.tick().await;
-        tick = tick.wrapping_add(1);
+        tokio::select! {
+            _ = interval.tick() => {}
+            changed = status.changed() => {
+                if changed.is_err() {
+                    return;
+                }
+            }
+        }
         let current = status.borrow_and_update().clone();
         let now = Instant::now();
-        if tick.is_multiple_of(10) {
+        let sampled = last.is_none_or(|(then, _)| now.duration_since(then) >= SAMPLE);
+        if sampled {
             rate = last.map(|(then, versions): (Instant, u64)| {
                 let seconds = now.duration_since(then).as_secs().max(1);
                 current.versions.saturating_sub(versions) / seconds
@@ -315,7 +323,7 @@ async fn report_progress(
         let Some(cursor) = current.cursor else {
             continue;
         };
-        if !tick.is_multiple_of(10) {
+        if !sampled {
             continue;
         }
         info!(

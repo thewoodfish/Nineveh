@@ -242,8 +242,24 @@ impl<S: Source> RangeReader<S> {
         let mut ended = false;
         let mut error = None;
         loop {
+            let mut joined = None;
             while !ended && decoding.len() < self.decode_tasks {
-                match stream.next().await {
+                let next = match decoding.front_mut() {
+                    None => stream.next().await,
+                    // Forward the oldest response once it's decoded rather than wait
+                    // for the stream to fill every decode task: at the chain's tip the
+                    // next response can be a long time coming. Reading comes first, so
+                    // a backfill keeps every task busy. `next` is cancel-safe.
+                    Some(front) => tokio::select! {
+                        biased;
+                        next = stream.next() => next,
+                        done = front => {
+                            joined = Some(done);
+                            break;
+                        }
+                    },
+                };
+                match next {
                     Ok(Some(batch)) => {
                         let (transactions, covered) = trim(batch, self.range.last);
                         ended = self.range.last.is_some_and(|last| covered >= Some(last));
@@ -267,7 +283,11 @@ impl<S: Source> RangeReader<S> {
                 }
                 return;
             };
-            let decoded = match handle.await {
+            let joined = match joined {
+                Some(done) => done,
+                None => handle.await,
+            };
+            let decoded = match joined {
                 Ok(decoded) => decoded,
                 Err(e) => {
                     let _ = self

@@ -18,9 +18,9 @@
 //! Commits `NOTIFY` a wake-up; each stream then reads the outbox from its own position,
 //! so a missed notification only delays a change until the next poll.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::convert::Infallible;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use axum::Router;
@@ -50,42 +50,88 @@ type Position = (i64, i32);
 /// Before the first change.
 const BEGINNING: Position = (-1, -1);
 
+/// One Postgres listener for every feed in the process. A commit's notification names
+/// its schema, and wakes that schema's feed. Each listener holds a connection for as
+/// long as it lives, so a process serving many projects shares one.
+#[derive(Debug)]
+pub struct Hub {
+    pool: PgPool,
+    wakes: Mutex<HashMap<String, broadcast::Sender<()>>>,
+}
+
+impl Hub {
+    /// Listen for commits to any schema.
+    ///
+    /// # Errors
+    ///
+    /// If the listening connection can't be opened.
+    pub async fn start(pool: PgPool) -> Result<Arc<Self>, sqlx::Error> {
+        let mut listener = PgListener::connect_with(&pool).await?;
+        listener.listen(NOTIFY_CHANNEL).await?;
+        let hub = Arc::new(Self {
+            pool,
+            wakes: Mutex::new(HashMap::new()),
+        });
+        let weak = Arc::downgrade(&hub);
+        tokio::spawn(async move {
+            loop {
+                let notification = listener.recv().await;
+                let Some(hub) = weak.upgrade() else { return };
+                match notification {
+                    Ok(n) => {
+                        if let Some(wake) = hub.wakes().get(n.payload()) {
+                            let _ = wake.send(());
+                        }
+                    }
+                    // The listener reconnects by itself; streams poll meanwhile.
+                    Err(error) => warn!(%error, "change listener failed; retrying"),
+                }
+            }
+        });
+        Ok(hub)
+    }
+
+    /// The feed of `schema`. It keeps the hub listening while it's alive.
+    #[must_use]
+    pub fn feed(self: &Arc<Self>, schema: impl Into<String>) -> Arc<Feed> {
+        let schema = schema.into();
+        let wake = self
+            .wakes()
+            .entry(schema.clone())
+            .or_insert_with(|| broadcast::channel(16).0)
+            .clone();
+        Arc::new(Feed {
+            pool: self.pool.clone(),
+            schema,
+            wake,
+            _hub: Arc::clone(self),
+        })
+    }
+
+    fn wakes(&self) -> MutexGuard<'_, HashMap<String, broadcast::Sender<()>>> {
+        // A panic while holding the map leaves it whole: it's only ever inserted into.
+        self.wakes.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
 /// One project's change feed.
 #[derive(Debug)]
 pub struct Feed {
     pool: PgPool,
     schema: String,
     wake: broadcast::Sender<()>,
+    _hub: Arc<Hub>,
 }
 
 impl Feed {
-    /// The feed of `schema`, listening for commits.
+    /// The feed of `schema`, with a listener of its own. A process serving several
+    /// projects should share one [`Hub`] instead.
     ///
     /// # Errors
     ///
     /// If the listening connection can't be opened.
     pub async fn start(pool: PgPool, schema: impl Into<String>) -> Result<Arc<Self>, sqlx::Error> {
-        let schema = schema.into();
-        let mut listener = PgListener::connect_with(&pool).await?;
-        listener.listen(NOTIFY_CHANNEL).await?;
-        let (wake, _) = broadcast::channel(16);
-        let feed = Arc::new(Self { pool, schema, wake });
-        let weak = Arc::downgrade(&feed);
-        tokio::spawn(async move {
-            loop {
-                let notification = listener.recv().await;
-                let Some(feed) = weak.upgrade() else { return };
-                match notification {
-                    Ok(n) if n.payload() == feed.schema => {
-                        let _ = feed.wake.send(());
-                    }
-                    Ok(_) => {}
-                    // The listener reconnects by itself; streams poll meanwhile.
-                    Err(error) => warn!(%error, "change listener failed; retrying"),
-                }
-            }
-        });
-        Ok(feed)
+        Ok(Hub::start(pool).await?.feed(schema))
     }
 
     #[must_use]

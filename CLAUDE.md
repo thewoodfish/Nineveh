@@ -84,15 +84,19 @@ they get real code; the dependency direction between them is enforced by
                        Reads state only, never the chain.
 - `nineveh-realtime` — change feeds + subscriptions + signed webhooks, tailing the
                        transactional outbox written by the reducer commit (ADR 0006).
-- `nineveh-control`  — control-plane API the Studio talks to: create/manage projects,
-                       keys, processor status, backfill progress, logs.
+- `nineveh-control`  — the control plane Studio drives (ADR 0017): contract catalog
+                       and config scaffolding, `pin` and the `Runner` the CLI uses too,
+                       and `ControlPlane`, which runs many projects from the registry in
+                       `nineveh.control_projects`, each served at `/projects/{name}/v1`.
+                       Aptos access goes through the `Chain` trait (`Hosted` in prod).
 - `nineveh-config`   — parse/validate `nineveh.yaml`, then resolve it against the lock
                        (ADR 0011; user reference in `docs/config.md`). Located,
                        rustc-style diagnostics. Product UX for non-Rust teams.
 - `nineveh-cli`      — the `nineveh` binary: `init` (pin ABIs, resolve `start_version:
                        auto`, ADR 0015), `validate`, `run [--serve]` (parallel backfill,
                        then the tail; shadow rebuild on config change, ADR 0016),
-                       `serve` (API + change feed on 127.0.0.1:4000), `replay`.
+                       `serve` (API + change feed on 127.0.0.1:4000), `replay`, and
+                       `up` (the control plane on 127.0.0.1:4000).
 - `nineveh-testkit`  — shared test workloads: a synthetic vault contract rendered as
                        real stream transactions, with a model to check against.
                        Dev-dependency only.
@@ -209,6 +213,8 @@ fast interactions, no clutter. When building UI, read the frontend-design skill 
   nineveh-cli --`) — in a
   directory with `nineveh.yaml`. Needs `APTOS_API_KEY` (init, run) and
   `NINEVEH_DATABASE_URL` (run, replay).
+- `nineveh up` — the control plane: every project in the database's registry, created
+  and managed from Studio. Needs `APTOS_API_KEY` and `NINEVEH_DATABASE_URL`.
 - Live checks against testnet, `#[ignore]`d in CI: `cargo test -p nineveh-ingest -p
   nineveh-pipeline -p nineveh-cli -- --ignored` with `APTOS_API_KEY` and
   `NINEVEH_TEST_DATABASE_URL` set.

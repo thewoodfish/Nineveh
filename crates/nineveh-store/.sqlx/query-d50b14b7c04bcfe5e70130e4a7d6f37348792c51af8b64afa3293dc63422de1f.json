@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE nineveh.control_projects SET running = $2, updated_at = now() WHERE name = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d50b14b7c04bcfe5e70130e4a7d6f37348792c51af8b64afa3293dc63422de1f"
+}

@@ -25,6 +25,9 @@ pub trait Source: Send + Sync {
 /// An open stream of batches.
 pub trait BatchStream: Send {
     /// The next batch, or `None` when the stream ends.
+    ///
+    /// Must be cancel-safe: the pipeline may drop an unfinished `next` to forward
+    /// what it has already decoded, and call `next` again later, losing nothing.
     fn next(&mut self) -> impl Future<Output = Result<Option<Batch>, IngestError>> + Send;
 }
 

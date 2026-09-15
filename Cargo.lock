@@ -1837,19 +1837,24 @@ dependencies = [
 name = "nineveh-control"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "nineveh-api",
  "nineveh-config",
  "nineveh-core",
  "nineveh-decode",
  "nineveh-ingest",
  "nineveh-pipeline",
+ "nineveh-proto",
+ "nineveh-realtime",
  "nineveh-store",
+ "nineveh-testkit",
  "secrecy",
  "serde",
  "serde_json",
  "sqlx",
  "thiserror",
  "tokio",
+ "tower",
  "tracing",
 ]
 

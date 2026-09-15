@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM nineveh.control_projects WHERE name = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "16f11e418ef50ad85e9e55b527bfe6776ef618166017ef80f3bf8a1e3ae45dec"
+}

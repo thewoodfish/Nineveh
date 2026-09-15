@@ -61,6 +61,12 @@ pub enum StoreError {
 
     #[error("internal error: table `{0}` isn't read by the fold")]
     Unreadable(String),
+
+    #[error("a project or build named `{0}` already exists in this database")]
+    ProjectExists(String),
+
+    #[error("no project named `{0}`")]
+    NoProject(String),
 }
 
 impl StoreError {

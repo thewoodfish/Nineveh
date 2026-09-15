@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM nineveh.control_projects WHERE name = $1)\n               OR EXISTS (SELECT 1 FROM nineveh.projects WHERE schema_name IN ($1, $2))\n               OR EXISTS (SELECT 1 FROM pg_namespace WHERE nspname IN ($1, $2)) AS \"taken!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "taken!",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "90f151b76bfc0fda5196fcec10a5eeb6b559f7f5574ead6644e92920f292a883"
+}

@@ -291,3 +291,63 @@ fn serve_answers_the_api() {
         "the feed is mounted"
     );
 }
+
+/// `nineveh up` serves the control API, with CORS for Studio. Needs a Postgres
+/// (`NINEVEH_TEST_DATABASE_URL`); skips without one, except in CI.
+#[test]
+fn up_serves_the_control_api() {
+    let Ok(database) = std::env::var("NINEVEH_TEST_DATABASE_URL") else {
+        assert!(
+            std::env::var_os("CI").is_none(),
+            "CI must set NINEVEH_TEST_DATABASE_URL"
+        );
+        return;
+    };
+    let port = {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.local_addr().unwrap().port()
+    };
+    let mut server = Command::new(env!("CARGO_BIN_EXE_nineveh"))
+        .args(["up", "--listen", &format!("127.0.0.1:{port}")])
+        .current_dir(project_dir("up"))
+        .env("NINEVEH_DATABASE_URL", &database)
+        .env("NO_COLOR", "1")
+        .spawn()
+        .unwrap();
+    let get = |path: &str| -> Option<String> {
+        use std::io::{Read, Write};
+        let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).ok()?;
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+            .ok()?;
+        write!(
+            stream,
+            "GET {path} HTTP/1.1\r\nHost: localhost\r\nOrigin: http://localhost:3000\r\n\
+             Connection: close\r\n\r\n"
+        )
+        .ok()?;
+        let mut response = String::new();
+        let _ = stream.read_to_string(&mut response);
+        Some(response)
+    };
+    let mut projects = None;
+    for _ in 0..100 {
+        projects = get("/control/v1/projects");
+        if projects.is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    let unknown = get("/projects/no_such_project/v1/status");
+    let _ = server.kill();
+    let _ = server.wait();
+
+    let projects = projects.expect("the control plane came up");
+    assert!(projects.starts_with("HTTP/1.1 200"), "{projects}");
+    assert!(projects.contains("\r\n\r\n["), "a JSON list: {projects}");
+    assert!(
+        projects.contains("access-control-allow-origin"),
+        "CORS for Studio: {projects}"
+    );
+    assert!(unknown.unwrap().starts_with("HTTP/1.1 404"));
+}

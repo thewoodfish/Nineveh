@@ -595,7 +595,7 @@ fn fingerprint(project: &Project, lock: &Lockfile) -> Result<String, StoreError>
 /// Run one DDL statement without preparing it: each runs once per schema, so there's
 /// nothing to cache. Not `sqlx::raw_sql`, whose future isn't `Send`, which would keep
 /// the pipeline off spawned tasks.
-async fn unprepared(
+pub(crate) async fn unprepared(
     tx: &mut Transaction<'static, Postgres>,
     statement: &str,
 ) -> Result<(), StoreError> {
@@ -607,7 +607,7 @@ async fn unprepared(
 }
 
 /// Serialize `open` and `reset` on one schema across processes.
-async fn lock_schema(
+pub(crate) async fn lock_schema(
     tx: &mut Transaction<'static, Postgres>,
     schema: &str,
 ) -> Result<(), StoreError> {
@@ -641,7 +641,7 @@ pub fn shadow_name(live: &str) -> Result<String, StoreError> {
 
 /// Refuse names that aren't identifiers, and schemas that belong to Nineveh or
 /// Postgres: `reset` drops the schema it's given, cascading.
-fn check_schema(schema: &str) -> Result<(), StoreError> {
+pub(crate) fn check_schema(schema: &str) -> Result<(), StoreError> {
     if !Named::is_valid(schema) {
         return Err(StoreError::InvalidSchema(schema.to_owned()));
     }
