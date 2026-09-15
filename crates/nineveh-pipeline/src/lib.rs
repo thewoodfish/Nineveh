@@ -10,6 +10,10 @@
 //! cursor. The channel between the stages is bounded, so memory stays flat whatever
 //! the stream's pace.
 //!
+//! A deep backfill streams several disjoint version ranges at once ([`Parallel`]).
+//! Each range decodes as it reads and keeps only transactions with records, within a
+//! budget, and the fold takes the ranges in version order.
+//!
 //! Failures split two ways (`is_retryable` on every error):
 //!
 //! - **Retryable** (a dropped connection, the database restarting): the run ends, and
@@ -27,10 +31,11 @@ mod config;
 mod error;
 mod filter;
 mod pipeline;
+mod reader;
 mod source;
 mod status;
 
-pub use config::PipelineConfig;
+pub use config::{Parallel, PipelineConfig};
 pub use error::PipelineError;
 pub use filter::stream_filter;
 pub use pipeline::{Outcome, Pipeline};

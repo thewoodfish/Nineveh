@@ -27,7 +27,7 @@ use nineveh_decode::{LockBuilder, Lockfile};
 use nineveh_engine::{Engine, MemoryState, TableId};
 use nineveh_ingest::{Batch, IngestError};
 use nineveh_pipeline::{
-    BatchStream, Outcome, Phase, Pipeline, PipelineConfig, PipelineError, Source,
+    BatchStream, Outcome, Parallel, Phase, Pipeline, PipelineConfig, PipelineError, Source,
 };
 use nineveh_proto::transaction::Transaction;
 use nineveh_store::Store;
@@ -322,6 +322,10 @@ struct Case {
     max_batch: usize,
     decode_tasks: usize,
     cache_rows: usize,
+    /// Parallel backfill: streams, chunk size, and where it stops (as an offset from
+    /// the first version).
+    parallel: Option<(usize, u64, u64)>,
+    buffered: usize,
 }
 
 fn case() -> impl Strategy<Value = Case> {
@@ -330,19 +334,31 @@ fn case() -> impl Strategy<Value = Case> {
         proptest::collection::vec(1u64..10, 1..6),
         any::<bool>(),
         proptest::collection::vec(fault(), 0..6),
-        1usize..16,
-        1usize..4,
-        0usize..40,
+        (1usize..16, 1usize..4, 0usize..40),
+        proptest::option::of((1usize..4, 1u64..20, 0u64..160)),
+        1usize..6,
     )
         .prop_map(
-            |(ops, sizes, ranged, faults, max_batch, decode_tasks, cache_rows)| Case {
+            |(
                 ops,
                 sizes,
                 ranged,
                 faults,
-                max_batch,
-                decode_tasks,
-                cache_rows,
+                (max_batch, decode_tasks, cache_rows),
+                parallel,
+                buffered,
+            )| {
+                Case {
+                    ops,
+                    sizes,
+                    ranged,
+                    faults,
+                    max_batch,
+                    decode_tasks,
+                    cache_rows,
+                    parallel,
+                    buffered,
+                }
             },
         )
 }
@@ -364,6 +380,12 @@ async fn run_case(pool: &PgPool, case: Case) {
     config.max_batch_transactions = case.max_batch;
     config.decode_tasks = case.decode_tasks;
     config.cache_rows = case.cache_rows;
+    config.buffered_transactions = case.buffered;
+    config.parallel = case.parallel.map(|(streams, chunk, through)| {
+        let mut parallel = Parallel::new(streams, Version::new(1_001 + through));
+        parallel.chunk_versions = chunk;
+        parallel
+    });
     let pipeline = build(pool, &schema, source, config);
 
     let outcome = pipeline.run(pending()).await.unwrap();
@@ -389,7 +411,7 @@ fn any_responses_and_any_retryable_failures_give_the_in_memory_state() {
         return;
     };
     let mut runner = TestRunner::new(RunnerConfig {
-        cases: 24,
+        cases: 40,
         failure_persistence: None,
         ..RunnerConfig::default()
     });

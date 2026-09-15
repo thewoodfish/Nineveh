@@ -6,19 +6,17 @@ use std::time::Duration;
 
 use nineveh_config::Project;
 use nineveh_core::Version;
-use nineveh_decode::{DecodedTransaction, Lockfile, TransactionDecoder};
+use nineveh_decode::{DecodedTransaction, Lockfile};
 use nineveh_engine::{ChangeSet, Engine, FoldError};
-use nineveh_ingest::Batch;
-use nineveh_proto::transaction::Transaction;
 use nineveh_store::{Loaded, Store};
 use sqlx::PgPool;
-use tokio::sync::{mpsc, watch};
-use tokio::task::JoinHandle;
+use tokio::sync::watch;
 use tracing::{debug, error, info, warn};
 
 use crate::config::PipelineConfig;
 use crate::error::PipelineError;
-use crate::source::{BatchStream, Source};
+use crate::reader::{Decoded, Item, Merger, plan};
+use crate::source::Source;
 use crate::status::{Phase, Status};
 
 /// Rounds of load-and-refold before a batch is declared stuck. Each round loads every
@@ -44,7 +42,7 @@ pub enum Outcome {
 /// and resumes from the committed cursor: nothing is skipped or applied twice.
 #[derive(Debug)]
 pub struct Pipeline<S> {
-    source: S,
+    source: Arc<S>,
     pool: PgPool,
     schema: String,
     project: Arc<Project>,
@@ -53,7 +51,7 @@ pub struct Pipeline<S> {
     status: watch::Sender<Status>,
 }
 
-impl<S: Source> Pipeline<S> {
+impl<S: Source + 'static> Pipeline<S> {
     /// A pipeline building `project` into `schema`, reading from `source`.
     #[must_use]
     pub fn new(
@@ -65,7 +63,7 @@ impl<S: Source> Pipeline<S> {
         config: PipelineConfig,
     ) -> Self {
         Self {
-            source,
+            source: Arc::new(source),
             pool,
             schema: schema.into(),
             project,
@@ -156,22 +154,16 @@ impl<S: Source> Pipeline<S> {
             });
         }
 
-        let stream = tokio::select! {
-            biased;
-            () = shutdown.as_mut() => return Ok(Outcome::Stopped { cursor: store.cursor() }),
-            stream = self.source.open(from, until) => stream?,
-        };
-        info!(schema = %self.schema, %from, "streaming");
+        let ranges = plan(from, &self.config);
+        info!(schema = %self.schema, %from, ranges = ranges.len(), "streaming");
         self.set(|s| s.phase = Phase::Running);
-
-        let (sender, mut receiver) = mpsc::channel(self.config.decode_tasks.max(1));
-        let reader = Reader {
-            project: Arc::clone(&self.project),
-            lock: Arc::clone(&self.lock),
-            until,
-            out: sender,
-        };
-        let _reader = AbortOnDrop(tokio::spawn(reader.run(stream, from)));
+        let mut merger = Merger::new(
+            Arc::clone(&self.source),
+            Arc::clone(&self.project),
+            Arc::clone(&self.lock),
+            ranges,
+            &self.config,
+        );
 
         let engine = Engine::new(&self.project);
         let mut cache = Loaded::default();
@@ -185,17 +177,11 @@ impl<S: Source> Pipeline<S> {
                     () = shutdown.as_mut() => {
                         return Ok(Outcome::Stopped { cursor: store.cursor() });
                     }
-                    item = receiver.recv() => match item {
-                        Some(item) => item,
-                        None if finished(&store) => {
-                            return Ok(Outcome::Finished { cursor: store.cursor() });
-                        }
-                        None => return Err(PipelineError::Task("the stream reader stopped".into())),
-                    },
+                    item = merger.next() => item,
                 }
             };
             let first = match item {
-                Item::Decoded(handle) => join(handle).await?,
+                Item::Decoded(decoded) => decoded,
                 Item::End { next } if !finished(&store) => {
                     return Err(PipelineError::StreamEnded { next });
                 }
@@ -213,17 +199,16 @@ impl<S: Source> Pipeline<S> {
             while count < self.config.max_batch_transactions
                 && group.last().is_some_and(|d| d.failure.is_none())
             {
-                match receiver.try_recv() {
-                    Ok(Item::Decoded(handle)) => {
-                        let decoded = join(handle).await?;
+                match merger.try_next() {
+                    Some(Item::Decoded(decoded)) => {
                         count = count.saturating_add(decoded.transactions.len());
                         group.push(decoded);
                     }
-                    Ok(other) => {
+                    Some(other) => {
                         pending = Some(other);
                         break;
                     }
-                    Err(_) => break,
+                    None => break,
                 }
             }
             self.commit_group(&engine, &mut store, &mut cache, group)
@@ -367,120 +352,4 @@ async fn fold(
             .last()
             .map_or(Version::GENESIS, |tx| tx.version),
     })
-}
-
-/// What the reader hands the fold, in stream order.
-enum Item {
-    Decoded(JoinHandle<Decoded>),
-    /// The stream ended; `next` is the first version it didn't cover.
-    End {
-        next: Version,
-    },
-    Failed(PipelineError),
-}
-
-/// One stream response, decoded.
-struct Decoded {
-    /// The transactions that have records. The rest change nothing.
-    transactions: Vec<DecodedTransaction>,
-    /// The last version the response accounts for, if any.
-    covered: Option<Version>,
-    timestamp_micros: Option<u64>,
-    /// A transaction that didn't decode. `transactions` and `covered` stop before it.
-    failure: Option<PipelineError>,
-}
-
-/// Reads the stream and starts decoding each response as it arrives.
-struct Reader {
-    project: Arc<Project>,
-    lock: Arc<Lockfile>,
-    until: Option<Version>,
-    out: mpsc::Sender<Item>,
-}
-
-impl Reader {
-    async fn run<B: BatchStream>(self, mut stream: B, mut next: Version) {
-        loop {
-            let item = match stream.next().await {
-                Ok(Some(batch)) => {
-                    let (transactions, covered) = trim(batch, self.until);
-                    if let Some(after) = covered.and_then(Version::next) {
-                        next = next.max(after);
-                    }
-                    let project = Arc::clone(&self.project);
-                    let lock = Arc::clone(&self.lock);
-                    Item::Decoded(tokio::task::spawn_blocking(move || {
-                        decode(&project, &lock, &transactions, covered)
-                    }))
-                }
-                Ok(None) => Item::End { next },
-                Err(error) => Item::Failed(error.into()),
-            };
-            let done = self.until.is_some_and(|until| next > until);
-            let more = matches!(item, Item::Decoded(_)) && !done;
-            // The channel is bounded: this waits while the fold is behind.
-            if self.out.send(item).await.is_err() || !more {
-                return;
-            }
-        }
-    }
-}
-
-/// A response's transactions and the last version it covers, cut at `until`.
-fn trim(batch: Batch, until: Option<Version>) -> (Vec<Transaction>, Option<Version>) {
-    let mut transactions = batch.transactions;
-    let last = transactions.last().map(|tx| Version::new(tx.version));
-    let mut covered = last.max(batch.processed_range.map(|range| *range.end()));
-    if let Some(until) = until {
-        let keep = transactions.partition_point(|tx| tx.version <= until.get());
-        transactions.truncate(keep);
-        covered = covered.map(|c| c.min(until));
-    }
-    (transactions, covered)
-}
-
-fn decode(
-    project: &Project,
-    lock: &Lockfile,
-    transactions: &[Transaction],
-    covered: Option<Version>,
-) -> Decoded {
-    let transaction_decoder = TransactionDecoder::new(lock, project.selection());
-    let mut out = Decoded {
-        transactions: Vec::new(),
-        covered,
-        timestamp_micros: None,
-        failure: None,
-    };
-    for tx in transactions {
-        match transaction_decoder.decode(tx) {
-            Ok(decoded) => {
-                out.timestamp_micros = Some(decoded.timestamp_micros);
-                if !decoded.records.is_empty() {
-                    out.transactions.push(decoded);
-                }
-            }
-            Err(error) => {
-                out.covered = error.version.get().checked_sub(1).map(Version::new);
-                out.failure = Some(error.into());
-                break;
-            }
-        }
-    }
-    out
-}
-
-async fn join(handle: JoinHandle<Decoded>) -> Result<Decoded, PipelineError> {
-    handle
-        .await
-        .map_err(|error| PipelineError::Task(error.to_string()))
-}
-
-/// Stops the reader, and with it the stream, when a run ends.
-struct AbortOnDrop(JoinHandle<()>);
-
-impl Drop for AbortOnDrop {
-    fn drop(&mut self) {
-        self.0.abort();
-    }
 }

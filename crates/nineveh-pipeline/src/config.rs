@@ -12,9 +12,15 @@ pub struct PipelineConfig {
     pub start: Version,
     /// Stop once this version is committed. `None` runs until shut down.
     pub until: Option<Version>,
-    /// Stream responses decoding at once. Also the number of responses buffered
-    /// between the stream and the fold, which bounds memory.
+    /// Stream responses decoding at once, per stream. Raw responses in memory are at
+    /// most this many per stream.
     pub decode_tasks: usize,
+    /// Backfill over several streams at once. `None` streams one range.
+    pub parallel: Option<Parallel>,
+    /// Decoded transactions (with records) a stream may hold ahead of the fold. Bounds
+    /// memory while parallel streams read ahead; responses without records cost
+    /// nothing against it.
+    pub buffered_transactions: usize,
     /// Transactions with records folded into one commit, at most. While the fold is
     /// behind, decoded responses are grouped up to this; at the tip each commits as it
     /// arrives.
@@ -37,12 +43,40 @@ impl PipelineConfig {
         Self {
             start,
             until: None,
-            decode_tasks: 8,
+            decode_tasks: 4,
+            parallel: None,
+            buffered_transactions: 100_000,
             max_batch_transactions: 10_000,
             cache_rows: 200_000,
             backoff_initial: Duration::from_millis(250),
             backoff_max: Duration::from_secs(30),
             max_retries: None,
+        }
+    }
+}
+
+/// Parallel backfill: versions from the cursor through `through` are split into
+/// ranges of `chunk_versions`, streamed `streams` at a time and folded in order.
+/// Versions after `through` are one stream, the live tail.
+///
+/// One stream covers about 3.5–11k versions a second, whatever the filter
+/// (`docs/research/spike-a-stream.md`), so deep backfills need several. Set `through`
+/// near the chain's current version: ranges past the tip would only wait for it.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct Parallel {
+    pub streams: usize,
+    pub chunk_versions: u64,
+    pub through: Version,
+}
+
+impl Parallel {
+    #[must_use]
+    pub fn new(streams: usize, through: Version) -> Self {
+        Self {
+            streams,
+            chunk_versions: 1_000_000,
+            through,
         }
     }
 }
