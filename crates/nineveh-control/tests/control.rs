@@ -12,162 +12,18 @@
     reason = "test-only crate: helpers panic on unexpected results and note skips"
 )]
 
-use std::future::{Future, pending, ready};
 use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
-use axum::body::{Body, to_bytes};
-use axum::http::{Method, Request, StatusCode};
-use nineveh_config::Project;
-use nineveh_control::{Chain, ChainError, ControlPlane, ModuleInfo, RunOptions, router};
-use nineveh_core::{Address, ChainId, Network, Version};
-use nineveh_decode::ModuleAbi;
-use nineveh_ingest::{Batch, IngestError};
-use nineveh_pipeline::{BatchStream, Source};
-use nineveh_proto::transaction::Transaction;
+use axum::http::{Method, StatusCode};
+use nineveh_control::{Access, ControlPlane, router};
 use nineveh_testkit::vault::{self, Op};
 use serde_json::{Value, json};
-use sqlx::PgPool;
-use sqlx::postgres::PgPoolOptions;
-use tower::ServiceExt as _;
 
-/// The vault contract on a chain that holds exactly `transactions`.
-struct Scripted {
-    transactions: Arc<Vec<Transaction>>,
-}
+mod common;
 
-impl Chain for Scripted {
-    type Source = Replay;
-
-    fn tip(&self, _: Network) -> impl Future<Output = Result<Version, ChainError>> + Send {
-        ready(Ok(Version::new(
-            self.transactions.last().map_or(0, |t| t.version),
-        )))
-    }
-
-    fn modules(
-        &self,
-        _: Network,
-        address: Address,
-    ) -> impl Future<Output = Result<Vec<ModuleAbi>, ChainError>> + Send {
-        ready(Ok(vault::modules()
-            .into_iter()
-            .filter(|m| m.address == address)
-            .collect()))
-    }
-
-    fn module(
-        &self,
-        _: Network,
-        address: Address,
-        name: &str,
-    ) -> impl Future<Output = Result<Option<ModuleInfo>, ChainError>> + Send {
-        ready(Ok(vault::modules()
-            .into_iter()
-            .find(|m| m.address == address && m.name.as_str() == name)
-            .map(|abi| ModuleInfo {
-                abi,
-                groups: Vec::new(),
-            })))
-    }
-
-    fn first_transaction(
-        &self,
-        _: Network,
-        _: Address,
-    ) -> impl Future<Output = Result<Option<Version>, ChainError>> + Send {
-        ready(Ok(self
-            .transactions
-            .first()
-            .map(|t| Version::new(t.version))))
-    }
-
-    fn source(&self, _: Network, _: Version, _: &Project) -> Replay {
-        Replay {
-            transactions: Arc::clone(&self.transactions),
-        }
-    }
-}
-
-struct Replay {
-    transactions: Arc<Vec<Transaction>>,
-}
-
-impl Source for Replay {
-    type Stream = ReplayStream;
-
-    fn open(
-        &self,
-        from: Version,
-        until: Option<Version>,
-    ) -> impl Future<Output = Result<ReplayStream, IngestError>> + Send {
-        let last = until.map_or(u64::MAX, Version::get);
-        let transactions: Vec<Transaction> = self
-            .transactions
-            .iter()
-            .filter(|t| t.version >= from.get() && t.version <= last)
-            .cloned()
-            .collect();
-        let end = transactions.last().map_or(from.get(), |t| t.version);
-        ready(Ok(ReplayStream {
-            batch: Some(Batch {
-                chain_id: ChainId::try_from(2u64).unwrap(),
-                transactions,
-                processed_range: Some(from..=Version::new(end)),
-            }),
-        }))
-    }
-}
-
-/// Everything in one batch, then an open stream with nothing more: the chain's tip.
-struct ReplayStream {
-    batch: Option<Batch>,
-}
-
-impl BatchStream for ReplayStream {
-    async fn next(&mut self) -> Result<Option<Batch>, IngestError> {
-        match self.batch.take() {
-            Some(batch) => Ok(Some(batch)),
-            None => pending().await,
-        }
-    }
-}
-
-async fn pool() -> Option<PgPool> {
-    let Ok(url) = std::env::var("NINEVEH_TEST_DATABASE_URL") else {
-        assert!(
-            std::env::var_os("CI").is_none(),
-            "CI must set NINEVEH_TEST_DATABASE_URL"
-        );
-        eprintln!("skipping: set NINEVEH_TEST_DATABASE_URL to run the control plane's tests");
-        return None;
-    };
-    Some(
-        PgPoolOptions::new()
-            .max_connections(8)
-            .connect(&url)
-            .await
-            .unwrap(),
-    )
-}
-
-async fn call(app: &Router, method: Method, uri: &str, body: Option<Value>) -> (StatusCode, Value) {
-    let mut request = Request::builder().method(method).uri(uri);
-    if body.is_some() {
-        request = request.header("content-type", "application/json");
-    }
-    let body = body.map_or_else(Body::empty, |b| Body::from(b.to_string()));
-    let response = app
-        .clone()
-        .oneshot(request.body(body).unwrap())
-        .await
-        .unwrap();
-    let status = response.status();
-    let bytes = to_bytes(response.into_body(), 1 << 20).await.unwrap();
-    let json = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
-    (status, json)
-}
+use common::{call, chain, forget, options, pool};
 
 /// Poll a project's table until it has `rows` rows.
 async fn wait_for_rows(app: &Router, name: &str, table: &str, rows: i64) {
@@ -218,14 +74,7 @@ async fn state(app: &Router, name: &str) -> Value {
 async fn inspects_creates_runs_changes_and_deletes_a_project() {
     let Some(pool) = pool().await else { return };
     let name = format!("ctl_{}", std::process::id());
-    // Anything an earlier, failed run left registered would start with this plane.
-    for stale in nineveh_store::registry::list(&pool).await.unwrap() {
-        if stale.name.starts_with("ctl_") {
-            nineveh_store::registry::delete(&pool, &stale.name)
-                .await
-                .unwrap();
-        }
-    }
+    forget(&pool, "ctl_").await;
 
     let ops = [
         Op::Deposit { user: 0, amount: 5 },
@@ -249,7 +98,7 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
         },
         Op::Deposit { user: 2, amount: 1 },
     ];
-    let (transactions, model) = vault::transactions(&ops);
+    let (chain, model) = chain(&ops);
     let count = |n: usize| i64::try_from(n).unwrap();
     // A SmartTable mirror has a row per entry.
     let shares = count(
@@ -259,17 +108,11 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
             .map(std::collections::BTreeMap::len)
             .sum(),
     );
-    let chain = Arc::new(Scripted {
-        transactions: Arc::new(transactions),
-    });
-    let options = RunOptions {
-        streams: 1,
-        ..RunOptions::default()
-    };
+    let options = options();
     let plane = ControlPlane::start(Arc::clone(&chain), pool.clone(), options.clone())
         .await
         .unwrap();
-    let app = router(Arc::clone(&plane));
+    let app = router(Arc::clone(&plane), Access::Local);
 
     // Inspect the contract.
     let (status, catalog) = call(
@@ -445,7 +288,7 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
     let plane = ControlPlane::start(chain, pool.clone(), options)
         .await
         .unwrap();
-    let app = router(Arc::clone(&plane));
+    let app = router(Arc::clone(&plane), Access::Local);
     let again = state(&app, &name).await;
     assert_eq!(again["config"], json!(changed));
     assert_eq!(again["running"], json!(true));

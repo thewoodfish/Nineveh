@@ -1839,6 +1839,7 @@ name = "nineveh-control"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "getrandom 0.3.4",
  "nineveh-api",
  "nineveh-config",
  "nineveh-core",
@@ -1849,14 +1850,18 @@ dependencies = [
  "nineveh-realtime",
  "nineveh-store",
  "nineveh-testkit",
+ "reqwest",
+ "rustls",
  "secrecy",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
  "thiserror",
  "tokio",
  "tower",
  "tracing",
+ "webpki-roots 1.0.9",
 ]
 
 [[package]]

@@ -11,12 +11,14 @@
 //!
 //! - [`ControlPlane`] manages many projects in one process: it saves each one's
 //!   config and lock in the registry, supervises its pipeline, and serves its state
-//!   API and change feed. [`router`] puts it on HTTP for Studio.
+//!   API and change feed. [`router`] puts it on HTTP for Studio, signed in with
+//!   GitHub when hosted and reached with project API keys (ADR 0018; see [`Access`]).
 //!
 //! Everything read from Aptos goes through a [`Chain`]: [`Hosted`] in production.
 //! `nineveh init` and `nineveh run` are thin wrappers over [`pin`] and [`Runner`], so
 //! the CLI and the control plane set up and run projects the same way.
 
+mod auth;
 mod catalog;
 mod chain;
 mod http;
@@ -25,10 +27,13 @@ mod plane;
 mod runner;
 mod scaffold;
 
+pub use auth::{Access, AuthError, ExternalUser, GitHub, IdentityProvider};
 pub use catalog::{Catalog, Item, ItemField, ItemKind, catalog, snake_case};
 pub use chain::{Chain, ChainError, Hosted, ModuleInfo};
 pub use http::router;
 pub use pin::{PinError, pin};
-pub use plane::{ControlError, ControlPlane, Detail, ScaffoldRequest, StartRequest, Summary};
+pub use plane::{
+    Caller, ControlError, ControlPlane, Detail, ScaffoldRequest, StartRequest, Summary,
+};
 pub use runner::{RunError, RunOptions, Runner};
 pub use scaffold::{Draft, ScaffoldError, Start, scaffold};

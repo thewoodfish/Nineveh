@@ -11,6 +11,7 @@ use nineveh_config::{Config, Diagnostics, Project, StartVersion, parse};
 use nineveh_core::{Address, Network, Version};
 use nineveh_decode::Lockfile;
 use nineveh_realtime::Hub;
+use nineveh_store::accounts::{self, ApiKey};
 use nineveh_store::{StoreError, registry, shadow_name};
 use serde::Serialize;
 use sqlx::PgPool;
@@ -18,6 +19,7 @@ use tokio::sync::{RwLock, watch};
 use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
 
+use crate::auth;
 use crate::catalog::{Catalog, catalog};
 use crate::chain::{Chain, ChainError};
 use crate::pin::{PinError, pin, retry};
@@ -40,6 +42,10 @@ pub enum ControlError {
 
     #[error("{0}")]
     Conflict(String),
+
+    /// No session, or one that's expired: sign in (ADR 0018).
+    #[error("{0}")]
+    Unauthorized(String),
 
     #[error(transparent)]
     Chain(#[from] ChainError),
@@ -66,6 +72,7 @@ impl ControlError {
             | Self::BadRequest(_)
             | Self::NotFound(_)
             | Self::Conflict(_)
+            | Self::Unauthorized(_)
             | Self::Scaffold(_) => false,
         }
     }
@@ -142,6 +149,35 @@ pub enum StartRequest {
     Word(String),
 }
 
+/// Who a request comes from (ADR 0018).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Caller {
+    /// Local mode: no sign-in, every project reachable.
+    Local,
+    /// A signed-in account, which reaches only its own projects.
+    Account(i64),
+}
+
+impl Caller {
+    /// Whether this caller may see and change a project owned by `owner`.
+    #[must_use]
+    pub fn may(self, owner: Option<i64>) -> bool {
+        match self {
+            Self::Local => true,
+            Self::Account(id) => owner == Some(id),
+        }
+    }
+
+    /// The owner a project this caller creates gets.
+    #[must_use]
+    pub fn owner(self) -> Option<i64> {
+        match self {
+            Self::Local => None,
+            Self::Account(id) => Some(id),
+        }
+    }
+}
+
 /// A project resolved and ready to run.
 struct Loaded {
     project: Arc<Project>,
@@ -164,6 +200,7 @@ struct Run {
 }
 
 struct Entry {
+    owner_id: Option<i64>,
     network: String,
     config: String,
     running: bool,
@@ -223,22 +260,21 @@ impl<C: Chain> ControlPlane<C> {
             if let Err(e) = &loaded {
                 warn!(project = %record.name, error = %e, "can't load its stored config");
             }
-            let mut entry = plane.entry(
-                &record.name,
-                loaded,
-                record.network,
-                record.config,
-                record.running,
-                record.created_at,
-                record.updated_at,
-            );
+            let name = record.name.clone();
+            let mut entry = plane.entry(record, loaded);
             if entry.running {
-                plane.spawn(&record.name, &mut entry);
+                plane.spawn(&name, &mut entry);
             }
-            info!(project = %record.name, running = entry.running, "loaded");
-            plane.projects.write().await.insert(record.name, entry);
+            info!(project = %name, running = entry.running, "loaded");
+            plane.projects.write().await.insert(name, entry);
         }
         Ok(plane)
+    }
+
+    /// The database the plane keeps its registry, accounts and state in.
+    #[must_use]
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
     }
 
     /// Stop every pipeline after its current commit.
@@ -327,7 +363,7 @@ impl<C: Chain> ControlPlane<C> {
     ///
     /// [`ControlError::Invalid`] if the config has problems, [`ControlError::Conflict`]
     /// if the name is taken, or if the chain or the database fails.
-    pub async fn create(&self, text: &str) -> Result<Detail, ControlError> {
+    pub async fn create(&self, caller: Caller, text: &str) -> Result<Detail, ControlError> {
         let _changing = self.changes.lock().await;
         let config = parse(text).map_err(|d| ControlError::invalid(&d, text))?;
         let name = config.name.name.clone();
@@ -344,19 +380,11 @@ impl<C: Chain> ControlPlane<C> {
             config.network.as_str(),
             text,
             &lock_text,
-            None,
+            caller.owner(),
         )
         .await?;
         let record = self.record(&name).await?;
-        let mut entry = self.entry(
-            &name,
-            Ok(Arc::new(loaded)),
-            record.network,
-            record.config,
-            true,
-            record.created_at,
-            record.updated_at,
-        );
+        let mut entry = self.entry(record, Ok(Arc::new(loaded)));
         self.spawn(&name, &mut entry);
         info!(project = %name, "created");
         let detail = detail(&name, &entry);
@@ -371,7 +399,12 @@ impl<C: Chain> ControlPlane<C> {
     ///
     /// As [`ControlPlane::create`], and [`ControlError::NotFound`] if there's no such
     /// project.
-    pub async fn update(&self, name: &str, text: &str) -> Result<Detail, ControlError> {
+    pub async fn update(
+        &self,
+        caller: Caller,
+        name: &str,
+        text: &str,
+    ) -> Result<Detail, ControlError> {
         let _changing = self.changes.lock().await;
         let config = parse(text).map_err(|d| ControlError::invalid(&d, text))?;
         if config.name.name != name {
@@ -380,7 +413,7 @@ impl<C: Chain> ControlPlane<C> {
                 config.name.name
             )));
         }
-        let running = self.get_entry(name, |e| e.running).await?;
+        let running = self.get_entry(caller, name, |e| e.running).await?;
         let (loaded, lock_text) = self.prepare(&config, text).await?;
         let old = self.take_run(name).await;
         if let Some(run) = old {
@@ -388,15 +421,7 @@ impl<C: Chain> ControlPlane<C> {
         }
         registry::update(&self.pool, name, text, &lock_text).await?;
         let record = self.record(name).await?;
-        let mut entry = self.entry(
-            name,
-            Ok(Arc::new(loaded)),
-            record.network,
-            record.config,
-            running,
-            record.created_at,
-            record.updated_at,
-        );
+        let mut entry = self.entry(record, Ok(Arc::new(loaded)));
         if running {
             self.spawn(name, &mut entry);
         }
@@ -411,9 +436,14 @@ impl<C: Chain> ControlPlane<C> {
     /// # Errors
     ///
     /// If there's no such project, or the database fails.
-    pub async fn set_running(&self, name: &str, running: bool) -> Result<Summary, ControlError> {
+    pub async fn set_running(
+        &self,
+        caller: Caller,
+        name: &str,
+        running: bool,
+    ) -> Result<Summary, ControlError> {
         let _changing = self.changes.lock().await;
-        self.get_entry(name, |_| ()).await?;
+        self.get_entry(caller, name, |_| ()).await?;
         registry::set_running(&self.pool, name, running).await?;
         if running {
             let mut projects = self.projects.write().await;
@@ -432,7 +462,7 @@ impl<C: Chain> ControlPlane<C> {
                 entry.running = false;
             }
         }
-        self.get_entry(name, |e| summary(name, e)).await
+        self.get_entry(caller, name, |e| summary(name, e)).await
     }
 
     /// Stop a project, drop its state, and forget it.
@@ -440,9 +470,9 @@ impl<C: Chain> ControlPlane<C> {
     /// # Errors
     ///
     /// If there's no such project, or the database fails.
-    pub async fn delete(&self, name: &str) -> Result<(), ControlError> {
+    pub async fn delete(&self, caller: Caller, name: &str) -> Result<(), ControlError> {
         let _changing = self.changes.lock().await;
-        self.get_entry(name, |_| ()).await?;
+        self.get_entry(caller, name, |_| ()).await?;
         if let Some(run) = self.take_run(name).await {
             stop(run).await;
         }
@@ -452,12 +482,13 @@ impl<C: Chain> ControlPlane<C> {
         Ok(())
     }
 
-    /// Every project, by name.
-    pub async fn list(&self) -> Vec<Summary> {
+    /// Every project `caller` may see, by name.
+    pub async fn list(&self, caller: Caller) -> Vec<Summary> {
         self.projects
             .read()
             .await
             .iter()
+            .filter(|(_, entry)| caller.may(entry.owner_id))
             .map(|(name, entry)| summary(name, entry))
             .collect()
     }
@@ -467,8 +498,73 @@ impl<C: Chain> ControlPlane<C> {
     /// # Errors
     ///
     /// If there's no such project.
-    pub async fn get(&self, name: &str) -> Result<Detail, ControlError> {
-        self.get_entry(name, |e| detail(name, e)).await
+    pub async fn get(&self, caller: Caller, name: &str) -> Result<Detail, ControlError> {
+        self.get_entry(caller, name, |e| detail(name, e)).await
+    }
+
+    /// A project's owner: `Some(None)` for one made in local mode, `None` if there's
+    /// no such project.
+    pub async fn owner(&self, name: &str) -> Option<Option<i64>> {
+        self.projects.read().await.get(name).map(|e| e.owner_id)
+    }
+
+    /// `caller`'s project `name`'s live API keys.
+    ///
+    /// # Errors
+    ///
+    /// If there's no such project for `caller`, or the database fails.
+    pub async fn keys(&self, caller: Caller, name: &str) -> Result<Vec<ApiKey>, ControlError> {
+        self.get_entry(caller, name, |_| ()).await?;
+        Ok(accounts::api_keys(&self.pool, name).await?)
+    }
+
+    /// A new API key for `caller`'s project `name`: the key, which is shown only now,
+    /// and its record.
+    ///
+    /// # Errors
+    ///
+    /// If there's no such project for `caller`, the label is empty, or the database
+    /// fails.
+    pub async fn create_key(
+        &self,
+        caller: Caller,
+        name: &str,
+        label: &str,
+    ) -> Result<(String, ApiKey), ControlError> {
+        self.get_entry(caller, name, |_| ()).await?;
+        let label = label.trim();
+        if label.is_empty() || label.chars().count() > 100 {
+            return Err(ControlError::BadRequest(
+                "a key needs a label of 1 to 100 characters, to tell it apart".into(),
+            ));
+        }
+        let (key, hash) = auth::new_token(auth::KEY_PREFIX)
+            .map_err(|e| ControlError::BadRequest(e.to_string()))?;
+        let prefix: String = key.chars().take(auth::KEY_PREFIX.len() + 8).collect();
+        let record = accounts::create_api_key(&self.pool, name, label, &prefix, &hash).await?;
+        info!(project = %name, key = record.id, "API key created");
+        Ok((key, record))
+    }
+
+    /// Revoke one of `caller`'s project `name`'s keys.
+    ///
+    /// # Errors
+    ///
+    /// If there's no such project or live key, or the database fails.
+    pub async fn revoke_key(
+        &self,
+        caller: Caller,
+        name: &str,
+        id: i64,
+    ) -> Result<(), ControlError> {
+        self.get_entry(caller, name, |_| ()).await?;
+        if !accounts::revoke_api_key(&self.pool, name, id).await? {
+            return Err(ControlError::NotFound(format!(
+                "no live key {id} on `{name}`"
+            )));
+        }
+        info!(project = %name, key = id, "API key revoked");
+        Ok(())
     }
 
     /// The router serving a project's state API and change feed.
@@ -501,8 +597,11 @@ impl<C: Chain> ControlPlane<C> {
             .ok_or_else(|| missing(name))
     }
 
+    /// `f` of `caller`'s project `name`. Someone else's project is missing, as if it
+    /// didn't exist.
     async fn get_entry<T>(
         &self,
+        caller: Caller,
         name: &str,
         f: impl FnOnce(&Entry) -> T,
     ) -> Result<T, ControlError> {
@@ -510,6 +609,7 @@ impl<C: Chain> ControlPlane<C> {
             .read()
             .await
             .get(name)
+            .filter(|e| caller.may(e.owner_id))
             .map(f)
             .ok_or_else(|| missing(name))
     }
@@ -523,17 +623,8 @@ impl<C: Chain> ControlPlane<C> {
     }
 
     /// A served project: its API and change feed over the schema of its name.
-    #[allow(clippy::too_many_arguments, reason = "the registry row's fields")]
-    fn entry(
-        &self,
-        name: &str,
-        loaded: Result<Arc<Loaded>, String>,
-        network: String,
-        config: String,
-        running: bool,
-        created_at: String,
-        updated_at: String,
-    ) -> Entry {
+    fn entry(&self, record: registry::Registered, loaded: Result<Arc<Loaded>, String>) -> Entry {
+        let name = record.name.as_str();
         let (health, _) = watch::channel(None);
         let router = match &loaded {
             Ok(loaded) => {
@@ -548,11 +639,12 @@ impl<C: Chain> ControlPlane<C> {
             Err(_) => Router::new(),
         };
         Entry {
-            network,
-            config,
-            running,
-            created_at,
-            updated_at,
+            owner_id: record.owner_id,
+            network: record.network,
+            config: record.config,
+            running: record.running,
+            created_at: record.created_at,
+            updated_at: record.updated_at,
             loaded,
             router,
             health,

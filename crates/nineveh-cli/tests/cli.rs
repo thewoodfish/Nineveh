@@ -351,3 +351,35 @@ fn up_serves_the_control_api() {
     );
     assert!(unknown.unwrap().starts_with("HTTP/1.1 404"));
 }
+
+/// Without sign-in, `nineveh up` refuses to listen beyond loopback (ADR 0018).
+#[test]
+fn up_without_sign_in_stays_on_loopback() {
+    let output = Command::new(env!("CARGO_BIN_EXE_nineveh"))
+        .args(["up", "--listen", "0.0.0.0:4999"])
+        .current_dir(project_dir("up_public"))
+        .env("NINEVEH_DATABASE_URL", "postgres://unused/nineveh")
+        .env_remove("NINEVEH_GITHUB_CLIENT_ID")
+        .env_remove("NINEVEH_GITHUB_CLIENT_SECRET")
+        .env("NO_COLOR", "1")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let stderr = text(&output.stderr);
+    assert!(stderr.contains("only listens on loopback"), "{stderr}");
+
+    let half = Command::new(env!("CARGO_BIN_EXE_nineveh"))
+        .args(["up", "--github-client-id", "Iv1.x"])
+        .current_dir(project_dir("up_half"))
+        .env("NINEVEH_DATABASE_URL", "postgres://unused/nineveh")
+        .env_remove("NINEVEH_GITHUB_CLIENT_SECRET")
+        .env("NO_COLOR", "1")
+        .output()
+        .unwrap();
+    assert!(!half.status.success());
+    assert!(
+        text(&half.stderr).contains("needs both"),
+        "{}",
+        text(&half.stderr)
+    );
+}

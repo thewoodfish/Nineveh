@@ -94,6 +94,24 @@ enum Command {
         chunk: u64,
         #[command(flatten)]
         key: ApiKey,
+        /// A GitHub OAuth app's client id: with its secret, people sign in and projects
+        /// need API keys. Without it, no sign-in, on loopback only.
+        #[arg(long, env = "NINEVEH_GITHUB_CLIENT_ID")]
+        github_client_id: Option<String>,
+        /// The GitHub OAuth app's client secret.
+        #[arg(long, env = "NINEVEH_GITHUB_CLIENT_SECRET", hide_env_values = true)]
+        github_client_secret: Option<String>,
+        /// Where browsers reach this control plane, for GitHub's callback. Defaults to
+        /// `http://` and the listen address.
+        #[arg(long, env = "NINEVEH_PUBLIC_URL")]
+        public_url: Option<String>,
+        /// Where Studio is: signing in ends there.
+        #[arg(
+            long,
+            env = "NINEVEH_STUDIO_URL",
+            default_value = "http://localhost:3000"
+        )]
+        studio_url: String,
     },
 }
 
@@ -187,13 +205,28 @@ async fn dispatch(cli: Cli) -> Result<()> {
             streams,
             chunk,
             key,
+            github_client_id,
+            github_client_secret,
+            public_url,
+            studio_url,
         } => {
+            let github = match (github_client_id, github_client_secret) {
+                (Some(id), Some(secret)) => Some((id, SecretString::from(secret))),
+                (None, None) => None,
+                _ => anyhow::bail!(
+                    "GitHub sign-in needs both --github-client-id and \
+                     NINEVEH_GITHUB_CLIENT_SECRET"
+                ),
+            };
             up::up(up::UpOptions {
                 database_url: SecretString::from(database_url),
                 listen,
                 api_key: key.secret(),
                 streams: streams.max(1),
                 chunk: chunk.max(1),
+                github,
+                public_url,
+                studio_url,
             })
             .await
         }
