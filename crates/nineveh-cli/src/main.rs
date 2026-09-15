@@ -3,7 +3,8 @@
 //! ```text
 //! nineveh init                 # fetch ABIs, write nineveh.lock, resolve start_version: auto
 //! nineveh validate             # check nineveh.yaml against the lock, offline
-//! nineveh run                  # build the state in Postgres and keep it current
+//! nineveh run [--serve]        # build the state in Postgres and keep it current
+//! nineveh serve                # serve the state API and change feed
 //! nineveh replay --yes         # drop the state and build it again
 //! ```
 //!
@@ -11,6 +12,7 @@
 //! APIs. `NINEVEH_DATABASE_URL` is the Postgres to build into. (Not `DATABASE_URL`: in a
 //! source checkout that switches sqlx's macros to checking against a live database.)
 
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -22,6 +24,7 @@ use tracing_subscriber::EnvFilter;
 mod init;
 mod project;
 mod run;
+mod serve;
 
 use project::Paths;
 use run::RunOptions;
@@ -52,7 +55,19 @@ enum Command {
     /// Build the project's state in Postgres and keep it current. Ctrl-C stops after
     /// the current commit; running again resumes.
     Run(RunArgs),
-    /// Drop the project's state and build it again from its start.
+    /// Serve the project's state API and change feed, without running the pipeline.
+    Serve {
+        /// Postgres to read from.
+        #[arg(long, env = "NINEVEH_DATABASE_URL", hide_env_values = true)]
+        database_url: String,
+        /// Postgres schema for the project's tables. Defaults to the project's name.
+        #[arg(long)]
+        schema: Option<String>,
+        /// Address to listen on.
+        #[arg(long, default_value = serve::DEFAULT_LISTEN)]
+        listen: SocketAddr,
+    },
+    /// Build the project again from its start, beside the served build, and swap it in.
     Replay {
         #[command(flatten)]
         run: RunArgs,
@@ -86,6 +101,9 @@ struct RunArgs {
     /// Versions per backfill range.
     #[arg(long, default_value_t = 1_000_000)]
     chunk: u64,
+    /// Also serve the state API and change feed, on this address or 127.0.0.1:4000.
+    #[arg(long, num_args = 0..=1, default_missing_value = serve::DEFAULT_LISTEN)]
+    serve: Option<SocketAddr>,
     #[command(flatten)]
     key: ApiKey,
 }
@@ -98,6 +116,7 @@ impl RunArgs {
             until: self.until,
             streams: self.streams.max(1),
             chunk: self.chunk.max(1),
+            serve: self.serve,
             api_key: self.key.secret(),
         }
     }
@@ -136,6 +155,11 @@ async fn dispatch(cli: Cli) -> Result<()> {
         Command::Init { key } => init::init(&paths, key.secret().as_ref()).await,
         Command::Validate => validate(&paths),
         Command::Run(args) => run::run(&paths, &args.options()).await,
+        Command::Serve {
+            database_url,
+            schema,
+            listen,
+        } => serve::serve(&paths, &database_url, schema, listen).await,
         Command::Replay { run, yes } => run::replay(&paths, &run.options(), yes).await,
     }
 }

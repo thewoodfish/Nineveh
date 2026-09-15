@@ -222,3 +222,72 @@ state:
         text(&out.stderr)
     );
 }
+
+/// `nineveh serve` answers the state API and the change feed. Needs a Postgres
+/// (`NINEVEH_TEST_DATABASE_URL`); skips without one, except in CI.
+#[test]
+fn serve_answers_the_api() {
+    let Ok(database) = std::env::var("NINEVEH_TEST_DATABASE_URL") else {
+        assert!(
+            std::env::var_os("CI").is_none(),
+            "CI must set NINEVEH_TEST_DATABASE_URL"
+        );
+        return;
+    };
+    let dir = project_dir("serve");
+    vault_project(&dir, vault::CONFIG, Some(1_000));
+    let port = {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.local_addr().unwrap().port()
+    };
+    let mut server = Command::new(env!("CARGO_BIN_EXE_nineveh"))
+        .args(["serve", "--listen", &format!("127.0.0.1:{port}")])
+        .args(["--schema", &format!("cli_serve_{}", std::process::id())])
+        .current_dir(&dir)
+        .env("NINEVEH_DATABASE_URL", &database)
+        .env("NO_COLOR", "1")
+        .spawn()
+        .unwrap();
+
+    let get = |path: &str| -> Option<String> {
+        use std::io::{Read, Write};
+        let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).ok()?;
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+            .ok()?;
+        write!(
+            stream,
+            "GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+        )
+        .ok()?;
+        let mut response = String::new();
+        let _ = stream.read_to_string(&mut response);
+        Some(response)
+    };
+    let mut status = None;
+    for _ in 0..100 {
+        status = get("/v1/status");
+        if status.is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    let tables = get("/v1/tables");
+    let feed = get("/v1/changes?after=soon");
+    let _ = server.kill();
+    let _ = server.wait();
+
+    let status = status.expect("the server came up");
+    assert!(status.starts_with("HTTP/1.1 200"), "{status}");
+    assert!(status.contains("\"project\":\"vault\""), "{status}");
+    assert!(
+        status.contains("access-control-allow-origin"),
+        "CORS for Studio: {status}"
+    );
+    let tables = tables.unwrap();
+    assert!(tables.contains("\"name\":\"balances\""), "{tables}");
+    assert!(
+        feed.unwrap().starts_with("HTTP/1.1 400"),
+        "the feed is mounted"
+    );
+}

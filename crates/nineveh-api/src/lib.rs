@@ -41,6 +41,10 @@ const SHADOW_SUFFIX: &str = "__next";
 pub struct Health {
     /// `starting`, `running`, `retrying`, `halted` or `stopped`.
     pub phase: String,
+    /// The schema the pipeline is writing: the served one, or a rebuild's.
+    pub schema: String,
+    /// The last committed version there, as a decimal string.
+    pub cursor: Option<String>,
     /// The chain's version when the pipeline started, as a decimal string.
     pub chain_version: Option<String>,
     /// Seconds between now and the last committed transaction's block time.
@@ -128,6 +132,16 @@ impl IntoResponse for ApiError {
                 if db.code().is_some_and(|c| c.starts_with("22")) =>
             {
                 (StatusCode::BAD_REQUEST, db.message().to_owned())
+            }
+            // The config names a table or column the served build doesn't have: a
+            // rebuild under the new config hasn't been swapped in yet (ADR 0016).
+            Self::Database(sqlx::Error::Database(db))
+                if db.code().is_some_and(|c| c == "42P01" || c == "42703") =>
+            {
+                (
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "the served build doesn't match the config yet: it's being rebuilt".to_owned(),
+                )
             }
             Self::Database(e) => {
                 error!(error = %e, "query failed");

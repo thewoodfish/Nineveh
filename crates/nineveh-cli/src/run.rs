@@ -4,10 +4,12 @@
 //! while the old build stays served, and swaps it in once it has caught up with the
 //! chain (ADR 0016). `replay` does the same with an unchanged config.
 
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
+use nineveh_api::Health;
 use nineveh_config::Project;
 use nineveh_core::Version;
 use nineveh_decode::Lockfile;
@@ -38,6 +40,8 @@ pub(crate) struct RunOptions {
     /// Versions per backfill range.
     pub(crate) chunk: u64,
     pub(crate) api_key: Option<SecretString>,
+    /// Serve the API and change feed here while running.
+    pub(crate) serve: Option<SocketAddr>,
 }
 
 pub(crate) async fn run(paths: &Paths, options: &RunOptions) -> Result<()> {
@@ -75,6 +79,8 @@ struct Runner {
     options: RunOptions,
     /// Set by Ctrl-C.
     stop: watch::Receiver<bool>,
+    /// The pipeline's health, for the API when serving.
+    health: watch::Sender<Option<Health>>,
 }
 
 impl Runner {
@@ -105,6 +111,18 @@ impl Runner {
             .await
             .context("connecting to Postgres")?;
 
+        let (health, health_receiver) = watch::channel(None);
+        if let Some(listen) = options.serve {
+            crate::serve::start(
+                pool.clone(),
+                &schema,
+                &loaded.project,
+                health_receiver,
+                listen,
+            )
+            .await?;
+        }
+
         let (stop, stopped) = watch::channel(false);
         tokio::spawn(async move {
             if tokio::signal::ctrl_c().await.is_ok() {
@@ -122,6 +140,7 @@ impl Runner {
             tip: ledger.ledger_version,
             options: options.clone(),
             stop: stopped,
+            health,
         })
     }
 
@@ -196,13 +215,27 @@ impl Runner {
             streams = self.options.streams,
             "running"
         );
-        let reporter = tokio::spawn(report_progress(pipeline.status(), self.tip));
+        let reporter = tokio::spawn(report_progress(
+            pipeline.status(),
+            self.tip,
+            schema.to_owned(),
+            self.health.clone(),
+        ));
         let mut stop = self.stop.clone();
         let shutdown = async move {
             let _ = stop.wait_for(|stopped| *stopped).await;
         };
         let result = pipeline.run(shutdown).await;
         reporter.abort();
+        // The reporter is gone: publish where the pipeline ended.
+        let last = pipeline.status().borrow().clone();
+        self.health.send_modify(|health| {
+            if let Some(health) = health {
+                health.phase = format!("{:?}", last.phase).to_lowercase();
+                health.cursor = last.cursor.map(|c| c.get().to_string());
+                health.last_error.clone_from(&last.last_error);
+            }
+        });
 
         match result {
             Ok(outcome) => {
@@ -226,28 +259,50 @@ impl Runner {
     }
 }
 
-/// Log the cursor, lag and rate every few seconds while the pipeline runs.
-async fn report_progress(mut status: watch::Receiver<Status>, chain: Version) {
+/// Publish the pipeline's health every second, and log it every ten.
+async fn report_progress(
+    mut status: watch::Receiver<Status>,
+    chain: Version,
+    schema: String,
+    health: watch::Sender<Option<Health>>,
+) {
     let mut last: Option<(Instant, u64)> = None;
-    let mut interval = tokio::time::interval(Duration::from_secs(10));
-    interval.tick().await;
+    let mut rate = None;
+    let mut interval = tokio::time::interval(Duration::from_secs(1));
+    let mut tick: u64 = 0;
     loop {
         interval.tick().await;
+        tick = tick.wrapping_add(1);
         let current = status.borrow_and_update().clone();
-        let Some(cursor) = current.cursor else {
-            continue;
-        };
         let now = Instant::now();
-        let rate = last.map(|(then, versions)| {
-            let seconds = now.duration_since(then).as_secs().max(1);
-            current.versions.saturating_sub(versions) / seconds
-        });
-        last = Some((now, current.versions));
+        if tick.is_multiple_of(10) {
+            rate = last.map(|(then, versions): (Instant, u64)| {
+                let seconds = now.duration_since(then).as_secs().max(1);
+                current.versions.saturating_sub(versions) / seconds
+            });
+            last = Some((now, current.versions));
+        }
         let lag = current.timestamp_micros.and_then(|micros| {
             let now = SystemTime::now().duration_since(UNIX_EPOCH).ok()?;
             let micros = u128::from(micros);
             u64::try_from(now.as_micros().saturating_sub(micros) / 1_000_000).ok()
         });
+        health.send_replace(Some(Health {
+            phase: format!("{:?}", current.phase).to_lowercase(),
+            schema: schema.clone(),
+            cursor: current.cursor.map(|c| c.get().to_string()),
+            chain_version: Some(chain.get().to_string()),
+            lag_secs: lag,
+            versions_per_sec: rate,
+            retries: current.retries,
+            last_error: current.last_error.clone(),
+        }));
+        let Some(cursor) = current.cursor else {
+            continue;
+        };
+        if !tick.is_multiple_of(10) {
+            continue;
+        }
         info!(
             cursor = cursor.get(),
             behind = chain.get().saturating_sub(cursor.get()),
