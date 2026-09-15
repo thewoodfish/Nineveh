@@ -25,7 +25,7 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | --- | --- | --- |
 | [0001](0001-own-stream-client-vendor-protos.md) | Own the Transaction Stream client; vendor the protos | Accepted |
 | [0002](0002-decode-json-against-pinned-layouts.md) | Decode the stream's JSON against pinned Move layouts | Accepted |
-| [0003](0003-table-item-sources.md) | Table items are a first-class source kind | Accepted |
+| [0003](0003-table-item-sources.md) | Table items are a first-class source kind | Accepted; matching superseded by 0012 |
 | [0004](0004-server-side-filtering-policy.md) | Filter server-side only when it can't under-cover | Accepted |
 | [0005](0005-pure-fold-atomic-commit.md) | Pure fold, atomic commit, one-way dependencies | Accepted |
 | [0006](0006-transactional-outbox.md) | Change feeds come from a transactional outbox | Accepted |
@@ -34,3 +34,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0009](0009-toolchain-and-engineering-baseline.md) | Toolchain and engineering baseline | Accepted |
 | [0010](0010-lock-format-and-decode-boundary.md) | Pin layouts in a JSON lock; decode protos without a runtime | Accepted |
 | [0011](0011-project-config-semantics.md) | Project config: two-phase loading and explicit row semantics | Accepted |
+| [0012](0012-attribute-table-items-by-handle.md) | Attribute table items by handle, learned from their parent | Accepted |

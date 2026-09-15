@@ -1,6 +1,6 @@
 # 0003. Table items are a first-class source kind
 
-- Status: Accepted
+- Status: Accepted; item matching superseded by [0012](0012-attribute-table-items-by-handle.md)
 - Date: 2026-09-14
 
 ## Context

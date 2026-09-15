@@ -179,9 +179,8 @@ impl Config {
                                     at,
                                 )
                                 .help(
-                                    "items are matched by type, so both tables' items would land \
-                                     in this source; attributing items by table handle isn't \
-                                     supported yet",
+                                    "items are matched by type until handle attribution \
+                                     (ADR 0012) lands, so both tables' items would land here",
                                 ),
                             );
                         }
