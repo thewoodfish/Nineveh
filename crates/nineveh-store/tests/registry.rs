@@ -123,3 +123,29 @@ async fn refuses_a_name_a_build_already_has() {
     ));
     Store::reset(&pool, &name).await.unwrap();
 }
+
+/// sqlx keeps its ledger of applied migrations in an unqualified `_sqlx_migrations`.
+/// Postgres' default search path starts with `"$user"`, so for a role named `nineveh`
+/// the schema the first migration creates would come first, and every later run would
+/// find an empty ledger there and apply everything again. Migrating must not depend on
+/// the search path.
+#[tokio::test]
+async fn migrating_twice_ignores_the_search_path() {
+    let Ok(url) = std::env::var("NINEVEH_TEST_DATABASE_URL") else {
+        assert!(
+            std::env::var_os("CI").is_none(),
+            "CI must set NINEVEH_TEST_DATABASE_URL"
+        );
+        return;
+    };
+    let options: sqlx::postgres::PgConnectOptions = url.parse().unwrap();
+    // As a role named `nineveh` sees it.
+    let options = options.options([("search_path", "nineveh,public")]);
+    let pool = PgPoolOptions::new()
+        .max_connections(2)
+        .connect_with(options)
+        .await
+        .unwrap();
+    nineveh_store::migrate(&pool).await.unwrap();
+    nineveh_store::migrate(&pool).await.unwrap();
+}

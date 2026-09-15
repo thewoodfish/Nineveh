@@ -17,13 +17,13 @@
 //! `nineveh init` and `nineveh run` are thin wrappers over [`pin`] and [`Runner`], so
 //! the CLI and the control plane set up and run projects the same way.
 
-pub mod catalog;
+mod catalog;
 mod chain;
 mod http;
 mod pin;
 mod plane;
 mod runner;
-pub mod scaffold;
+mod scaffold;
 
 pub use catalog::{Catalog, Item, ItemField, ItemKind, catalog, snake_case};
 pub use chain::{Chain, ChainError, Hosted, ModuleInfo};

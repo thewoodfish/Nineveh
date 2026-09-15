@@ -28,7 +28,18 @@ pub const NOTIFY_CHANNEL: &str = "nineveh_changes";
 ///
 /// If the database refuses the migration.
 pub async fn migrate(pool: &PgPool) -> Result<(), StoreError> {
-    MIGRATOR.run(pool).await?;
+    let mut conn = pool.acquire().await?;
+    // sqlx keeps its ledger of applied migrations in an unqualified `_sqlx_migrations`,
+    // found through the search path. The default path starts with "$user": for a role
+    // named `nineveh`, the schema the first migration creates would come first, and
+    // every later run would find an empty ledger there and apply everything again.
+    // So the ledger is always in `public`.
+    sqlx::query("SET search_path TO public")
+        .execute(&mut *conn)
+        .await?;
+    let migrated = MIGRATOR.run_direct(&mut *conn).await;
+    sqlx::query("RESET search_path").execute(&mut *conn).await?;
+    migrated?;
     Ok(())
 }
 
