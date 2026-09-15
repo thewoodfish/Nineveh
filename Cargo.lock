@@ -1191,6 +1191,7 @@ version = "0.0.0"
 dependencies = [
  "nineveh-core",
  "nineveh-decode",
+ "nineveh-expr",
  "nineveh-proto",
  "prost",
  "serde",
@@ -1217,6 +1218,15 @@ dependencies = [
  "prost",
  "serde",
  "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "nineveh-expr"
+version = "0.0.0"
+dependencies = [
+ "nineveh-core",
+ "proptest",
  "thiserror",
 ]
 

@@ -189,20 +189,32 @@ fn closest<'a>(name: &str, candidates: impl IntoIterator<Item = &'a str>) -> Opt
         .map(|(_, c)| c)
 }
 
-/// Levenshtein distance over chars.
+/// Edit distance counting insertions, deletions, substitutions and swaps of adjacent
+/// characters (optimal string alignment), so `mni` is one edit from `min`.
 fn edit_distance(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
     let b: Vec<char> = b.chars().collect();
-    let mut prev: Vec<usize> = (0..=b.len()).collect();
-    let mut row = vec![0; b.len() + 1];
-    for (i, ca) in a.chars().enumerate() {
-        row[0] = i + 1;
-        for (j, &cb) in b.iter().enumerate() {
-            let substitute = prev[j] + usize::from(ca != cb);
-            row[j + 1] = substitute.min(prev[j + 1] + 1).min(row[j] + 1);
-        }
-        std::mem::swap(&mut prev, &mut row);
+    let width = b.len() + 1;
+    let mut d = vec![0; (a.len() + 1) * width];
+    for i in 0..=a.len() {
+        d[i * width] = i;
     }
-    prev[b.len()]
+    for (j, cell) in d.iter_mut().take(width).enumerate() {
+        *cell = j;
+    }
+    for i in 1..=a.len() {
+        for j in 1..=b.len() {
+            let cost = usize::from(a[i - 1] != b[j - 1]);
+            let mut best = (d[(i - 1) * width + j] + 1)
+                .min(d[i * width + j - 1] + 1)
+                .min(d[(i - 1) * width + j - 1] + cost);
+            if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
+                best = best.min(d[(i - 2) * width + j - 2] + 1);
+            }
+            d[i * width + j] = best;
+        }
+    }
+    d[a.len() * width + b.len()]
 }
 
 #[cfg(test)]
@@ -232,6 +244,8 @@ mod tests {
         assert_eq!(closest("colums", ["columns", "key"]), Some("columns"));
         assert_eq!(closest("xyz", ["columns", "key"]), None);
         assert_eq!(edit_distance("kitten", "sitting"), 3);
+        assert_eq!(closest("mian", ["main", "mainnet"]), Some("main"));
+        assert_eq!(edit_distance("mni", "min"), 1);
     }
 
     #[test]

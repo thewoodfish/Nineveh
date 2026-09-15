@@ -12,11 +12,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use nineveh_config::{
-    Action, ColumnType, Config, Diagnostics, Input, KeySource, ResolvedTable, StartVersion,
+    Action, ColumnType, Config, Diagnostics, Input, ResolvedAction, ResolvedTable, StartVersion,
     TableKind, parse,
 };
-use nineveh_core::{Network, Value};
+use nineveh_core::{Address, Network, Value};
 use nineveh_decode::{LockBuilder, Lockfile, ModuleAbi, RecordData, TransactionDecoder};
+use nineveh_expr::{Inputs, Tx};
 use nineveh_proto::transaction::Transaction;
 use prost::Message;
 
@@ -117,9 +118,10 @@ fn a_real_project_resolves_and_decodes_its_transaction() {
     let ResolvedTable::Reduce { rules } = &project.tables()[0] else {
         panic!("holders resolves as a reduce table");
     };
-    assert!(matches!(&rules[0].key[..], [(col, KeySource::Field(f))]
-        if col == "soul_bound_to" && f.as_str() == "soul_bound_to"));
-    assert!(rules[0].scope.get("uri").is_some());
+    let rule = &rules[0];
+    assert_eq!(rule.key[0].0, "soul_bound_to");
+    assert_eq!(rule.key[0].1.source.text, "mints.soul_bound_to");
+    assert!(rule.scope.get("uri").is_some());
 
     let balances = project.source_id("balances").unwrap();
     assert!(matches!(project.input(balances), Some(Input::Table(_))));
@@ -134,9 +136,77 @@ fn a_real_project_resolves_and_decodes_its_transaction() {
         let id = project.source_id(name).unwrap();
         decoded.records.iter().filter(move |r| r.source == id)
     };
-    assert!(from("mints").any(|r| matches!(r.data, RecordData::Event { .. })));
     assert!(from("limits").any(|r| matches!(r.data, RecordData::ResourceWrite { .. })));
     assert!(from("balances").any(|r| matches!(r.data, RecordData::TableWrite { .. })));
+
+    // Run the rule's compiled expressions on the real event, as the engine will: the
+    // record's fields in scope order, and a new row holding its defaults.
+    let event = from("mints")
+        .find_map(|r| match &r.data {
+            RecordData::Event { value, .. } => Some(value.clone()),
+            _ => None,
+        })
+        .unwrap();
+    let record: Vec<Value> = rule
+        .scope
+        .fields
+        .iter()
+        .map(|(name, _)| event.field(name.as_str()).unwrap().clone())
+        .collect();
+    let new_row = [
+        Value::Address(Address::ZERO),
+        Value::U64(0),
+        Value::Option(None),
+    ];
+    let inputs = Inputs {
+        row: &new_row,
+        record: &record,
+        tx: Tx {
+            version: decoded.version.get(),
+            timestamp_micros: decoded.timestamp_micros,
+        },
+    };
+    let key = rule.key[0].1.compiled.eval(&inputs).unwrap();
+    assert_eq!(&key, event.field("soul_bound_to").unwrap());
+    let ResolvedAction::Set(set) = &rule.action else {
+        panic!("expected a set rule")
+    };
+    assert_eq!(set[0].1.compiled.eval(&inputs).unwrap(), Value::U64(1));
+    assert!(matches!(
+        set[1].1.compiled.eval(&inputs).unwrap(),
+        Value::Option(Some(_))
+    ));
+}
+
+#[test]
+fn expression_errors_point_into_the_yaml() {
+    let yaml = palette_yaml().replace(
+        "set: { minted: \"minted + 1\", last_uri: uri }",
+        "set: { minted: \"minted + uri\", last_uri: urii }",
+    );
+    let rendered = resolve_errors(&yaml).render("nineveh.yaml", &yaml);
+    assert!(
+        rendered.contains(
+            "error: expected u64, found string\n  --> nineveh.yaml:20:34\n   |\n\
+             20 |         set: { minted: \"minted + uri\", last_uri: urii }\n   |                                  ^^^"
+        ),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("error: unknown name `urii`"),
+        "{rendered}"
+    );
+    assert!(rendered.contains("help: did you mean `uri`?"), "{rendered}");
+}
+
+#[test]
+fn reading_a_column_without_a_default_is_caught() {
+    let yaml = palette_yaml().replace("minted:   { type: u64, default: 0 }", "minted:   u64");
+    let errors = resolve_errors(&yaml);
+    assert_eq!(
+        errors.as_slice()[0].message,
+        "`minted` has no default, so a new row has no value to read"
+    );
 }
 
 #[test]

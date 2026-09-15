@@ -142,8 +142,9 @@ record:
 For a Move enum (versioned layouts like `V1`/`V2`), a rule can read the fields every
 variant has with the same type.
 
-Expressions are exact integer arithmetic up to `u256`, with no floating point (ADR 0007).
-Quote them when they contain YAML punctuation: `"balance + amount"`.
+Expressions are typed, exact integer arithmetic up to 256 bits, with no floating point.
+The full language is in [expressions.md](expressions.md). Quote expressions when they
+contain YAML punctuation: `"balance + amount"`.
 
 ### Column types
 

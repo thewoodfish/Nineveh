@@ -18,6 +18,7 @@ publish = false
 nineveh-config = { path = "crates/nineveh-config" }
 nineveh-core = { path = "crates/nineveh-core" }
 nineveh-decode = { path = "crates/nineveh-decode" }
+nineveh-expr = { path = "crates/nineveh-expr" }
 nineveh-ingest = { path = "crates/nineveh-ingest" }
 nineveh-proto = { path = "crates/nineveh-proto" }
 
@@ -44,6 +45,9 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 # YAML for project configs: spans on every value, alias-bomb budgets, duplicate-key errors.
 serde-saphyr = { version = "1.2.0", default-features = false, features = ["deserialize"] }
+
+# Testing
+proptest = { version = "1.11.0", default-features = false, features = ["std"] }
 
 # Exact Move integers (u256; i256 is built on it in nineveh-core).
 ruint = { version = "1.17.2", default-features = false, features = ["std"] }

@@ -14,9 +14,10 @@
 //!    [`Project`], carrying the decode [`Selection`](nineveh_decode::Selection) and
 //!    each rule's record [`Scope`].
 //!
-//! Reducer expressions stay source text ([`Expr`]) here; `nineveh-expr` parses and
-//! typechecks them against the scopes this crate resolves. The format is documented
-//! for users in `docs/config.md`.
+//! `parse` keeps reducer expressions as source text ([`Expr`]); `resolve` typechecks
+//! and compiles each one with `nineveh-expr` against its rule's record scope and the
+//! table's columns, so expression errors are located in the YAML too. The format is
+//! documented for users in `docs/config.md`.
 
 mod diagnostic;
 mod model;
@@ -29,5 +30,7 @@ pub use model::{
     Action, Api, Change, Column, ColumnType, Config, Expr, Named, Rule, Source, SourceKind,
     StartVersion, StateTable, Subscription, TableKind, Trigger,
 };
-pub use resolve::{Input, KeySource, Project, ResolvedRule, ResolvedTable, Scope};
+pub use resolve::{
+    CompiledExpr, Input, Project, ResolvedAction, ResolvedRule, ResolvedTable, Scope,
+};
 pub use validate::parse;

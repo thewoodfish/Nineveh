@@ -13,11 +13,13 @@ publish.workspace = true
 [dependencies]
 nineveh-core.workspace = true
 nineveh-decode.workspace = true
+nineveh-expr.workspace = true
 serde.workspace = true
 serde-saphyr.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+nineveh-expr.workspace = true
 nineveh-proto.workspace = true
 prost.workspace = true
 serde_json.workspace = true

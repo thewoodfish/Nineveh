@@ -69,8 +69,9 @@ they get real code; the dependency direction between them is enforced by
 - `nineveh-decode`   — type-directed decoding of the stream's JSON-rendered Move values
                        (events, resources, table items) against layouts pinned in
                        `nineveh.lock` (ADR 0010). Nested structs, enums, generics.
-- `nineveh-expr`     — the reducer expression language: typed, total, exact u8–u256
-                       integer arithmetic (ADR 0007).
+- `nineveh-expr`     — the reducer expression language: typed, total, exact integers
+                       u8–u256 and i8–i256 (ADR 0007; user reference in
+                       `docs/expressions.md`). Config resolution compiles every rule.
 - `nineveh-engine`   — the pure fold: `StateView × Records → ChangeSet`. No I/O.
                        Deterministic, replayable (ADR 0005).
 - `nineveh-pipeline` — wires ingest → decode → fold → commit with bounded channels,

@@ -5,9 +5,10 @@ use nineveh_core::{Identifier, StructTag, TypeTag};
 use nineveh_decode::{
     Body, Lockfile, Selection, SelectionError, SourceId, TableMatcher, TypeMatcher,
 };
+use nineveh_expr::{ColumnVar, Compiled, Env, IntType, Structs, Type, compile};
 
 use crate::diagnostic::{Diagnostic, Diagnostics, Span};
-use crate::model::{Column, Config, Expr, Named, Rule, SourceKind, TableKind};
+use crate::model::{Action, Column, ColumnType, Config, Expr, Named, Rule, SourceKind, TableKind};
 
 /// A config resolved against its lock: ready to decode, fold and serve.
 #[derive(Debug, Clone)]
@@ -74,23 +75,62 @@ pub enum ResolvedTable {
     Log { source: SourceId },
 }
 
-/// A rule with its record's fields known.
+/// A rule with every expression typechecked and compiled.
+///
+/// Expressions read the row as one value per column, in the table's `columns` order,
+/// and the record as one value per field, in `scope.fields` order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedRule {
     pub source: SourceId,
     pub deleted: bool,
     /// The names a rule's expressions can read from the record, with their types.
     pub scope: Scope,
-    /// Where each key column's value comes from, in key order.
-    pub key: Vec<(String, KeySource)>,
+    /// Each key column's value, in key order. A column the rule doesn't map reads the
+    /// record field of the same name, compiled as `<source>.<field>`.
+    pub key: Vec<(String, CompiledExpr)>,
+    pub when: Option<CompiledExpr>,
+    pub action: ResolvedAction,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum KeySource {
-    /// The record field of the same name (the default).
-    Field(Identifier),
-    /// An explicit expression from the rule's `key:`.
-    Expr(Expr),
+pub enum ResolvedAction {
+    Set(Vec<(String, CompiledExpr)>),
+    Delete,
+}
+
+/// A compiled expression and the config text it came from, so a runtime error can be
+/// reported at its place in `nineveh.yaml`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompiledExpr {
+    pub source: Expr,
+    pub compiled: Compiled,
+}
+
+impl CompiledExpr {
+    /// The YAML span of a span within the expression's text.
+    ///
+    /// Exact when the expression is written plain or quoted without escapes; otherwise
+    /// the whole expression.
+    #[must_use]
+    pub fn yaml_span(&self, inner: nineveh_expr::Span) -> Option<Span> {
+        yaml_span(&self.source, inner)
+    }
+}
+
+fn yaml_span(expr: &Expr, inner: nineveh_expr::Span) -> Option<Span> {
+    let outer = expr.span?;
+    let text_len = expr.text.len();
+    let start = if outer.len == text_len {
+        outer.offset
+    } else if outer.len == text_len + 2 {
+        outer.offset + 1
+    } else {
+        return Some(outer);
+    };
+    Some(Span::new(
+        start + inner.start.min(text_len),
+        inner.end.saturating_sub(inner.start).max(1),
+    ))
 }
 
 /// The fields of a record, as seen by a rule's expressions.
@@ -258,69 +298,185 @@ impl Config {
             .map(|input| scope(lock, input, rule.on.deleted))
             .unwrap_or_default();
 
+        let vars = column_vars(key, columns);
+        let structs = LockStructs(lock);
+        let env = Env {
+            columns: &vars,
+            record: &scope.fields,
+            source: rule.on.source.as_str(),
+            structs: &structs,
+        };
+        let compile_expr = |expr: &Expr,
+                            target: &Type,
+                            diagnostics: &mut Vec<Diagnostic>|
+         -> Option<CompiledExpr> {
+            match compile(&expr.text, &env, target) {
+                Ok(compiled) => Some(CompiledExpr {
+                    source: expr.clone(),
+                    compiled,
+                }),
+                Err(e) => {
+                    let d = Diagnostic::new(e.message, yaml_span(expr, e.span).or(expr.span));
+                    diagnostics.push(match e.help {
+                        Some(help) => d.help(help),
+                        None => d,
+                    });
+                    None
+                }
+            }
+        };
+
         let mut bindings = Vec::new();
         for column_name in key {
-            if let Some((_, expr)) = rule.key.iter().find(|(n, _)| n.name == column_name.name) {
-                bindings.push((column_name.name.clone(), KeySource::Expr(expr.clone())));
-                continue;
-            }
             let Some(column) = columns.iter().find(|c| c.name.name == column_name.name) else {
                 continue;
             };
+            let target = column_type(column);
+            if let Some((_, expr)) = rule.key.iter().find(|(n, _)| n.name == column_name.name) {
+                if let Some(c) = compile_expr(expr, &target, diagnostics) {
+                    bindings.push((column_name.name.clone(), c));
+                }
+                continue;
+            }
             match scope.get(&column_name.name) {
                 Some(ty) if column.ty.accepts(ty, false) => {
-                    // The scope only holds valid identifiers.
-                    if let Ok(field) = column_name.name.parse() {
-                        bindings.push((column_name.name.clone(), KeySource::Field(field)));
+                    let implicit = Expr {
+                        text: format!("{}.{}", rule.on.source, column_name),
+                        span: rule.on.span,
+                    };
+                    if let Some(c) = compile_expr(&implicit, &target, diagnostics) {
+                        bindings.push((column_name.name.clone(), c));
                     }
                 }
-                Some(ty) => diagnostics.push(
-                    Diagnostic::new(
-                        format!(
-                            "`{}.{}` is a `{ty}`, but key column `{}` is `{}`",
-                            scope.record, column_name, column_name, column.ty
-                        ),
-                        rule.on.span,
-                    )
-                    .help(format!(
-                        "convert it under the rule's `key`, like `key: {{ {column_name}: \"...\" }}`"
-                    )),
-                ),
-                None => {
-                    let why = if scope.is_enum {
-                        format!(
-                            "`{}` is an enum with no field `{column_name}` in every variant",
-                            scope.record
-                        )
-                    } else {
-                        format!("`{}` has no field `{column_name}`", scope.record)
-                    };
-                    diagnostics.push(
-                        Diagnostic::new(
-                            format!(
-                                "this rule doesn't say where key column `{column_name}` comes \
-                                 from, and {why}"
-                            ),
-                            rule.on.span,
-                        )
-                        .did_you_mean(
-                            &column_name.name,
-                            scope.fields.iter().map(|(n, _)| n.as_str()),
-                        )
-                        .help_if_none(format!(
-                            "map it under the rule's `key`, like `key: {{ {column_name}: \"...\" }}`"
-                        )),
-                    );
-                }
+                found => diagnostics.push(implicit_key_error(&scope, column, found, rule)),
             }
         }
+
+        let when = rule
+            .when
+            .as_ref()
+            .and_then(|w| compile_expr(w, &Type::Bool, diagnostics));
+        let action = match &rule.action {
+            Action::Delete => ResolvedAction::Delete,
+            Action::Set(assignments) => ResolvedAction::Set(
+                assignments
+                    .iter()
+                    .filter_map(|(name, expr)| {
+                        let column = columns.iter().find(|c| c.name.name == name.name)?;
+                        let compiled = compile_expr(expr, &column_type(column), diagnostics)?;
+                        Some((name.name.clone(), compiled))
+                    })
+                    .collect(),
+            ),
+        };
 
         ResolvedRule {
             source,
             deleted: rule.on.deleted,
             scope,
             key: bindings,
+            when,
+            action,
         }
+    }
+}
+
+/// Why a key column without a `key:` mapping can't take the same-named record field.
+fn implicit_key_error(
+    scope: &Scope,
+    column: &Column,
+    found: Option<&TypeTag>,
+    rule: &Rule,
+) -> Diagnostic {
+    let name = &column.name;
+    let example = format!("map it under the rule's `key`, like `key: {{ {name}: \"...\" }}`");
+    if let Some(ty) = found {
+        return Diagnostic::new(
+            format!(
+                "`{}.{name}` is a `{ty}`, but key column `{name}` is `{}`",
+                scope.record, column.ty
+            ),
+            rule.on.span,
+        )
+        .help(example);
+    }
+    let why = if scope.is_enum {
+        format!(
+            "`{}` is an enum with no field `{name}` in every variant",
+            scope.record
+        )
+    } else {
+        format!("`{}` has no field `{name}`", scope.record)
+    };
+    Diagnostic::new(
+        format!("this rule doesn't say where key column `{name}` comes from, and {why}"),
+        rule.on.span,
+    )
+    .did_you_mean(name.as_str(), scope.fields.iter().map(|(n, _)| n.as_str()))
+    .help_if_none(example)
+}
+
+/// The row as expressions see it: every column, readable if a new row has a value
+/// for it (key columns, defaults, nullables).
+fn column_vars(key: &[Named], columns: &[Column]) -> Vec<ColumnVar> {
+    columns
+        .iter()
+        .map(|c| ColumnVar {
+            name: c.name.name.clone(),
+            ty: column_type(c),
+            readable: key.iter().any(|k| k.name == c.name.name)
+                || c.default.is_some()
+                || c.nullable,
+        })
+        .collect()
+}
+
+/// A column's expression type: `Option<T>` when nullable.
+fn column_type(column: &Column) -> Type {
+    let int = |t| Type::Int(t);
+    let base = match column.ty {
+        ColumnType::Bool => Type::Bool,
+        ColumnType::U8 => int(IntType::U8),
+        ColumnType::U16 => int(IntType::U16),
+        ColumnType::U32 => int(IntType::U32),
+        ColumnType::U64 => int(IntType::U64),
+        ColumnType::U128 => int(IntType::U128),
+        ColumnType::U256 => int(IntType::U256),
+        ColumnType::I8 => int(IntType::I8),
+        ColumnType::I16 => int(IntType::I16),
+        ColumnType::I32 => int(IntType::I32),
+        ColumnType::I64 => int(IntType::I64),
+        ColumnType::I128 => int(IntType::I128),
+        ColumnType::I256 => int(IntType::I256),
+        ColumnType::Address => Type::Address,
+        ColumnType::String => Type::String,
+        ColumnType::Bytes => Type::Bytes,
+        ColumnType::Json => return Type::Json,
+    };
+    if column.nullable {
+        Type::Option(Box::new(base))
+    } else {
+        base
+    }
+}
+
+/// Struct fields for `.field` access in expressions: the fields every value of the
+/// type has, with its type arguments substituted.
+struct LockStructs<'a>(&'a Lockfile);
+
+impl Structs for LockStructs<'_> {
+    fn fields(&self, tag: &StructTag) -> Option<Vec<(Identifier, TypeTag)>> {
+        let layout = self.0.get(&tag.name)?;
+        Some(
+            layout
+                .common_fields()
+                .into_iter()
+                .filter_map(|f| {
+                    let ty = f.ty.substitute(&tag.type_args).ok()?;
+                    Some((f.name.clone(), ty))
+                })
+                .collect(),
+        )
     }
 }
 
