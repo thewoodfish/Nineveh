@@ -20,6 +20,7 @@ nineveh-core = { path = "crates/nineveh-core" }
 nineveh-decode = { path = "crates/nineveh-decode" }
 nineveh-engine = { path = "crates/nineveh-engine" }
 nineveh-expr = { path = "crates/nineveh-expr" }
+nineveh-api = { path = "crates/nineveh-api" }
 nineveh-ingest = { path = "crates/nineveh-ingest" }
 nineveh-pipeline = { path = "crates/nineveh-pipeline" }
 nineveh-proto = { path = "crates/nineveh-proto" }
@@ -38,6 +39,11 @@ protox = "0.9.1"
 reqwest = { version = "0.13.5", default-features = false, features = ["rustls-no-provider", "json"] }
 rustls = { version = "0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
 webpki-roots = "1.0.9"
+
+# HTTP serving: the state API and change feed Studio and apps talk to.
+axum = { version = "0.8.9", default-features = false, features = ["http1", "json", "query", "tokio"] }
+tower-http = { version = "0.7.1", default-features = false, features = ["cors"] }
+tower = { version = "0.5.3", default-features = false, features = ["util"] }
 
 # Async
 tokio = { version = "1.53.1", default-features = false }
