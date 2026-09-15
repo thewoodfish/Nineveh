@@ -207,6 +207,11 @@ fn explains_what_it_cant_follow() {
                     { "name": "V1", "fields": [ { "name": "size", "type": "u64" } ] },
                     { "name": "V2", "fields": [ { "name": "size", "type": "u64" }, { "name": "fee", "type": "u64" } ] }
                 ]
+            },
+            {
+                "name": "Clashed", "is_event": true, "is_enum": true, "abilities": ["drop", "store"],
+                "generic_type_params": [], "fields": [],
+                "variants": [ { "name": "V1", "fields": [ { "name": "version", "type": "u64" } ] } ]
             }
         ]
     }))
@@ -246,6 +251,9 @@ fn explains_what_it_cant_follow() {
     let fields: Vec<&str> = traded.fields.iter().map(|f| f.name.as_str()).collect();
     assert_eq!(fields, ["size", "fee"]);
     assert_eq!(traded.unsupported, None);
+    // An enum's fields are columns too, so they can clash with the log's key.
+    let clashed = catalog.items.iter().find(|i| i.name == "Clashed").unwrap();
+    assert!(clashed.unsupported.as_ref().unwrap().contains("`version`"));
     let swapped = catalog.items.iter().find(|i| i.name == "Swapped").unwrap();
     assert_eq!(swapped.kind, ItemKind::Event);
     assert!(swapped.unsupported.as_ref().unwrap().contains("amountIn"));

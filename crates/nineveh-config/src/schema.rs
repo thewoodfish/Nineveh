@@ -2,7 +2,7 @@
 //!
 //! A `reduce` table's columns are the ones the config declares. A `mirror` or `log`
 //! table's come from its source's layout: its key, then one column per field of the
-//! value's struct, typed by ADR 0008. The engine's rows for those tables hold the whole
+//! value's struct or enum, typed by ADR 0008. The engine's rows for those tables hold the whole
 //! value (ADR 0013), so each column also says where in the engine's row its value is.
 
 use nineveh_core::{Address, Identifier, StructName, TypeTag};
@@ -45,8 +45,19 @@ pub struct SchemaColumn {
 pub enum Projection {
     /// The row's value at this index.
     Row(usize),
-    /// A field of the struct at this index of the row.
+    /// A field of the struct at this index of the row, or of the enum value there when
+    /// every variant declares it.
     Field(usize, Identifier),
+    /// The variant of the enum value at this index of the row.
+    Variant(usize),
+    /// A field of the enum value at `index` of the row that not every variant declares:
+    /// null for a variant without it. `option` is whether the field is itself an
+    /// `Option`, whose `None` is null too.
+    VariantField {
+        index: usize,
+        field: Identifier,
+        option: bool,
+    },
 }
 
 /// Key columns Nineveh adds to `mirror` and `log` tables.
@@ -55,6 +66,9 @@ const TABLE_KEY: [&str; 2] = ["handle", "key"];
 const LOG_KEY: [&str; 2] = ["version", "event_index"];
 /// The column holding a value that isn't stored field by field.
 const VALUE: &str = "value";
+/// The column holding an enum value's variant. It starts with `_`, which names can't,
+/// so no field clashes with it.
+const VARIANT: &str = "_variant";
 
 pub(crate) fn table_schema(
     lock: &Lockfile,
@@ -169,14 +183,12 @@ impl<'a> Builder<'a> {
         });
     }
 
-    /// The value at the end of the engine's row: a struct stored field by field, or
-    /// anything else in one `value` column.
+    /// The value at the end of the engine's row: a struct or enum stored field by
+    /// field, or anything else in one `value` column.
     fn value(&mut self, lock: &Lockfile, ty: &TypeTag) {
         if let Some(tag) = ty.as_struct()
             && column_for(ty).0 == ColumnType::Json
-            && lock
-                .get(&tag.name)
-                .is_some_and(|l| matches!(l.body, Body::Struct(_)))
+            && lock.get(&tag.name).is_some()
         {
             self.value_fields(lock, &tag.name, Some(tag.type_args.as_slice()));
             return;
@@ -186,33 +198,83 @@ impl<'a> Builder<'a> {
         self.push(VALUE, column, nullable, Projection::Row(index), false);
     }
 
-    /// One column per field of the struct `name` at the end of the engine's row. An
-    /// enum is stored whole, since its fields depend on the variant. `args` are the
-    /// struct's type arguments, if the source fixes them; a field whose type depends on
-    /// open arguments is stored as JSON.
+    /// One column per field of the struct `name` at the end of the engine's row. `args`
+    /// are the struct's type arguments, if the source fixes them; a field whose type
+    /// depends on open arguments is stored as JSON.
+    ///
+    /// An enum gets a column per field any of its variants declares, in the order they
+    /// first appear. A field every variant declares with one type reads like a
+    /// struct's. One that only some variants declare is nullable, null for the others,
+    /// and one declared with different types is JSON. An enum with more than one
+    /// variant also gets `_variant`, the value's variant.
     fn value_fields(&mut self, lock: &Lockfile, name: &StructName, args: Option<&[TypeTag]>) {
         let row_index = self.columns.len();
         let Some(layout) = lock.get(name) else {
             return;
         };
-        let Body::Struct(fields) = &layout.body else {
-            self.push(
-                VALUE,
-                ColumnType::Json,
-                false,
-                Projection::Row(row_index),
-                false,
-            );
-            return;
-        };
         self.record = name.to_string();
-        for field in fields {
-            let ty = match args {
-                Some(args) => field.ty.substitute(args).ok(),
-                None => Some(field.ty.clone()).filter(TypeTag::is_concrete),
-            };
-            let (column, nullable) = ty.as_ref().map_or((ColumnType::Json, false), column_for);
-            let field_name = field.name.as_str();
+        let concrete = |ty: &TypeTag| match args {
+            Some(args) => ty.substitute(args).ok(),
+            None => Some(ty.clone()).filter(TypeTag::is_concrete),
+        };
+        let fields: Vec<(&Identifier, Projection, ColumnType, bool)> = match &layout.body {
+            Body::Struct(fields) => fields
+                .iter()
+                .map(|field| {
+                    let (column, nullable) = concrete(&field.ty)
+                        .as_ref()
+                        .map_or((ColumnType::Json, false), column_for);
+                    let from = Projection::Field(row_index, field.name.clone());
+                    (&field.name, from, column, nullable)
+                })
+                .collect(),
+            Body::Enum(variants) => {
+                if variants.len() > 1 {
+                    self.push(
+                        VARIANT,
+                        ColumnType::String,
+                        false,
+                        Projection::Variant(row_index),
+                        false,
+                    );
+                }
+                let mut names: Vec<&Identifier> = Vec::new();
+                for field in variants.iter().flat_map(|v| &v.fields) {
+                    if !names.contains(&&field.name) {
+                        names.push(&field.name);
+                    }
+                }
+                names
+                    .into_iter()
+                    .map(|field| {
+                        let declared: Vec<Option<TypeTag>> = variants
+                            .iter()
+                            .filter_map(|v| v.fields.iter().find(|f| f.name == *field))
+                            .map(|f| concrete(&f.ty))
+                            .collect();
+                        let everywhere = declared.len() == variants.len();
+                        let one_type = declared.windows(2).all(|w| w[0] == w[1]);
+                        let (column, option) = match declared.first() {
+                            Some(Some(ty)) if one_type => column_for(ty),
+                            _ => (ColumnType::Json, false),
+                        };
+                        if everywhere && one_type {
+                            let from = Projection::Field(row_index, field.clone());
+                            (field, from, column, option)
+                        } else {
+                            let from = Projection::VariantField {
+                                index: row_index,
+                                field: field.clone(),
+                                option,
+                            };
+                            (field, from, column, true)
+                        }
+                    })
+                    .collect()
+            }
+        };
+        for (field, from, column, nullable) in fields {
+            let field_name = field.as_str();
             if !Named::is_valid(field_name) {
                 self.unusable.push((
                     field_name.to_owned(),
@@ -226,13 +288,7 @@ impl<'a> Builder<'a> {
                     .push((field_name.to_owned(), "clashes with a key column"));
                 continue;
             }
-            self.push(
-                field_name,
-                column,
-                nullable,
-                Projection::Field(row_index, field.name.clone()),
-                false,
-            );
+            self.push(field_name, column, nullable, from, false);
         }
     }
 

@@ -464,6 +464,85 @@ state:
 }
 
 #[test]
+fn enum_values_get_a_column_per_field() {
+    // TradeEvent has two variants; V2 adds `counter_party_account`. PositionUpdateEvent
+    // has one.
+    let yaml = format!(
+        "\
+name: perp
+network: mainnet
+sources:
+  trades:    {{ event: {PERP}::perp_positions::TradeEvent }}
+  positions: {{ event: {PERP}::perp_positions::PositionUpdateEvent }}
+state:
+  trade_log:    {{ log: trades }}
+  position_log: {{ log: positions }}
+"
+    );
+    let config = parse(&yaml).unwrap();
+    let lock = lock_for(&config);
+    let project = config.resolve(&lock).unwrap();
+    let column = |table: usize, name: &str| {
+        let c = project.schemas()[table].column(name).unwrap();
+        (c.ty, c.nullable, c.from.clone())
+    };
+    let field = |name: &str| Projection::Field(2, name.parse().unwrap());
+
+    let trades: Vec<&str> = project.schemas()[0]
+        .columns
+        .iter()
+        .map(|c| c.name.as_str())
+        .collect();
+    assert_eq!(
+        trades[..5],
+        ["version", "event_index", "_variant", "account", "market"]
+    );
+    assert_eq!(trades.last(), Some(&"counter_party_account"));
+    assert_eq!(
+        column(0, "_variant"),
+        (ColumnType::String, false, Projection::Variant(2))
+    );
+    // Every variant has these, typed as a struct's fields would be.
+    assert_eq!(
+        column(0, "account"),
+        (ColumnType::Address, false, field("account"))
+    );
+    assert_eq!(
+        column(0, "market"),
+        (ColumnType::Address, false, field("market"))
+    );
+    assert_eq!(column(0, "size"), (ColumnType::U64, false, field("size")));
+    assert_eq!(column(0, "fee"), (ColumnType::I64, false, field("fee")));
+    assert_eq!(
+        column(0, "client_order_id"),
+        (ColumnType::String, true, field("client_order_id"))
+    );
+    // Only V2 has this: nullable, null for V1.
+    assert_eq!(
+        column(0, "counter_party_account"),
+        (
+            ColumnType::Address,
+            true,
+            Projection::VariantField {
+                index: 2,
+                field: "counter_party_account".parse().unwrap(),
+                option: false,
+            }
+        )
+    );
+
+    // One variant: its fields, and no `_variant` to say the obvious.
+    let positions = &project.schemas()[1];
+    assert!(positions.column("_variant").is_none());
+    assert_eq!(
+        column(1, "user"),
+        (ColumnType::Address, false, field("user"))
+    );
+    assert_eq!(column(1, "size"), (ColumnType::U64, false, field("size")));
+    assert_eq!(positions.columns.len(), 2 + 13);
+}
+
+#[test]
 fn implicit_keys_must_exist_and_match_their_column() {
     let yaml = format!(
         "\

@@ -18,7 +18,9 @@ use nineveh_engine::TableId;
 
 /// Bump when the tables this module creates change shape, so existing schemas are
 /// rebuilt rather than written in a layout they don't have.
-pub(crate) const LAYOUT_VERSION: u32 = 1;
+///
+/// 2: enum values get a column per field (and `_variant`), not one JSON `value`.
+pub(crate) const LAYOUT_VERSION: u32 = 2;
 
 /// A table in a project's schema, as the store writes it.
 #[derive(Debug, Clone)]

@@ -323,9 +323,9 @@ function Group({
                   {item.variants.length > 0 && (
                     <span
                       className="text-xs text-zinc-400"
-                      title="A Move enum: its table stores each value as one JSON column"
+                      title="A Move enum: its table gets a column per field of any variant"
                     >
-                      enum {item.variants.join(", ")} · stored as JSON
+                      enum {item.variants.join(", ")}
                     </span>
                   )}
                 </div>

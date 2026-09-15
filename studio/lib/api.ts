@@ -178,7 +178,7 @@ export type CatalogItem = {
   name: string;
   suggested_name: string;
   fields: { name: string; type: string }[];
-  /** An enum's variants, oldest first. Stored as one JSON `value` column. */
+  /** An enum's variants, oldest first. Its table has a column per field of any variant. */
   variants: string[];
   generic: boolean;
   /** Why it can't be followed yet. */

@@ -130,7 +130,7 @@ pub(crate) fn key_json(schema: &TableSchema, key: &[Value]) -> Result<Json, Mism
         let raw = key
             .get(i)
             .ok_or_else(|| mismatch(column, "missing from the key"))?;
-        let value = cell(column, raw)?;
+        let value = cell(column, Some(Cow::Borrowed(raw)))?;
         object.insert(column.name.clone(), column_json(column, value)?);
     }
     Ok(Json::Object(object))
@@ -142,22 +142,54 @@ fn column_json(column: &SchemaColumn, value: Option<Cow<'_, Value>>) -> Result<J
     })
 }
 
-/// The value a column takes from the engine's row.
-fn project<'r>(column: &SchemaColumn, row: &'r [Value]) -> Result<&'r Value, Mismatch> {
-    let value = match &column.from {
-        Projection::Row(i) => row.get(*i),
-        Projection::Field(i, field) => row.get(*i).and_then(|v| v.field(field.as_str())),
-    };
-    value.ok_or_else(|| mismatch(column, "the engine's row has no value for it"))
+/// The value a column takes from the engine's row: `None` for an enum field its
+/// variant doesn't declare.
+fn project<'r>(
+    column: &SchemaColumn,
+    row: &'r [Value],
+) -> Result<Option<Cow<'r, Value>>, Mismatch> {
+    let missing = || mismatch(column, "the engine's row has no value for it");
+    let at = |i: usize| row.get(i).ok_or_else(missing);
+    match &column.from {
+        Projection::Row(i) => Ok(Some(Cow::Borrowed(at(*i)?))),
+        Projection::Field(i, field) => at(*i)?
+            .field(field.as_str())
+            .map(|v| Some(Cow::Borrowed(v)))
+            .ok_or_else(missing),
+        Projection::Variant(i) => match at(*i)? {
+            Value::Variant { name, .. } => Ok(Some(Cow::Owned(Value::String(name.to_string())))),
+            other => Err(mismatch(
+                column,
+                format!("expected an enum value, got {other:?}"),
+            )),
+        },
+        Projection::VariantField { index, field, .. } => {
+            Ok(at(*index)?.field(field.as_str()).map(Cow::Borrowed))
+        }
+    }
 }
 
-/// A column's value, or `None` for null: `Option` unwrapped for nullable columns, and
-/// `Object<T>` read as its address.
-fn cell<'v>(column: &SchemaColumn, value: &'v Value) -> Result<Option<Cow<'v, Value>>, Mismatch> {
-    let value = if column.nullable {
+/// A column's value, or `None` for null: absent, `Option` unwrapped where the value is
+/// an `Option`, and `Object<T>` read as its address.
+fn cell<'v>(
+    column: &SchemaColumn,
+    value: Option<Cow<'v, Value>>,
+) -> Result<Option<Cow<'v, Value>>, Mismatch> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let option = match &column.from {
+        Projection::VariantField { option, .. } => *option,
+        Projection::Variant(_) => false,
+        Projection::Row(_) | Projection::Field(..) => column.nullable,
+    };
+    let value = if option {
         match value {
-            Value::Option(None) => return Ok(None),
-            Value::Option(Some(inner)) => inner,
+            Cow::Borrowed(Value::Option(None)) | Cow::Owned(Value::Option(None)) => {
+                return Ok(None);
+            }
+            Cow::Borrowed(Value::Option(Some(inner))) => Cow::Borrowed(&**inner),
+            Cow::Owned(Value::Option(Some(inner))) => Cow::Owned(*inner),
             other => {
                 return Err(mismatch(
                     column,
@@ -169,13 +201,13 @@ fn cell<'v>(column: &SchemaColumn, value: &'v Value) -> Result<Option<Cow<'v, Va
         value
     };
     if column.ty == ColumnType::Address
-        && let Value::Struct(fields) = value
+        && let Value::Struct(fields) = &*value
         && let [(name, Value::Address(address))] = fields.as_slice()
         && name.as_str() == "inner"
     {
         return Ok(Some(Cow::Owned(Value::Address(*address))));
     }
-    Ok(Some(Cow::Borrowed(value)))
+    Ok(Some(value))
 }
 
 fn json(value: &Value) -> Result<Json, String> {
@@ -335,5 +367,81 @@ mod tests {
         let row = [Value::U32(1)];
         let err = columns(&schema, &[row.as_slice()]).unwrap_err();
         assert_eq!(err.column, "n");
+    }
+
+    /// An enum value's columns: its variant, and fields some variants don't declare,
+    /// null for the others, with an `Option` field's `None` null too.
+    #[test]
+    fn enum_values_fill_their_columns() {
+        let partial = |name: &str, ty, option| {
+            column(
+                name,
+                ty,
+                true,
+                Projection::VariantField {
+                    index: 0,
+                    field: ident(name),
+                    option,
+                },
+            )
+        };
+        let schema = TableSchema {
+            columns: vec![
+                column(
+                    "_variant",
+                    ColumnType::String,
+                    false,
+                    Projection::Variant(0),
+                ),
+                column(
+                    "size",
+                    ColumnType::U64,
+                    false,
+                    Projection::Field(0, ident("size")),
+                ),
+                partial("counterparty", ColumnType::Address, false),
+                partial("memo", ColumnType::String, true),
+            ],
+            key: vec![],
+        };
+        let v1 = Value::Variant {
+            name: ident("V1"),
+            fields: vec![(ident("size"), Value::U64(7))],
+        };
+        let v2 = |memo: Option<&str>| Value::Variant {
+            name: ident("V2"),
+            fields: vec![
+                (ident("size"), Value::U64(9)),
+                (ident("counterparty"), Value::Address(Address::special(0xb))),
+                (
+                    ident("memo"),
+                    Value::Option(memo.map(|m| Box::new(Value::String(m.into())))),
+                ),
+            ],
+        };
+        let json = |value: Value| row_json(&schema, &[value]).unwrap();
+        assert_eq!(
+            json(v1.clone()),
+            serde_json::json!({ "_variant": "V1", "size": "7", "counterparty": null, "memo": null })
+        );
+        assert_eq!(json(v2(Some("hi")))["memo"], "hi");
+        assert_eq!(json(v2(None))["memo"], Json::Null);
+        assert_eq!(
+            json(v2(None))["counterparty"],
+            Address::special(0xb).to_string()
+        );
+
+        let rows = [vec![v1], vec![v2(Some("hi"))]];
+        let rows: Vec<&[Value]> = rows.iter().map(Vec::as_slice).collect();
+        let cells = columns(&schema, &rows).unwrap();
+        let Cells::Text(variants) = &cells[0] else {
+            panic!("{cells:?}")
+        };
+        assert_eq!(variants, &[Some("V1".to_owned()), Some("V2".to_owned())]);
+        let Cells::Text(counterparties) = &cells[2] else {
+            panic!("{cells:?}")
+        };
+        assert_eq!(counterparties[0], None);
+        assert!(counterparties[1].is_some());
     }
 }

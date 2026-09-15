@@ -98,9 +98,21 @@ struct, typed as in [Column types](#column-types).
 | `resource` | `address`, plus `type` for a generic struct named without type arguments |
 | `table` | `handle`, `key` |
 
-A table value that isn't a struct is stored in one `value` column, and so is an enum,
-since its fields depend on the variant. A field that isn't a valid column name, or has
-the same name as a key column, is an error. Build that table with `reduce` instead.
+A table value that isn't a struct or an enum is stored in one `value` column. A field
+that isn't a valid column name, or has the same name as a key column, is an error.
+Build that table with `reduce` instead.
+
+**Enums.** A Move enum value, such as a versioned `V1`/`V2` event or resource, gets a
+column per field that any of its variants declares, in the order the fields first
+appear:
+
+- A field every variant declares with the same type is typed like a struct's field.
+- A field only some variants declare is nullable, and null for the others.
+- A field declared with different types in different variants is `json`.
+
+An enum with more than one variant also gets a `_variant` column holding the value's
+variant, such as `"V2"`. Names starting with `_` are Nineveh's, so no field clashes
+with it.
 
 ### `log`: every event
 
@@ -110,7 +122,8 @@ deposit_log: { log: deposits }
 
 One append-only row per event from an `event` source. The key is `version` and
 `event_index` (the event's position in its transaction), followed by one column per
-field of the event.
+field of the event. An enum event gets its columns as described for
+[`mirror`](#mirror-the-latest-value).
 
 ### `reduce`: your own fold
 

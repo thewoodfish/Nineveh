@@ -33,8 +33,8 @@ pub struct Item {
     /// The fields a row gets: the struct's, or a table's `key` and `value` types. For an
     /// enum, its last variant's.
     pub fields: Vec<ItemField>,
-    /// An enum's variants, oldest first: a versioned event's `V1`, `V2`. Its tables
-    /// store it in one `value` column, since its fields depend on the variant.
+    /// An enum's variants, oldest first: a versioned event's `V1`, `V2`. Its tables get
+    /// a column per field of any variant, and `_variant` when there's more than one.
     pub variants: Vec<String>,
     /// Whether the struct is generic. Its sources match every instantiation.
     pub generic: bool,
@@ -244,27 +244,27 @@ fn log_problem(s: &StructAbi) -> Option<String> {
 
 /// Why a table with these key columns plus one column per field of `s` can't be
 /// built: a field that isn't a valid column name, or that collides with a key column.
-/// An enum is stored in one `value` column, so its fields don't matter.
+/// An enum's columns are the fields of all its variants.
 fn mirror_problem(s: &StructAbi, keys: &[&str]) -> Option<String> {
-    if s.is_enum {
-        return None;
-    }
-    s.fields.iter().find_map(|f| {
-        let name = f.name.as_str();
-        if keys.contains(&name) {
-            Some(format!(
-                "field `{name}` has the same name as a key column; build this table with \
-                 `reduce` instead"
-            ))
-        } else if !Named::is_valid(name) {
-            Some(format!(
-                "field `{name}` isn't a valid column name; build this table with `reduce` \
-                 instead"
-            ))
-        } else {
-            None
-        }
-    })
+    s.fields
+        .iter()
+        .chain(s.variants.iter().flat_map(|v| &v.fields))
+        .find_map(|f| {
+            let name = f.name.as_str();
+            if keys.contains(&name) {
+                Some(format!(
+                    "field `{name}` has the same name as a key column; build this table with \
+                     `reduce` instead"
+                ))
+            } else if !Named::is_valid(name) {
+                Some(format!(
+                    "field `{name}` isn't a valid column name; build this table with `reduce` \
+                     instead"
+                ))
+            } else {
+                None
+            }
+        })
 }
 
 /// Put the module in front of names two items share, and number what still clashes.
