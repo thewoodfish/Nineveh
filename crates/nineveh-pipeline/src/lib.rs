@@ -37,7 +37,7 @@ mod status;
 
 pub use config::{Parallel, PipelineConfig};
 pub use error::PipelineError;
-pub use filter::stream_filter;
+pub use filter::{MAX_FILTER_BYTES, stream_filter, stream_filter_within};
 pub use pipeline::{Outcome, Pipeline};
 pub use source::{BatchStream, Source, StreamSource};
 pub use status::{Phase, Status};
