@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 
 import { Card, PageHeader } from "@/components/ui";
-import { API_URL, getPath, rowsPath } from "@/lib/api";
+import { getPath, rowsPath } from "@/lib/api";
 import { useTables } from "@/lib/hooks";
+import { useProject } from "@/lib/project";
 
 /** Build a request against your own state, see it as a URL and curl, and run it. */
 export default function Playground() {
+  const { base } = useProject();
   const { tables } = useTables();
   const [table, setTable] = useState("");
   const [filters, setFilters] = useState<{ column: string; value: string }[]>([]);
@@ -31,13 +33,14 @@ export default function Playground() {
         count: true,
       })
     : "/v1/tables";
-  const url = `${API_URL}${path}`;
+  const url = `${base ?? ""}${path}`;
 
   const run = async () => {
     setRunning(true);
     const started = performance.now();
     try {
-      const body = await getPath(path);
+      if (!base) throw new Error("Open a project first");
+      const body = await getPath(base, path);
       setResult({ status: "ok", body: JSON.stringify(body, null, 2), ms: performance.now() - started });
     } catch (e) {
       setResult({ status: "error", body: e instanceof Error ? e.message : String(e), ms: performance.now() - started });

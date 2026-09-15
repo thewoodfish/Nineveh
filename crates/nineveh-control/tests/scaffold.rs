@@ -64,6 +64,7 @@ fn lists_events_resources_and_tables() {
             .any(|f| f.name == "user_address" && f.ty == "address")
     );
     assert_eq!(created.unsupported, None);
+    assert!(created.variants.is_empty());
 
     let states = find("user::MarketStates");
     assert_eq!(states.kind, ItemKind::Resource);
@@ -198,6 +199,14 @@ fn explains_what_it_cant_follow() {
             {
                 "name": "Swapped", "abilities": ["drop", "store"], "generic_type_params": [],
                 "fields": [ { "name": "amountIn", "type": "u64" } ]
+            },
+            {
+                "name": "Traded", "is_event": true, "is_enum": true, "abilities": ["drop", "store"],
+                "generic_type_params": [], "fields": [],
+                "variants": [
+                    { "name": "V1", "fields": [ { "name": "size", "type": "u64" } ] },
+                    { "name": "V2", "fields": [ { "name": "size", "type": "u64" }, { "name": "fee", "type": "u64" } ] }
+                ]
             }
         ]
     }))
@@ -230,6 +239,13 @@ fn explains_what_it_cant_follow() {
     assert!(reason("pool::Pool.items").unwrap().contains("generic"));
     // Held in an `EventHandle`: an old-style event, whose camelCase field can't be a
     // column.
+    // A versioned event: its variants, and the latest one's fields.
+    let traded = catalog.items.iter().find(|i| i.name == "Traded").unwrap();
+    assert_eq!(traded.kind, ItemKind::Event);
+    assert_eq!(traded.variants, ["V1", "V2"]);
+    let fields: Vec<&str> = traded.fields.iter().map(|f| f.name.as_str()).collect();
+    assert_eq!(fields, ["size", "fee"]);
+    assert_eq!(traded.unsupported, None);
     let swapped = catalog.items.iter().find(|i| i.name == "Swapped").unwrap();
     assert_eq!(swapped.kind, ItemKind::Event);
     assert!(swapped.unsupported.as_ref().unwrap().contains("amountIn"));

@@ -11,6 +11,7 @@ const PHASES: Record<string, { label: string; dot: string; pulse?: boolean }> = 
   starting: { label: "Starting", dot: "bg-sky-500", pulse: true },
   retrying: { label: "Retrying", dot: "bg-amber-500", pulse: true },
   halted: { label: "Halted", dot: "bg-red-500" },
+  failed: { label: "Failed", dot: "bg-red-500" },
   stopped: { label: "Stopped", dot: "bg-zinc-400" },
   offline: { label: "Offline", dot: "bg-zinc-300 dark:bg-zinc-600" },
 };
@@ -83,15 +84,15 @@ export function Notice({
   );
 }
 
-/** Shown when the API can't be reached: how to start it. */
+/** Shown when Nineveh can't be reached: how to start it. */
 export function Offline({ error }: { error: string }) {
   return (
     <div className="mx-auto mt-24 max-w-md px-6 text-center">
-      <div className="text-sm font-medium">Studio can't reach your project</div>
+      <div className="text-sm font-medium">Studio can't reach Nineveh</div>
       <p className="mt-2 text-sm text-zinc-500">{error}</p>
-      <p className="mt-6 text-sm text-zinc-500">Start it from your project directory:</p>
+      <p className="mt-6 text-sm text-zinc-500">Start it, with a Geomi API key and a Postgres:</p>
       <pre className="mt-2 rounded-lg bg-zinc-900 px-4 py-3 text-left font-mono text-sm text-zinc-100">
-        nineveh run --serve
+        nineveh up
       </pre>
       <p className="mt-3 text-xs text-zinc-400">
         Studio talks to <span className="font-mono">{API_URL}</span>. Set{" "}
@@ -197,5 +198,28 @@ function Copyable({ text, display }: { text: string; display: string }) {
     >
       {copied ? "copied" : display}
     </button>
+  );
+}
+
+/** A button in Studio's three tones. */
+export function Button({
+  tone = "secondary",
+  className = "",
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { tone?: "primary" | "secondary" | "danger" }) {
+  const tones = {
+    primary:
+      "bg-lapis-600 text-white hover:bg-lapis-500 disabled:bg-lapis-400 dark:bg-lapis-500 dark:hover:bg-lapis-400",
+    secondary:
+      "border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800",
+    danger:
+      "border border-red-200 bg-white text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:bg-zinc-900 dark:text-red-300 dark:hover:bg-red-950/40",
+  };
+  return (
+    <button
+      type="button"
+      className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${tones[tone]} ${className}`}
+      {...props}
+    />
   );
 }

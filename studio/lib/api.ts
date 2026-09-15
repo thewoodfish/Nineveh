@@ -1,4 +1,7 @@
-// The project's API, as `nineveh run --serve` or `nineveh serve` serves it.
+// Nineveh's HTTP APIs, as `nineveh up` serves them: the control API at
+// `/control/v1`, and each project's state API and change feed at `/projects/{name}`.
+// `nineveh run --serve` and `nineveh serve` serve one project's API at the root, with no
+// control API; Studio works against either.
 //
 // Wide integers (u64 and up, and versions) arrive as decimal strings so nothing loses
 // precision in JavaScript (ADR 0008). Keep them as strings; format them with BigInt.
@@ -86,27 +89,36 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** Located config diagnostics, for a config with problems. */
+    readonly details?: string,
   ) {
     super(message);
   }
 }
 
-async function get<T>(path: string): Promise<T> {
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, { cache: "no-store" });
+    response = await fetch(url, {
+      cache: "no-store",
+      ...init,
+      headers: init?.body ? { "content-type": "application/json" } : undefined,
+    });
   } catch {
-    throw new ApiError(`Can't reach the Nineveh API at ${API_URL}`, 0);
+    throw new ApiError(`Can't reach Nineveh at ${API_URL}`, 0);
   }
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new ApiError(body?.error ?? response.statusText, response.status);
+    const body = (await response.json().catch(() => null)) as { error?: string; details?: string } | null;
+    throw new ApiError(body?.error ?? response.statusText, response.status, body?.details);
   }
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
-export const getStatus = () => get<Status>("/v1/status");
-export const getTables = () => get<Table[]>("/v1/tables");
+// --- one project's API, under `base` --------------------------------------------------
+
+export const getStatus = (base: string) => request<Status>(`${base}/v1/status`);
+export const getTables = (base: string) => request<Table[]>(`${base}/v1/tables`);
 
 export type RowsQuery = {
   limit: number;
@@ -128,11 +140,79 @@ export function rowsPath(table: string, query: RowsQuery): string {
   return `/v1/tables/${encodeURIComponent(table)}?${params}`;
 }
 
-export const getRows = (table: string, query: RowsQuery) => get<RowsPage>(rowsPath(table, query));
+export const getRows = (base: string, table: string, query: RowsQuery) =>
+  request<RowsPage>(`${base}${rowsPath(table, query)}`);
 
-export const getPath = (path: string) => get<unknown>(path);
+export const getPath = (base: string, path: string) => request<unknown>(`${base}${path}`);
 
 /** The identity of a row: its key columns' values. */
 export function rowKey(table: Table, row: Record<string, unknown>): string {
   return JSON.stringify(table.key.map((column) => row[column] ?? null));
 }
+
+// --- the control API ------------------------------------------------------------------
+
+export type Network = "mainnet" | "testnet" | "devnet";
+
+export type ProjectSummary = {
+  name: string;
+  network: Network;
+  /** Whether it should run. */
+  running: boolean;
+  state: "starting" | "running" | "retrying" | "stopped" | "halted" | "failed" | string;
+  error: string | null;
+  pipeline: Health | null;
+  /** The project's API, relative to the control plane. */
+  api: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectDetail = ProjectSummary & { config: string };
+
+export type CatalogItem = {
+  kind: "event" | "resource" | "table";
+  /** What the config names. */
+  id: string;
+  module: string;
+  name: string;
+  suggested_name: string;
+  fields: { name: string; type: string }[];
+  /** An enum's variants, oldest first. Stored as one JSON `value` column. */
+  variants: string[];
+  generic: boolean;
+  /** Why it can't be followed yet. */
+  unsupported: string | null;
+};
+
+export type Catalog = { address: string; modules: string[]; items: CatalogItem[] };
+
+export type Start = "auto" | "now";
+
+const CONTROL = `${API_URL}/control/v1`;
+const json = (body: unknown) => ({ body: JSON.stringify(body) });
+
+export const control = {
+  projects: () => request<ProjectSummary[]>(`${CONTROL}/projects`),
+  project: (name: string) => request<ProjectDetail>(`${CONTROL}/projects/${encodeURIComponent(name)}`),
+  inspect: (network: Network, address: string) =>
+    request<Catalog>(`${CONTROL}/inspect?${new URLSearchParams({ network, address })}`),
+  scaffold: (draft: { name: string; network: Network; start: Start; picks: string[] }) =>
+    request<{ config: string }>(`${CONTROL}/scaffold`, { method: "POST", ...json(draft) }),
+  create: (config: string) =>
+    request<ProjectDetail>(`${CONTROL}/projects`, { method: "POST", ...json({ config }) }),
+  update: (name: string, config: string) =>
+    request<ProjectDetail>(`${CONTROL}/projects/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      ...json({ config }),
+    }),
+  start: (name: string) =>
+    request<ProjectSummary>(`${CONTROL}/projects/${encodeURIComponent(name)}/start`, { method: "POST" }),
+  stop: (name: string) =>
+    request<ProjectSummary>(`${CONTROL}/projects/${encodeURIComponent(name)}/stop`, { method: "POST" }),
+  remove: (name: string) =>
+    request<void>(`${CONTROL}/projects/${encodeURIComponent(name)}`, { method: "DELETE" }),
+};
+
+/** A project's API base URL under the control plane. */
+export const projectBase = (name: string) => `${API_URL}/projects/${encodeURIComponent(name)}`;

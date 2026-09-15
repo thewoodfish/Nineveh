@@ -207,7 +207,8 @@ fast interactions, no clutter. When building UI, read the frontend-design skill 
   a `query!` or a migration; commit the result (CI builds with `SQLX_OFFLINE=true`).
 - `cargo deny check` — advisories, licenses, sources (CI).
 - Studio: `cd studio && npm install && npm run dev` (http://localhost:3000), against
-  `nineveh run --serve` on 127.0.0.1:4000. CI runs `npm run typecheck` and `npm run build`.
+  `nineveh up` (or one project's `nineveh run --serve`) on 127.0.0.1:4000. CI runs
+  `npm run typecheck` and `npm run build`.
   Next 16 differs from older Next: read `studio/AGENTS.md` before changing Studio.
 - `nineveh init | validate | run [--serve] | serve | replay --yes` (`cargo run -p
   nineveh-cli --`) — in a

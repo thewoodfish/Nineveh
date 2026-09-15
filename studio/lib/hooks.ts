@@ -2,13 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { API_URL, type Change, type Status, type Table, getStatus, getTables } from "./api";
+import { type Change, type Status, type Table, getStatus, getTables } from "./api";
+import { subscribe } from "./feed";
+import { useProject } from "./project";
 
-/** Poll `load` every `ms`, keeping the last good value and the last error. */
-export function usePoll<T>(load: () => Promise<T>, ms: number) {
+/** Poll `load` every `ms`, keeping the last good value and the last error. `null` waits. */
+export function usePoll<T>(load: (() => Promise<T>) | null, ms: number) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
+    setData(null);
+    setError(null);
+    if (!load) return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
     const tick = async () => {
@@ -31,22 +36,30 @@ export function usePoll<T>(load: () => Promise<T>, ms: number) {
   return { data, error };
 }
 
+/** The open project's status. */
 export function useStatus() {
-  return usePoll(getStatus, 1000);
+  const { base } = useProject();
+  const load = useCallback(() => getStatus(base ?? ""), [base]);
+  return usePoll<Status>(base ? load : null, 1000);
 }
 
-/** The project's tables, reloaded when the feed resets (a rebuild swapped in). */
+/** The open project's tables, reloaded when the feed resets (a rebuild swapped in). */
 export function useTables() {
+  const { base } = useProject();
   const [tables, setTables] = useState<Table[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const reload = useCallback(() => {
-    getTables()
+    if (!base) {
+      setTables(null);
+      return;
+    }
+    getTables(base)
       .then((t) => {
         setTables(t);
         setError(null);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, []);
+  }, [base]);
   useEffect(reload, [reload]);
   useFeed({ onReset: reload });
   return { tables, error, reload };
@@ -54,29 +67,34 @@ export function useTables() {
 
 type FeedOptions = {
   tables?: string[];
-  onChange?: (change: Change) => void;
+  /** Changes since the last batch, oldest first, and how many were dropped. */
+  onChanges?: (changes: Change[], dropped: number) => void;
   onReset?: () => void;
 };
 
 /**
- * The change feed, from the newest change on. The browser reconnects by itself and
- * resumes with Last-Event-ID, so no change is missed across a blip.
+ * The open project's change feed, from the newest change on, in batches a few times a
+ * second (see `feed.ts`). Returns whether it's connected.
  */
-export function useFeed({ tables, onChange, onReset }: FeedOptions) {
+export function useFeed({ tables, onChanges, onReset }: FeedOptions) {
+  const { base } = useProject();
   const [connected, setConnected] = useState(false);
-  const handlers = useRef({ onChange, onReset });
-  handlers.current = { onChange, onReset };
+  const handlers = useRef({ onChanges, onReset });
+  handlers.current = { onChanges, onReset };
+  const listens = onChanges !== undefined;
   const filter = tables?.join(",") ?? "";
   useEffect(() => {
-    const url = `${API_URL}/v1/changes${filter ? `?tables=${encodeURIComponent(filter)}` : ""}`;
-    const source = new EventSource(url);
-    source.onopen = () => setConnected(true);
-    source.onerror = () => setConnected(false);
-    source.addEventListener("change", (event) => {
-      handlers.current.onChange?.(JSON.parse((event as MessageEvent<string>).data) as Change);
+    if (!base) return;
+    const unsubscribe = subscribe(base, {
+      tables: filter ? filter.split(",") : undefined,
+      onChanges: listens ? (changes, dropped) => handlers.current.onChanges?.(changes, dropped) : undefined,
+      onReset: () => handlers.current.onReset?.(),
+      onConnected: setConnected,
     });
-    source.addEventListener("reset", () => handlers.current.onReset?.());
-    return () => source.close();
-  }, [filter]);
+    return () => {
+      unsubscribe();
+      setConnected(false);
+    };
+  }, [base, filter, listens]);
   return connected;
 }

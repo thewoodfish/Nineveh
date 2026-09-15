@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { memo, useCallback, useState } from "react";
 
 import { Cell, Live, OpBadge, PageHeader } from "@/components/ui";
 import type { Change, Table } from "@/lib/api";
@@ -16,14 +16,16 @@ export default function ChangesPage() {
   const [paused, setPaused] = useState(false);
   const [only, setOnly] = useState<string | null>(null);
 
-  const onChange = useCallback(
-    (change: Change) => {
+  const onChanges = useCallback(
+    (batch: Change[]) => {
       if (paused) return;
-      setChanges((current) => [{ ...change, at: Date.now() }, ...current].slice(0, KEEP));
+      const at = Date.now();
+      const newest = batch.slice(-KEEP).reverse().map((change) => ({ ...change, at }));
+      setChanges((current) => [...newest, ...current].slice(0, KEEP));
     },
     [paused],
   );
-  const connected = useFeed({ onChange, onReset: () => setChanges([]) });
+  const connected = useFeed({ onChanges, onReset: () => setChanges([]) });
 
   const shown = only ? changes.filter((c) => c.table === only) : changes;
   const byName = new Map(tables?.map((t) => [t.name, t]));
@@ -73,7 +75,8 @@ export default function ChangesPage() {
   );
 }
 
-function ChangeRow({ change, table }: { change: Change; table: Table | undefined }) {
+// Memoized: a batch adds rows at the top, and the rest shouldn't render again.
+const ChangeRow = memo(function ChangeRow({ change, table }: { change: Change; table: Table | undefined }) {
   const [open, setOpen] = useState(false);
   const types = new Map(table?.columns.map((c) => [c.name, c.type]));
   return (
@@ -99,7 +102,7 @@ function ChangeRow({ change, table }: { change: Change; table: Table | undefined
       )}
     </li>
   );
-}
+});
 
 function Chip({
   active,

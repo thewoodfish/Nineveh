@@ -30,8 +30,12 @@ pub struct Item {
     /// The source and table name scaffolding gives it: the struct in snake case, with
     /// the module in front when two modules define the same name.
     pub suggested_name: String,
-    /// The fields a row gets: the struct's, or a table's `key` and `value` types.
+    /// The fields a row gets: the struct's, or a table's `key` and `value` types. For an
+    /// enum, its last variant's.
     pub fields: Vec<ItemField>,
+    /// An enum's variants, oldest first: a versioned event's `V1`, `V2`. Its tables
+    /// store it in one `value` column, since its fields depend on the variant.
+    pub variants: Vec<String>,
     /// Whether the struct is generic. Its sources match every instantiation.
     pub generic: bool,
     /// Why Nineveh can't follow it yet, if it can't.
@@ -85,8 +89,13 @@ pub fn catalog(address: Address, modules: &[ModuleAbi]) -> Catalog {
     let mut items = Vec::new();
     for (name, s) in &structs {
         let generic = !s.generic_type_params.is_empty();
-        let fields = s
-            .fields
+        let variants: Vec<String> = s
+            .variants
+            .iter()
+            .map(|v| v.name.as_str().to_owned())
+            .collect();
+        let shown = s.variants.last().map_or(&s.fields, |v| &v.fields);
+        let fields = shown
             .iter()
             .map(|f| ItemField {
                 name: f.name.as_str().to_owned(),
@@ -103,6 +112,7 @@ pub fn catalog(address: Address, modules: &[ModuleAbi]) -> Catalog {
                 name: s.name.as_str().to_owned(),
                 suggested_name: snake_case(s.name.as_str()),
                 fields,
+                variants,
                 generic,
                 unsupported: log_problem(s),
             });
@@ -118,6 +128,7 @@ pub fn catalog(address: Address, modules: &[ModuleAbi]) -> Catalog {
             name: s.name.as_str().to_owned(),
             suggested_name: snake_case(s.name.as_str()),
             fields,
+            variants,
             generic,
             unsupported: mirror_problem(
                 s,
@@ -189,6 +200,7 @@ fn table_item(
                 ty: table.value.to_string(),
             },
         ],
+        variants: Vec::new(),
         generic,
         unsupported,
     })

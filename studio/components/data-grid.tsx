@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { type Change, type Row, type RowsQuery, type Table, getRows, rowKey } from "@/lib/api";
 import { formatInteger } from "@/lib/format";
 import { useFeed } from "@/lib/hooks";
+import { useProject } from "@/lib/project";
 
 import { Cell, Live, Notice, PageHeader, isNumeric } from "./ui";
 
@@ -19,6 +20,7 @@ type Order = { column: string; desc: boolean } | undefined;
  * offers a refresh.
  */
 export function DataGrid({ table }: { table: Table }) {
+  const { base } = useProject();
   const [rows, setRows] = useState<Row[]>([]);
   const [count, setCount] = useState<number | null>(null);
   const [offset, setOffset] = useState(0);
@@ -34,9 +36,10 @@ export function DataGrid({ table }: { table: Table }) {
   const defaultView = offset === 0 && order === undefined && Object.values(filters).every((v) => v === "");
 
   const load = useCallback(async () => {
+    if (!base) return;
     const query: RowsQuery = { limit: PAGE, offset, order, filters, count: true };
     try {
-      const page = await getRows(table.name, query);
+      const page = await getRows(base, table.name, query);
       setRows(page.rows);
       setCount(page.count);
       setError(null);
@@ -46,7 +49,7 @@ export function DataGrid({ table }: { table: Table }) {
     } finally {
       setLoading(false);
     }
-  }, [table.name, offset, order, filters]);
+  }, [base, table.name, offset, order, filters]);
 
   useEffect(() => {
     void load();
@@ -56,31 +59,56 @@ export function DataGrid({ table }: { table: Table }) {
   const view = useRef({ defaultView, rows });
   view.current = { defaultView, rows };
 
-  const flash = (key: string) =>
-    setFlashes((current) => new Map(current).set(key, Date.now()));
+  const reload = useRef(load);
+  reload.current = load;
 
-  const onChange = useCallback(
-    (change: Change) => {
-      const key = rowKey(table, change.key);
-      const row: Row | null = change.row ? { _version: change.version, ...change.row } : null;
+  const onChanges = useCallback(
+    (batch: Change[], dropped: number) => {
+      // More changed than the feed held for us: the page is out of date, so read it again.
+      if (dropped > 0) {
+        void reload.current();
+        return;
+      }
+      const latest = new Map<string, Change>();
+      for (const change of batch) latest.set(rowKey(table, change.key), change);
+      const rowOf = (change: Change): Row | null =>
+        change.row ? { _version: change.version, ...change.row } : null;
       if (view.current.defaultView) {
         setRows((current) => {
-          const rest = current.filter((r) => rowKey(table, r) !== key);
-          return row ? [row, ...rest].slice(0, PAGE) : rest;
+          const rest = current.filter((r) => !latest.has(rowKey(table, r)));
+          const fresh = [...latest.values()].reverse().flatMap((c): Row[] => {
+            const row = rowOf(c);
+            return row ? [row] : [];
+          });
+          return [...fresh, ...rest].slice(0, PAGE);
         });
-        setCount((c) => (c === null ? c : c + (change.op === "insert" ? 1 : change.op === "delete" ? -1 : 0)));
-      } else if (view.current.rows.some((r) => rowKey(table, r) === key)) {
-        setRows((current) =>
-          current.flatMap((r) => (rowKey(table, r) !== key ? [r] : row ? [row] : [])),
-        );
+        const delta = batch.reduce((n, c) => n + (c.op === "insert" ? 1 : c.op === "delete" ? -1 : 0), 0);
+        setCount((c) => (c === null ? c : c + delta));
       } else {
-        setMissed((m) => m + 1);
+        const shown = new Set(view.current.rows.map((r) => rowKey(table, r)));
+        const here = [...latest.keys()].filter((k) => shown.has(k));
+        if (here.length > 0) {
+          setRows((current) =>
+            current.flatMap((r) => {
+              const change = latest.get(rowKey(table, r));
+              if (!change) return [r];
+              const row = rowOf(change);
+              return row ? [row] : [];
+            }),
+          );
+        }
+        if (here.length < latest.size) setMissed((m) => m + latest.size - here.length);
       }
-      if (row) flash(key);
+      const now = Date.now();
+      setFlashes((current) => {
+        const next = new Map(current);
+        for (const [key, change] of latest) if (change.row) next.set(key, now);
+        return next;
+      });
     },
     [table],
   );
-  const connected = useFeed({ tables: [table.name], onChange, onReset: () => void load() });
+  const connected = useFeed({ tables: [table.name], onChanges, onReset: () => void reload.current() });
 
   // Forget flashes once they've played.
   useEffect(() => {
