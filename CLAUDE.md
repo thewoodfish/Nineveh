@@ -215,7 +215,10 @@ fast interactions, no clutter. When building UI, read the frontend-design skill 
   directory with `nineveh.yaml`. Needs `APTOS_API_KEY` (init, run) and
   `NINEVEH_DATABASE_URL` (run, replay).
 - `nineveh up` — the control plane: every project in the database's registry, created
-  and managed from Studio. Needs `APTOS_API_KEY` and `NINEVEH_DATABASE_URL`.
+  and managed from Studio. Needs `APTOS_API_KEY` and `NINEVEH_DATABASE_URL`. Local mode
+  (no sign-in, loopback only) unless `NINEVEH_GITHUB_CLIENT_ID`/`_SECRET` are set; then
+  hosted: GitHub sign-in, per-account projects, project API keys (ADR 0018), with
+  `NINEVEH_PUBLIC_URL` and `NINEVEH_STUDIO_URL` for the OAuth redirects.
 - Live checks against testnet, `#[ignore]`d in CI: `cargo test -p nineveh-ingest -p
   nineveh-pipeline -p nineveh-cli -- --ignored` with `APTOS_API_KEY` and
   `NINEVEH_TEST_DATABASE_URL` set.

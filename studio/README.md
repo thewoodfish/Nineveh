@@ -16,6 +16,20 @@ npm install
 npm run dev
 ```
 
+**Hosted**, `nineveh up` runs with a GitHub OAuth app, and Studio shows "Continue with
+GitHub" first (ADR 0018). Each account sees only its own projects, and each project's
+overview has **API keys** for apps to send:
+
+```sh
+NINEVEH_GITHUB_CLIENT_ID=… NINEVEH_GITHUB_CLIENT_SECRET=… \
+NINEVEH_PUBLIC_URL=https://api.example NINEVEH_STUDIO_URL=https://studio.example \
+nineveh up --listen 0.0.0.0:4000
+```
+
+The OAuth app's callback URL is `$NINEVEH_PUBLIC_URL/auth/github/callback`. Studio keeps
+its session in this browser's storage and sends it as a bearer token; the change feed is
+read with `fetch` so the token never goes in a URL.
+
 Studio also works against one project served by `nineveh run --serve` or `nineveh serve`
 (no control API): it shows that project, and can't create others.
 

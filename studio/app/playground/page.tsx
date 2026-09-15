@@ -9,7 +9,7 @@ import { useProject } from "@/lib/project";
 
 /** Build a request against your own state, see it as a URL and curl, and run it. */
 export default function Playground() {
-  const { base } = useProject();
+  const { base, hosted } = useProject();
   const { tables } = useTables();
   const [table, setTable] = useState("");
   const [filters, setFilters] = useState<{ column: string; value: string }[]>([]);
@@ -158,7 +158,7 @@ export default function Playground() {
             <div className="mt-1 font-mono text-sm break-all">{url}</div>
             <div className="mt-3 text-xs font-medium text-zinc-500">curl</div>
             <pre className="mt-1 overflow-x-auto rounded-lg bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-100">
-              {`curl '${url}'`}
+              {hosted ? `curl -H 'Authorization: Bearer YOUR_API_KEY' \\\n  '${url}'` : `curl '${url}'`}
             </pre>
           </Card>
           <Card className="min-h-64 p-4">

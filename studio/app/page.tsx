@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ApiKeys } from "@/components/api-keys";
 import { ConfigPanel } from "@/components/config-panel";
 import { Button, Card, Notice, Offline, PageHeader, PhaseDot, Stat } from "@/components/ui";
 import { API_URL, type ProjectSummary, type Status, control } from "@/lib/api";
@@ -86,7 +87,7 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
 function Overview() {
   const { data: status, error } = useStatus();
   const { tables } = useTables();
-  const { current, mode } = useProject();
+  const { current, mode, hosted } = useProject();
   const href = useHref();
 
   if (error && !status) return <Offline error={error} />;
@@ -163,10 +164,13 @@ function Overview() {
             <div className="mt-1 font-mono text-sm break-all">{`${API_URL}${current.api}/v1/tables`}</div>
             <p className="mt-1 text-xs text-zinc-400">
               REST over every table, and a live change feed at <span className="font-mono">/v1/changes</span>.
-              Try it in the <Link href={href("/playground")} className="text-lapis-600 hover:underline">API playground</Link>.
+              {hosted && <> Send one of this project&apos;s API keys with each request.</>} Try it in the{" "}
+              <Link href={href("/playground")} className="text-lapis-600 hover:underline">API playground</Link>.
             </p>
           </Card>
         )}
+
+        {current && hosted && <ApiKeys project={current.name} api={current.api} />}
 
         {status.build && (
           <Card className="grid grid-cols-1 gap-x-8 gap-y-2 px-4 py-3 text-xs text-zinc-500 sm:grid-cols-3">

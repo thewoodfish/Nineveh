@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 
-import { Sidebar } from "@/components/sidebar";
+import { Gate } from "@/components/gate";
 import { ProjectProvider } from "@/lib/project";
 
 import "./globals.css";
@@ -18,8 +18,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* The open project is in the URL, which is only known in the browser. */}
         <Suspense>
           <ProjectProvider>
-            <Sidebar />
-            <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+            <Gate>{children}</Gate>
           </ProjectProvider>
         </Suspense>
       </body>

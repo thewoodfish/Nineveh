@@ -26,7 +26,7 @@ export function Sidebar() {
         <ProjectNav />
       ) : (
         mode === "control" && (
-          <nav className="flex flex-col gap-0.5 px-2 text-sm">
+          <nav className="flex flex-1 flex-col gap-0.5 px-2 text-sm">
             <NavLink href="/" active={pathname === "/"}>
               Projects
             </NavLink>
@@ -36,7 +36,31 @@ export function Sidebar() {
           </nav>
         )
       )}
+      <AccountMenu />
     </aside>
+  );
+}
+
+/** Hosted: who's signed in, and signing out. */
+function AccountMenu() {
+  const { account, signOut } = useProject();
+  if (!account) return null;
+  return (
+    <div className="mt-auto flex items-center gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
+      {account.avatar_url ? (
+        <img src={account.avatar_url} alt="" className="size-6 rounded-full" />
+      ) : (
+        <span className="size-6 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+      )}
+      <span className="min-w-0 flex-1 truncate text-sm">{account.login}</span>
+      <button
+        type="button"
+        onClick={() => void signOut()}
+        className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+      >
+        Sign out
+      </button>
+    </div>
   );
 }
 
