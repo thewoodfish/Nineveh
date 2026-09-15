@@ -186,8 +186,9 @@ impl fmt::Display for Named {
 /// Where processing starts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StartVersion {
-    /// `nineveh init` resolves this to the version that published the first source's
-    /// module, so nothing before it is scanned.
+    /// `nineveh init` resolves this to the first transaction that touched any source's
+    /// contract address, at or before its modules were published, and pins it in the
+    /// lock (ADR 0015).
     Auto,
     Version(u64),
 }

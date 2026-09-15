@@ -2,15 +2,16 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use nineveh_core::{Identifier, Network, StructName, TypeTag};
+use nineveh_core::{Identifier, Network, StructName, TypeTag, Version};
 use serde::{Deserialize, Serialize};
 
 use crate::layout::{Body, Builtin, Field, StructLayout, Variant, visit_struct_names};
 
 /// The lock format this build reads and writes.
 ///
-/// Format 2 added `resource` (ADR 0012).
-pub const FORMAT: u32 = 2;
+/// Format 2 added `resource` (ADR 0012); format 3 added `start_version`. Format 2
+/// locks still load.
+pub const FORMAT: u32 = 3;
 
 /// The contents of `nineveh.lock`: every struct layout a project can meet, keyed by
 /// struct name.
@@ -23,6 +24,7 @@ pub const FORMAT: u32 = 2;
 pub struct Lockfile {
     network: Network,
     structs: BTreeMap<StructName, StructLayout>,
+    start_version: Option<Version>,
 }
 
 impl Lockfile {
@@ -35,9 +37,26 @@ impl Lockfile {
         network: Network,
         structs: BTreeMap<StructName, StructLayout>,
     ) -> Result<Self, LockError> {
-        let lock = Self { network, structs };
+        let lock = Self {
+            network,
+            structs,
+            start_version: None,
+        };
         lock.validate()?;
         Ok(lock)
+    }
+
+    /// The version `start_version: auto` resolved to when the lock was written, so
+    /// every build of the project starts at the same place.
+    #[must_use]
+    pub fn start_version(&self) -> Option<Version> {
+        self.start_version
+    }
+
+    #[must_use]
+    pub fn with_start_version(mut self, start_version: Option<Version>) -> Self {
+        self.start_version = start_version;
+        self
     }
 
     #[must_use]
@@ -62,9 +81,17 @@ impl Lockfile {
     /// not closed.
     pub fn from_json(text: &str) -> Result<Self, LockError> {
         let repr: LockRepr = serde_json::from_str(text).map_err(LockError::Json)?;
-        if repr.format != FORMAT {
+        if !(2..=FORMAT).contains(&repr.format) {
             return Err(LockError::UnsupportedFormat(repr.format));
         }
+        let start_version = repr
+            .start_version
+            .map(|v| {
+                v.parse::<u64>()
+                    .map(Version::new)
+                    .map_err(|_| LockError::BadStartVersion(v))
+            })
+            .transpose()?;
         let structs = repr
             .structs
             .into_iter()
@@ -76,7 +103,7 @@ impl Lockfile {
                 Ok((name, layout))
             })
             .collect::<Result<_, LockError>>()?;
-        Self::new(repr.network, structs)
+        Ok(Self::new(repr.network, structs)?.with_start_version(start_version))
     }
 
     /// The lock as pretty-printed JSON with a trailing newline.
@@ -91,6 +118,7 @@ impl Lockfile {
         let repr = LockRepr {
             format: FORMAT,
             network: self.network,
+            start_version: self.start_version.map(|v| v.get().to_string()),
             structs: self
                 .structs
                 .iter()
@@ -193,6 +221,9 @@ pub enum LockError {
 
     #[error("nineveh.lock: layout of `{name}` {reason}")]
     Invalid { name: StructName, reason: String },
+
+    #[error("nineveh.lock: `start_version` isn't a version: {0:?}")]
+    BadStartVersion(String),
 }
 
 // --- JSON representation ---------------------------------------------------------
@@ -202,6 +233,9 @@ pub enum LockError {
 struct LockRepr {
     format: u32,
     network: Network,
+    /// A decimal string, like every wide integer Nineveh writes as JSON (ADR 0008).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    start_version: Option<String>,
     structs: BTreeMap<StructName, StructRepr>,
 }
 
@@ -341,8 +375,9 @@ mod tests {
     use super::*;
 
     const LOCK: &str = r#"{
-  "format": 2,
+  "format": 3,
   "network": "testnet",
+  "start_version": "5774816547",
   "structs": {
     "0x1::coin::Coin": {
       "type_params": 1,
@@ -421,12 +456,38 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_formats_and_fields() {
-        let future = LOCK.replace("\"format\": 2", "\"format\": 3");
+    fn pins_the_resolved_start_version() {
+        let lock = Lockfile::from_json(LOCK).unwrap();
+        assert_eq!(lock.start_version(), Some(Version::new(5_774_816_547)));
+        let unpinned = lock.with_start_version(None).to_json().unwrap();
+        assert!(!unpinned.contains("start_version"));
+
+        let bad = LOCK.replace("\"5774816547\"", "\"soon\"");
         assert!(matches!(
-            Lockfile::from_json(&future),
-            Err(LockError::UnsupportedFormat(3))
+            Lockfile::from_json(&bad),
+            Err(LockError::BadStartVersion(_))
         ));
+    }
+
+    #[test]
+    fn format_2_locks_still_load() {
+        let old = LOCK
+            .replace("\"format\": 3", "\"format\": 2")
+            .replace("  \"start_version\": \"5774816547\",\n", "");
+        let lock = Lockfile::from_json(&old).unwrap();
+        assert_eq!(lock.start_version(), None);
+        assert!(lock.to_json().unwrap().contains("\"format\": 3"));
+    }
+
+    #[test]
+    fn rejects_unknown_formats_and_fields() {
+        for format in ["1", "4"] {
+            let other = LOCK.replace("\"format\": 3", &format!("\"format\": {format}"));
+            assert!(matches!(
+                Lockfile::from_json(&other),
+                Err(LockError::UnsupportedFormat(_))
+            ));
+        }
         let extra = LOCK.replace("\"type_params\": 1,", "\"type_params\": 1, \"x\": 0,");
         assert!(matches!(
             Lockfile::from_json(&extra),

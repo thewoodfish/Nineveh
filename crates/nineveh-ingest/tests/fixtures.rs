@@ -115,4 +115,18 @@ async fn rest_client_reads_testnet() {
             .is_none(),
         "an account without modules"
     );
+
+    // First use of an address, from the Indexer API: genesis for the framework, the
+    // market contract before its fixture transaction, nothing for an unused address.
+    assert_eq!(
+        rest.first_transaction(Address::ONE).await.unwrap(),
+        Some(nineveh_core::Version::GENESIS)
+    );
+    let market: Address = "0x0e3117b978e079073756f6e1aafff9e4fcb028e51612c3a80c20a095fdfd4a02"
+        .parse()
+        .unwrap();
+    let first = rest.first_transaction(market).await.unwrap().unwrap();
+    assert!(first.get() < 6_000_029_471, "{first}");
+    let unused: Address = "0xdeadbeef".parse().unwrap();
+    assert_eq!(rest.first_transaction(unused).await.unwrap(), None);
 }

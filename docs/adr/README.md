@@ -37,3 +37,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0012](0012-attribute-table-items-by-handle.md) | Attribute table items by handle, learned from their parent | Accepted |
 | [0013](0013-fold-semantics-and-row-shapes.md) | Fold semantics, row shapes, and the missing-key retry | Accepted |
 | [0014](0014-state-schema-layout.md) | Store each build in its own schema, keyed by exact bytes and fingerprinted | Accepted |
+| [0015](0015-resolve-auto-start-at-init.md) | Resolve `start_version: auto` at init from the Indexer API, pinned in the lock | Accepted |

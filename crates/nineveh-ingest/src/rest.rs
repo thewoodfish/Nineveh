@@ -1,5 +1,6 @@
 //! A small client for the fullnode REST API: the ledger's current version, and module
-//! ABIs with their bytecode.
+//! ABIs with their bytecode. For Aptos Labs' hosted API it also asks the Indexer API
+//! when an address was first used.
 //!
 //! Only current state is read. The REST API is pruned (history starts around version
 //! 11 billion on testnet), so anything historical comes from the stream
@@ -83,6 +84,8 @@ pub struct RestClient {
     http: reqwest::Client,
     /// Ends in `/v1`, without a trailing slash.
     base: String,
+    /// The Indexer API's GraphQL endpoint, if there is one.
+    indexer: Option<String>,
 }
 
 impl RestClient {
@@ -93,7 +96,9 @@ impl RestClient {
     ///
     /// If the key can't be sent as a header or the HTTP client can't be built.
     pub fn hosted(network: Network, api_key: Option<&SecretString>) -> Result<Self, RestError> {
-        Self::new(format!("https://api.{network}.aptoslabs.com/v1"), api_key)
+        let mut client = Self::new(format!("https://api.{network}.aptoslabs.com/v1"), api_key)?;
+        client.indexer = Some(format!("https://api.{network}.aptoslabs.com/v1/graphql"));
+        Ok(client)
     }
 
     /// Any fullnode's REST API, given its `/v1` base URL.
@@ -118,7 +123,11 @@ impl RestClient {
             .build()
             .map_err(|e| RestError::Client(e.to_string()))?;
         let base = base.into().trim_end_matches('/').to_owned();
-        Ok(Self { http, base })
+        Ok(Self {
+            http,
+            base,
+            indexer: None,
+        })
     }
 
     /// The ledger's current version and chain id.
@@ -149,6 +158,57 @@ impl RestClient {
         parse_module(&text)
             .map(Some)
             .map_err(|reason| RestError::Response { url, reason })
+    }
+
+    /// The first transaction that touched `address`, from the Indexer API: `None` if
+    /// none has.
+    ///
+    /// A module is published by a transaction that writes to its address, so this is
+    /// at or before the publish (ADR 0015). The REST API can't answer it: its history
+    /// is pruned.
+    ///
+    /// # Errors
+    ///
+    /// If this client has no Indexer API (only [`RestClient::hosted`] does), or the
+    /// query fails.
+    pub async fn first_transaction(&self, address: Address) -> Result<Option<Version>, RestError> {
+        const QUERY: &str = "query First($address: String!) { \
+            account_transactions(where: {account_address: {_eq: $address}}, \
+            order_by: {transaction_version: asc}, limit: 1) { transaction_version } }";
+        let Some(url) = &self.indexer else {
+            return Err(RestError::Client(
+                "no Indexer API is configured for this endpoint".into(),
+            ));
+        };
+        let body = serde_json::json!({
+            "query": QUERY,
+            // The indexer keys accounts by the full-width address.
+            "variables": { "address": address.to_string() },
+        });
+        let failed = |source| RestError::Request {
+            url: url.clone(),
+            source,
+        };
+        let response = self
+            .http
+            .post(url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(failed)?;
+        let status = response.status();
+        let text = response.text().await.map_err(failed)?;
+        if !status.is_success() {
+            return Err(RestError::Status {
+                url: url.clone(),
+                status: status.as_u16(),
+                message: text,
+            });
+        }
+        parse_first_transaction(&text).map_err(|reason| RestError::Response {
+            url: url.clone(),
+            reason,
+        })
     }
 
     /// The body of a `GET`, or `None` for a 404 that means "no such thing".
@@ -228,6 +288,24 @@ fn parse_ledger(text: &str) -> Result<LedgerInfo, String> {
     })
 }
 
+fn parse_first_transaction(text: &str) -> Result<Option<Version>, String> {
+    let json: serde_json::Value = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    if let Some(errors) = json.get("errors") {
+        return Err(errors.to_string());
+    }
+    let rows = json["data"]["account_transactions"]
+        .as_array()
+        .ok_or("no `account_transactions` in the response")?;
+    rows.first()
+        .map(|row| {
+            row["transaction_version"]
+                .as_u64()
+                .map(Version::new)
+                .ok_or_else(|| format!("`transaction_version` isn't a u64: {row}"))
+        })
+        .transpose()
+}
+
 #[derive(Deserialize)]
 struct RawModule {
     bytecode: String,
@@ -286,6 +364,19 @@ mod tests {
         assert!(parse_module(r#"{"bytecode":"0xa1c","abi":{}}"#).is_err());
         assert!(parse_module(r#"{"bytecode":"a11c","abi":{}}"#).is_err());
         assert!(parse_module(r#"{"bytecode":"0xzz","abi":{}}"#).is_err());
+    }
+
+    #[test]
+    fn parses_first_transactions() {
+        // From testnet's Indexer API, 2026-09-15.
+        let found = r#"{"data":{"account_transactions":[{"transaction_version":5774816547}]}}"#;
+        assert_eq!(
+            parse_first_transaction(found),
+            Ok(Some(Version::new(5_774_816_547)))
+        );
+        let none = r#"{"data":{"account_transactions":[]}}"#;
+        assert_eq!(parse_first_transaction(none), Ok(None));
+        assert!(parse_first_transaction(r#"{"errors":[{"message":"bad"}]}"#).is_err());
     }
 
     #[test]

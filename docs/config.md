@@ -41,7 +41,7 @@ realtime:
 | --- | --- | --- |
 | `name` | yes | The project's name. |
 | `network` | yes | `mainnet`, `testnet` or `devnet`. |
-| `start_version` | no | `auto` (default) or a transaction version. `auto` starts at the version that published the first source's module, so nothing earlier is scanned. |
+| `start_version` | no | `auto` (default) or a transaction version. `nineveh init` resolves `auto` to the first transaction that touched any of the sources' contract addresses, which is at or before their modules were published, and pins it in `nineveh.lock`. So nothing relevant is missed, and every build starts at the same place. |
 | `sources` | yes | At least one source. |
 | `state` | yes | At least one state table. |
 | `api` | no | `rest` and `graphql`, both `true` by default. |
