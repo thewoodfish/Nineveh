@@ -183,6 +183,21 @@ export type ProjectSummary = {
 
 export type ProjectDetail = ProjectSummary & { config: string };
 
+/** What a rule on a source can read (ADR 0011). */
+export type SourceInfo = {
+  name: string;
+  kind: "event" | "resource" | "table";
+  /** The Move type it follows. */
+  follows: string;
+  /** Whether `<name>.deleted` rules are possible. */
+  deletes: boolean;
+  fields: FieldInfo[];
+  /** What a `<name>.deleted` rule reads: only what identifies the row. */
+  delete_fields: FieldInfo[];
+};
+
+export type FieldInfo = { name: string; type: ColumnType; nullable: boolean };
+
 export type CatalogItem = {
   kind: "event" | "resource" | "table";
   /** What the config names. */
@@ -227,6 +242,14 @@ export const SIGN_IN_URL = `${API_URL}/auth/github`;
 export const control = {
   me: () => request<Me>(`${CONTROL}/me`),
   logout: () => request<void>(`${CONTROL}/logout`, { method: "POST" }),
+  sources: (name: string) =>
+    request<SourceInfo[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/sources`),
+  /** Check a config against the project's pinned layouts, without saving it. */
+  check: (name: string, config: string) =>
+    request<{ ok: boolean }>(`${CONTROL}/projects/${encodeURIComponent(name)}/check`, {
+      method: "POST",
+      ...json({ config }),
+    }),
   keys: (name: string) => request<ApiKey[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/keys`),
   createKey: (name: string, label: string) =>
     request<ApiKey>(`${CONTROL}/projects/${encodeURIComponent(name)}/keys`, {

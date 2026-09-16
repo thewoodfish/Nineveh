@@ -138,7 +138,14 @@ function Overview() {
         <Card>
           <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
             <h2 className="text-sm font-medium">State tables</h2>
-            <span className="text-xs text-zinc-400">{tables?.length ?? 0} tables</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-zinc-400">{tables?.length ?? 0} tables</span>
+              {mode === "control" && (
+                <Link href={href("/state")} className="text-xs font-medium text-lapis-600 hover:underline">
+                  + New state table
+                </Link>
+              )}
+            </div>
           </div>
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
             {tables?.map((table) => (

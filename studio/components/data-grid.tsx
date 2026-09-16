@@ -165,9 +165,18 @@ export function DataGrid({ table }: { table: Table }) {
 
       {error && (
         <div className="px-8 pt-4">
-          <Notice tone="error" title="Couldn't load rows">
-            {error}
-          </Notice>
+          {/* A config change rebuilds the tables beside the served ones (ADR 0016):
+              that's work in progress, not a failure. */}
+          {error.includes("being rebuilt") ? (
+            <Notice tone="neutral" title="Building this table">
+              Nineveh is folding the project&apos;s history into its new tables. The rows appear
+              when it catches up; the Overview shows how far along it is.
+            </Notice>
+          ) : (
+            <Notice tone="error" title="Couldn't load rows">
+              {error}
+            </Notice>
+          )}
         </div>
       )}
 

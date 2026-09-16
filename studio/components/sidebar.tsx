@@ -163,6 +163,9 @@ function ProjectNav() {
         <NavLink href={href("/playground")} active={pathname === "/playground"}>
           API playground
         </NavLink>
+        <NavLink href={href("/state")} active={pathname === "/state"}>
+          New state table
+        </NavLink>
       </nav>
 
       <div className="mt-5 px-4 text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
