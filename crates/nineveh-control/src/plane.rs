@@ -7,7 +7,9 @@ use std::time::Duration;
 
 use axum::Router;
 use nineveh_api::{Api, Health};
-use nineveh_config::{Config, Diagnostics, Project, StartVersion, parse};
+use nineveh_config::{
+    Config, Diagnostics, Input, Project, SourceKind, StartVersion, column_for, parse, record_scope,
+};
 use nineveh_core::{Address, Network, Version};
 use nineveh_decode::Lockfile;
 use nineveh_realtime::Hub;
@@ -118,6 +120,31 @@ pub struct Summary {
     pub api: String,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// A source as the state-table editor sees it: what a rule on it can read.
+#[derive(Debug, Clone, Serialize)]
+pub struct SourceInfo {
+    pub name: String,
+    /// `event`, `resource` or `table`.
+    pub kind: &'static str,
+    /// The Move type it follows.
+    pub follows: String,
+    /// Whether `<name>.deleted` rules are possible: resources and tables only.
+    pub deletes: bool,
+    /// What a rule on it reads, with `<name>.deleted`'s fields when it deletes.
+    pub fields: Vec<FieldInfo>,
+    pub delete_fields: Vec<FieldInfo>,
+}
+
+/// One readable field, typed as a column would be (ADR 0008).
+#[derive(Debug, Clone, Serialize)]
+pub struct FieldInfo {
+    pub name: String,
+    /// The column type it fits: `address`, `u64`, `string`, `json`…
+    #[serde(rename = "type")]
+    pub ty: &'static str,
+    pub nullable: bool,
 }
 
 /// A project with its config, for `GET projects/{name}`.
@@ -565,6 +592,88 @@ impl<C: Chain> ControlPlane<C> {
         }
         info!(project = %name, key = id, "API key revoked");
         Ok(())
+    }
+
+    /// What each of a project's sources offers a rule, for the state-table editor.
+    ///
+    /// # Errors
+    ///
+    /// If there's no such project for `caller`, or its config no longer loads.
+    pub async fn sources(
+        &self,
+        caller: Caller,
+        name: &str,
+    ) -> Result<Vec<SourceInfo>, ControlError> {
+        let loaded = self
+            .get_entry(caller, name, |e| e.loaded.clone())
+            .await?
+            .map_err(ControlError::BadRequest)?;
+        let project = &loaded.project;
+        let describe = |input: &Input, deleted: bool| {
+            record_scope(&loaded.lock, input, deleted)
+                .fields
+                .iter()
+                .map(|(field, ty)| {
+                    let (column, nullable) = column_for(ty);
+                    FieldInfo {
+                        name: field.as_str().to_owned(),
+                        ty: column.as_str(),
+                        nullable,
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+        Ok(project
+            .config()
+            .sources
+            .iter()
+            .filter_map(|source| {
+                let input = project
+                    .source_id(source.name.as_str())
+                    .and_then(|id| project.input(id))?;
+                let deletes = source.kind.has_deletes();
+                Some(SourceInfo {
+                    name: source.name.name.clone(),
+                    kind: source.kind.keyword(),
+                    follows: match &source.kind {
+                        SourceKind::Event(tag) | SourceKind::Resource(tag) => tag.to_string(),
+                        SourceKind::Table { parent, field } => format!("{parent}.{field}"),
+                    },
+                    deletes,
+                    fields: describe(input, false),
+                    delete_fields: if deletes {
+                        describe(input, true)
+                    } else {
+                        Vec::new()
+                    },
+                })
+            })
+            .collect())
+    }
+
+    /// Check a config against the project's pinned layouts, without saving it: what
+    /// the state-table editor shows while you type. New sources need saving, which
+    /// pins their layouts.
+    ///
+    /// # Errors
+    ///
+    /// [`ControlError::Invalid`] with located diagnostics if it doesn't hold up.
+    pub async fn check(&self, caller: Caller, name: &str, text: &str) -> Result<(), ControlError> {
+        let loaded = self
+            .get_entry(caller, name, |e| e.loaded.clone())
+            .await?
+            .map_err(ControlError::BadRequest)?;
+        let config = parse(text).map_err(|d| ControlError::invalid(&d, text))?;
+        if config.name.name != name {
+            return Err(ControlError::BadRequest(format!(
+                "the config names the project `{}`; keep `name: {name}`",
+                config.name.name
+            )));
+        }
+        config
+            .resolve(&loaded.lock)
+            .map(|_| ())
+            .map_err(|d| ControlError::invalid(&d, text))
     }
 
     /// The router serving a project's state API and change feed.

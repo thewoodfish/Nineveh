@@ -12,6 +12,7 @@
     reason = "test-only crate: helpers panic on unexpected results and note skips"
 )]
 
+use std::fmt::Write as _;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -210,6 +211,112 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
         json!("1008"),
         "{listed}"
     );
+
+    // What a rule on each source can read, for the state-table editor.
+    let (status, sources) = call(
+        &app,
+        Method::GET,
+        &format!("/control/v1/projects/{name}/sources"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{sources}");
+    let source = |name: &str| {
+        sources
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["name"] == json!(name))
+            .unwrap_or_else(|| panic!("no source {name} in {sources}"))
+            .clone()
+    };
+    let fields = |source: &Value, key: &str| {
+        source[key]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| {
+                (
+                    f["name"].as_str().unwrap().to_owned(),
+                    f["type"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let deposits = source("deposit_event");
+    assert_eq!(deposits["kind"], json!("event"));
+    assert_eq!(deposits["deletes"], json!(false));
+    assert_eq!(
+        fields(&deposits, "fields"),
+        [
+            ("user".to_owned(), "address".to_owned()),
+            ("amount".to_owned(), "u64".to_owned()),
+        ]
+    );
+    let positions = source("vault_positions");
+    assert_eq!(positions["kind"], json!("table"));
+    assert_eq!(positions["deletes"], json!(true), "tables delete");
+    assert_eq!(
+        fields(&positions, "fields"),
+        [
+            ("handle".to_owned(), "address".to_owned()),
+            ("key".to_owned(), "address".to_owned()),
+            ("value".to_owned(), "json".to_owned()),
+        ]
+    );
+    // A `.deleted` rule sees only what identifies the row.
+    assert_eq!(
+        fields(&positions, "delete_fields"),
+        [
+            ("handle".to_owned(), "address".to_owned()),
+            ("key".to_owned(), "address".to_owned()),
+        ]
+    );
+
+    // A state table is checked against the pinned layouts without saving it.
+    let with_state = |rule: &str| {
+        let mut yaml = config.clone();
+        yaml.push_str("  depositors:\n");
+        yaml.push_str("    key: [user]\n");
+        yaml.push_str("    columns:\n");
+        yaml.push_str("      user: address\n");
+        yaml.push_str("      deposits: { type: u64, default: 0 }\n");
+        yaml.push_str("      total: { type: u128, default: 0 }\n");
+        yaml.push_str("    reduce:\n");
+        writeln!(yaml, "      - {{ on: deposit_event, set: {{ {rule} }} }}").unwrap();
+        yaml
+    };
+    let good = with_state("deposits: \"deposits + 1\", total: \"total + u128(amount)\"");
+    let (status, checked) = call(
+        &app,
+        Method::POST,
+        &format!("/control/v1/projects/{name}/check"),
+        Some(json!({ "config": good })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{checked}");
+    let bad = with_state("deposits: \"deposits + nope\"");
+    let (status, refused) = call(
+        &app,
+        Method::POST,
+        &format!("/control/v1/projects/{name}/check"),
+        Some(json!({ "config": bad })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{refused}");
+    assert!(
+        refused["details"].as_str().unwrap().contains("nope"),
+        "the editor sees where: {refused}"
+    );
+    // Checking doesn't save: the project still has its two tables.
+    let (_, listed) = call(
+        &app,
+        Method::GET,
+        &format!("/projects/{name}/v1/tables"),
+        None,
+    )
+    .await;
+    assert_eq!(listed.as_array().unwrap().len(), 2, "{listed}");
 
     // A config with problems is refused with located diagnostics, and a rename too.
     let broken = config.replace("log: deposit_event", "log: nothing");

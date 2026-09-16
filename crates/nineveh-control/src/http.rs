@@ -7,6 +7,9 @@
 //! - `GET  /control/v1/projects`, `POST /control/v1/projects` (`{"config": yaml}`).
 //! - `GET`, `PUT` (`{"config": yaml}`) and `DELETE /control/v1/projects/{name}`.
 //! - `POST /control/v1/projects/{name}/start` and `/stop`.
+//! - `GET  /control/v1/projects/{name}/sources`: what a rule on each source can read.
+//! - `POST /control/v1/projects/{name}/check` (`{"config": yaml}`): check a config
+//!   against the project's pinned layouts without saving it.
 //! - `GET`, `POST` (`{"label"}`) `/control/v1/projects/{name}/keys`, and `DELETE
 //!   /control/v1/projects/{name}/keys/{id}`: API keys. A new key is shown only once.
 //! - `GET /auth/github`, `GET /auth/github/callback`: signing in, in hosted mode.
@@ -59,6 +62,8 @@ pub fn router<C: Chain>(plane: Arc<ControlPlane<C>>, access: Access) -> Router {
             "/control/v1/projects/{name}",
             get(show::<C>).put(update::<C>).delete(remove::<C>),
         )
+        .route("/control/v1/projects/{name}/sources", get(sources::<C>))
+        .route("/control/v1/projects/{name}/check", post(check::<C>))
         .route("/control/v1/projects/{name}/start", post(start::<C>))
         .route("/control/v1/projects/{name}/stop", post(stop::<C>))
         .route(
@@ -359,6 +364,26 @@ async fn remove<C: Chain>(
     let caller = server.caller(&headers).await?;
     server.plane.delete(caller, &name).await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+async fn sources<C: Chain>(
+    State(server): Shared<C>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+) -> Result<impl IntoResponse, ControlError> {
+    let caller = server.caller(&headers).await?;
+    Ok(Json(server.plane.sources(caller, &name).await?))
+}
+
+async fn check<C: Chain>(
+    State(server): Shared<C>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+    Json(body): Json<ConfigBody>,
+) -> Result<impl IntoResponse, ControlError> {
+    let caller = server.caller(&headers).await?;
+    server.plane.check(caller, &name, &body.config).await?;
+    Ok(Json(json!({ "ok": true })))
 }
 
 async fn start<C: Chain>(

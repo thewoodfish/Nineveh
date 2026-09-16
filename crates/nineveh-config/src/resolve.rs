@@ -605,6 +605,14 @@ fn matcher(lock: &Lockfile, tag: &StructTag) -> Result<TypeMatcher, SelectionErr
     })
 }
 
+/// What a rule on `input` can read: the record's fields, and the built-ins for its
+/// kind. With `deleted`, the scope of a `<source>.deleted` rule, which has only what
+/// identifies the row.
+#[must_use]
+pub fn record_scope(lock: &Lockfile, input: &Input, deleted: bool) -> Scope {
+    scope(lock, input, deleted)
+}
+
 fn scope(lock: &Lockfile, input: &Input, deleted: bool) -> Scope {
     match input {
         Input::Event(m) => struct_scope(lock, m),

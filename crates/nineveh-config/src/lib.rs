@@ -33,6 +33,7 @@ pub use model::{
 };
 pub use resolve::{
     CompiledExpr, Input, Project, ResolvedAction, ResolvedRule, ResolvedTable, Scope, Watcher,
+    record_scope,
 };
 pub use schema::{Projection, SchemaColumn, TableSchema, column_for};
 pub use validate::parse;
