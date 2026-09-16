@@ -30,6 +30,7 @@ export default function NewProject() {
   const [inspecting, setInspecting] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
+  const [choosing, setChoosing] = useState(false);
   const [name, setName] = useState("");
   const [start, setStart] = useState<Start>("auto");
   const [preview, setPreview] = useState<string | null>(null);
@@ -54,9 +55,9 @@ export default function NewProject() {
     try {
       const found = await control.inspect(network, address.trim());
       setCatalog(found);
-      // Events to start with: they're the contract's activity, and an events-only project
-      // streams only the transactions that emit them. Resources and tables are a click away.
-      setPicked(new Set(found.items.filter((i) => i.kind === "event" && !i.unsupported).map((i) => i.id)));
+      // Everything the contract offers: the raw tables are what Nineveh is for, and
+      // narrowing them is a choice, not a chore.
+      setPicked(new Set(found.items.filter((i) => !i.unsupported).map((i) => i.id)));
       setName(suggestName(found, projects?.map((p) => p.name) ?? []));
     } catch (e) {
       setError(failure(e));
@@ -133,16 +134,26 @@ export default function NewProject() {
           <>
             <Step
               n={2}
-              title="What to follow"
-              hint={`${catalog.modules.length} module${catalog.modules.length === 1 ? "" : "s"} at ${shortAddress(catalog.address)}. Each pick becomes a live table.`}
+              title="What Nineveh will follow"
+              hint={`${catalog.modules.length} module${catalog.modules.length === 1 ? "" : "s"} at ${shortAddress(catalog.address)}.`}
             >
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Filter by name or module"
-                className={`${field} mb-3 w-full`}
-              />
-              <div className="flex flex-col gap-4">
+              <Following catalog={catalog} picked={picked} />
+              <button
+                type="button"
+                onClick={() => setChoosing(!choosing)}
+                className="mt-2 text-sm font-medium text-lapis-600 hover:underline"
+              >
+                {choosing ? "Hide the list" : "Choose what to follow"}
+              </button>
+              {choosing && (
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filter by name or module"
+                  className={`${field} mt-3 mb-3 w-full`}
+                />
+              )}
+              <div className={`flex flex-col gap-4 ${choosing ? "" : "hidden"}`}>
                 {KINDS.map(({ kind, title, becomes, hint }) => (
                   <Group
                     key={kind}
@@ -221,6 +232,52 @@ export default function NewProject() {
             )}
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** What the raw tables will be: one per event, resource and table it follows. */
+function Following({ catalog, picked }: { catalog: Catalog; picked: Set<string> }) {
+  const counts = { event: 0, resource: 0, table: 0 };
+  let unsupported = 0;
+  for (const item of catalog.items) {
+    if (item.unsupported) unsupported += 1;
+    else if (picked.has(item.id)) counts[item.kind] += 1;
+  }
+  const parts = [
+    [counts.event, "event", "a log table each, in order"],
+    [counts.resource, "resource", "a mirror of the value at each address"],
+    [counts.table, "table", "a mirror of each item"],
+  ] as const;
+  const total = counts.event + counts.resource + counts.table;
+  return (
+    <div className="flex flex-col gap-1.5 text-sm">
+      {parts
+        .filter(([n]) => n > 0)
+        .map(([n, what, how]) => (
+          <div key={what}>
+            <span className="font-medium">
+              {n} {what}
+              {n === 1 ? "" : "s"}
+            </span>
+            <span className="text-zinc-500"> — {how}</span>
+          </div>
+        ))}
+      {total === 0 && <div className="text-zinc-500">Nothing ticked: pick something below.</div>}
+      {unsupported > 0 && (
+        <div className="text-xs text-zinc-400">
+          {unsupported} more Nineveh can&apos;t follow yet, listed below with the reason.
+        </div>
+      )}
+      {total > 40 && (
+        <div className="text-xs text-amber-600">
+          That&apos;s a lot of tables for one project. Narrowing it makes the first build
+          quicker, and you can add sources later.
+        </div>
+      )}
+      <div className="text-xs text-zinc-500">
+        Then build your own state tables from these, in the project.
       </div>
     </div>
   );
