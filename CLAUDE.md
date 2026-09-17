@@ -80,15 +80,18 @@ they get real code; the dependency direction between them is enforced by
 - `nineveh-store`    — Postgres via sqlx. A schema per build generated from the project
                        config; the one atomic commit of rows, outbox and cursor; build
                        fingerprints (ADR 0014).
-- `nineveh-api`      — axum REST + async-graphql over state tables, generated from config.
-                       Reads state only, never the chain.
-- `nineveh-realtime` — change feeds + subscriptions + signed webhooks, tailing the
-                       transactional outbox written by the reducer commit (ADR 0006).
+- `nineveh-api`      — axum REST over state tables, generated from config. Reads state
+                       only, never the chain. (GraphQL is planned, not built.)
+- `nineveh-realtime` — the change feed: every state change as Server-Sent Events,
+                       tailing the transactional outbox the reducer commit writes
+                       (ADR 0006). Signed webhook delivery lives in `nineveh-control`,
+                       which may depend on the store (ADR 0020).
 - `nineveh-control`  — the control plane Studio drives (ADR 0017): contract catalog
                        and config scaffolding, `pin` and the `Runner` the CLI uses too,
                        and `ControlPlane`, which runs many projects from the registry in
                        `nineveh.control_projects`, each served at `/projects/{name}/v1`.
                        Aptos access goes through the `Chain` trait (`Hosted` in prod).
+                       Also delivers state changes to webhook endpoints (ADR 0020).
 - `nineveh-config`   — parse/validate `nineveh.yaml`, then resolve it against the lock
                        (ADR 0011; user reference in `docs/config.md`). Located,
                        rustc-style diagnostics. Product UX for non-Rust teams.
@@ -128,12 +131,12 @@ fast interactions, no clutter. When building UI, read the frontend-design skill 
 ## Conventions
 
 - Rust 2024, toolchain pinned in `rust-toolchain.toml`, MSRV 1.89 (ADR 0009). Async on
-  tokio. gRPC: tonic. DB: sqlx on Postgres. API: axum + async-graphql. Studio: Next.js +
+  tokio. gRPC: tonic. DB: sqlx on Postgres. API: axum. Studio: Next.js +
   Tailwind + TypeScript.
 - sqlx compile-time-checked queries (`query!`) for internal tables (cursor, outbox,
   keys). State tables are shaped by config at runtime, so their SQL goes through the
   typed builder in `nineveh-store`: identifiers only from the validated config, never
-  from requests; every value bound. GraphQL uses `async_graphql::dynamic`.
+  from requests; every value bound.
 - Lints are workspace-wide and CI runs `-D warnings`; unwrap/expect/panic and lossy
   integer casts are denied in library code (tests exempt via `clippy.toml`).
 - No `unwrap()` / `expect()` in library code — `Result` + `thiserror`. `anyhow` only at

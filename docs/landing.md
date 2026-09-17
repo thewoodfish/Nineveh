@@ -38,7 +38,8 @@ what it found: the events it emits, the resources it stores, the tables inside t
 create.
 
 **3. Query it.** Seconds later there are tables with rows in them, served over REST
-with filtering, sorting and paging, plus a live change feed. Point your frontend at it.
+with filtering, sorting and paging, plus a live change feed. Point your frontend at it,
+or have Nineveh post changes to your backend as signed webhooks.
 
 **4. Then add your own tables** — the part that matters. A few lines of config, or a
 form in Studio:
@@ -123,9 +124,8 @@ wasn't queryable.
 Don't put these on the site:
 
 - **GraphQL.** The API is REST (`/v1/tables`, `/v1/tables/{name}`) plus the change feed
-  (`/v1/changes`, Server-Sent Events). GraphQL is planned, not shipped.
-- **Webhooks.** The change feed is there to subscribe to; Nineveh doesn't call your
-  backend yet.
+  (`/v1/changes`, Server-Sent Events) and signed webhooks. GraphQL is planned, not
+  shipped.
 - **Quotas and limits.** No usage metering, no plans, no billing.
 - **Hosted deployment.** It runs, it's built to be hosted, and nothing is deployed for
   customers yet.

@@ -42,3 +42,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0017](0017-local-control-plane.md) | Run projects under a control plane that Studio drives | Accepted |
 | [0018](0018-accounts-sessions-and-api-keys.md) | Sign in with GitHub; reach projects with API keys | Accepted |
 | [0019](0019-reducers-read-other-tables.md) | Let a reducer read other tables by key | Accepted |
+| [0020](0020-signed-webhook-deliveries.md) | Deliver state changes as signed webhooks, one cursor per endpoint | Accepted |
