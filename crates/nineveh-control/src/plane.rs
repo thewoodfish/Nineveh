@@ -140,9 +140,10 @@ pub struct SourceInfo {
     pub delete_fields: Vec<FieldInfo>,
 }
 
-/// How far back a preview reads, how long it may spend reading, and how much it
-/// brings back. A preview is meant to answer "is this rule right?" in a few seconds,
-/// not to build the table.
+/// How a preview reads the chain: a window of this many versions ending where the
+/// project last saw a change, stopping at [`PREVIEW_RECORDS`] or [`PREVIEW_WINDOW`],
+/// whichever comes first. A preview answers "is this rule right?" in a few seconds;
+/// it isn't building the table.
 const PREVIEW_VERSIONS: u64 = 30_000;
 const PREVIEW_WINDOW: Duration = Duration::from_secs(12);
 const PREVIEW_RECORDS: usize = 2_000;
@@ -157,13 +158,12 @@ pub struct Preview {
     pub rows: Vec<serde_json::Value>,
     /// How many rows the fold produced, which can be more than `rows` holds.
     pub row_count: usize,
-    /// Records that reached the project, and transactions read, over the window.
+    /// Records that reached the project, and transactions read.
     pub records: usize,
     pub transactions: usize,
-    /// The versions the preview covered, and whether it got as far as the chain's tip.
+    /// The versions the preview looked over, ending at the chain's tip.
     pub from: String,
     pub to: String,
-    pub reached_tip: bool,
 }
 
 /// A saved state table in the shape the editor edits it: its columns and, for a
@@ -791,54 +791,49 @@ impl<C: Chain> ControlPlane<C> {
             })?;
         let network = candidate.config().network;
         let tip = self.chain.tip(network).await?;
-        let from = Version::new(
-            tip.get()
-                .saturating_sub(PREVIEW_VERSIONS)
-                .max(loaded.start.get()),
-        );
+        let decoder = TransactionDecoder::new(&loaded.lock, candidate.selection());
+        let (seed, from, to) = self.preview_seed(name, &loaded, tip).await;
 
-        let mut state = MemoryState::new();
-        state.apply(&self.learned_handles(name, &loaded).await);
-
+        // Read the window and keep the records in it. The fold applies them in version
+        // order afterwards, which is the only order it accepts.
+        let deadline = Instant::now() + PREVIEW_WINDOW;
+        let mut found: Vec<nineveh_decode::DecodedTransaction> = Vec::new();
+        let (mut records, mut transactions) = (0, 0);
         let source = self.chain.source(network, from, &candidate);
         let mut stream = source
-            .open(from, Some(tip))
+            .open(from, Some(to))
             .await
             .map_err(|e| ControlError::BadRequest(e.to_string()))?;
-        let decoder = TransactionDecoder::new(&loaded.lock, candidate.selection());
-        let engine = Engine::new(&candidate);
-        let deadline = Instant::now() + PREVIEW_WINDOW;
-        let (mut records, mut transactions, mut reached_tip) = (0, 0, false);
-        let mut to = from;
         while records < PREVIEW_RECORDS {
             let Ok(batch) = tokio::time::timeout_at(deadline.into(), stream.next()).await else {
                 break;
             };
             let Some(batch) = batch.map_err(|e| ControlError::BadRequest(e.to_string()))? else {
-                reached_tip = true;
                 break;
             };
-            let mut folding = Vec::new();
+            let last = batch.transactions.last().map(|t| t.version);
             for transaction in &batch.transactions {
-                to = Version::new(transaction.version);
                 let one = decoder
                     .decode(transaction)
                     .map_err(|e| ControlError::BadRequest(e.to_string()))?;
                 records += one.records.len();
                 if !one.records.is_empty() {
-                    folding.push(one);
+                    found.push(one);
                 }
             }
             transactions += batch.transactions.len();
-            let changes = engine
-                .fold(&state, &folding)
-                .map_err(|e| ControlError::BadRequest(e.to_string()))?;
-            state.apply(&changes);
-            if to >= tip {
-                reached_tip = true;
+            if last.is_some_and(|v| v >= to.get()) {
                 break;
             }
         }
+        found.sort_by_key(|decoded| decoded.version);
+
+        let mut state = MemoryState::new();
+        state.apply(&seed);
+        let changes = Engine::new(&candidate)
+            .fold(&state, &found)
+            .map_err(|e| ControlError::BadRequest(e.to_string()))?;
+        state.apply(&changes);
 
         let schema = candidate
             .schemas()
@@ -859,27 +854,45 @@ impl<C: Chain> ControlPlane<C> {
             transactions,
             from: from.to_string(),
             to: to.to_string(),
-            reached_tip,
         })
     }
 
-    /// The table handles the running project has learned, as a change set to seed a
-    /// preview's state with. Best effort: without them a preview of a table source
-    /// shows nothing, which is better than failing.
-    async fn learned_handles(&self, name: &str, loaded: &Loaded) -> ChangeSet {
-        let mut changes = ChangeSet::default();
-        let store = Store::open(self.pool.clone(), name, &loaded.project, &loaded.lock).await;
-        let Ok(store) = store else {
-            return changes;
-        };
-        if let Ok(handles) = store.scan(TableId::Handles).await {
-            for (key, row) in handles {
-                changes
-                    .writes
-                    .insert((TableId::Handles, key), Some(row.unwrap_or_default()));
+    /// What a preview starts from: the project's own state, and the versions to read.
+    ///
+    /// The window ends at the newest version that changed one of the project's rows —
+    /// where the contract was last doing something — so a contract last used hours ago
+    /// still previews. A project with no rows yet reads the chain's tip instead. The
+    /// window is capped at [`PREVIEW_VERSIONS`], because reading it has to finish
+    /// while someone waits.
+    ///
+    /// The handles the project has learned are seeded in, so table sources are
+    /// attributed (ADR 0012) rather than silently ignored. Both are best effort: a
+    /// preview that can't read the project's state still reads the chain.
+    async fn preview_seed(
+        &self,
+        name: &str,
+        loaded: &Loaded,
+        tip: Version,
+    ) -> (ChangeSet, Version, Version) {
+        let mut seed = ChangeSet::default();
+        let mut newest = tip;
+        if let Ok(store) = Store::open(self.pool.clone(), name, &loaded.project, &loaded.lock).await
+        {
+            if let Ok(handles) = store.scan(TableId::Handles).await {
+                for (key, row) in handles {
+                    seed.writes
+                        .insert((TableId::Handles, key), Some(row.unwrap_or_default()));
+                }
+            }
+            if let Ok(Some(latest)) = store.latest_change().await {
+                newest = latest;
             }
         }
-        changes
+        let from = newest
+            .get()
+            .saturating_sub(PREVIEW_VERSIONS)
+            .max(loaded.start.get());
+        (seed, Version::new(from), newest)
     }
 
     /// A saved state table, in the shape the editor edits: what Studio loads to open

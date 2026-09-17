@@ -244,9 +244,10 @@ export function toYaml(table: StateTable): string {
 }
 
 /**
- * `config` with `table` added to its `state:` block. The block ends at the next line
- * that starts a top-level key, so a config with `api:` or `realtime:` after it keeps
- * them below.
+ * `config` with `table` in its `state:` block: replacing the table of that name if
+ * it's already there, and added at the end of the block if it isn't. The block ends
+ * at the next line that starts a top-level key, so a config with `api:` or
+ * `realtime:` after it keeps them below.
  */
 export function withTable(config: string, table: StateTable): string {
   const lines = config.split("\n");
@@ -259,7 +260,35 @@ export function withTable(config: string, table: StateTable): string {
     end = i;
     break;
   }
+  const block = blockOf(lines, start + 1, end, table.name);
+  if (block) {
+    const before = lines.slice(0, block.from).join("\n");
+    const after = lines.slice(block.to).join("\n");
+    return `${before ? `${before}\n` : ""}${toYaml(table)}${after}`;
+  }
   const before = lines.slice(0, end).join("\n").replace(/\s*$/, "\n");
   const after = lines.slice(end).join("\n");
   return `${before}${toYaml(table)}${after ? `\n${after}` : ""}`;
+}
+
+/** Where `name`'s block sits within `state:`, if it's there at all. */
+function blockOf(
+  lines: string[],
+  from: number,
+  until: number,
+  name: string,
+): { from: number; to: number } | null {
+  const header = new RegExp(`^ {2}${name.replace(/[^a-z0-9_]/gi, "")}:\\s*$`);
+  const at = lines.findIndex((line, i) => i >= from && i < until && header.test(line));
+  if (at < 0) return null;
+  let to = until;
+  for (let i = at + 1; i < until; i++) {
+    const line = lines[i] ?? "";
+    // The block ends at the next table's name, which is indented by exactly two.
+    if (line.trim() !== "" && !/^ {3}/.test(line)) {
+      to = i;
+      break;
+    }
+  }
+  return { from: at, to };
 }

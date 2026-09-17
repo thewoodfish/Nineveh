@@ -1,12 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { ExpressionInput, type Insert, type Name } from "@/components/expression";
 import { Button, Card, Notice, PageHeader } from "@/components/ui";
 import {
   ApiError,
   type ColumnType,
+  type FieldInfo,
+  type Preview,
   type SourceInfo,
   type Table,
   control,
@@ -29,6 +32,70 @@ import {
   withTable,
 } from "@/lib/state-table";
 
+/** The functions an expression can call (`docs/expressions.md`). */
+const FUNCTIONS = [
+  "min",
+  "max",
+  "abs",
+  "is_some",
+  "is_none",
+  "unwrap_or",
+  "u8",
+  "u16",
+  "u32",
+  "u64",
+  "u128",
+  "u256",
+  "i8",
+  "i16",
+  "i32",
+  "i64",
+  "i128",
+  "i256",
+];
+
+/**
+ * Everything a rule's expressions can refer to: the record's fields, the row's own
+ * columns, the transaction, the functions, and a row of another table (ADR 0019). A
+ * name that is both a field and a column is offered qualified, since a bare one would
+ * be ambiguous.
+ */
+function namesInScope(
+  source: string,
+  fields: FieldInfo[],
+  columns: Column[],
+  tables: Table[],
+): Name[] {
+  const clash = (name: string) =>
+    fields.some((f) => f.name === name) && columns.some((c) => c.name === name);
+  return [
+    ...fields.map((f) => ({
+      label: clash(f.name) ? `${source}.${f.name}` : f.name,
+      detail: f.type,
+      kind: "field" as const,
+    })),
+    ...columns.map((c) => ({
+      label: clash(c.name) ? `row.${c.name}` : c.name,
+      detail: c.type,
+      kind: "column" as const,
+    })),
+    { label: "tx.version", detail: "u64", kind: "builtin" as const },
+    { label: "tx.timestamp", detail: "u64", kind: "builtin" as const },
+    ...tables.map((t) => ({
+      label: `${t.name}[${t.key.join(", ")}]`,
+      insert: `${t.name}[`,
+      detail: "table",
+      kind: "table" as const,
+    })),
+    ...FUNCTIONS.map((f) => ({
+      label: f,
+      insert: `${f}(`,
+      detail: "function",
+      kind: "function" as const,
+    })),
+  ];
+}
+
 /** Narrows a list to one with a first element, so pickers always have a selection. */
 function isFilled(sources: SourceInfo[]): sources is [SourceInfo, ...SourceInfo[]] {
   return sources.length > 0;
@@ -42,9 +109,19 @@ const field =
  * The control plane checks the config as it's written, and saving it rebuilds the
  * project's tables (ADR 0016).
  */
-export default function NewStateTable() {
+export default function StateTablePage() {
+  return (
+    <Suspense>
+      <StateTableEditor />
+    </Suspense>
+  );
+}
+
+function StateTableEditor() {
   const { name: project, mode, base } = useProject();
   const router = useRouter();
+  // `?table=` opens a saved table to change, instead of designing a new one.
+  const editing = useSearchParams().get("table");
   const [sources, setSources] = useState<SourceInfo[] | null>(null);
   const [existing, setExisting] = useState<Table[]>([]);
   const [config, setConfig] = useState<string | null>(null);
@@ -62,7 +139,13 @@ export default function NewStateTable() {
       .project(project)
       .then((p) => setConfig(p.config))
       .catch(failed);
-  }, [project]);
+    if (editing) {
+      control
+        .stateTable(project, editing)
+        .then((saved) => setTable({ name: saved.name, columns: saved.columns, rules: saved.rules }))
+        .catch(failed);
+    }
+  }, [project, editing]);
 
   // The tables a rule can read from (ADR 0019). A project still being built has none,
   // and that's not an error worth showing.
@@ -122,14 +205,14 @@ export default function NewStateTable() {
 
   return (
     <div>
-      <PageHeader title="New state table">
+      <PageHeader title={editing ? `Edit ${editing}` : "New state table"}>
         {checked?.ok && <span className="text-xs text-emerald-600">checks out</span>}
         <Button
           tone="primary"
           disabled={saving || !checked?.ok}
           onClick={() => void save()}
         >
-          {saving ? "Saving…" : "Create table"}
+          {saving ? "Saving…" : editing ? "Save changes" : "Create table"}
         </Button>
       </PageHeader>
 
@@ -156,7 +239,9 @@ export default function NewStateTable() {
           </Notice>
         )}
 
-        {sources && isFilled(sources) && !table && <Templates sources={sources} onPick={setTable} />}
+        {sources && isFilled(sources) && !table && !editing && (
+          <Templates sources={sources} onPick={setTable} />
+        )}
 
         {sources && table && (
           <>
@@ -171,7 +256,7 @@ export default function NewStateTable() {
                   onClick={() => setTable(null)}
                   className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
                 >
-                  Start over
+                  {editing ? "Discard changes" : "Start over"}
                 </button>
               </div>
               <pre className="max-h-64 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">
@@ -192,11 +277,125 @@ export default function NewStateTable() {
                 <pre className="overflow-x-auto font-mono text-xs whitespace-pre">{checked.details}</pre>
               </Notice>
             )}
+            {project && yaml && (
+              <PreviewCard
+                project={project}
+                yaml={yaml}
+                table={table}
+                ready={checked?.ok === true}
+              />
+            )}
           </>
         )}
       </div>
     </div>
   );
+}
+
+/**
+ * What the rules would produce, folded over recent transactions without saving
+ * anything. Asked for rather than automatic: it reads a window of the chain, which
+ * takes a few seconds.
+ */
+function PreviewCard({
+  project,
+  yaml,
+  table,
+  ready,
+}: {
+  project: string;
+  yaml: string;
+  table: StateTable;
+  ready: boolean;
+}) {
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+
+  // Anything edited makes what's shown stale.
+  useEffect(() => {
+    setPreview(null);
+    setError(null);
+  }, [yaml]);
+
+  const run = useCallback(async () => {
+    setRunning(true);
+    setError(null);
+    try {
+      setPreview(await control.preview(project, yaml, table.name));
+    } catch (e) {
+      setError(e instanceof ApiError ? (e.details ?? e.message) : String(e));
+    } finally {
+      setRunning(false);
+    }
+  }, [project, yaml, table.name]);
+
+  const columns = table.columns.map((c) => c.name);
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
+        <span className="text-xs text-zinc-500">
+          {preview
+            ? `${preview.row_count} row${preview.row_count === 1 ? "" : "s"} from ${preview.transactions} recent transactions`
+            : "What these rules would produce, from the chain's recent transactions"}
+        </span>
+        <Button onClick={() => void run()} disabled={!ready || running}>
+          {running ? "Folding…" : preview ? "Run again" : "Preview rows"}
+        </Button>
+      </div>
+      {error && (
+        <div className="px-4 py-3">
+          <Notice tone="error" title="These rules don&apos;t survive real data">
+            <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">{error}</pre>
+          </Notice>
+        </div>
+      )}
+      {preview && !error && preview.rows.length === 0 && (
+        <p className="px-4 py-3 text-sm text-zinc-500">
+          Nothing in the last {preview.transactions} transactions fed this table. That isn&apos;t
+          a problem with the rules — try again once the contract has been used.
+        </p>
+      )}
+      {preview && preview.rows.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800">
+              <tr>
+                {columns.map((name) => (
+                  <th key={name} className="px-4 py-1.5 font-medium">
+                    {name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {preview.rows.map((row, i) => (
+                <tr key={i} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800/60">
+                  {columns.map((name) => (
+                    <td key={name} className="px-4 py-1.5 font-mono text-xs">
+                      {cell(row[name])}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {preview.row_count > preview.rows.length && (
+            <p className="px-4 py-2 text-xs text-zinc-500">
+              and {preview.row_count - preview.rows.length} more.
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** One preview value, short enough for a cell. */
+function cell(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  const text = typeof value === "object" ? JSON.stringify(value) : String(value);
+  return text.length > 40 ? `${text.slice(0, 39)}…` : text;
 }
 
 /** The shapes most state tables have, filled in from a source's fields. */
@@ -494,6 +693,25 @@ function RuleCard({
     (c) => !mapped.has(c.name) && !readable.some((f) => f.name === c.name),
   );
 
+  const names = namesInScope(rule.on, readable, table.columns, existing);
+  // A key picks the row, so it can't read the row's own columns.
+  const keyNames = namesInScope(rule.on, readable, [], existing);
+  // The expression box the chips type into: whichever one has the focus.
+  const active = useRef<Insert | null>(null);
+  const chip = (text: string, insert = text) => (
+    <button
+      key={text}
+      type="button"
+      // Keep the focused input focused, so the chip knows where to type.
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => active.current?.insert(insert)}
+      title="Click to put it in the expression you're editing"
+      className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono hover:bg-lapis-100 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+    >
+      {text}
+    </button>
+  );
+
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-end gap-3">
@@ -524,12 +742,12 @@ function RuleCard({
         )}
         <label className="flex flex-1 flex-col gap-1.5 text-xs font-medium text-zinc-500">
           Only when (optional)
-          <input
+          <ExpressionInput
             value={rule.when}
-            onChange={(e) => onChange({ when: e.target.value })}
+            onChange={(when) => onChange({ when })}
+            names={names}
             placeholder="amount > 0"
-            spellCheck={false}
-            className={`${field} font-mono`}
+            onActive={(handle) => (active.current = handle)}
           />
         </label>
         <button type="button" onClick={onRemove} className="pb-2 text-xs text-zinc-400 hover:text-red-600">
@@ -538,32 +756,12 @@ function RuleCard({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-        Readable here:
-        {readable.map((f) => (
-          <span key={f.name} className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono dark:bg-zinc-800">
-            {f.name}
-            <span className="text-zinc-400"> {f.type}</span>
-          </span>
-        ))}
-        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono dark:bg-zinc-800">tx.version</span>
-        <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono dark:bg-zinc-800">tx.timestamp</span>
-        <span>and the row&apos;s own columns.</span>
+        Click to use:
+        {readable.map((f) => chip(f.name))}
+        {table.columns.filter((c) => !c.key).map((c) => chip(c.name))}
+        {chip("tx.timestamp")}
+        {existing.map((t) => chip(`${t.name}[${t.key.join(", ")}]`, `${t.name}[`))}
       </div>
-
-      {existing.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-          And a row of another table, which is null when there isn&apos;t one:
-          {existing.map((t) => (
-            <span
-              key={t.name}
-              title={t.columns.map((c) => c.name).join(", ")}
-              className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono dark:bg-zinc-800"
-            >
-              {t.name}[{t.key.join(", ")}].column
-            </span>
-          ))}
-        </div>
-      )}
 
       {unnamed.length > 0 && (
         <p className="mt-2 text-xs text-amber-600">
@@ -606,18 +804,16 @@ function RuleCard({
                   ))}
               </select>
               <span className="text-zinc-400">=</span>
-              <input
+              <ExpressionInput
                 value={assignment.expression}
-                onChange={(e) =>
+                onChange={(expression) =>
                   onChange({
-                    sets: rule.sets.map((s, i) =>
-                      i === index ? { ...s, expression: e.target.value } : s,
-                    ),
+                    sets: rule.sets.map((s, i) => (i === index ? { ...s, expression } : s)),
                   })
                 }
+                names={names}
                 placeholder="count + 1"
-                spellCheck={false}
-                className={`${field} flex-1 font-mono`}
+                onActive={(handle) => (active.current = handle)}
               />
               <button
                 type="button"
@@ -659,18 +855,16 @@ function RuleCard({
                 ))}
               </select>
               <span className="text-zinc-400">=</span>
-              <input
+              <ExpressionInput
                 value={assignment.expression}
-                onChange={(e) =>
+                onChange={(expression) =>
                   onChange({
-                    keys: rule.keys.map((k, i) =>
-                      i === index ? { ...k, expression: e.target.value } : k,
-                    ),
+                    keys: rule.keys.map((k, i) => (i === index ? { ...k, expression } : k)),
                   })
                 }
+                names={keyNames}
                 placeholder="key"
-                spellCheck={false}
-                className={`${field} flex-1 font-mono`}
+                onActive={(handle) => (active.current = handle)}
               />
               <button
                 type="button"

@@ -327,7 +327,6 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
         json!(3),
         "one row per depositor: {preview}"
     );
-    assert_eq!(preview["reached_tip"], json!(true), "{preview}");
     let totals: Vec<&str> = preview["rows"]
         .as_array()
         .unwrap()

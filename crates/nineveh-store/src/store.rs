@@ -254,6 +254,30 @@ impl Store {
         Ok(loaded)
     }
 
+    /// The newest version that changed a row in any of this project's state tables,
+    /// or `None` if none of them holds a row.
+    ///
+    /// Where the contract was last doing something, as far as this project is
+    /// concerned: what a preview reads a window around, rather than guessing one at
+    /// the chain's tip.
+    ///
+    /// # Errors
+    ///
+    /// If the database fails.
+    pub async fn latest_change(&self) -> Result<Option<Version>, StoreError> {
+        let mut newest: Option<i64> = None;
+        for table in self.tables.iter().filter(|t| t.schema.is_some()) {
+            let sql = format!(
+                "SELECT max({}) FROM {}",
+                ident("_version"),
+                crate::layout::qualified(&self.schema, &table.name)
+            );
+            let version: Option<i64> = sqlx::query_scalar(&sql).fetch_one(&self.pool).await?;
+            newest = newest.max(version);
+        }
+        Ok(newest.and_then(|v| u64::try_from(v).ok()).map(Version::new))
+    }
+
     /// Every row of a table, in no particular order, with the engine's row for tables
     /// the fold reads (`None` for `log` tables, which don't keep it). Reads the whole
     /// table into memory: for tests and tools, not the pipeline.

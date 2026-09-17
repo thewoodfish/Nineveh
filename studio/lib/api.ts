@@ -198,6 +198,35 @@ export type SourceInfo = {
 
 export type FieldInfo = { name: string; type: ColumnType; nullable: boolean };
 
+/** What a table's rules would produce, folded over recent transactions (ADR 0017). */
+export type Preview = {
+  table: string;
+  rows: Row[];
+  /** How many rows the fold produced; `rows` holds at most the first 50. */
+  row_count: number;
+  /** Records that reached the project, and transactions read, over the window. */
+  records: number;
+  transactions: number;
+  from: string;
+  to: string;
+  reached_tip: boolean;
+};
+
+/** A saved state table in the shape the editor edits. */
+export type SavedTable = {
+  name: string;
+  kind: "reduce" | "mirror" | "log";
+  columns: { name: string; type: ColumnType; default: string; nullable: boolean; key: boolean }[];
+  rules: {
+    on: string;
+    deleted: boolean;
+    when: string;
+    keys: { column: string; expression: string }[];
+    sets: { column: string; expression: string }[];
+    removes: boolean;
+  }[];
+};
+
 export type CatalogItem = {
   kind: "event" | "resource" | "table";
   /** What the config names. */
@@ -250,6 +279,17 @@ export const control = {
       method: "POST",
       ...json({ config }),
     }),
+  /** The rows a table's rules would produce, without saving anything. */
+  preview: (name: string, config: string, table: string) =>
+    request<Preview>(`${CONTROL}/projects/${encodeURIComponent(name)}/preview`, {
+      method: "POST",
+      ...json({ config, table }),
+    }),
+  /** A saved state table, to open in the editor. */
+  stateTable: (name: string, table: string) =>
+    request<SavedTable>(
+      `${CONTROL}/projects/${encodeURIComponent(name)}/state/${encodeURIComponent(table)}`,
+    ),
   keys: (name: string) => request<ApiKey[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/keys`),
   createKey: (name: string, label: string) =>
     request<ApiKey>(`${CONTROL}/projects/${encodeURIComponent(name)}/keys`, {

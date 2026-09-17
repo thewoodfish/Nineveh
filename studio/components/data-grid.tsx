@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type Change, type Row, type RowsQuery, type Table, getRows, rowKey } from "@/lib/api";
@@ -20,7 +21,7 @@ type Order = { column: string; desc: boolean } | undefined;
  * offers a refresh.
  */
 export function DataGrid({ table }: { table: Table }) {
-  const { base } = useProject();
+  const { name: project, base } = useProject();
   const [rows, setRows] = useState<Row[]>([]);
   const [count, setCount] = useState<number | null>(null);
   const [offset, setOffset] = useState(0);
@@ -151,6 +152,14 @@ export function DataGrid({ table }: { table: Table }) {
           </span>
         }
       >
+        {table.kind === "reduce" && project && (
+          <Link
+            href={`/state?project=${encodeURIComponent(project)}&table=${encodeURIComponent(table.name)}`}
+            className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+          >
+            Edit rules
+          </Link>
+        )}
         {missed > 0 && (
           <button
             type="button"
