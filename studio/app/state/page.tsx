@@ -24,11 +24,14 @@ import {
   amountFields,
   blank,
   countPer,
+  dailyPer,
   keyFields,
   latestPer,
+  liveSet,
   problems,
   sumPer,
   toYaml,
+  withLookup,
   withTable,
 } from "@/lib/state-table";
 
@@ -240,7 +243,7 @@ function StateTableEditor() {
         )}
 
         {sources && isFilled(sources) && !table && !editing && (
-          <Templates sources={sources} onPick={setTable} />
+          <Templates sources={sources} existing={existing} onPick={setTable} />
         )}
 
         {sources && table && (
@@ -401,9 +404,11 @@ function cell(value: unknown): string {
 /** The shapes most state tables have, filled in from a source's fields. */
 function Templates({
   sources,
+  existing,
   onPick,
 }: {
   sources: [SourceInfo, ...SourceInfo[]];
+  existing: Table[];
   onPick: (table: StateTable) => void;
 }) {
   const [source, setSource] = useState<SourceInfo>(sources[0]);
@@ -413,6 +418,27 @@ function Templates({
   const [amount, setAmount] = useState(amounts[0]?.name ?? "");
   const keyField = keys.find((f) => f.name === key) ?? keys[0];
   const amountField = amounts.find((f) => f.name === amount) ?? amounts[0];
+
+  // What makes a row disappear again: this source's own deletes, or another source
+  // that names the same key.
+  const gone = source.deletes
+    ? { name: source.name, deleted: true }
+    : sources
+        .filter((s) => s.name !== source.name)
+        .filter((s) => s.fields.some((f) => f.name === keyField?.name && f.type === keyField?.type))
+        .map((s) => ({ name: s.name, deleted: false }))[0];
+
+  // A table this one could look a row up in: keyed by one column of the same type as
+  // the key, with something to read.
+  const joinable = existing
+    .filter((t) => t.key.length === 1 && t.name !== source.name)
+    .flatMap((t) => {
+      const keyColumn = t.columns.find((c) => c.name === t.key[0]);
+      if (!keyColumn || keyColumn.type !== keyField?.type) return [];
+      const readable = t.columns.filter((c) => !t.key.includes(c.name));
+      const column = readable.find((c) => c.type !== "json") ?? readable[0];
+      return column ? [{ table: t, column }] : [];
+    })[0];
 
   const pick = (source: SourceInfo) => {
     setSource(source);
@@ -485,6 +511,40 @@ function Templates({
           body={keyField ? `The newest ${source.name} for each ${keyField.name}, field by field.` : ""}
           disabled={!keyField}
           onClick={() => keyField && onPick(latestPer(source, keyField))}
+        />
+        <Template
+          title="Per day"
+          body={
+            keyField
+              ? `${amountField ? `${amountField.name} added up` : `How many ${source.name} records`} per ${keyField.name}, a row per day: what a chart is made of.`
+              : "This source has nothing to key by."
+          }
+          disabled={!keyField}
+          onClick={() => keyField && onPick(dailyPer(source, keyField, amountField))}
+        />
+        <Template
+          title="Appears and disappears"
+          body={
+            keyField && gone
+              ? `A row per ${keyField.name} while it's open: added on ${source.name}, removed on ${gone.deleted ? `${gone.name} deleted` : gone.name}.`
+              : "Nothing here says when a row should go away again."
+          }
+          disabled={!keyField || !gone}
+          onClick={() => keyField && gone && onPick(liveSet(source, keyField, gone))}
+        />
+        <Template
+          title="With a value from another table"
+          body={
+            keyField && joinable
+              ? `How many ${source.name} records per ${keyField.name}, plus ${joinable.column.name} read from ${joinable.table.name}.`
+              : "No other table is keyed by something this could look up."
+          }
+          disabled={!keyField || !joinable}
+          onClick={() =>
+            keyField &&
+            joinable &&
+            onPick(withLookup(source, keyField, joinable.table, joinable.column))
+          }
         />
         <Template
           title="Empty table"

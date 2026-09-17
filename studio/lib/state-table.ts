@@ -87,6 +87,13 @@ export function amountFields(source: SourceInfo): FieldInfo[] {
 
 const zero = (type: ColumnType): string => (isInteger(type) ? "0" : "");
 
+/**
+ * A record's field, qualified by its source: `deposits.amount`. A bare name is an
+ * error when the table has a column of the same name, which templates that mirror a
+ * record's fields into columns always do, so they never write one.
+ */
+const of = (source: SourceInfo, field: { name: string }): string => `${source.name}.${field.name}`;
+
 /** How many of this source's records there are, per `field`. */
 export function countPer(source: SourceInfo, field: FieldInfo): StateTable {
   return {
@@ -115,7 +122,8 @@ export function countPer(source: SourceInfo, field: FieldInfo): StateTable {
 /** `amount` added up per `field`, in a column wide enough to hold the total. */
 export function sumPer(source: SourceInfo, field: FieldInfo, amount: FieldInfo): StateTable {
   const total = widened(amount.type);
-  const cast = total === amount.type ? amount.name : `${total}(${amount.name})`;
+  const read = of(source, amount);
+  const cast = total === amount.type ? read : `${total}(${read})`;
   return {
     name: `${amount.name}_per_${field.name}`,
     columns: [
@@ -162,8 +170,129 @@ export function latestPer(source: SourceInfo, field: FieldInfo): StateTable {
         when: "",
         keys: [],
         sets: [
-          ...rest.map((f) => ({ column: f.name, expression: f.name })),
+          ...rest.map((f) => ({ column: f.name, expression: of(source, f) })),
           { column: "version", expression: "tx.version" },
+        ],
+        removes: false,
+      },
+    ],
+  };
+}
+
+/** Microseconds in a day: what `tx.timestamp` is divided by to bucket by day. */
+const DAY = "86_400_000_000";
+
+/**
+ * One row per `field` per day: what a chart is made of. The day is the key column the
+ * record doesn't carry, so the rule maps it from the transaction's own timestamp.
+ */
+export function dailyPer(source: SourceInfo, field: FieldInfo, amount?: FieldInfo): StateTable {
+  const total = amount ? widened(amount.type) : undefined;
+  const read = amount ? of(source, amount) : "";
+  const cast = amount && total === amount.type ? read : `${total}(${read})`;
+  return {
+    name: amount ? `daily_${amount.name}_per_${field.name}` : `daily_${source.name}_per_${field.name}`,
+    columns: [
+      { name: field.name, type: field.type, default: "", nullable: false, key: true },
+      { name: "day", type: "u64", default: "", nullable: false, key: true },
+      ...(amount && total
+        ? [
+            {
+              name: `total_${amount.name}`,
+              type: total,
+              default: "0",
+              nullable: false,
+              key: false,
+            },
+          ]
+        : []),
+      { name: "count", type: "u64" as ColumnType, default: "0", nullable: false, key: false },
+    ],
+    rules: [
+      {
+        on: source.name,
+        deleted: false,
+        when: "",
+        keys: [{ column: "day", expression: `tx.timestamp / ${DAY}` }],
+        sets: [
+          ...(amount ? [{ column: `total_${amount.name}`, expression: `total_${amount.name} + ${cast}` }] : []),
+          { column: "count", expression: "count + 1" },
+        ],
+        removes: false,
+      },
+    ],
+  };
+}
+
+/**
+ * Rows that appear when one record arrives and disappear when another does: what's
+ * open right now, from events the contract already emits.
+ */
+export function liveSet(
+  source: SourceInfo,
+  field: FieldInfo,
+  gone: { name: string; deleted: boolean },
+): StateTable {
+  const rest = source.fields.filter((f) => f.name !== field.name);
+  return {
+    name: `open_${source.name}`,
+    columns: [
+      { name: field.name, type: field.type, default: "", nullable: false, key: true },
+      ...rest.map((f) => ({
+        name: f.name,
+        type: f.type,
+        default: zero(f.type),
+        nullable: f.nullable,
+        key: false,
+      })),
+      { name: "since", type: "u64" as ColumnType, default: "0", nullable: false, key: false },
+    ],
+    rules: [
+      {
+        on: source.name,
+        deleted: false,
+        when: "",
+        keys: [],
+        sets: [
+          ...rest.map((f) => ({ column: f.name, expression: of(source, f) })),
+          { column: "since", expression: "tx.timestamp" },
+        ],
+        removes: false,
+      },
+      { on: gone.name, deleted: gone.deleted, when: "", keys: [], sets: [], removes: true },
+    ],
+  };
+}
+
+/**
+ * How many records each `field` has, plus a column read from another table — null
+ * when that table has no row for it (ADR 0019).
+ */
+export function withLookup(
+  source: SourceInfo,
+  field: FieldInfo,
+  table: { name: string; key: string[] },
+  column: { name: string; type: ColumnType },
+): StateTable {
+  return {
+    name: `${source.name}_with_${column.name}`,
+    columns: [
+      { name: field.name, type: field.type, default: "", nullable: false, key: true },
+      { name: "count", type: "u64", default: "0", nullable: false, key: false },
+      { name: column.name, type: column.type, default: "", nullable: true, key: false },
+    ],
+    rules: [
+      {
+        on: source.name,
+        deleted: false,
+        when: "",
+        keys: [],
+        sets: [
+          { column: "count", expression: "count + 1" },
+          {
+            column: column.name,
+            expression: `${table.name}[${of(source, field)}].${column.name}`,
+          },
         ],
         removes: false,
       },
