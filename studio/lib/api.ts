@@ -212,6 +212,22 @@ export type Preview = {
   reached_tip: boolean;
 };
 
+/** A webhook endpoint: what the config says, plus how its deliveries are going. */
+export type WebhookInfo = {
+  name: string;
+  url: string;
+  /** The changes it asks for, as written: `balances.changed`. */
+  on: string[];
+  /** Whether deliveries carry the changed row, not only its key. */
+  rows: boolean;
+  /** The secret every delivery is signed with. */
+  secret: string;
+  /** The last change delivered, as `version.seq`. */
+  delivered: string | null;
+  failures: number;
+  last_error: string | null;
+};
+
 /** A saved state table in the shape the editor edits. */
 export type SavedTable = {
   name: string;
@@ -289,6 +305,14 @@ export const control = {
   stateTable: (name: string, table: string) =>
     request<SavedTable>(
       `${CONTROL}/projects/${encodeURIComponent(name)}/state/${encodeURIComponent(table)}`,
+    ),
+  /** This project's webhook endpoints, with their secrets and delivery health. */
+  webhooks: (name: string) =>
+    request<WebhookInfo[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/webhooks`),
+  rotateWebhook: (name: string, endpoint: string) =>
+    request<{ secret: string }>(
+      `${CONTROL}/projects/${encodeURIComponent(name)}/webhooks/${encodeURIComponent(endpoint)}/rotate`,
+      { method: "POST" },
     ),
   keys: (name: string) => request<ApiKey[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/keys`),
   createKey: (name: string, label: string) =>

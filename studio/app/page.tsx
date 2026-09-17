@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { ApiKeys } from "@/components/api-keys";
+import { Webhooks } from "@/components/webhooks";
 import { ConfigPanel } from "@/components/config-panel";
 import { Button, Card, Notice, Offline, PageHeader, PhaseDot, Stat } from "@/components/ui";
 import { API_URL, type ProjectSummary, type Status, control } from "@/lib/api";
@@ -178,6 +179,7 @@ function Overview() {
         )}
 
         {current && hosted && <ApiKeys project={current.name} api={current.api} />}
+        {current && <Webhooks project={current.name} />}
 
         {status.build && (
           <Card className="grid grid-cols-1 gap-x-8 gap-y-2 px-4 py-3 text-xs text-zinc-500 sm:grid-cols-3">

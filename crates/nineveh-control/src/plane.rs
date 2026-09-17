@@ -167,6 +167,25 @@ pub struct Preview {
     pub to: String,
 }
 
+/// A webhook endpoint as Studio shows it: what the config says, plus how delivery is
+/// going and the secret to check signatures with (ADR 0020).
+#[derive(Debug, Clone, Serialize)]
+pub struct WebhookInfo {
+    pub name: String,
+    pub url: String,
+    /// The changes it asks for, as written: `balances.changed`.
+    pub on: Vec<String>,
+    /// Whether deliveries carry the changed row, not only its key.
+    pub rows: bool,
+    /// The secret every delivery is signed with.
+    pub secret: String,
+    /// The last change delivered, as `version.seq`, or `null` before the first.
+    pub delivered: Option<String>,
+    /// Failed attempts since the last delivery, and what the last one said.
+    pub failures: i32,
+    pub last_error: Option<String>,
+}
+
 /// A saved state table in the shape the editor edits it: its columns and, for a
 /// `reduce` table, its rules with their expressions as written.
 #[derive(Debug, Clone, Serialize)]
@@ -959,6 +978,81 @@ impl<C: Chain> ControlPlane<C> {
                 .collect(),
             rules: rules.iter().map(rule_info).collect(),
         })
+    }
+
+    /// A project's webhook endpoints: the config's, with each one's secret and how
+    /// its deliveries are going (ADR 0020).
+    ///
+    /// # Errors
+    ///
+    /// If the project isn't there, or the database fails.
+    pub async fn webhooks(
+        &self,
+        caller: Caller,
+        name: &str,
+    ) -> Result<Vec<WebhookInfo>, ControlError> {
+        let loaded = self
+            .get_entry(caller, name, |e| e.loaded.clone())
+            .await?
+            .map_err(ControlError::BadRequest)?;
+        let stored = nineveh_store::webhooks::list(&self.pool, name).await?;
+        Ok(loaded
+            .project
+            .config()
+            .webhooks
+            .iter()
+            .map(|hook| {
+                let known = stored.iter().find(|e| e.name == hook.name.name);
+                WebhookInfo {
+                    name: hook.name.name.clone(),
+                    url: hook.url.clone(),
+                    on: hook
+                        .on
+                        .iter()
+                        .map(|s| format!("{}.{}", s.table, s.change.as_str()))
+                        .collect(),
+                    rows: hook.rows,
+                    // A sender writes the row on its first look, so an endpoint saved
+                    // a moment ago may not have one yet.
+                    secret: known.map(|e| e.secret.clone()).unwrap_or_default(),
+                    delivered: known
+                        .and_then(|e| e.cursor)
+                        .map(|(version, seq)| format!("{version}.{seq}")),
+                    failures: known.map_or(0, |e| e.failures),
+                    last_error: known.and_then(|e| e.last_error.clone()),
+                }
+            })
+            .collect())
+    }
+
+    /// Give a webhook endpoint a new secret. Deliveries signed with the old one stop
+    /// checking out, so a receiver takes the new secret first.
+    ///
+    /// # Errors
+    ///
+    /// If the project or the endpoint isn't there, or the database fails.
+    pub async fn rotate_webhook(
+        &self,
+        caller: Caller,
+        name: &str,
+        endpoint: &str,
+    ) -> Result<String, ControlError> {
+        let loaded = self
+            .get_entry(caller, name, |e| e.loaded.clone())
+            .await?
+            .map_err(ControlError::BadRequest)?;
+        if !loaded
+            .project
+            .config()
+            .webhooks
+            .iter()
+            .any(|h| h.name.name == endpoint)
+        {
+            return Err(ControlError::NotFound(format!(
+                "`{name}` has no webhook `{endpoint}`"
+            )));
+        }
+        Ok(nineveh_store::webhooks::rotate(&self.pool, name, endpoint).await?)
     }
 
     /// The router serving a project's state API and change feed.

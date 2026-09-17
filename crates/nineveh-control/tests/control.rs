@@ -410,7 +410,8 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
         .trim_end()
         .to_owned()
         + "\n  vault_shares:\n    mirror: vault_shares\n"
-        + &state_block(depositors);
+        + &state_block(depositors)
+        + "\nwebhooks:\n  my_backend:\n    url: https://example.invalid/hook\n    on: [deposit_event.inserted]\n";
     let (status, updated) = call(
         &app,
         Method::PUT,
@@ -458,6 +459,45 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
         }]),
         "{editing}"
     );
+    // Its webhook endpoints, with the secret a receiver checks signatures with.
+    let (status, hooks) = call(
+        &app,
+        Method::GET,
+        &format!("/control/v1/projects/{name}/webhooks"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{hooks}");
+    assert_eq!(hooks.as_array().unwrap().len(), 1, "{hooks}");
+    let hook = &hooks[0];
+    assert_eq!(hook["name"], json!("my_backend"));
+    assert_eq!(hook["on"], json!(["deposit_event.inserted"]));
+    assert_eq!(hook["rows"], json!(true));
+    assert!(
+        hook["secret"].as_str().unwrap().starts_with("whsec_"),
+        "{hook}"
+    );
+    let secret = hook["secret"].as_str().unwrap().to_owned();
+
+    // Rotating gives it a new one.
+    let (status, rotated) = call(
+        &app,
+        Method::POST,
+        &format!("/control/v1/projects/{name}/webhooks/my_backend/rotate"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{rotated}");
+    assert_ne!(rotated["secret"].as_str().unwrap(), secret);
+    let (status, refused) = call(
+        &app,
+        Method::POST,
+        &format!("/control/v1/projects/{name}/webhooks/nobody/rotate"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{refused}");
+
     // A mirror or log has no rules to edit, and says so.
     let (status, refused) = call(
         &app,

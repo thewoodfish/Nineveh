@@ -12,6 +12,9 @@
 //!   against the project's pinned layouts without saving it.
 //! - `POST /control/v1/projects/{name}/preview` (`{"config": yaml, "table": name}`):
 //!   the rows that table's rules would produce, folded over recent transactions.
+//! - `GET  /control/v1/projects/{name}/webhooks`: each endpoint, its signing secret
+//!   and how its deliveries are going; `POST .../webhooks/{endpoint}/rotate` gives
+//!   one a new secret (ADR 0020).
 //! - `GET  /control/v1/projects/{name}/state/{table}`: a saved state table in the
 //!   shape the editor edits.
 //! - `GET`, `POST` (`{"label"}`) `/control/v1/projects/{name}/keys`, and `DELETE
@@ -69,6 +72,11 @@ pub fn router<C: Chain>(plane: Arc<ControlPlane<C>>, access: Access) -> Router {
         .route("/control/v1/projects/{name}/sources", get(sources::<C>))
         .route("/control/v1/projects/{name}/check", post(check::<C>))
         .route("/control/v1/projects/{name}/preview", post(preview::<C>))
+        .route("/control/v1/projects/{name}/webhooks", get(webhooks::<C>))
+        .route(
+            "/control/v1/projects/{name}/webhooks/{endpoint}/rotate",
+            post(rotate_webhook::<C>),
+        )
         .route(
             "/control/v1/projects/{name}/state/{table}",
             get(state_table::<C>),
@@ -424,6 +432,28 @@ async fn state_table<C: Chain>(
 ) -> Result<impl IntoResponse, ControlError> {
     let caller = server.caller(&headers).await?;
     Ok(Json(server.plane.state_table(caller, &name, &table).await?))
+}
+
+async fn webhooks<C: Chain>(
+    State(server): Shared<C>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+) -> Result<impl IntoResponse, ControlError> {
+    let caller = server.caller(&headers).await?;
+    Ok(Json(server.plane.webhooks(caller, &name).await?))
+}
+
+async fn rotate_webhook<C: Chain>(
+    State(server): Shared<C>,
+    headers: HeaderMap,
+    Path((name, endpoint)): Path<(String, String)>,
+) -> Result<impl IntoResponse, ControlError> {
+    let caller = server.caller(&headers).await?;
+    let secret = server
+        .plane
+        .rotate_webhook(caller, &name, &endpoint)
+        .await?;
+    Ok(Json(json!({ "secret": secret })))
 }
 
 async fn start<C: Chain>(
