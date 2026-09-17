@@ -128,6 +128,57 @@ pub async fn failed(
     Ok(row.map_or(0, |r| r.failures))
 }
 
+/// Put a new endpoint at a position, if it hasn't got one: where a sender starts it,
+/// which is the newest change, so configuring an endpoint doesn't deliver the
+/// project's history into someone's backend.
+///
+/// # Errors
+///
+/// If the database fails.
+pub async fn start_at(
+    pool: &PgPool,
+    schema: &str,
+    name: &str,
+    version: i64,
+    seq: i32,
+) -> Result<(), StoreError> {
+    sqlx::query!(
+        r#"UPDATE nineveh.webhooks SET version = $3, seq = $4
+           WHERE schema_name = $1 AND name = $2 AND version IS NULL"#,
+        schema,
+        name,
+        version,
+        seq,
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Move an endpoint past changes it didn't ask for, without claiming a delivery.
+///
+/// # Errors
+///
+/// If the database fails.
+pub async fn advance(
+    pool: &PgPool,
+    schema: &str,
+    name: &str,
+    version: i64,
+    seq: i32,
+) -> Result<(), StoreError> {
+    sqlx::query!(
+        "UPDATE nineveh.webhooks SET version = $3, seq = $4 WHERE schema_name = $1 AND name = $2",
+        schema,
+        name,
+        version,
+        seq,
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 /// Move an endpoint to a position without delivering anything: what a rebuild's swap
 /// does, since the new build's outbox is a different feed and replaying it would
 /// deliver the project's whole history again (ADR 0016).

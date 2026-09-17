@@ -1840,6 +1840,7 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "getrandom 0.3.4",
+ "hmac",
  "nineveh-api",
  "nineveh-config",
  "nineveh-core",

@@ -138,6 +138,14 @@ impl Feed {
     pub fn schema(&self) -> &str {
         &self.schema
     }
+
+    /// Wake-ups for this schema's commits, for anything else that tails the outbox:
+    /// the webhook sender delivers within a commit or two rather than a poll (ADR
+    /// 0020). A missed wake-up only delays a change until the next poll.
+    #[must_use]
+    pub fn wake(&self) -> broadcast::Receiver<()> {
+        self.wake.subscribe()
+    }
 }
 
 /// The feed's route.

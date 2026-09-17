@@ -21,6 +21,7 @@
 mod auth;
 mod catalog;
 mod chain;
+mod deliver;
 mod http;
 mod pin;
 mod plane;
@@ -30,6 +31,7 @@ mod scaffold;
 pub use auth::{Access, AuthError, ExternalUser, GitHub, IdentityProvider};
 pub use catalog::{Catalog, Item, ItemField, ItemKind, catalog, snake_case};
 pub use chain::{Chain, ChainError, Hosted, ModuleInfo};
+pub use deliver::Deliveries;
 pub use http::router;
 pub use pin::{PinError, pin};
 pub use plane::{
