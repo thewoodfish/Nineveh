@@ -3,18 +3,21 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, PoisonError};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use axum::Router;
 use nineveh_api::{Api, Health};
 use nineveh_config::{
-    Config, Diagnostics, Input, Project, SourceKind, StartVersion, column_for, parse, record_scope,
+    Action, Config, Diagnostics, Input, Project, SourceKind, StartVersion, TableKind, column_for,
+    parse, record_scope,
 };
-use nineveh_core::{Address, Network, Version};
-use nineveh_decode::Lockfile;
+use nineveh_core::{Address, Network, Value, Version};
+use nineveh_decode::{Lockfile, TransactionDecoder};
+use nineveh_engine::{ChangeSet, Engine, MemoryState, TableId};
+use nineveh_pipeline::{BatchStream, Source};
 use nineveh_realtime::Hub;
 use nineveh_store::accounts::{self, ApiKey};
-use nineveh_store::{StoreError, registry, shadow_name};
+use nineveh_store::{Store, StoreError, registry, row_json, shadow_name};
 use serde::Serialize;
 use sqlx::PgPool;
 use tokio::sync::{RwLock, watch};
@@ -135,6 +138,74 @@ pub struct SourceInfo {
     /// What a rule on it reads, with `<name>.deleted`'s fields when it deletes.
     pub fields: Vec<FieldInfo>,
     pub delete_fields: Vec<FieldInfo>,
+}
+
+/// How far back a preview reads, how long it may spend reading, and how much it
+/// brings back. A preview is meant to answer "is this rule right?" in a few seconds,
+/// not to build the table.
+const PREVIEW_VERSIONS: u64 = 30_000;
+const PREVIEW_WINDOW: Duration = Duration::from_secs(12);
+const PREVIEW_RECORDS: usize = 2_000;
+const PREVIEW_ROWS: usize = 50;
+
+/// What a table's rules would produce, folded over recent transactions without
+/// saving anything.
+#[derive(Debug, Clone, Serialize)]
+pub struct Preview {
+    pub table: String,
+    /// The rows themselves, as the API would serve them, up to [`PREVIEW_ROWS`].
+    pub rows: Vec<serde_json::Value>,
+    /// How many rows the fold produced, which can be more than `rows` holds.
+    pub row_count: usize,
+    /// Records that reached the project, and transactions read, over the window.
+    pub records: usize,
+    pub transactions: usize,
+    /// The versions the preview covered, and whether it got as far as the chain's tip.
+    pub from: String,
+    pub to: String,
+    pub reached_tip: bool,
+}
+
+/// A saved state table in the shape the editor edits it: its columns and, for a
+/// `reduce` table, its rules with their expressions as written.
+#[derive(Debug, Clone, Serialize)]
+pub struct StateTableInfo {
+    pub name: String,
+    /// `reduce`, `mirror` or `log`.
+    pub kind: &'static str,
+    pub columns: Vec<ColumnInfo>,
+    pub rules: Vec<RuleInfo>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ColumnInfo {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub ty: &'static str,
+    /// The default as written in the config, or empty for none.
+    pub default: String,
+    pub nullable: bool,
+    pub key: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RuleInfo {
+    /// The source it fires on.
+    pub on: String,
+    /// Whether it's an `<source>.deleted` rule.
+    pub deleted: bool,
+    /// The `when` condition as written, or empty for none.
+    pub when: String,
+    pub keys: Vec<AssignmentInfo>,
+    pub sets: Vec<AssignmentInfo>,
+    /// Whether the rule deletes the row instead of setting columns.
+    pub removes: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AssignmentInfo {
+    pub column: String,
+    pub expression: String,
 }
 
 /// One readable field, typed as a column would be (ADR 0008).
@@ -676,6 +747,195 @@ impl<C: Chain> ControlPlane<C> {
             .map_err(|d| ControlError::invalid(&d, text))
     }
 
+    /// Fold `text`'s table `table` over recent transactions and return the rows it
+    /// would produce, without saving anything or touching the project's state.
+    ///
+    /// The fold runs in memory from empty, over a window ending at the chain's tip, so
+    /// counters count what happened in the window rather than all of history. Handles
+    /// the project has already learned are seeded in, so table sources are attributed
+    /// (ADR 0012).
+    ///
+    /// # Errors
+    ///
+    /// [`ControlError::Invalid`] if the config doesn't hold up, or
+    /// [`ControlError::BadRequest`] if a rule fails on real data: an overflow names
+    /// the version and rule that would halt the project.
+    pub async fn preview(
+        &self,
+        caller: Caller,
+        name: &str,
+        text: &str,
+        table: &str,
+    ) -> Result<Preview, ControlError> {
+        let loaded = self
+            .get_entry(caller, name, |e| e.loaded.clone())
+            .await?
+            .map_err(ControlError::BadRequest)?;
+        let config = parse(text).map_err(|d| ControlError::invalid(&d, text))?;
+        if config.name.name != name {
+            return Err(ControlError::BadRequest(format!(
+                "the config names the project `{}`; keep `name: {name}`",
+                config.name.name
+            )));
+        }
+        let candidate = config
+            .resolve(&loaded.lock)
+            .map_err(|d| ControlError::invalid(&d, text))?;
+        let index = candidate
+            .config()
+            .state
+            .iter()
+            .position(|t| t.name.name == table)
+            .ok_or_else(|| {
+                ControlError::BadRequest(format!("the config has no state table `{table}`"))
+            })?;
+        let network = candidate.config().network;
+        let tip = self.chain.tip(network).await?;
+        let from = Version::new(
+            tip.get()
+                .saturating_sub(PREVIEW_VERSIONS)
+                .max(loaded.start.get()),
+        );
+
+        let mut state = MemoryState::new();
+        state.apply(&self.learned_handles(name, &loaded).await);
+
+        let source = self.chain.source(network, from, &candidate);
+        let mut stream = source
+            .open(from, Some(tip))
+            .await
+            .map_err(|e| ControlError::BadRequest(e.to_string()))?;
+        let decoder = TransactionDecoder::new(&loaded.lock, candidate.selection());
+        let engine = Engine::new(&candidate);
+        let deadline = Instant::now() + PREVIEW_WINDOW;
+        let (mut records, mut transactions, mut reached_tip) = (0, 0, false);
+        let mut to = from;
+        while records < PREVIEW_RECORDS {
+            let Ok(batch) = tokio::time::timeout_at(deadline.into(), stream.next()).await else {
+                break;
+            };
+            let Some(batch) = batch.map_err(|e| ControlError::BadRequest(e.to_string()))? else {
+                reached_tip = true;
+                break;
+            };
+            let mut folding = Vec::new();
+            for transaction in &batch.transactions {
+                to = Version::new(transaction.version);
+                let one = decoder
+                    .decode(transaction)
+                    .map_err(|e| ControlError::BadRequest(e.to_string()))?;
+                records += one.records.len();
+                if !one.records.is_empty() {
+                    folding.push(one);
+                }
+            }
+            transactions += batch.transactions.len();
+            let changes = engine
+                .fold(&state, &folding)
+                .map_err(|e| ControlError::BadRequest(e.to_string()))?;
+            state.apply(&changes);
+            if to >= tip {
+                reached_tip = true;
+                break;
+            }
+        }
+
+        let schema = candidate
+            .schemas()
+            .get(index)
+            .ok_or_else(|| ControlError::BadRequest(format!("no schema for `{table}`")))?;
+        let id = TableId::State(u32::try_from(index).unwrap_or(u32::MAX));
+        let all: Vec<_> = state.rows(id).map(|(_, row)| row.clone()).collect();
+        let rows = all
+            .iter()
+            .take(PREVIEW_ROWS)
+            .map(|row| row_json(table, schema, row))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Preview {
+            table: table.to_owned(),
+            rows,
+            row_count: all.len(),
+            records,
+            transactions,
+            from: from.to_string(),
+            to: to.to_string(),
+            reached_tip,
+        })
+    }
+
+    /// The table handles the running project has learned, as a change set to seed a
+    /// preview's state with. Best effort: without them a preview of a table source
+    /// shows nothing, which is better than failing.
+    async fn learned_handles(&self, name: &str, loaded: &Loaded) -> ChangeSet {
+        let mut changes = ChangeSet::default();
+        let store = Store::open(self.pool.clone(), name, &loaded.project, &loaded.lock).await;
+        let Ok(store) = store else {
+            return changes;
+        };
+        if let Ok(handles) = store.scan(TableId::Handles).await {
+            for (key, row) in handles {
+                changes
+                    .writes
+                    .insert((TableId::Handles, key), Some(row.unwrap_or_default()));
+            }
+        }
+        changes
+    }
+
+    /// A saved state table, in the shape the editor edits: what Studio loads to open
+    /// an existing table instead of only creating new ones.
+    ///
+    /// # Errors
+    ///
+    /// [`ControlError::NotFound`] if the project or the table isn't there.
+    pub async fn state_table(
+        &self,
+        caller: Caller,
+        name: &str,
+        table: &str,
+    ) -> Result<StateTableInfo, ControlError> {
+        let loaded = self
+            .get_entry(caller, name, |e| e.loaded.clone())
+            .await?
+            .map_err(ControlError::BadRequest)?;
+        let state =
+            loaded.project.config().table(table).ok_or_else(|| {
+                ControlError::NotFound(format!("`{name}` has no table `{table}`"))
+            })?;
+        let (kind, key, columns, rules) = match &state.kind {
+            TableKind::Reduce {
+                key,
+                columns,
+                rules,
+            } => ("reduce", key, columns, rules),
+            TableKind::Mirror { source } => {
+                return Err(ControlError::BadRequest(format!(
+                    "`{table}` mirrors `{source}`, so it has no rules to edit"
+                )));
+            }
+            TableKind::Log { source } => {
+                return Err(ControlError::BadRequest(format!(
+                    "`{table}` logs `{source}`, so it has no rules to edit"
+                )));
+            }
+        };
+        Ok(StateTableInfo {
+            name: state.name.name.clone(),
+            kind,
+            columns: columns
+                .iter()
+                .map(|c| ColumnInfo {
+                    name: c.name.name.clone(),
+                    ty: c.ty.as_str(),
+                    default: c.default.as_ref().map(literal).unwrap_or_default(),
+                    nullable: c.nullable,
+                    key: key.iter().any(|k| k.name == c.name.name),
+                })
+                .collect(),
+            rules: rules.iter().map(rule_info).collect(),
+        })
+    }
+
     /// The router serving a project's state API and change feed.
     pub async fn router(&self, name: &str) -> Option<Router> {
         self.projects
@@ -851,6 +1111,57 @@ async fn stop(run: Run) {
     let _ = run.stop.send(true);
     if let Err(e) = run.task.await {
         error!(error = %e, "a pipeline task panicked");
+    }
+}
+
+/// A rule as the editor holds it: expressions as their config text.
+fn rule_info(rule: &nineveh_config::Rule) -> RuleInfo {
+    let assignments = |pairs: &[(nineveh_config::Named, nineveh_config::Expr)]| {
+        pairs
+            .iter()
+            .map(|(name, expr)| AssignmentInfo {
+                column: name.name.clone(),
+                expression: expr.text.clone(),
+            })
+            .collect()
+    };
+    RuleInfo {
+        on: rule.on.source.name.clone(),
+        deleted: rule.on.deleted,
+        when: rule
+            .when
+            .as_ref()
+            .map(|w| w.text.clone())
+            .unwrap_or_default(),
+        keys: assignments(&rule.key),
+        sets: match &rule.action {
+            Action::Set(set) => assignments(set),
+            Action::Delete => Vec::new(),
+        },
+        removes: matches!(rule.action, Action::Delete),
+    }
+}
+
+/// A column default as it would be written in the config: a bare number or `true`,
+/// and anything else quoted.
+fn literal(value: &Value) -> String {
+    match value {
+        Value::Bool(b) => b.to_string(),
+        Value::U8(n) => n.to_string(),
+        Value::U16(n) => n.to_string(),
+        Value::U32(n) => n.to_string(),
+        Value::U64(n) => n.to_string(),
+        Value::U128(n) => n.to_string(),
+        Value::U256(n) => n.to_string(),
+        Value::I8(n) => n.to_string(),
+        Value::I16(n) => n.to_string(),
+        Value::I32(n) => n.to_string(),
+        Value::I64(n) => n.to_string(),
+        Value::I128(n) => n.to_string(),
+        Value::I256(n) => n.to_string(),
+        Value::Address(a) => format!("\"{}\"", a.to_standard_string()),
+        Value::String(s) => format!("{s:?}"),
+        other => format!("{}", serde_json::to_value(other).unwrap_or_default()),
     }
 }
 

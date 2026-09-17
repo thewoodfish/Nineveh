@@ -10,6 +10,10 @@
 //! - `GET  /control/v1/projects/{name}/sources`: what a rule on each source can read.
 //! - `POST /control/v1/projects/{name}/check` (`{"config": yaml}`): check a config
 //!   against the project's pinned layouts without saving it.
+//! - `POST /control/v1/projects/{name}/preview` (`{"config": yaml, "table": name}`):
+//!   the rows that table's rules would produce, folded over recent transactions.
+//! - `GET  /control/v1/projects/{name}/state/{table}`: a saved state table in the
+//!   shape the editor edits.
 //! - `GET`, `POST` (`{"label"}`) `/control/v1/projects/{name}/keys`, and `DELETE
 //!   /control/v1/projects/{name}/keys/{id}`: API keys. A new key is shown only once.
 //! - `GET /auth/github`, `GET /auth/github/callback`: signing in, in hosted mode.
@@ -64,6 +68,11 @@ pub fn router<C: Chain>(plane: Arc<ControlPlane<C>>, access: Access) -> Router {
         )
         .route("/control/v1/projects/{name}/sources", get(sources::<C>))
         .route("/control/v1/projects/{name}/check", post(check::<C>))
+        .route("/control/v1/projects/{name}/preview", post(preview::<C>))
+        .route(
+            "/control/v1/projects/{name}/state/{table}",
+            get(state_table::<C>),
+        )
         .route("/control/v1/projects/{name}/start", post(start::<C>))
         .route("/control/v1/projects/{name}/stop", post(stop::<C>))
         .route(
@@ -315,6 +324,13 @@ struct ConfigBody {
     config: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct PreviewBody {
+    config: String,
+    /// The state table to fold and show.
+    table: String,
+}
+
 async fn list<C: Chain>(
     State(server): Shared<C>,
     headers: HeaderMap,
@@ -384,6 +400,30 @@ async fn check<C: Chain>(
     let caller = server.caller(&headers).await?;
     server.plane.check(caller, &name, &body.config).await?;
     Ok(Json(json!({ "ok": true })))
+}
+
+async fn preview<C: Chain>(
+    State(server): Shared<C>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+    Json(body): Json<PreviewBody>,
+) -> Result<impl IntoResponse, ControlError> {
+    let caller = server.caller(&headers).await?;
+    Ok(Json(
+        server
+            .plane
+            .preview(caller, &name, &body.config, &body.table)
+            .await?,
+    ))
+}
+
+async fn state_table<C: Chain>(
+    State(server): Shared<C>,
+    headers: HeaderMap,
+    Path((name, table)): Path<(String, String)>,
+) -> Result<impl IntoResponse, ControlError> {
+    let caller = server.caller(&headers).await?;
+    Ok(Json(server.plane.state_table(caller, &name, &table).await?))
 }
 
 async fn start<C: Chain>(

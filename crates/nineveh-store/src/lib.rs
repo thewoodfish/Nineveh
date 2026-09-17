@@ -28,7 +28,9 @@ mod codec;
 mod error;
 mod layout;
 pub mod registry;
+mod rows;
 mod store;
 
 pub use error::StoreError;
+pub use rows::row_json;
 pub use store::{Loaded, NOTIFY_CHANNEL, Store, migrate, shadow_name};

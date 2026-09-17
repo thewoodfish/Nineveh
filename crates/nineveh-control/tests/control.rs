@@ -276,8 +276,8 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
     );
 
     // A state table is checked against the pinned layouts without saving it.
-    let with_state = |rule: &str| {
-        let mut yaml = config.clone();
+    let state_block = |rule: &str| {
+        let mut yaml = String::new();
         yaml.push_str("  depositors:\n");
         yaml.push_str("    key: [user]\n");
         yaml.push_str("    columns:\n");
@@ -288,7 +288,9 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
         writeln!(yaml, "      - {{ on: deposit_event, set: {{ {rule} }} }}").unwrap();
         yaml
     };
-    let good = with_state("deposits: \"deposits + 1\", total: \"total + u128(amount)\"");
+    let with_state = |rule: &str| format!("{config}{}", state_block(rule));
+    let depositors = "deposits: \"deposits + 1\", total: \"total + u128(amount)\"";
+    let good = with_state(depositors);
     let (status, checked) = call(
         &app,
         Method::POST,
@@ -310,6 +312,56 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
         refused["details"].as_str().unwrap().contains("nope"),
         "the editor sees where: {refused}"
     );
+    // The same table, folded over the chain's own transactions without saving it:
+    // what the editor shows before you commit to a rule.
+    let (status, preview) = call(
+        &app,
+        Method::POST,
+        &format!("/control/v1/projects/{name}/preview"),
+        Some(json!({ "config": good, "table": "depositors" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{preview}");
+    assert_eq!(
+        preview["row_count"],
+        json!(3),
+        "one row per depositor: {preview}"
+    );
+    assert_eq!(preview["reached_tip"], json!(true), "{preview}");
+    let totals: Vec<&str> = preview["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| row["total"].as_str().unwrap())
+        .collect();
+    assert_eq!(totals, ["5", "7", "1"], "the amounts deposited: {preview}");
+
+    // A rule that typechecks but can't survive real data fails here rather than
+    // halting the project after it's saved.
+    let underflow = with_state("deposits: \"deposits + 1\", total: \"total - u128(amount)\"");
+    let (status, checked) = call(
+        &app,
+        Method::POST,
+        &format!("/control/v1/projects/{name}/check"),
+        Some(json!({ "config": underflow })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "it's well typed: {checked}");
+    let (status, refused) = call(
+        &app,
+        Method::POST,
+        &format!("/control/v1/projects/{name}/preview"),
+        Some(json!({ "config": underflow, "table": "depositors" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    let error = refused["error"].as_str().unwrap();
+    assert!(
+        error.contains("overflowed"),
+        "it says what would happen: {error}"
+    );
+    assert!(error.contains("depositors"), "and where: {error}");
+
     // Checking doesn't save: the project still has its two tables.
     let (_, listed) = call(
         &app,
@@ -358,7 +410,8 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
         )
         .trim_end()
         .to_owned()
-        + "\n  vault_shares:\n    mirror: vault_shares\n";
+        + "\n  vault_shares:\n    mirror: vault_shares\n"
+        + &state_block(depositors);
     let (status, updated) = call(
         &app,
         Method::PUT,
@@ -369,6 +422,56 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
     assert_eq!(status, StatusCode::OK, "{updated}");
     wait_for_rows(&app, &name, "vault_shares", shares).await;
     wait_for_rows(&app, &name, "deposit_event", count(model.deposits)).await;
+    wait_for_rows(&app, &name, "depositors", 3).await;
+
+    // A saved table comes back in the shape the editor edits, so opening one to
+    // change it isn't a one-way trip into YAML.
+    let (status, editing) = call(
+        &app,
+        Method::GET,
+        &format!("/control/v1/projects/{name}/state/depositors"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{editing}");
+    assert_eq!(editing["kind"], json!("reduce"));
+    assert_eq!(
+        editing["columns"],
+        json!([
+            { "name": "user", "type": "address", "default": "", "nullable": false, "key": true },
+            { "name": "deposits", "type": "u64", "default": "0", "nullable": false, "key": false },
+            { "name": "total", "type": "u128", "default": "0", "nullable": false, "key": false },
+        ]),
+        "{editing}"
+    );
+    assert_eq!(
+        editing["rules"],
+        json!([{
+            "on": "deposit_event",
+            "deleted": false,
+            "when": "",
+            "keys": [],
+            "sets": [
+                { "column": "deposits", "expression": "deposits + 1" },
+                { "column": "total", "expression": "total + u128(amount)" },
+            ],
+            "removes": false,
+        }]),
+        "{editing}"
+    );
+    // A mirror or log has no rules to edit, and says so.
+    let (status, refused) = call(
+        &app,
+        Method::GET,
+        &format!("/control/v1/projects/{name}/state/deposit_event"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert!(
+        refused["error"].as_str().unwrap().contains("logs"),
+        "{refused}"
+    );
 
     // Stop and start.
     let (status, stopped) = call(
