@@ -42,6 +42,9 @@ pub enum StoreError {
     #[error("the batch ends at version {last}, which isn't after the cursor {cursor}")]
     Stale { last: Version, cursor: Version },
 
+    #[error("the OS couldn't provide randomness: {0}")]
+    Random(String),
+
     #[error("version {0} doesn't fit a Postgres bigint")]
     VersionRange(Version),
 

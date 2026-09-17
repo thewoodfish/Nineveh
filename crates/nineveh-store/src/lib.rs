@@ -30,6 +30,7 @@ mod layout;
 pub mod registry;
 mod rows;
 mod store;
+pub mod webhooks;
 
 pub use error::StoreError;
 pub use rows::row_json;

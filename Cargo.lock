@@ -1986,6 +1986,7 @@ dependencies = [
 name = "nineveh-store"
 version = "0.0.0"
 dependencies = [
+ "getrandom 0.3.4",
  "nineveh-config",
  "nineveh-core",
  "nineveh-decode",

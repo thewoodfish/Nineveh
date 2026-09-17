@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE nineveh.webhooks SET version = $2, seq = $3 WHERE schema_name = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9d231b1adbf68106939eaa113590eafbbc6a585136cc86ac94c00ced32c6ee15"
+}

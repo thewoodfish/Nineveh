@@ -19,7 +19,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use nineveh_config::{Project, parse};
 use nineveh_decode::{DecodedTransaction, LockBuilder, Lockfile};
 use nineveh_engine::{ChangeSet, Engine, FoldError, MemoryState, TableId};
-use nineveh_store::{Loaded, NOTIFY_CHANNEL, Store, StoreError};
+use nineveh_store::{Loaded, NOTIFY_CHANNEL, Store, StoreError, webhooks};
 use nineveh_testkit::vault::{self, Op};
 use proptest::prelude::*;
 use proptest::test_runner::{Config as RunnerConfig, TestRunner};
@@ -575,4 +575,73 @@ fn futures_are_send(pool: &PgPool, project: &Project, lock: &Lockfile, store: &m
     send(store.load(Vec::new()));
     send(store.scan(TableId::Handles));
     send(store.commit(&ChangeSet::default()));
+}
+
+#[tokio::test]
+async fn webhook_endpoints_keep_their_secret_and_their_place() {
+    let Some(pool) = pool().await else { return };
+    let schema = fresh_schema(&pool, "hooks").await;
+
+    // The secret is made once and kept: a receiver's signature check has to keep
+    // working across restarts and rebuilds.
+    let first = webhooks::ensure(&pool, &schema, "my_backend")
+        .await
+        .unwrap();
+    assert!(first.secret.starts_with("whsec_"), "{}", first.secret);
+    assert_eq!(first.cursor, None, "nothing delivered yet");
+    let again = webhooks::ensure(&pool, &schema, "my_backend")
+        .await
+        .unwrap();
+    assert_eq!(again.secret, first.secret);
+
+    // Two endpoints of one project don't share a secret.
+    let other = webhooks::ensure(&pool, &schema, "audit").await.unwrap();
+    assert_ne!(other.secret, first.secret);
+
+    // Failures count up until a delivery clears them.
+    assert_eq!(
+        webhooks::failed(&pool, &schema, "my_backend", "connection refused")
+            .await
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        webhooks::failed(&pool, &schema, "my_backend", "connection refused")
+            .await
+            .unwrap(),
+        2
+    );
+    webhooks::delivered(&pool, &schema, "my_backend", 1001, 3)
+        .await
+        .unwrap();
+    let after = webhooks::list(&pool, &schema).await.unwrap();
+    let mine = after.iter().find(|e| e.name == "my_backend").unwrap();
+    assert_eq!(mine.cursor, Some((1001, 3)));
+    assert_eq!(mine.failures, 0);
+    assert_eq!(mine.last_error, None);
+
+    // A rebuild's swap moves every endpoint to the new feed rather than replaying it.
+    webhooks::skip_to(&pool, &schema, Some(42), Some(0))
+        .await
+        .unwrap();
+    let moved = webhooks::list(&pool, &schema).await.unwrap();
+    assert!(moved.iter().all(|e| e.cursor == Some((42, 0))));
+
+    // Rotating replaces the secret; the cursor stays where it was.
+    let rotated = webhooks::rotate(&pool, &schema, "my_backend")
+        .await
+        .unwrap();
+    assert_ne!(rotated, first.secret);
+    let kept = webhooks::list(&pool, &schema).await.unwrap();
+    assert_eq!(kept[1].cursor, Some((42, 0)));
+
+    // An endpoint the config no longer names is forgotten.
+    webhooks::forget_others(&pool, &schema, &["my_backend".to_owned()])
+        .await
+        .unwrap();
+    let left = webhooks::list(&pool, &schema).await.unwrap();
+    assert_eq!(left.len(), 1);
+    assert_eq!(left[0].name, "my_backend");
+    webhooks::forget_others(&pool, &schema, &[]).await.unwrap();
+    assert!(webhooks::list(&pool, &schema).await.unwrap().is_empty());
 }
