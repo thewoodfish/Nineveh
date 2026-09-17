@@ -77,6 +77,29 @@ pub async fn list(pool: &PgPool, schema: &str) -> Result<Vec<Endpoint>, StoreErr
         .collect())
 }
 
+/// One endpoint, or `None` if it isn't there.
+///
+/// # Errors
+///
+/// If the database fails.
+pub async fn get(pool: &PgPool, schema: &str, name: &str) -> Result<Option<Endpoint>, StoreError> {
+    let row = sqlx::query!(
+        r#"SELECT secret, version, seq, failures, last_error FROM nineveh.webhooks
+           WHERE schema_name = $1 AND name = $2"#,
+        schema,
+        name,
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| Endpoint {
+        name: name.to_owned(),
+        secret: r.secret,
+        cursor: r.version.zip(r.seq),
+        failures: r.failures,
+        last_error: r.last_error,
+    }))
+}
+
 /// Record a delivery: the endpoint is at `(version, seq)` and healthy again.
 ///
 /// # Errors

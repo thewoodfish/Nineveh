@@ -27,6 +27,7 @@ use tracing::{error, info, warn};
 use crate::auth;
 use crate::catalog::{Catalog, catalog};
 use crate::chain::{Chain, ChainError};
+use crate::deliver::Deliveries;
 use crate::pin::{PinError, pin, retry};
 use crate::runner::{RunError, RunOptions, Runner};
 use crate::scaffold::{Draft, ScaffoldError, Start, scaffold};
@@ -309,6 +310,9 @@ struct Entry {
     router: Router,
     health: watch::Sender<Option<Health>>,
     run: Option<Run>,
+    /// The webhook senders of this project, running while it's served (ADR 0020):
+    /// a stopped pipeline still delivers what it already committed.
+    deliveries: Option<Deliveries>,
 }
 
 /// Every project this process manages.
@@ -377,15 +381,18 @@ impl<C: Chain> ControlPlane<C> {
 
     /// Stop every pipeline after its current commit.
     pub async fn shutdown(&self) {
-        let runs: Vec<Run> = self
-            .projects
-            .write()
-            .await
-            .values_mut()
-            .filter_map(|entry| entry.run.take())
-            .collect();
-        for run in runs {
+        let (runs, deliveries): (Vec<Option<Run>>, Vec<Option<Deliveries>>) = {
+            let mut projects = self.projects.write().await;
+            projects
+                .values_mut()
+                .map(|entry| (entry.run.take(), entry.deliveries.take()))
+                .collect()
+        };
+        for run in runs.into_iter().flatten() {
             stop(run).await;
+        }
+        for sender in deliveries.into_iter().flatten() {
+            sender.stop().await;
         }
     }
 
@@ -517,6 +524,7 @@ impl<C: Chain> ControlPlane<C> {
         if let Some(run) = old {
             stop(run).await;
         }
+        self.stop_deliveries(name).await;
         registry::update(&self.pool, name, text, &lock_text).await?;
         let record = self.record(name).await?;
         let mut entry = self.entry(record, Ok(Arc::new(loaded)));
@@ -573,6 +581,10 @@ impl<C: Chain> ControlPlane<C> {
         self.get_entry(caller, name, |_| ()).await?;
         if let Some(run) = self.take_run(name).await {
             stop(run).await;
+        }
+        self.stop_deliveries(name).await;
+        if let Err(error) = nineveh_store::webhooks::forget_others(&self.pool, name, &[]).await {
+            warn!(%error, project = %name, "couldn't forget the project's webhooks");
         }
         registry::delete(&self.pool, name).await?;
         self.projects.write().await.remove(name);
@@ -1004,10 +1016,24 @@ impl<C: Chain> ControlPlane<C> {
             .and_then(|e| e.run.take())
     }
 
+    /// Stop this project's webhook senders, for a config change or a delete.
+    async fn stop_deliveries(&self, name: &str) {
+        let deliveries = self
+            .projects
+            .write()
+            .await
+            .get_mut(name)
+            .and_then(|e| e.deliveries.take());
+        if let Some(deliveries) = deliveries {
+            deliveries.stop().await;
+        }
+    }
+
     /// A served project: its API and change feed over the schema of its name.
     fn entry(&self, record: registry::Registered, loaded: Result<Arc<Loaded>, String>) -> Entry {
         let name = record.name.as_str();
         let (health, _) = watch::channel(None);
+        let mut deliveries = None;
         let router = match &loaded {
             Ok(loaded) => {
                 let api = Arc::new(Api::new(
@@ -1016,7 +1042,14 @@ impl<C: Chain> ControlPlane<C> {
                     &loaded.project,
                     health.subscribe(),
                 ));
-                nineveh_api::router(api).merge(nineveh_realtime::router(self.hub.feed(name)))
+                let feed = self.hub.feed(name);
+                deliveries = Some(Deliveries::start(
+                    &self.pool,
+                    name,
+                    &loaded.project.config().webhooks,
+                    Some(&feed.wake()),
+                ));
+                nineveh_api::router(api).merge(nineveh_realtime::router(feed))
             }
             Err(_) => Router::new(),
         };
@@ -1031,6 +1064,7 @@ impl<C: Chain> ControlPlane<C> {
             router,
             health,
             run: None,
+            deliveries,
         }
     }
 

@@ -17,6 +17,9 @@ use crate::project::{Paths, load};
 /// Where to serve by default: local only, since there's no auth yet.
 pub(crate) const DEFAULT_LISTEN: &str = "127.0.0.1:4000";
 
+/// This process's webhook senders, kept for as long as it serves.
+static SENDERS: std::sync::OnceLock<nineveh_control::Deliveries> = std::sync::OnceLock::new();
+
 /// Start serving `project`'s state from `schema` in the background.
 pub(crate) async fn start(
     pool: PgPool,
@@ -31,9 +34,20 @@ pub(crate) async fn start(
         .await
         .context("creating Nineveh's tables")?;
     let api = Arc::new(Api::new(pool.clone(), schema, project, health));
-    let feed = nineveh_realtime::Feed::start(pool, schema)
+    let feed = nineveh_realtime::Feed::start(pool.clone(), schema)
         .await
         .context("listening for commits")?;
+    // Webhook senders run as long as the server does: this process serves one project
+    // until it's killed, so they're held for its lifetime (ADR 0020).
+    let hooks = &project.config().webhooks;
+    if !hooks.is_empty() {
+        let _ = SENDERS.set(nineveh_control::Deliveries::start(
+            &pool,
+            schema,
+            hooks,
+            Some(&feed.wake()),
+        ));
+    }
     // Studio runs on its own origin. The API is read-only and, by default, local.
     let app = nineveh_api::router(api)
         .merge(nineveh_realtime::router(feed))

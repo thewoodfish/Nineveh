@@ -131,6 +131,19 @@ async fn send(
         let Some(read) = read else {
             // Nothing waiting: sleep until a commit, or look again shortly.
             idle(&mut wake, &mut stopped).await;
+            // A rebuild's swap moves every endpoint onto the new build's feed
+            // (ADR 0016), so take the stored place if it isn't where we left it.
+            if let Ok(Some(stored)) = webhooks::get(&pool, &schema, &name).await
+                && let Some(moved) = stored.cursor
+                && moved != at
+            {
+                info!(
+                    schema,
+                    endpoint = name,
+                    "following the feed to its new build"
+                );
+                at = moved;
+            }
             continue;
         };
         if read.wanted.is_empty() {

@@ -191,6 +191,28 @@ impl<C: Chain> Runner<C> {
             {
                 Store::swap(&self.pool, &self.schema, &shadow).await?;
                 info!(schema = %self.schema, "swapped in the rebuild");
+                // The rebuild's outbox is a different feed. Webhook endpoints move to
+                // the end of it rather than delivering the project's history again
+                // (ADR 0020), as the change feed's own `reset` does for browsers.
+                let newest: Option<(i64, i32)> = sqlx::query_as(
+                    "SELECT version, seq FROM nineveh.changes WHERE schema_name = $1
+                     ORDER BY version DESC, seq DESC LIMIT 1",
+                )
+                .bind(&self.schema)
+                .fetch_optional(&self.pool)
+                .await
+                .ok()
+                .flatten();
+                if let Err(error) = nineveh_store::webhooks::skip_to(
+                    &self.pool,
+                    &self.schema,
+                    newest.map(|n| n.0),
+                    newest.map(|n| n.1),
+                )
+                .await
+                {
+                    warn!(%error, schema = %self.schema, "couldn't move webhooks to the rebuild");
+                }
             } else {
                 info!(%shadow, "stopped; running again resumes the rebuild");
                 return Ok(());
