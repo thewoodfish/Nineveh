@@ -29,7 +29,7 @@ mod validate;
 pub use diagnostic::{Diagnostic, Diagnostics, Span};
 pub use model::{
     Action, Api, Change, Column, ColumnType, Config, Expr, Named, Rule, Source, SourceKind,
-    StartVersion, StateTable, Subscription, TableKind, Trigger,
+    StartVersion, StateTable, Subscription, TableKind, Trigger, Webhook,
 };
 pub use resolve::{
     CompiledExpr, Input, Project, ResolvedAction, ResolvedRule, ResolvedTable, Scope, Watcher,

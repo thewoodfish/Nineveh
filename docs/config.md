@@ -30,9 +30,10 @@ state:
   deposit_log: { log: deposits }
 
 api: { rest: true, graphql: true }
-realtime:
-  - on: balances.changed
-    webhook: https://myapp.example/hooks/balance
+webhooks:
+  my_backend:
+    url: https://myapp.example/hooks/nineveh
+    on: [balances.changed]
 ```
 
 ## Top level
@@ -45,7 +46,7 @@ realtime:
 | `sources` | yes | At least one source. |
 | `state` | yes | At least one state table. |
 | `api` | no | `rest` and `graphql`, both `true` by default. |
-| `realtime` | no | Webhooks fired by state changes. |
+| `webhooks` | no | Where state changes are delivered. |
 
 **Names** of the project, sources, tables and columns are lower snake case: `a`–`z`,
 `0`–`9` and `_`, starting with a letter, at most 63 characters. Names starting with `_`
@@ -206,16 +207,36 @@ decimal strings (`"340282366920938463463374607431768211455"`). Addresses must be
 (`"0x1"`), because YAML reads an unquoted `0x1` as the number 1. Bytes are `"0x"`
 followed by hex.
 
-## `realtime`
+## `webhooks`
+
+Where Nineveh sends state changes. Each entry is a named endpoint, so several changes
+can share one URL, one secret and one delivery cursor:
 
 ```yaml
-realtime:
-  - on: balances.changed    # or .inserted, .updated, .deleted
-    webhook: https://myapp.example/hooks/balance
+webhooks:
+  my_backend:
+    url: https://myapp.example/hooks/nineveh
+    on: [balances.changed, holders.inserted]   # or .updated, .deleted
+    rows: true                                  # optional; see below
 ```
 
-Webhooks must use `https`; plain `http` is accepted only for `localhost`. Deliveries
-are signed, so URLs never carry credentials.
+| Key | Required | Meaning |
+| --- | --- | --- |
+| `url` | yes | Where deliveries go. |
+| `on` | yes | The changes it wants: `<table>.changed`, `.inserted`, `.updated` or `.deleted`. |
+| `rows` | no | Whether a delivery carries the changed row, not only its key. Default `true`. |
+
+URLs must use `https`; plain `http` is accepted only for `localhost`. Deliveries are
+signed with the endpoint's own secret, so URLs never carry credentials.
+
+`rows: false` sends only the key — "this row changed, come and look". That keeps
+deliveries small, and it's self-correcting: however they're retried or reordered, a
+fetch always returns current state. With `rows: true` (the default), compare each
+delivery's `version` and `seq` with what you've already applied, because a retry can
+arrive after a newer change.
+
+Changing a project's webhooks never rebuilds its tables: they don't shape what's
+built.
 
 ## YAML notes
 

@@ -22,7 +22,7 @@ pub(crate) struct RawConfig {
     #[serde(default)]
     pub(crate) api: Option<RawApi>,
     #[serde(default)]
-    pub(crate) realtime: Vec<Spanned<RawSubscription>>,
+    pub(crate) webhooks: Entries<Spanned<RawWebhook>>,
 }
 
 #[derive(Debug)]
@@ -98,14 +98,23 @@ pub(crate) struct RawApi {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct RawSubscription {
-    pub(crate) on: Spanned<String>,
-    pub(crate) webhook: Spanned<String>,
+pub(crate) struct RawWebhook {
+    pub(crate) url: Spanned<String>,
+    pub(crate) on: Vec<Spanned<String>>,
+    /// Whether deliveries carry the changed row, not only its key. Default: they do.
+    #[serde(default)]
+    pub(crate) rows: Option<bool>,
 }
 
 /// A YAML mapping kept in document order, with each key's location.
 #[derive(Debug)]
 pub(crate) struct Entries<V>(pub(crate) Vec<(Spanned<String>, V)>);
+
+impl<V> Default for Entries<V> {
+    fn default() -> Self {
+        Self(Vec::new())
+    }
+}
 
 impl<'de, V: Deserialize<'de>> Deserialize<'de> for Entries<V> {
     fn deserialize<D: de::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {

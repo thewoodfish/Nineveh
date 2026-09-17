@@ -6,7 +6,7 @@ use serde_saphyr::{Location, Spanned};
 use crate::diagnostic::{Diagnostic, Diagnostics, Span};
 use crate::model::{
     Action, Api, Change, Column, ColumnType, Config, Expr, Named, Rule, Source, SourceKind,
-    StartVersion, StateTable, Subscription, TableKind, Trigger,
+    StartVersion, StateTable, Subscription, TableKind, Trigger, Webhook,
 };
 use crate::raw::{
     Entries, ExprText, Literal, RawColumn, RawConfig, RawRule, RawSource, RawStart, RawTable,
@@ -55,7 +55,14 @@ fn yaml_diagnostic(e: &serde_saphyr::Error) -> Diagnostic {
     {
         message = format!("`{key}` is defined twice");
     }
-    Diagnostic::new(message, location.as_ref().and_then(Span::from_location))
+    let at = location.as_ref().and_then(Span::from_location);
+    if message.starts_with("unknown field `realtime`") {
+        return Diagnostic::new("`realtime` is now `webhooks`", at).help(
+            "webhooks are named, so several changes can share one endpoint and its secret: \
+             `webhooks: { my_backend: { url: ..., on: [balances.changed] } }`",
+        );
+    }
+    Diagnostic::new(message, at)
 }
 
 fn span(location: &Location) -> Option<Span> {
@@ -123,10 +130,11 @@ impl Validator {
         }
 
         let state = self.tables(&raw.state, &all_infos);
-        let realtime = raw
-            .realtime
+        let webhooks = raw
+            .webhooks
+            .0
             .iter()
-            .filter_map(|s| self.subscription(s, &state, &raw.state.value))
+            .filter_map(|(name, hook)| self.webhook(name, hook, &raw.state.value))
             .collect();
         let api = raw.api.map_or_else(Api::default, |a| Api {
             rest: a.rest.unwrap_or(true),
@@ -141,7 +149,7 @@ impl Validator {
             sources,
             state,
             api,
-            realtime,
+            webhooks,
         }
     }
 
@@ -763,15 +771,55 @@ impl Validator {
         })
     }
 
-    // --- realtime ----------------------------------------------------------------
+    // --- webhooks ----------------------------------------------------------------
 
+    /// One named endpoint: where deliveries go, and which changes it asks for
+    /// (ADR 0020).
+    fn webhook(
+        &mut self,
+        name: &Spanned<String>,
+        raw: &Spanned<crate::raw::RawWebhook>,
+        raw_tables: &Entries<Spanned<RawTable>>,
+    ) -> Option<Webhook> {
+        let at = span_of(name);
+        let named = self.name(&name.value, at, "webhook");
+        let url = &raw.value.url;
+        if let Err(reason) = check_webhook(&url.value) {
+            self.push(Diagnostic::new(
+                format!("invalid webhook URL `{}`: {reason}", url.value),
+                span_of(url),
+            ));
+            return None;
+        }
+        if raw.value.on.is_empty() {
+            self.push(
+                Diagnostic::new(format!("webhook `{named}` asks for nothing"), at)
+                    .help("list the changes it wants, like `on: [balances.changed]`"),
+            );
+            return None;
+        }
+        let on: Vec<Subscription> = raw
+            .value
+            .on
+            .iter()
+            .filter_map(|entry| self.subscription(entry, raw_tables))
+            .collect();
+        // An endpoint with a change nobody can deliver isn't saved at all, so the
+        // config never half-describes where state goes.
+        (on.len() == raw.value.on.len()).then(|| Webhook {
+            name: named,
+            url: url.value.clone(),
+            on,
+            rows: raw.value.rows.unwrap_or(true),
+        })
+    }
+
+    /// `<table>.changed`, `.inserted`, `.updated` or `.deleted`.
     fn subscription(
         &mut self,
-        raw: &Spanned<crate::raw::RawSubscription>,
-        tables: &[StateTable],
+        on: &Spanned<String>,
         raw_tables: &Entries<Spanned<RawTable>>,
     ) -> Option<Subscription> {
-        let on = &raw.value.on;
         let at = span_of(on);
         let Some((table, change)) = on.value.split_once('.') else {
             self.push(
@@ -796,26 +844,13 @@ impl Validator {
             );
             return None;
         };
-        let webhook = &raw.value.webhook;
-        if let Err(reason) = check_webhook(&webhook.value) {
-            self.push(Diagnostic::new(
-                format!("invalid webhook URL `{}`: {reason}", webhook.value),
-                span_of(webhook),
-            ));
-            return None;
-        }
-        // A table that failed validation has already been reported.
-        tables
-            .iter()
-            .any(|t| t.name.name == table)
-            .then(|| Subscription {
-                table: Named {
-                    name: table.to_owned(),
-                    span: at,
-                },
-                change,
-                webhook: webhook.value.clone(),
-            })
+        Some(Subscription {
+            table: Named {
+                name: table.to_owned(),
+                span: at,
+            },
+            change,
+        })
     }
 }
 

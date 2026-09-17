@@ -21,7 +21,7 @@ pub struct Config {
     pub sources: Vec<Source>,
     pub state: Vec<StateTable>,
     pub api: Api,
-    pub realtime: Vec<Subscription>,
+    pub webhooks: Vec<Webhook>,
 }
 
 impl Config {
@@ -61,7 +61,7 @@ impl Config {
     /// network, start version, sources and state tables, without spans, comments or
     /// layout. Two configs with the same canonical text build the same state from
     /// the same lock, so a state schema records a hash of it (ADR 0005). The project's
-    /// name, `api` and `realtime` don't change what's built and aren't included.
+    /// name, `api` and `webhooks` don't change what's built and aren't included.
     #[must_use]
     pub fn canonical(&self) -> String {
         use fmt::Write as _;
@@ -450,12 +450,23 @@ impl Default for Api {
     }
 }
 
-/// A webhook fired by changes to a state table.
+/// Somewhere to send state changes, and which ones (ADR 0020).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Webhook {
+    /// The endpoint's name: what its secret and its delivery cursor belong to.
+    pub name: Named,
+    pub url: String,
+    /// The changes it wants, in the order they were written.
+    pub on: Vec<Subscription>,
+    /// Whether a delivery carries the changed row, not only its key.
+    pub rows: bool,
+}
+
+/// Changes to one state table, as a webhook asks for them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subscription {
     pub table: Named,
     pub change: Change,
-    pub webhook: String,
 }
 
 /// Which row changes a subscription fires on.

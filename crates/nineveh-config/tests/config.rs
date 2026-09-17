@@ -84,9 +84,10 @@ state:
   mint_log: {{ log: mints }}
 
 api: {{ graphql: false }}
-realtime:
-  - on: holders.changed
-    webhook: https://example.com/hooks/holders
+webhooks:
+  my_backend:
+    url: https://example.com/hooks/nineveh
+    on: [holders.changed, mint_log.inserted]
 "#
     )
 }
@@ -98,7 +99,11 @@ fn a_real_project_resolves_and_decodes_its_transaction() {
     assert_eq!(config.network, Network::Mainnet);
     assert_eq!(config.start_version, StartVersion::Version(7_205_730_000));
     assert!(config.api.rest && !config.api.graphql);
-    assert_eq!(config.realtime.len(), 1);
+    assert_eq!(config.webhooks.len(), 1);
+    let hook = &config.webhooks[0];
+    assert_eq!(hook.name.as_str(), "my_backend");
+    assert_eq!(hook.on.len(), 2);
+    assert!(hook.rows, "deliveries carry the row unless asked not to");
 
     let TableKind::Reduce { columns, rules, .. } = &config.table("holders").unwrap().kind else {
         panic!("holders is a reduce table");
@@ -239,7 +244,7 @@ fn the_minimal_config_parses_with_defaults() {
     let config = parse(MINIMAL).unwrap();
     assert_eq!(config.start_version, StartVersion::Auto);
     assert!(config.api.rest && config.api.graphql);
-    assert!(config.realtime.is_empty());
+    assert!(config.webhooks.is_empty());
 }
 
 #[test]
@@ -248,7 +253,7 @@ fn typos_in_keys_are_located() {
     assert_eq!(
         render(&yaml),
         "error: unknown field `stat`, expected one of name, network, start_version, sources, \
-         state, api, realtime\n \
+         state, api, webhooks\n \
          --> nineveh.yaml:5:1\n  \
          |\n\
          5 | stat:\n  \
@@ -326,9 +331,10 @@ state:
       - { on: vaults, set: { user: \"x\", balanse: \"1\" } }
   mirrored: { mirror: deposits }
   both: { mirror: vaults, log: deposits }
-realtime:
-  - { on: balances.changed, webhook: http://example.com/hook }
-  - { on: balanses.changed, webhook: https://example.com/hook }
+webhooks:
+  insecure: { url: http://example.com/hook, on: [balances.changed] }
+  typo:     { url: https://example.com/hook, on: [balanses.changed] }
+  quiet:    { url: https://example.com/hook, on: [] }
 ";
     let got = messages(yaml);
     let expected = [
@@ -346,6 +352,7 @@ realtime:
         "invalid webhook URL `http://example.com/hook`: use https (plain http is only allowed \
          for localhost)",
         "unknown state table `balanses`",
+        "webhook `quiet` asks for nothing",
     ];
     for message in expected {
         assert!(
@@ -853,4 +860,20 @@ fn the_canonical_form_ignores_formatting_but_not_meaning() {
     // Rules do.
     let changed = yaml.replace("minted + 1", "minted + 2");
     assert_ne!(parse(&changed).unwrap().canonical(), canonical);
+}
+
+#[test]
+fn the_old_realtime_key_says_what_it_became() {
+    let yaml = format!(
+        "{MINIMAL}\nrealtime:\n  - {{ on: rows.changed, webhook: https://example.com/hook }}\n"
+    );
+    let rendered = render(&yaml);
+    assert!(
+        rendered.contains("`realtime` is now `webhooks`"),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("one endpoint and its secret"),
+        "{rendered}"
+    );
 }
