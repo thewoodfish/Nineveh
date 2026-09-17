@@ -24,7 +24,7 @@ use serde_json::{Value, json};
 
 mod common;
 
-use common::{call, chain, forget, options, pool};
+use common::{call, chain, logs, options, pool};
 
 /// Poll a project's table until it has `rows` rows.
 async fn wait_for_rows(app: &Router, name: &str, table: &str, rows: i64) {
@@ -73,9 +73,11 @@ async fn state(app: &Router, name: &str) -> Value {
 #[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::too_many_lines, reason = "one project's life, step by step")]
 async fn inspects_creates_runs_changes_and_deletes_a_project() {
-    let Some(pool) = pool().await else { return };
+    let Some(pool) = pool("control").await else {
+        return;
+    };
+    logs();
     let name = format!("ctl_{}", std::process::id());
-    forget(&pool, "ctl_").await;
 
     let ops = [
         Op::Deposit { user: 0, amount: 5 },

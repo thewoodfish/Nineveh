@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button, Card, Notice, PageHeader } from "@/components/ui";
-import { ApiError, type ColumnType, type SourceInfo, control } from "@/lib/api";
+import {
+  ApiError,
+  type ColumnType,
+  type SourceInfo,
+  type Table,
+  control,
+  getTables,
+} from "@/lib/api";
 import { useProject } from "@/lib/project";
 import {
   COLUMN_TYPES,
@@ -39,6 +46,7 @@ export default function NewStateTable() {
   const { name: project, mode, base } = useProject();
   const router = useRouter();
   const [sources, setSources] = useState<SourceInfo[] | null>(null);
+  const [existing, setExisting] = useState<Table[]>([]);
   const [config, setConfig] = useState<string | null>(null);
   const [table, setTable] = useState<StateTable | null>(null);
   const [checked, setChecked] = useState<{ ok: boolean; details?: string } | null>(null);
@@ -55,6 +63,15 @@ export default function NewStateTable() {
       .then((p) => setConfig(p.config))
       .catch(failed);
   }, [project]);
+
+  // The tables a rule can read from (ADR 0019). A project still being built has none,
+  // and that's not an error worth showing.
+  useEffect(() => {
+    if (!base) return;
+    getTables(base)
+      .then((tables) => setExisting(tables.filter((t) => t.kind !== "log")))
+      .catch(() => setExisting([]));
+  }, [base]);
 
   const yaml = useMemo(
     () => (table && config ? withTable(config, table) : null),
@@ -143,7 +160,7 @@ export default function NewStateTable() {
 
         {sources && table && (
           <>
-            <Editor sources={sources} table={table} onChange={setTable} />
+            <Editor sources={sources} existing={existing} table={table} onChange={setTable} />
             <Card className="overflow-hidden">
               <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
                 <span className="text-xs text-zinc-500">
@@ -307,10 +324,12 @@ function Template({
 /** The table's columns and rules, all editable. */
 function Editor({
   sources,
+  existing,
   table,
   onChange,
 }: {
   sources: SourceInfo[];
+  existing: Table[];
   table: StateTable;
   onChange: (table: StateTable) => void;
 }) {
@@ -428,6 +447,7 @@ function Editor({
         <RuleCard
           key={index}
           sources={sources}
+          existing={existing}
           table={table}
           rule={rule}
           onChange={(changes) => setRule(index, changes)}
@@ -452,12 +472,14 @@ function Editor({
 
 function RuleCard({
   sources,
+  existing,
   table,
   rule,
   onChange,
   onRemove,
 }: {
   sources: SourceInfo[];
+  existing: Table[];
   table: StateTable;
   rule: Rule;
   onChange: (changes: Partial<Rule>) => void;
@@ -527,6 +549,21 @@ function RuleCard({
         <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono dark:bg-zinc-800">tx.timestamp</span>
         <span>and the row&apos;s own columns.</span>
       </div>
+
+      {existing.length > 0 && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+          And a row of another table, which is null when there isn&apos;t one:
+          {existing.map((t) => (
+            <span
+              key={t.name}
+              title={t.columns.map((c) => c.name).join(", ")}
+              className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono dark:bg-zinc-800"
+            >
+              {t.name}[{t.key.join(", ")}].column
+            </span>
+          ))}
+        </div>
+      )}
 
       {unnamed.length > 0 && (
         <p className="mt-2 text-xs text-amber-600">

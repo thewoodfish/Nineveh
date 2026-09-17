@@ -26,7 +26,7 @@ use nineveh_proto::transaction::Transaction;
 use nineveh_testkit::vault::{self, Model, Op};
 use serde_json::Value;
 use sqlx::PgPool;
-use sqlx::postgres::PgPoolOptions;
+use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use tower::ServiceExt as _;
 
 /// The vault contract on a chain that holds exactly `transactions`.
@@ -131,7 +131,7 @@ impl BatchStream for ReplayStream {
     }
 }
 
-pub async fn pool() -> Option<PgPool> {
+pub async fn pool(test: &str) -> Option<PgPool> {
     let Ok(url) = std::env::var("NINEVEH_TEST_DATABASE_URL") else {
         assert!(
             std::env::var_os("CI").is_none(),
@@ -140,13 +140,45 @@ pub async fn pool() -> Option<PgPool> {
         eprintln!("skipping: set NINEVEH_TEST_DATABASE_URL to run the control plane's tests");
         return None;
     };
-    Some(
-        PgPoolOptions::new()
-            .max_connections(8)
-            .connect(&url)
-            .await
-            .unwrap(),
-    )
+    // A database of this test's own. A control plane runs every project in its
+    // database's registry (ADR 0017), which is right in production and wrong here:
+    // two planes sharing a database would each adopt the other's projects and fight
+    // over the same schemas. It also keeps tests off a developer's own projects.
+    let options: PgConnectOptions = url.parse().unwrap();
+    let database = format!("nineveh_test_{test}");
+    let server = PgPoolOptions::new()
+        .max_connections(1)
+        .connect_with(options.clone())
+        .await
+        .unwrap();
+    for statement in [
+        format!("DROP DATABASE IF EXISTS \"{database}\" WITH (FORCE)"),
+        format!("CREATE DATABASE \"{database}\""),
+    ] {
+        sqlx::query(&statement).execute(&server).await.unwrap();
+    }
+    server.close().await;
+    let pool = PgPoolOptions::new()
+        .max_connections(8)
+        .connect_with(options.database(&database))
+        .await
+        .unwrap();
+    nineveh_store::migrate(&pool).await.unwrap();
+    Some(pool)
+}
+
+/// Print what the plane and its pipelines do, so a test that fails in CI says why
+/// rather than only what it saw. `RUST_LOG` overrides the default.
+pub fn logs() {
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        tracing_subscriber::EnvFilter::new(
+            "nineveh_control=debug,nineveh_pipeline=debug,nineveh_store=debug",
+        )
+    });
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_test_writer()
+        .try_init();
 }
 
 /// A request to `app` with an optional bearer token, and its JSON answer.
@@ -204,17 +236,5 @@ pub fn options() -> RunOptions {
     RunOptions {
         streams: 1,
         ..RunOptions::default()
-    }
-}
-
-/// Delete projects earlier, failed runs left registered under `prefix`: a control
-/// plane starts everything in the registry.
-pub async fn forget(pool: &PgPool, prefix: &str) {
-    for stale in nineveh_store::registry::list(pool).await.unwrap() {
-        if stale.name.starts_with(prefix) {
-            nineveh_store::registry::delete(pool, &stale.name)
-                .await
-                .unwrap();
-        }
     }
 }

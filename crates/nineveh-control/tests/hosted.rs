@@ -23,7 +23,7 @@ use serde_json::{Value, json};
 
 mod common;
 
-use common::{call, call_as, chain, forget, options, pool};
+use common::{call, call_as, chain, logs, options, pool};
 
 const STUDIO: &str = "https://studio.example";
 
@@ -133,8 +133,10 @@ fn names(projects: &Value) -> Vec<String> {
 #[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::too_many_lines, reason = "two accounts' lives, step by step")]
 async fn accounts_reach_only_their_projects_and_keys_reach_one_project() {
-    let Some(pool) = pool().await else { return };
-    forget(&pool, "hst_").await;
+    logs();
+    let Some(pool) = pool("hosted_accounts").await else {
+        return;
+    };
     let (chain, _) = chain(&[
         Op::Deposit { user: 0, amount: 5 },
         Op::Deposit { user: 1, amount: 7 },
@@ -335,12 +337,14 @@ async fn accounts_reach_only_their_projects_and_keys_reach_one_project() {
         assert_eq!(status, StatusCode::NO_CONTENT);
     }
     plane.shutdown().await;
-    forget(&pool, "hst_").await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn local_mode_needs_no_sign_in() {
-    let Some(pool) = pool().await else { return };
+    logs();
+    let Some(pool) = pool("hosted_local").await else {
+        return;
+    };
     let (chain, _) = chain(&[]);
     let plane = ControlPlane::start(chain, pool.clone(), options())
         .await
