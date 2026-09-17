@@ -32,7 +32,7 @@ pub struct ColumnVar {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TableVar {
     pub name: String,
-    /// The table's index in the project's state, passed to [`Tables::row`].
+    /// The table's index in the project's state, passed to [`crate::Tables::row`].
     pub index: u32,
     /// The key columns, in key order.
     pub key: Vec<TableColumn>,
