@@ -8,6 +8,7 @@ use std::cmp::Ordering;
 
 use nineveh_core::{Address, Identifier, TypeTag, Value};
 
+use crate::check::Cell;
 use crate::error::{EvalError, EvalErrorKind, Span};
 use crate::num::{Int, IntError};
 use crate::syntax::BinOp;
@@ -29,6 +30,25 @@ pub struct Tx {
     pub timestamp_micros: u64,
 }
 
+/// The project's other state tables, read a row at a time by `table[key].column`.
+///
+/// Reads are of committed state plus what the fold has already changed, so they're
+/// deterministic and replay the same way (ADR 0019).
+pub trait Tables {
+    /// The stored row of state table `table` at `key`, or `None` if there is none.
+    fn row(&self, table: u32, key: &[Value]) -> Option<Vec<Value>>;
+}
+
+/// No tables to read: every lookup finds nothing.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoTables;
+
+impl Tables for NoTables {
+    fn row(&self, _table: u32, _key: &[Value]) -> Option<Vec<Value>> {
+        None
+    }
+}
+
 /// The values an expression reads, in the order of its [`Env`](crate::Env).
 #[derive(Debug, Clone, Copy)]
 pub struct Inputs<'a> {
@@ -38,6 +58,14 @@ pub struct Inputs<'a> {
     /// The record's field values, one per record field.
     pub record: &'a [Value],
     pub tx: Tx,
+    /// The other state tables, for `table[key].column`.
+    pub tables: &'a dyn Tables,
+}
+
+impl std::fmt::Debug for &dyn Tables {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Tables")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,6 +82,15 @@ pub(crate) enum Node {
         base: Box<Node>,
         name: Identifier,
         flatten: Option<TypeTag>,
+    },
+    /// `table[key].column`: the column's value in another table's row, `None` when
+    /// that row isn't there or the column has no value in it.
+    Lookup {
+        table: u32,
+        key: Vec<Node>,
+        cell: Cell,
+        /// Read an `Object<T>` stored in the column as its address, as the API does.
+        address: bool,
     },
     TxVersion,
     TxTimestamp,
@@ -126,6 +163,12 @@ fn eval(node: &Node, inputs: &Inputs<'_>) -> Result<Value, EvalError> {
                 None => value.clone(),
             }
         }
+        Node::Lookup {
+            table,
+            key,
+            cell,
+            address,
+        } => lookup(*table, key, cell, *address, inputs)?,
         Node::TxVersion => Value::U64(inputs.tx.version),
         Node::TxTimestamp => Value::U64(inputs.tx.timestamp_micros),
         Node::Not(operand) => Value::Bool(!bool_of(&eval(operand, inputs)?)),
@@ -189,6 +232,48 @@ fn eval(node: &Node, inputs: &Inputs<'_>) -> Result<Value, EvalError> {
     })
 }
 
+/// `table[key].column`: the column's value in another table's row, as an option,
+/// since neither the row nor the value in it need be there.
+fn lookup(
+    table: u32,
+    key: &[Node],
+    cell: &Cell,
+    address: bool,
+    inputs: &Inputs<'_>,
+) -> Result<Value, EvalError> {
+    let mut values = Vec::with_capacity(key.len());
+    for part in key {
+        values.push(eval(part, inputs)?);
+    }
+    let found = inputs
+        .tables
+        .row(table, &values)
+        .and_then(|row| read_cell(&row, cell));
+    let found = match found {
+        Some(value) if address => Some(object_address(value)),
+        found => found,
+    };
+    Ok(match found {
+        // A column that's an option already carries its own absence.
+        Some(option @ Value::Option(_)) => option,
+        Some(value) => Value::Option(Some(Box::new(value))),
+        None => Value::Option(None),
+    })
+}
+
+/// A column's value in a stored row, or `None` when the row has none there: an enum
+/// field a variant doesn't declare, or a row shorter than the table's layout.
+fn read_cell(row: &[Value], cell: &Cell) -> Option<Value> {
+    match cell {
+        Cell::At(i) => row.get(*i).cloned(),
+        Cell::Field(i, name) => row.get(*i)?.field(name.as_str()).cloned(),
+        Cell::Variant(i) => match row.get(*i)? {
+            Value::Variant { name, .. } => Some(Value::String(name.to_string())),
+            _ => None,
+        },
+    }
+}
+
 fn arith(
     op: BinOp,
     ty: IntType,
@@ -234,6 +319,20 @@ fn int_of(value: &Value) -> Int {
 
 fn bool_of(value: &Value) -> bool {
     matches!(value, Value::Bool(true))
+}
+
+/// An `Object<T>` as its address; anything else unchanged. Storage reads object
+/// columns this way (ADR 0008), so a lookup of one matches what the API serves.
+fn object_address(value: Value) -> Value {
+    match &value {
+        Value::Struct(fields) => match fields.as_slice() {
+            [(name, Value::Address(address))] if name.as_str() == "inner" => {
+                Value::Address(*address)
+            }
+            _ => value,
+        },
+        _ => value,
+    }
 }
 
 /// Convert the `Object<T>` values inside `value` (of Move type `tag`) to addresses.

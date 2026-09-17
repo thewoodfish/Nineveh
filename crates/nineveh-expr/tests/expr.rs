@@ -8,7 +8,10 @@
 )]
 
 use nineveh_core::{Address, I256, Identifier, StructTag, TypeTag, U256, Value};
-use nineveh_expr::{ColumnVar, Env, EvalErrorKind, Inputs, IntType, Structs, Tx, Type, compile};
+use nineveh_expr::{
+    Cell, ColumnVar, Env, EvalErrorKind, Inputs, IntType, NoTables, Structs, TableColumn, TableVar,
+    Tables, Tx, Type, compile,
+};
 use proptest::prelude::*;
 
 /// A `Position` struct with an `Object<Market>` field, for field access and flattening.
@@ -94,6 +97,7 @@ fn run(text: &str, target: &Type) -> Result<Value, String> {
         columns: &columns,
         record: &record,
         source: "deposits",
+        tables: &[],
         structs: &Layouts,
     };
     let compiled = compile(text, &env, target).map_err(|e| format!("compile: {}", e.message))?;
@@ -106,6 +110,7 @@ fn run(text: &str, target: &Type) -> Result<Value, String> {
             version: 42,
             timestamp_micros: 1_700_000_000_000_000,
         },
+        tables: &NoTables,
     };
     compiled.eval(&inputs).map_err(|e| format!("eval: {e}"))
 }
@@ -216,6 +221,7 @@ fn runtime_errors_are_located_and_deterministic() {
             columns: &columns,
             record: &record,
             source: "deposits",
+            tables: &[],
             structs: &Layouts,
         };
         let compiled = compile(text, &env, &target).unwrap();
@@ -224,6 +230,7 @@ fn runtime_errors_are_located_and_deterministic() {
             row: &row,
             record: &rec,
             tx: Tx::default(),
+            tables: &NoTables,
         };
         let err = compiled.eval(&inputs).unwrap_err();
         assert_eq!(err.to_string(), message, "{text}");
@@ -302,6 +309,7 @@ fn integer_conversions_are_explicit() {
         columns: &columns,
         record: &record,
         source: "deposits",
+        tables: &[],
         structs: &Layouts,
     };
     let e = compile("deposits.amount", &env, &U128).unwrap_err();
@@ -349,6 +357,7 @@ fn arith(op: &str, a: &str, b: &str, ty: IntType) -> Option<String> {
         columns: &empty_cols,
         record: &empty_rec,
         source: "s",
+        tables: &[],
         structs: &Layouts,
     };
     let compiled = compile(&text, &env, &target).unwrap_or_else(|e| panic!("{text}: {e}"));
@@ -356,6 +365,7 @@ fn arith(op: &str, a: &str, b: &str, ty: IntType) -> Option<String> {
         row: &[],
         record: &[],
         tx: Tx::default(),
+        tables: &NoTables,
     };
     match compiled.eval(&inputs) {
         Ok(value) => Some(serde_json_free(&value)),
@@ -435,11 +445,190 @@ proptest! {
         let text = format!("i64(i256({a}i64))");
         let empty_cols: Vec<ColumnVar> = Vec::new();
         let empty_rec: Vec<(Identifier, TypeTag)> = Vec::new();
-        let env = Env { columns: &empty_cols, record: &empty_rec, source: "s", structs: &Layouts };
+        let env = Env { columns: &empty_cols, record: &empty_rec, source: "s", tables: &[], structs: &Layouts };
         let compiled = compile(&text, &env, &I64).unwrap();
-        let inputs = Inputs { row: &[], record: &[], tx: Tx::default() };
+        let inputs = Inputs { row: &[], record: &[], tx: Tx::default(), tables: &NoTables };
         prop_assert_eq!(compiled.eval(&inputs).unwrap(), Value::I64(a));
         let to_u64 = compile(&format!("u64({a}i64)"), &env, &U64).unwrap().eval(&inputs);
         prop_assert_eq!(to_u64.is_ok(), a >= 0);
+    }
+}
+
+// --- reading other tables --------------------------------------------------------
+
+/// Two tables a rule can read: `holders`, keyed by address with plain columns, and
+/// `vaults`, a mirror whose stored row holds the whole struct.
+fn tables() -> Vec<TableVar> {
+    let column = |name: &str, ty: Type, cell| TableColumn {
+        name: name.into(),
+        ty,
+        cell,
+    };
+    let holders = TableVar {
+        name: "holders".into(),
+        index: 0,
+        key: vec![column("user", Type::Address, Cell::At(0))],
+        columns: vec![
+            column("user", Type::Address, Cell::At(0)),
+            column("balance", Type::Int(IntType::U128), Cell::At(1)),
+            column("note", Type::String, Cell::At(2)),
+        ],
+        readable: true,
+    };
+    let vaults = TableVar {
+        name: "vaults".into(),
+        index: 1,
+        key: vec![column("address", Type::Address, Cell::At(0))],
+        columns: vec![
+            column("address", Type::Address, Cell::At(0)),
+            column("size", Type::Int(IntType::U64), Cell::Field(1, id("size"))),
+            column("market", Type::Address, Cell::Field(1, id("market"))),
+        ],
+        readable: true,
+    };
+    let history = TableVar {
+        name: "history".into(),
+        index: 2,
+        key: vec![column("version", Type::Int(IntType::U64), Cell::At(0))],
+        columns: vec![column("version", Type::Int(IntType::U64), Cell::At(0))],
+        readable: false,
+    };
+    vec![holders, vaults, history]
+}
+
+/// `holders` has one row, for address 7; `vaults` has one, holding a `Position`.
+struct Rows;
+
+impl Tables for Rows {
+    fn row(&self, table: u32, key: &[Value]) -> Option<Vec<Value>> {
+        let seven = [Value::Address(Address::special(7))];
+        match (table, key == seven) {
+            (0, true) => Some(vec![
+                Value::Address(Address::special(7)),
+                Value::U128(250),
+                Value::Option(None),
+            ]),
+            (1, true) => Some(vec![
+                Value::Address(Address::special(7)),
+                Value::Struct(vec![
+                    (id("size"), Value::U64(5)),
+                    (
+                        id("market"),
+                        Value::Struct(vec![(id("inner"), Value::Address(Address::special(0xb)))]),
+                    ),
+                ]),
+            ]),
+            _ => None,
+        }
+    }
+}
+
+fn read(text: &str, target: &Type) -> Result<Value, String> {
+    let (columns, record, tables) = (columns(), record(), tables());
+    let env = Env {
+        columns: &columns,
+        record: &record,
+        source: "deposits",
+        tables: &tables,
+        structs: &Layouts,
+    };
+    let compiled = compile(text, &env, target).map_err(|e| {
+        format!(
+            "compile: {}{}",
+            e.message,
+            e.help.map(|h| format!(" [{h}]")).unwrap_or_default()
+        )
+    })?;
+    let (row, rec) = (row_values(), record_values());
+    compiled
+        .eval(&Inputs {
+            row: &row,
+            record: &rec,
+            tx: Tx::default(),
+            tables: &Rows,
+        })
+        .map_err(|e| format!("eval: {e}"))
+}
+
+#[test]
+fn a_rule_reads_other_tables_by_key() {
+    let some = |v: Value| Value::Option(Some(Box::new(v)));
+    // `owner` is address 7, the row both tables hold.
+    assert_eq!(
+        read("holders[owner].balance", &Type::Option(Box::new(U128))),
+        Ok(some(Value::U128(250)))
+    );
+    // A row that isn't there reads as null, so `unwrap_or` gives a total answer.
+    assert_eq!(
+        read("unwrap_or(holders[@0x9].balance, 0)", &U128),
+        Ok(Value::U128(0))
+    );
+    assert_eq!(
+        read("is_some(holders[@0x9].user)", &BOOL),
+        Ok(Value::Bool(false))
+    );
+    assert_eq!(
+        read("is_some(holders[owner].user)", &BOOL),
+        Ok(Value::Bool(true))
+    );
+    // A null column reads as null, like a missing row.
+    assert_eq!(
+        read("is_none(holders[owner].note)", &BOOL),
+        Ok(Value::Bool(true))
+    );
+    // A mirror's columns are fields of the struct its row holds, and an `Object<T>`
+    // reads as its address, as the API serves it.
+    assert_eq!(
+        read("unwrap_or(vaults[owner].size, 0) + deposits.amount", &U64),
+        Ok(Value::U64(45))
+    );
+    assert_eq!(
+        read("unwrap_or(vaults[owner].market, @0x0) == @0xb", &BOOL),
+        Ok(Value::Bool(true))
+    );
+    // Lookups compose: a key can be anything, including another lookup.
+    assert_eq!(
+        read(
+            "unwrap_or(holders[unwrap_or(vaults[owner].address, @0x0)].balance, 0)",
+            &U128
+        ),
+        Ok(Value::U128(250))
+    );
+}
+
+#[test]
+fn table_reads_say_what_is_wrong() {
+    let cases = [
+        (
+            "holders[owner].blance",
+            "compile: `holders` has no column `blance` [did you mean `balance`?]",
+        ),
+        (
+            "holders[owner, 1].balance",
+            "compile: `holders` is keyed by 1 column, got 2 [write `holders[user]`]",
+        ),
+        ("holders[1].balance", "compile: expected address, found u64"),
+        (
+            "holders.balance",
+            "compile: unknown name `holders` [`holders` is a table; read a row of it, like \
+             `holders[user].x`]",
+        ),
+        (
+            "unwrap_or(holders[owner], 0)",
+            "compile: a row of `holders` isn't a value on its own [read one of its columns, like \
+             `holders[...].x`]",
+        ),
+        (
+            "unwrap_or(history[1].version, 0)",
+            "compile: `history` is a log table, so it has no rows to look up [logs are \
+             append-only history; look up a state or mirror table]",
+        ),
+        (
+            "holder[owner].balance",
+            "compile: unknown table `holder` [did you mean `holders`?]",
+        ),
+    ];
+    for (text, message) in cases {
+        assert_eq!(read(text, &U128).unwrap_err(), message, "{text}");
     }
 }

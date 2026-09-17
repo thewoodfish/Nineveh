@@ -1,5 +1,6 @@
 //! The fold: `StateView × [DecodedTransaction] → ChangeSet` (ADR 0005).
 
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use nineveh_config::{
@@ -7,7 +8,7 @@ use nineveh_config::{
 };
 use nineveh_core::{Address, Value, Version};
 use nineveh_decode::{Container, DecodedTransaction, Origin, RecordData, SourceId, TypeMatcher};
-use nineveh_expr::{Inputs, Tx};
+use nineveh_expr::{Inputs, Tables, Tx};
 
 use crate::containers::{bucket_entries, decode_entries, encode_entries, handle_in};
 use crate::error::{FoldError, Halt};
@@ -95,7 +96,7 @@ impl<'p> Engine<'p> {
             view,
             overlay: BTreeMap::new(),
             changes: Vec::new(),
-            missing: BTreeSet::new(),
+            missing: RefCell::new(BTreeSet::new()),
         };
         let mut result = Ok(());
         for tx in batch {
@@ -105,8 +106,9 @@ impl<'p> Engine<'p> {
             }
         }
         // A missing key makes everything after it suspect, a halt included.
-        if !fold.missing.is_empty() {
-            return Err(FoldError::NotLoaded(fold.missing.into_iter().collect()));
+        let missing = fold.missing.into_inner();
+        if !missing.is_empty() {
+            return Err(FoldError::NotLoaded(missing.into_iter().collect()));
         }
         result.map_err(|halt| FoldError::Halt(Box::new(halt)))?;
         Ok(ChangeSet {
@@ -117,12 +119,22 @@ impl<'p> Engine<'p> {
     }
 }
 
+/// What `table[key].column` reads: committed state with the batch's changes so far
+/// on top, so a rule sees everything that happened before it (ADR 0019).
+impl Tables for Fold<'_, '_, '_> {
+    fn row(&self, table: u32, key: &[Value]) -> Option<Row> {
+        self.get(TableId::State(table), key)
+    }
+}
+
 struct Fold<'e, 'p, 'v> {
     engine: &'e Engine<'p>,
     view: &'v dyn StateView,
     overlay: BTreeMap<(TableId, Key), Option<Row>>,
     changes: Vec<RowChange>,
-    missing: BTreeSet<(TableId, Key)>,
+    /// Keys the view didn't hold. Recorded through a shared reference because
+    /// expressions read state while a rule is being applied.
+    missing: RefCell<BTreeSet<(TableId, Key)>>,
 }
 
 /// Where a record's fields come from, for building rule inputs. A struct field
@@ -165,7 +177,7 @@ type PendingBuckets =
     BTreeMap<(SourceId, Address), (At, BTreeMap<u64, Option<Vec<(Value, Value)>>>)>;
 
 impl Fold<'_, '_, '_> {
-    fn get(&mut self, table: TableId, key: &[Value]) -> Option<Row> {
+    fn get(&self, table: TableId, key: &[Value]) -> Option<Row> {
         if let Some(row) = self.overlay.get(&(table, key.to_vec())) {
             return row.clone();
         }
@@ -173,7 +185,7 @@ impl Fold<'_, '_, '_> {
             Lookup::Present(row) => Some(row),
             Lookup::Absent => None,
             Lookup::NotLoaded => {
-                self.missing.insert((table, key.to_vec()));
+                self.missing.borrow_mut().insert((table, key.to_vec()));
                 None
             }
         }
@@ -256,7 +268,7 @@ impl Fold<'_, '_, '_> {
         }
     }
 
-    fn attributed(&mut self, source: SourceId, handle: Address) -> bool {
+    fn attributed(&self, source: SourceId, handle: Address) -> bool {
         let key = vec![Value::Address(handle), source_value(source)];
         self.get(TableId::Handles, &key).is_some()
     }
@@ -550,6 +562,7 @@ impl Fold<'_, '_, '_> {
                     row,
                     record: &inputs_record,
                     tx: at.tx,
+                    tables: self,
                 })
                 .map_err(|e| {
                     halt(

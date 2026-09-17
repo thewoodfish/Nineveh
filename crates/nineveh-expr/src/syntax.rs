@@ -11,7 +11,7 @@
 //! + -
 //! * / %
 //! ! -                  (prefix)
-//! .field  f(args)      (postfix)
+//! .field  f(args)  t[key]   (postfix)
 //! ```
 
 use nineveh_core::{Address, U256};
@@ -43,6 +43,9 @@ pub(crate) enum ExprKind {
     Null,
     Name(String),
     Field(Box<Expr>, String, Span),
+    /// `table[key, ...]`: a row of another state table. Only a `.column` of one is a
+    /// value, so the checker handles it under [`ExprKind::Field`].
+    Index(Box<Expr>, Vec<Expr>, Span),
     Unary(UnOp, Box<Expr>),
     Binary(BinOp, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
@@ -126,6 +129,8 @@ enum Tok {
     Bang,
     LParen,
     RParen,
+    LBracket,
+    RBracket,
     Comma,
     Dot,
     Eof,
@@ -147,6 +152,8 @@ fn describe(tok: &Tok) -> String {
         Tok::Bang => "`!`".into(),
         Tok::LParen => "`(`".into(),
         Tok::RParen => "`)`".into(),
+        Tok::LBracket => "`[`".into(),
+        Tok::RBracket => "`]`".into(),
         Tok::Comma => "`,`".into(),
         Tok::Dot => "`.`".into(),
         Tok::Eof => "the end of the expression".into(),
@@ -198,6 +205,8 @@ fn lex(text: &str) -> Result<Vec<(Tok, Span)>, ExprError> {
                     b'!' => (Tok::Bang, 1),
                     b'(' => (Tok::LParen, 1),
                     b')' => (Tok::RParen, 1),
+                    b'[' => (Tok::LBracket, 1),
+                    b']' => (Tok::RBracket, 1),
                     b',' => (Tok::Comma, 1),
                     b'.' => (Tok::Dot, 1),
                     b'=' => {
@@ -493,7 +502,7 @@ impl Parser {
                 ));
             }
         };
-        self.postfix(expr)
+        self.postfix(expr, depth)
     }
 
     fn if_expr(&mut self, span: Span, depth: usize) -> Result<Expr, ExprError> {
@@ -528,23 +537,47 @@ impl Parser {
         })
     }
 
-    fn postfix(&mut self, mut expr: Expr) -> Result<Expr, ExprError> {
-        while *self.peek() == Tok::Dot {
-            self.bump();
-            let (tok, span) = self.bump();
-            let Tok::Ident(field) = tok else {
-                return Err(ExprError::new(
-                    format!("expected a field name after `.`, found {}", describe(&tok)),
-                    span,
-                ));
-            };
-            let whole = expr.span.to(span);
-            expr = Expr {
-                kind: ExprKind::Field(Box::new(expr), field, span),
-                span: whole,
-            };
+    fn postfix(&mut self, mut expr: Expr, depth: usize) -> Result<Expr, ExprError> {
+        loop {
+            match self.peek() {
+                Tok::Dot => {
+                    self.bump();
+                    let (tok, span) = self.bump();
+                    let Tok::Ident(field) = tok else {
+                        return Err(ExprError::new(
+                            format!("expected a field name after `.`, found {}", describe(&tok)),
+                            span,
+                        ));
+                    };
+                    let whole = expr.span.to(span);
+                    expr = Expr {
+                        kind: ExprKind::Field(Box::new(expr), field, span),
+                        span: whole,
+                    };
+                }
+                Tok::LBracket => {
+                    let open = self.bump().1;
+                    let mut keys = Vec::new();
+                    if *self.peek() != Tok::RBracket {
+                        loop {
+                            keys.push(self.expr(0, depth + 1)?);
+                            if *self.peek() == Tok::Comma {
+                                self.bump();
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    let close = self.expect(&Tok::RBracket, "`,` or `]`")?;
+                    let whole = expr.span.to(close);
+                    expr = Expr {
+                        kind: ExprKind::Index(Box::new(expr), keys, open.to(close)),
+                        span: whole,
+                    };
+                }
+                _ => return Ok(expr),
+            }
         }
-        Ok(expr)
     }
 }
 
@@ -569,6 +602,11 @@ mod tests {
             ExprKind::Null => "null".into(),
             ExprKind::Name(n) => n.clone(),
             ExprKind::Field(e, f, _) => format!("{}.{f}", shape(e)),
+            ExprKind::Index(e, keys, _) => format!(
+                "{}[{}]",
+                shape(e),
+                keys.iter().map(shape).collect::<Vec<_>>().join(", ")
+            ),
             ExprKind::Unary(UnOp::Not, e) => format!("!{}", shape(e)),
             ExprKind::Unary(UnOp::Neg, e) => format!("-{}", shape(e)),
             ExprKind::Binary(op, a, b) => format!("({} {} {})", shape(a), op.symbol(), shape(b)),

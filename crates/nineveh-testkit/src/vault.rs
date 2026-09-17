@@ -55,6 +55,17 @@ state:
     columns: { user: address, n: { type: u64, default: 0 } }
     reduce:
       - { on: shares, key: { user: "key" }, set: { n: "n + 1" } }
+  deposit_sizes:
+    key: [user]
+    columns:
+      user: address
+      size_at_deposit: { type: u64, default: 0 }
+      vault_owner: { type: address, nullable: true }
+    reduce:
+      - on: deposits
+        set:
+          size_at_deposit: "unwrap_or(sizes[deposits.user].size, 0)"
+          vault_owner: "vaults[@0x3000].owner"
 "#;
 
 /// ABIs in the fullnode REST shape: the vault module plus the framework structs its
@@ -205,6 +216,9 @@ pub struct Model {
     pub shares: BTreeMap<u8, BTreeMap<u8, (u8, u64)>>,
     pub share_writes: BTreeMap<Address, u64>,
     pub sizes: BTreeMap<Address, u32>,
+    /// Per user, what `sizes` and vault 0's mirror held when they last deposited:
+    /// what a rule that reads other tables must have seen (ADR 0019).
+    pub deposit_sizes: BTreeMap<Address, (u32, Option<Address>)>,
     pub deposits: usize,
 }
 
@@ -224,6 +238,10 @@ pub fn transactions(ops: &[Op]) -> (Vec<Transaction>, Model) {
                 entry.0 += u128::from(amount);
                 entry.1 += 1;
                 model.deposits += 1;
+                // Every vault resource is written with the same owner; see `vault_write`.
+                let owner = model.vaults.contains(&0).then(|| Address::special(1));
+                let size = model.sizes.get(&user(u)).copied().unwrap_or(0);
+                model.deposit_sizes.insert(user(u), (size, owner));
                 events.push(event("DepositEvent", u, amount));
             }
             Op::Withdraw { user: u, amount } => {
@@ -542,6 +560,28 @@ impl Model {
         assert_eq!(
             share_writes, model.share_writes,
             "share writes: bucket moves must not count as writes"
+        );
+
+        let deposit_sizes: BTreeMap<Address, (u32, Option<Address>)> = rows(7)
+            .into_iter()
+            .map(|(_, r)| match r.as_slice() {
+                [Value::Address(u), Value::U64(size), owner] => {
+                    let owner = match owner {
+                        Value::Option(Some(inner)) => match **inner {
+                            Value::Address(a) => Some(a),
+                            _ => panic!("unexpected vault owner {inner:?}"),
+                        },
+                        Value::Option(None) => None,
+                        other => panic!("unexpected vault owner {other:?}"),
+                    };
+                    (*u, (u32::try_from(*size).unwrap(), owner))
+                }
+                other => panic!("unexpected deposit_sizes row {other:?}"),
+            })
+            .collect();
+        assert_eq!(
+            deposit_sizes, model.deposit_sizes,
+            "deposit sizes: what the other tables held when each deposit arrived"
         );
     }
 }

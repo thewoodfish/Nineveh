@@ -179,6 +179,10 @@ record:
 For a Move enum (versioned layouts like `V1`/`V2`), a rule can read the fields every
 variant has with the same type.
 
+A rule can also read any other `reduce` or `mirror` table a row at a time, by key:
+`markets[market].fee_bps` is that row's `fee_bps`, or `null` if there's no such row.
+See [reading another table](expressions.md#reading-another-table).
+
 Expressions are typed, exact integer arithmetic up to 256 bits, with no floating point.
 The full language is in [expressions.md](expressions.md). Quote expressions when they
 contain YAML punctuation: `"balance + amount"`.

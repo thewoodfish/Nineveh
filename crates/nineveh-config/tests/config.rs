@@ -17,7 +17,7 @@ use nineveh_config::{
 };
 use nineveh_core::{Address, Network, Value};
 use nineveh_decode::{LockBuilder, Lockfile, ModuleAbi, RecordData, TransactionDecoder};
-use nineveh_expr::{Inputs, Tx};
+use nineveh_expr::{Inputs, NoTables, Tx};
 use nineveh_proto::transaction::Transaction;
 use prost::Message;
 
@@ -165,6 +165,7 @@ fn a_real_project_resolves_and_decodes_its_transaction() {
             version: decoded.version.get(),
             timestamp_micros: decoded.timestamp_micros,
         },
+        tables: &NoTables,
     };
     let key = rule.key[0].1.compiled.eval(&inputs).unwrap();
     assert_eq!(&key, event.field("soul_bound_to").unwrap());

@@ -117,7 +117,8 @@ async fn serves_state_tables_in_the_feeds_shape() {
             "shares",
             "deposit_log",
             "sizes",
-            "share_writes"
+            "share_writes",
+            "deposit_sizes"
         ]
     );
     assert_eq!(

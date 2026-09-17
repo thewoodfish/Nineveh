@@ -23,7 +23,7 @@ mod num;
 mod syntax;
 mod types;
 
-pub use check::{ColumnVar, Env, Structs, compile};
+pub use check::{Cell, ColumnVar, Env, Structs, TableColumn, TableVar, compile};
 pub use error::{EvalError, EvalErrorKind, ExprError, Span};
-pub use eval::{Compiled, Inputs, Tx};
+pub use eval::{Compiled, Inputs, NoTables, Tables, Tx};
 pub use types::{IntType, Type};

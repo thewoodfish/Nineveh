@@ -70,6 +70,48 @@ implicitly: to add a `u64` to a `u128`, write `balance + u128(amount)`.
 | `is_some(o)`, `is_none(o)` | whether an option holds a value |
 | `unwrap_or(o, d)` | the option's value, or `d` if it has none |
 
+## Reading another table
+
+A rule can look up a row of any other state table by key, and read a column of it:
+
+```yaml
+state:
+  markets: { mirror: market_config }   # fee_bps lives on-chain, in a resource
+  sales:
+    key: [id]
+    columns:
+      id: u64
+      amount: u64
+      fee: { type: u64, default: 0 }
+    reduce:
+      - on: sold
+        set:
+          amount: "amount"
+          fee: "amount * unwrap_or(markets[market].fee_bps, 0) / 10000"
+```
+
+`markets[market]` names a row: the key goes in brackets, one expression per key column,
+in the table's key order. Only a column of it is a value, so always write `.column`
+after it.
+
+**A lookup is always an option**, because the row may not be there:
+
+| You write | You get |
+| --- | --- |
+| `holders[user].balance` | the balance, or `null` if there's no such row |
+| `unwrap_or(holders[user].balance, 0)` | the balance, or `0` |
+| `is_some(holders[user].user)` | whether the row exists (a key column is never null in one) |
+| `is_none(holders[user].note)` | whether the row is missing *or* its `note` is null |
+
+A rule can read `reduce` and `mirror` tables, including the one it writes — it sees
+that row as it was before its own write. It can't read a `log` table: logs are
+append-only history, not state.
+
+A lookup sees state as of just before the rule runs: every record that came earlier,
+and every table and rule ordered ahead of it for the same record (ADR 0013). That order
+comes from your config, so it doesn't depend on how the stream is batched, and a replay
+rebuilds exactly the same state (ADR 0019).
+
 ## When an expression fails
 
 Overflow (`balance - amount` going below zero for an unsigned column), division by zero,

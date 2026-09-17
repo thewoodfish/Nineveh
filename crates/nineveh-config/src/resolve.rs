@@ -5,11 +5,15 @@ use nineveh_core::{Identifier, StructTag, TypeTag};
 use nineveh_decode::{
     Body, Container, Lockfile, Selection, SelectionError, SourceId, TableMatcher, TypeMatcher,
 };
-use nineveh_expr::{ColumnVar, Compiled, Env, IntType, Structs, Type, compile};
+use nineveh_expr::{
+    Cell, ColumnVar, Compiled, Env, IntType, Structs, TableColumn, TableVar, Type, compile,
+};
 
 use crate::diagnostic::{Diagnostic, Diagnostics, Span};
-use crate::model::{Action, Column, ColumnType, Config, Expr, Named, Rule, SourceKind, TableKind};
-use crate::schema::{TableSchema, table_schema};
+use crate::model::{
+    Action, Column, ColumnType, Config, Expr, Named, Rule, SourceKind, StateTable, TableKind,
+};
+use crate::schema::{Projection, SchemaColumn, TableSchema, table_schema};
 
 /// A config resolved against its lock: ready to decode, fold and serve.
 #[derive(Debug, Clone)]
@@ -259,7 +263,8 @@ impl Config {
             return Err(diagnostics);
         }
 
-        let mut tables = Vec::new();
+        // Every table's schema first: a rule can read any of them, so they all have to
+        // be known before the first rule is compiled.
         let mut schemas = Vec::new();
         for table in &self.state {
             let (input, source_span) = match &table.kind {
@@ -279,6 +284,11 @@ impl Config {
                 source_span,
                 &mut diagnostics,
             ));
+        }
+        let readable = table_vars(&self.state, &schemas);
+
+        let mut tables = Vec::new();
+        for table in &self.state {
             let resolved = match &table.kind {
                 TableKind::Mirror { source } => ResolvedTable::Mirror {
                     source: self.id_of(source),
@@ -293,7 +303,17 @@ impl Config {
                 } => ResolvedTable::Reduce {
                     rules: rules
                         .iter()
-                        .map(|rule| self.rule(lock, &inputs, rule, key, columns, &mut diagnostics))
+                        .map(|rule| {
+                            self.rule(
+                                lock,
+                                &inputs,
+                                &readable,
+                                rule,
+                                key,
+                                columns,
+                                &mut diagnostics,
+                            )
+                        })
                         .collect(),
                 },
             };
@@ -388,10 +408,12 @@ impl Config {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn rule(
         &self,
         lock: &Lockfile,
         inputs: &[Input],
+        tables: &[TableVar],
         rule: &Rule,
         key: &[Named],
         columns: &[Column],
@@ -409,9 +431,11 @@ impl Config {
             columns: &vars,
             record: &scope.fields,
             source: rule.on.source.as_str(),
+            tables,
             structs: &structs,
         };
-        // A key picks the row, so it can only read the record.
+        // A key picks the row, so it can't read the row it's picking; it can still
+        // read other tables.
         let key_env = Env {
             columns: &[],
             ..row_env
@@ -526,6 +550,53 @@ fn implicit_key_error(
     )
     .did_you_mean(name.as_str(), scope.fields.iter().map(|(n, _)| n.as_str()))
     .help_if_none(example)
+}
+
+/// The project's tables as a rule's expressions see them: every column of every
+/// table, and where its value sits in the stored row (ADR 0019). A `log` table is
+/// listed but not readable, so naming one says why rather than "unknown table".
+fn table_vars(state: &[StateTable], schemas: &[TableSchema]) -> Vec<TableVar> {
+    let column = |c: &SchemaColumn| TableColumn {
+        name: c.name.clone(),
+        ty: lookup_type(c),
+        cell: match &c.from {
+            Projection::Row(i) => Cell::At(*i),
+            Projection::Field(i, field) => Cell::Field(*i, field.clone()),
+            Projection::VariantField { index, field, .. } => Cell::Field(*index, field.clone()),
+            Projection::Variant(i) => Cell::Variant(*i),
+        },
+    };
+    state
+        .iter()
+        .zip(schemas)
+        .enumerate()
+        .map(|(i, (table, schema))| TableVar {
+            name: table.name.name.clone(),
+            index: u32::try_from(i).unwrap_or(u32::MAX),
+            key: schema
+                .key
+                .iter()
+                .filter_map(|&k| schema.columns.get(k))
+                .map(column)
+                .collect(),
+            columns: schema.columns.iter().map(column).collect(),
+            readable: !matches!(table.kind, TableKind::Log { .. }),
+        })
+        .collect()
+}
+
+/// A stored column's type as a lookup reads it, before the `Option` a lookup adds:
+/// the column's own type, with a nullable column's `Option` already folded in.
+fn lookup_type(column: &SchemaColumn) -> Type {
+    column_type(&Column {
+        name: Named {
+            name: column.name.clone(),
+            span: None,
+        },
+        ty: column.ty,
+        nullable: false,
+        default: None,
+    })
 }
 
 /// The row as expressions see it: every column, readable if a new row has a value

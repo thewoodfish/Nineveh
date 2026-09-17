@@ -28,6 +28,42 @@ pub struct ColumnVar {
     pub readable: bool,
 }
 
+/// Another state table an expression may read a row of: `holders[owner].balance`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TableVar {
+    pub name: String,
+    /// The table's index in the project's state, passed to [`Tables::row`].
+    pub index: u32,
+    /// The key columns, in key order.
+    pub key: Vec<TableColumn>,
+    /// Every column, key columns included.
+    pub columns: Vec<TableColumn>,
+    /// Whether the table keeps the rows a lookup reads. `log` tables don't: they're
+    /// append-only history, not state.
+    pub readable: bool,
+}
+
+/// A column of another table, and where its value sits in that table's stored row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TableColumn {
+    pub name: String,
+    /// The column's type. Reading it gives an `Option` of this, since the row may not
+    /// be there.
+    pub ty: Type,
+    pub cell: Cell,
+}
+
+/// Where a column's value sits in a table's stored row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Cell {
+    /// The row's value at this index.
+    At(usize),
+    /// A field of the struct or enum value at this index.
+    Field(usize, Identifier),
+    /// The variant name of the enum value at this index.
+    Variant(usize),
+}
+
 /// Everything an expression can refer to.
 #[derive(Clone, Copy)]
 pub struct Env<'a> {
@@ -37,6 +73,8 @@ pub struct Env<'a> {
     pub record: &'a [(Identifier, TypeTag)],
     /// The record's source name, usable as a qualifier: `deposits.amount`.
     pub source: &'a str,
+    /// The project's other state tables, readable a row at a time.
+    pub tables: &'a [TableVar],
     pub structs: &'a dyn Structs,
 }
 
@@ -46,6 +84,7 @@ impl std::fmt::Debug for Env<'_> {
             .field("columns", &self.columns)
             .field("record", &self.record)
             .field("source", &self.source)
+            .field("tables", &self.tables)
             .finish_non_exhaustive()
     }
 }
@@ -132,6 +171,20 @@ impl Checker<'_, '_> {
             },
             ExprKind::Name(name) => self.name(name, e.span),
             ExprKind::Field(base, field, field_span) => self.field(base, field, *field_span),
+            ExprKind::Index(base, _, _) => {
+                let table = match &base.kind {
+                    ExprKind::Name(name) => self.table(name).map(|t| t.name.as_str()),
+                    _ => None,
+                };
+                Err(match table {
+                    Some(name) => ExprError::new(
+                        format!("a row of `{name}` isn't a value on its own"),
+                        e.span,
+                    )
+                    .help(format!("read one of its columns, like `{name}[...].x`")),
+                    None => ExprError::new("only a state table can be indexed", e.span),
+                })
+            }
             ExprKind::Unary(op, operand) => self.unary(*op, operand, e.span, expected),
             ExprKind::Binary(op, lhs, rhs) => self.binary(*op, lhs, rhs, e.span, expected),
             ExprKind::If(cond, then, otherwise) => {
@@ -179,6 +232,13 @@ impl Checker<'_, '_> {
             (None, Some(i)) => self.record_field(i, span),
             (None, None) => {
                 let e = ExprError::new(format!("unknown name `{name}`"), span);
+                if let Some(table) = self.table(name) {
+                    let names: Vec<&str> = table.key.iter().map(|k| k.name.as_str()).collect();
+                    return Err(e.help(format!(
+                        "`{name}` is a table; read a row of it, like `{name}[{}].x`",
+                        names.join(", ")
+                    )));
+                }
                 let candidates = self
                     .env
                     .columns
@@ -229,7 +289,90 @@ impl Checker<'_, '_> {
         })
     }
 
+    fn table(&self, name: &str) -> Option<&TableVar> {
+        self.env.tables.iter().find(|t| t.name == name)
+    }
+
+    /// `holders[owner].balance`: a column of another table's row, `null` when that
+    /// table has no such row.
+    fn lookup(
+        &self,
+        table: &TableVar,
+        keys: &[Expr],
+        key_span: Span,
+        column: &str,
+        column_span: Span,
+    ) -> Result<Typed, ExprError> {
+        if !table.readable {
+            return Err(ExprError::new(
+                format!(
+                    "`{}` is a log table, so it has no rows to look up",
+                    table.name
+                ),
+                key_span,
+            )
+            .help("logs are append-only history; look up a state or mirror table"));
+        }
+        if keys.len() != table.key.len() {
+            let names: Vec<&str> = table.key.iter().map(|k| k.name.as_str()).collect();
+            return Err(ExprError::new(
+                format!(
+                    "`{}` is keyed by {} column{}, got {}",
+                    table.name,
+                    table.key.len(),
+                    if table.key.len() == 1 { "" } else { "s" },
+                    keys.len()
+                ),
+                key_span,
+            )
+            .help(format!("write `{}[{}]`", table.name, names.join(", "))));
+        }
+        let Some(found) = table.columns.iter().find(|c| c.name == column) else {
+            let e = ExprError::new(
+                format!("`{}` has no column `{column}`", table.name),
+                column_span,
+            );
+            let names = table.columns.iter().map(|c| c.name.as_str());
+            return Err(
+                match closest(column, table.columns.iter().map(|c| c.name.as_str())) {
+                    Some(best) => e.help(format!("did you mean `{best}`?")),
+                    None => e.help(format!(
+                        "its columns are: {}",
+                        names.collect::<Vec<_>>().join(", ")
+                    )),
+                },
+            );
+        };
+        let mut key = Vec::with_capacity(keys.len());
+        for (expr, column) in keys.iter().zip(&table.key) {
+            key.push(self.check(expr, Some(&column.ty))?.node);
+        }
+        Ok(Typed {
+            node: Node::Lookup {
+                table: table.index,
+                key,
+                cell: found.cell.clone(),
+                address: found.ty == Type::Address,
+            },
+            ty: Type::Option(Box::new(found.ty.clone())),
+        })
+    }
+
     fn field(&self, base: &Expr, field: &str, field_span: Span) -> Result<Typed, ExprError> {
+        // A column of another table's row: `holders[owner].balance`.
+        if let ExprKind::Index(indexed, keys, key_span) = &base.kind
+            && let ExprKind::Name(name) = &indexed.kind
+        {
+            let table = self.table(name).ok_or_else(|| {
+                let e = ExprError::new(format!("unknown table `{name}`"), indexed.span);
+                match closest(name, self.env.tables.iter().map(|t| t.name.as_str())) {
+                    Some(best) => e.help(format!("did you mean `{best}`?")),
+                    None => e,
+                }
+            })?;
+            return self.lookup(table, keys, *key_span, field, field_span);
+        }
+
         // Qualified names: `row.x`, `tx.version`, `<source>.x`.
         if let ExprKind::Name(qualifier) = &base.kind {
             let span = base.span.to(field_span);

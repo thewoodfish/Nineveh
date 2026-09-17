@@ -65,7 +65,7 @@ fn validate_accepts_a_project_and_says_where_it_starts() {
     let out = nineveh(&dir, &["validate"]);
     assert!(out.status.success(), "{}", text(&out.stderr));
     let stdout = text(&out.stdout);
-    assert!(stdout.contains("5 source(s), 7 state table(s)"), "{stdout}");
+    assert!(stdout.contains("5 source(s), 8 state table(s)"), "{stdout}");
     assert!(stdout.contains("starting at version 1000"), "{stdout}");
 }
 

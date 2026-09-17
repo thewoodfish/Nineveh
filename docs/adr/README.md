@@ -41,3 +41,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0016](0016-shadow-rebuild-and-swap.md) | Rebuild into a shadow schema and swap it in | Accepted |
 | [0017](0017-local-control-plane.md) | Run projects under a control plane that Studio drives | Accepted |
 | [0018](0018-accounts-sessions-and-api-keys.md) | Sign in with GitHub; reach projects with API keys | Accepted |
+| [0019](0019-reducers-read-other-tables.md) | Let a reducer read other tables by key | Accepted |

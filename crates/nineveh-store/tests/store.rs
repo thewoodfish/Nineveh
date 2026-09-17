@@ -85,7 +85,7 @@ async fn fold(
 
 /// The vault's tables: the seven state tables, then the engine's internal ones.
 fn table_ids() -> Vec<TableId> {
-    (0..7)
+    (0..8)
         .map(TableId::State)
         .chain([TableId::Handles, TableId::Buckets])
         .collect()
