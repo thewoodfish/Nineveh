@@ -26,3 +26,6 @@ target
 # Local secrets
 .env
 .env.*
+
+# Working notes, deliberately not tracked
+nineveh-brief.md
