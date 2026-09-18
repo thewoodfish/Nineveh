@@ -28,6 +28,7 @@
   --color-ink-700: oklch(0.372 0.022 259);
   --color-ink-800: oklch(0.272 0.02 259);
   --color-ink-900: oklch(0.205 0.019 260);
+  --color-ink-950: oklch(0.152 0.021 262);
 
   --color-page: oklch(0.992 0.004 259);
 
@@ -140,6 +141,113 @@ body {
   .arrive,
   .settle,
   .rise {
+    animation: none;
+  }
+}
+
+/*
+ * Night: a stretch of the page that goes dark. It fades in from the light canvas and
+ * fades back out again, so there is no line where one section becomes another — the
+ * page dims, stays down for a while, and comes back up. `to-end` keeps it dark all
+ * the way to the bottom of the page.
+ */
+.night {
+  position: relative;
+  isolation: isolate;
+}
+
+.night::before,
+.night::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mask-image: linear-gradient(to bottom, transparent, black 11rem, black calc(100% - 9rem), transparent);
+}
+
+/*
+ * The ground, with the page's own weave carried into it. It is blue at the top and
+ * bottom and near-black in the middle, so the dim passes through blue rather than
+ * through grey — a white page fading straight to black goes muddy on the way.
+ */
+.night::before {
+  z-index: -2;
+  background-image:
+    linear-gradient(to right, oklch(1 0 0 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.035) 1px, transparent 1px),
+    linear-gradient(
+      to bottom,
+      oklch(0.34 0.11 262),
+      var(--color-ink-950) 24rem,
+      var(--color-ink-950) calc(100% - 22rem),
+      oklch(0.32 0.1 262)
+    );
+  background-size:
+    64px 64px,
+    64px 64px,
+    100% 100%;
+}
+
+/* Light in the dark: the same blues as the canvas, slowly breathing. */
+.night::after {
+  z-index: -1;
+  mask-image: linear-gradient(to bottom, transparent, black 5rem, black calc(100% - 5rem), transparent);
+  background:
+    linear-gradient(to bottom, oklch(0.63 0.196 259 / 0.22), transparent 26rem),
+    radial-gradient(58rem 38rem at 12% 6%, oklch(0.552 0.221 261 / 0.38), transparent 62%),
+    radial-gradient(48rem 34rem at 88% 44%, oklch(0.63 0.196 259 / 0.26), transparent 62%),
+    radial-gradient(52rem 34rem at 32% 94%, oklch(0.482 0.196 262 / 0.34), transparent 62%);
+  animation: breathe 20s ease-in-out infinite alternate;
+}
+
+.night.to-end::before {
+  background-image:
+    linear-gradient(to right, oklch(1 0 0 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.34 0.11 262), var(--color-ink-950) 24rem);
+}
+
+.night.to-end::before,
+.night.to-end::after {
+  mask-image: linear-gradient(to bottom, transparent, black 11rem);
+}
+
+@keyframes breathe {
+  from {
+    opacity: 0.72;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-1.5rem);
+  }
+}
+
+/* A pulse running the length of the rail: the stream, moving. */
+@keyframes travel {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.travel {
+  animation: travel 7s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .night::after,
+  .travel {
     animation: none;
   }
 }

@@ -1,5 +1,5 @@
-// The page's shared pieces. Everything light, everything on the same canvas: the
-// sections are told apart by rhythm and rules, not by slabs of colour.
+// The page's shared pieces. Most of them take a `dark` prop: the page runs in acts and
+// dims into the dark twice, and the same component has to read on either ground.
 
 import type { ReactNode } from "react";
 
@@ -41,12 +41,20 @@ export function Button({
 }
 
 /** The line above a heading: what this stretch of the page is about. */
-export function Eyebrow({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
+export function Eyebrow({
+  children,
+  dark = false,
+  center = false,
+}: {
+  children: ReactNode;
+  dark?: boolean;
+  center?: boolean;
+}) {
   return (
     <div
       className={`flex items-center gap-2.5 text-xs font-semibold tracking-[0.14em] uppercase ${
-        dark ? "text-blue-300" : "text-blue-600"
-      }`}
+        center ? "justify-center" : ""
+      } ${dark ? "text-blue-300" : "text-blue-600"}`}
     >
       <span className={`h-px w-6 ${dark ? "bg-blue-400/60" : "bg-blue-300"}`} />
       {children}
@@ -75,53 +83,38 @@ export function Section({
   );
 }
 
-/**
- * A dark panel, inset and rounded so it sits *on* the page rather than cutting across
- * it. The page keeps its light rhythm; this is where it goes quiet and technical.
- */
-export function Panel({ children }: { children: ReactNode }) {
-  return (
-    <div className="relative overflow-hidden rounded-3xl bg-ink-900 px-6 py-14 shadow-hero sm:px-12 sm:py-20">
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(40rem 26rem at 12% -10%, oklch(0.552 0.221 261 / 0.45), transparent 68%), radial-gradient(34rem 22rem at 96% 108%, oklch(0.63 0.196 259 / 0.3), transparent 66%)",
-        }}
-        aria-hidden
-      />
-      {/* The same weave as the page, carried inside so the panel belongs to it. */}
-      <div
-        className="absolute inset-0 opacity-[0.35]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, oklch(1 0 0 / 0.05) 1px, transparent 1px), linear-gradient(to bottom, oklch(1 0 0 / 0.05) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
-          maskImage: "radial-gradient(38rem 24rem at 50% 30%, black, transparent 75%)",
-        }}
-        aria-hidden
-      />
-      <div className="relative">{children}</div>
-    </div>
-  );
-}
-
-export function Heading({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
+export function Heading({
+  children,
+  dark = false,
+  center = false,
+}: {
+  children: ReactNode;
+  dark?: boolean;
+  center?: boolean;
+}) {
   return (
     <h2
-      className={`max-w-3xl text-3xl font-semibold tracking-tight text-balance sm:text-[2.6rem] sm:leading-[1.1] ${
-        dark ? "text-white" : "text-ink-900"
-      }`}
+      className={`mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-balance sm:text-[2.7rem] sm:leading-[1.08] ${
+        center ? "mx-auto" : ""
+      } ${dark ? "text-white" : "text-ink-900"}`}
     >
       {children}
     </h2>
   );
 }
 
-export function Lede({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
+export function Lede({
+  children,
+  dark = false,
+  center = false,
+}: {
+  children: ReactNode;
+  dark?: boolean;
+  center?: boolean;
+}) {
   return (
     <p
-      className={`mt-5 max-w-2xl text-lg leading-relaxed text-pretty ${
+      className={`mt-5 max-w-2xl text-lg leading-relaxed text-pretty ${center ? "mx-auto" : ""} ${
         dark ? "text-white/60" : "text-ink-500"
       }`}
     >

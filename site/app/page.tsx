@@ -1,5 +1,6 @@
-import { Button, Code, Eyebrow, Heading, Lede, Logo, Panel, Section } from "@/components/bits";
+import { Button, Code, Eyebrow, Heading, Lede, Logo, Section } from "@/components/bits";
 import { Builds } from "@/components/builds";
+import { Nav } from "@/components/nav";
 import { Stream } from "@/components/stream";
 
 const CONFIG = [
@@ -35,6 +36,12 @@ const RESPONSE = [
   '  "count": 4 }',
 ];
 
+const ASKS = [
+  ["Show me all of them, sorted", "Top players. Cheapest listings. Biggest holders."],
+  ["What happened?", "A feed. A history. This user's last twenty actions."],
+  ["How much, in total?", "Revenue per seller. Volume per day. Count per account."],
+];
+
 const STEPS = [
   {
     title: "The chain pushes",
@@ -64,6 +71,12 @@ const GUARANTEES = [
   },
 ];
 
+/*
+ * The page runs in acts: it opens light, dims into the dark for the part that is all
+ * machinery, comes back up bright for what you get out of it, and goes down again to
+ * close. The dark stretches fade in and out of the canvas, so no two sections meet at
+ * an edge.
+ */
 export default function Home() {
   return (
     <>
@@ -72,162 +85,18 @@ export default function Home() {
       <Nav />
       <main>
         <Hero />
-
-        <Section id="problem">
-          <div className="rise grid gap-10 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
-            <div>
-              <Eyebrow>The problem</Eyebrow>
-              <Heading>The chain answers one kind of question</Heading>
-              <Lede>
-                <em className="text-ink-700">What is X right now?</em> One account&apos;s balance.
-                One listing by id. It can&apos;t sort, total, join or give you a feed — and the data
-                your app needs isn&apos;t even in storage. It lives in events and write sets,
-                because keeping totals on-chain costs gas on every transaction.
-              </Lede>
-              <p className="mt-6 max-w-lg text-ink-500">
-                So every team writes an indexer: a processor, a database, a server, a deploy
-                pipeline. A week of work, and something to maintain forever.{" "}
-                <span className="font-medium text-ink-900">Nineveh is that week, done.</span>
-              </p>
-            </div>
-            <ul className="flex flex-col divide-y divide-ink-200/70 self-center rounded-2xl border border-ink-200/70 bg-white/70 backdrop-blur">
-              {[
-                ["Show me all of them, sorted", "Top players. Cheapest listings. Biggest holders."],
-                ["What happened?", "A feed. A history. This user's last twenty actions."],
-                ["How much, in total?", "Revenue per seller. Volume per day. Count per account."],
-              ].map(([q, a]) => (
-                <li key={q} className="flex items-start gap-4 p-6">
-                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-blue-400" />
-                  <div>
-                    <div className="font-medium text-ink-900">{q}</div>
-                    <p className="mt-1 text-sm leading-relaxed text-ink-500">{a}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Section>
-
-        {/* The page goes quiet here: code reads better on a dark ground, and one deep
-            panel gives the argument a centre. */}
-        <Section id="how" rule={false}>
-          <Panel>
-            <div className="rise">
-              <Eyebrow dark>Seventeen lines</Eyebrow>
-              <Heading dark>Describe the table. Get the API.</Heading>
-              <Lede dark>
-                No processor to write, no migrations, no schema to keep in step. Change a rule and
-                Nineveh rebuilds the table from history in the background, then swaps it in — the
-                old data keeps serving the whole time.
-              </Lede>
-            </div>
-            <div className="rise mt-12 grid items-start gap-6 lg:grid-cols-2">
-              <Code title="nineveh.yaml" lines={CONFIG} dark />
-              <div className="flex flex-col gap-5">
-                <Code title="your API, a second later" lines={RESPONSE} dark />
-                <p className="text-sm leading-relaxed text-white/50">
-                  Wide integers come back as strings, because a{" "}
-                  <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
-                    u128
-                  </code>{" "}
-                  doesn&apos;t fit a JavaScript number. Every table gets the same treatment, plus a
-                  live change feed and signed webhooks.
-                </p>
-              </div>
-            </div>
-          </Panel>
-        </Section>
-
-        {/* No hairline here: the panel above already broke the page. */}
-        <Section rule={false}>
-          <div className="rise">
-            <Eyebrow>How it works</Eyebrow>
-            <Heading>Four steps, and none of them are yours</Heading>
-          </div>
-          {/* A rail runs through the steps: one movement, not four boxes. */}
-          <ol className="rise relative mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
-            <div
-              className="absolute top-3.5 right-0 left-0 hidden h-px bg-gradient-to-r from-blue-200 via-blue-300 to-transparent lg:block"
-              aria-hidden
-            />
-            {STEPS.map((step, i) => (
-              <li key={step.title} className="relative">
-                <div className="flex size-7 items-center justify-center rounded-full border border-blue-200 bg-white font-mono text-[11px] font-semibold text-blue-700 shadow-soft">
-                  {i + 1}
-                </div>
-                <h3 className="mt-5 font-semibold text-ink-900">{step.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-ink-500">{step.body}</p>
-              </li>
-            ))}
-          </ol>
-          {/* The promises, on the same dark ground as the code: the two places the page
-              stops selling and states facts. */}
-          <div className="rise mt-16 grid gap-px overflow-hidden rounded-2xl bg-white/[0.07] shadow-card ring-1 ring-ink-900 sm:grid-cols-2 lg:grid-cols-4">
-            {GUARANTEES.map((g) => (
-              <div key={g.title} className="bg-ink-900 p-5">
-                <div className="text-sm font-semibold text-white">{g.title}</div>
-                <p className="mt-1.5 text-sm leading-relaxed text-white/55">{g.body}</p>
-              </div>
-            ))}
-          </div>
-        </Section>
-
-        <Section>
-          <div className="rise">
-            <Eyebrow>What you build with it</Eyebrow>
-            <Heading>Questions your contract already answers, but can&apos;t be asked</Heading>
-            <Lede>
-              None of these need a contract change. The data is already on-chain; it simply
-              isn&apos;t queryable.
-            </Lede>
-          </div>
-          <div className="rise mt-12">
-            <Builds />
-          </div>
-          <p className="rise mt-6 text-sm text-ink-500">
-            Whatever your contract emits, you can fold it into a table shaped like the question you
-            actually ask.
-          </p>
-        </Section>
-
+        <Problem />
+        <Machinery />
+        <Payoff />
         <Closing />
       </main>
-      <Footer />
     </>
-  );
-}
-
-function Nav() {
-  return (
-    <nav className="glass sticky top-0 z-20 border-b border-ink-200/60">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-        <a href="#top" className="flex items-center gap-2 text-ink-900">
-          <Logo className="size-5 text-blue-600" />
-          <span className="text-[15px] font-semibold tracking-tight">Nineveh</span>
-        </a>
-        <div className="flex items-center gap-6 text-sm">
-          <a
-            href="#how"
-            className="hidden text-ink-500 transition-colors hover:text-ink-900 sm:block"
-          >
-            How it works
-          </a>
-          <a
-            href="https://github.com/thewoodfish/Nineveh"
-            className="text-ink-500 transition-colors hover:text-ink-900"
-          >
-            GitHub
-          </a>
-          <Button href="https://github.com/thewoodfish/Nineveh">Get started</Button>
-        </div>
-      </div>
-    </nav>
   );
 }
 
 function Hero() {
   return (
-    <div id="top" className="mx-auto max-w-6xl px-6 pt-16 pb-4 sm:pt-24">
+    <div id="top" className="mx-auto max-w-6xl px-6 pt-16 pb-10 sm:pt-24">
       <div className="mx-auto max-w-3xl text-center">
         <a
           href="#how"
@@ -265,68 +134,200 @@ function Hero() {
   );
 }
 
-function Closing() {
+function Problem() {
   return (
-    <section className="mx-auto w-full max-w-6xl px-6 pb-24 sm:pb-32">
-      <div className="relative overflow-hidden rounded-3xl bg-blue-600 px-8 py-16 text-center shadow-hero sm:px-16 sm:py-20">
-        <div
-          className="absolute inset-0 opacity-70"
-          style={{
-            background:
-              "radial-gradient(30rem 20rem at 20% 0%, oklch(0.716 0.152 259 / 0.7), transparent 70%), radial-gradient(28rem 18rem at 85% 100%, oklch(0.412 0.158 262 / 0.8), transparent 70%)",
-          }}
-          aria-hidden
-        />
-        <div className="relative">
-          <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-balance text-white sm:text-[2.6rem] sm:leading-[1.1]">
-            You deployed the contract. The backend is the easy part now.
-          </h2>
-          <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-pretty text-blue-50/90">
-            Backfills, cursors, retries, crash recovery — Nineveh&apos;s problem, not yours.
+    <Section id="problem" rule={false}>
+      <div className="rise grid gap-8 lg:grid-cols-[1fr_1fr] lg:gap-16">
+        <div>
+          <Eyebrow>The problem</Eyebrow>
+          <Heading>The chain answers one kind of question</Heading>
+        </div>
+        <div className="self-end">
+          <p className="text-lg leading-relaxed text-pretty text-ink-500">
+            <em className="text-ink-700">What is X right now?</em> One account&apos;s balance. One
+            listing by id. It can&apos;t sort, total, join or give you a feed — and the data your app
+            needs isn&apos;t even in storage. It lives in events and write sets, because keeping
+            totals on-chain costs gas on every transaction.
           </p>
-          <ol className="mx-auto mt-10 grid max-w-2xl gap-3 text-left sm:grid-cols-3">
-            {[
-              ["Paste your address", "Nineveh reads the contract's modules off the chain."],
-              ["Tick what to follow", "Events, resources and tables become tables of your own."],
-              ["Query it", "REST, a change feed and webhooks, seconds later."],
-            ].map(([title, body], i) => (
-              <li key={title} className="rounded-xl border border-white/20 bg-white/10 p-4">
-                <span className="font-mono text-xs text-blue-100">0{i + 1}</span>
-                <div className="mt-2 text-sm font-medium text-white">{title}</div>
-                <p className="mt-1 text-xs leading-relaxed text-blue-50/75">{body}</p>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-10">
-            <a
-              href="https://github.com/thewoodfish/Nineveh"
-              className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-blue-700 shadow-card transition-colors hover:bg-blue-50"
-            >
-              Get started
-            </a>
+          <p className="mt-5 text-ink-500">
+            So every team writes an indexer: a processor, a database, a server, a deploy pipeline. A
+            week of work, and something to maintain forever.{" "}
+            <span className="font-medium text-ink-900">Nineveh is that week, done.</span>
+          </p>
+        </div>
+      </div>
+
+      {/* The three asks, set as an editorial list rather than boxed up as cards. */}
+      <dl className="rise mt-16 border-t border-ink-200/70">
+        {ASKS.map(([ask, kinds]) => (
+          <div
+            key={ask}
+            className="group grid gap-1.5 border-b border-ink-200/70 py-7 sm:grid-cols-[1.05fr_1fr] sm:gap-10"
+          >
+            <dt className="flex items-baseline gap-3 text-xl font-medium tracking-tight text-ink-900 sm:text-2xl">
+              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-blue-400 transition-transform duration-300 group-hover:scale-150" />
+              {ask}
+            </dt>
+            <dd className="self-center pl-6 text-ink-500 sm:pl-0">{kinds}</dd>
           </div>
+        ))}
+      </dl>
+    </Section>
+  );
+}
+
+/** The dark act: the config, the machine that runs it, and what it promises. */
+function Machinery() {
+  return (
+    <section id="how" className="night">
+      <div className="mx-auto max-w-6xl px-6 pt-44 pb-40 sm:pt-52 sm:pb-48">
+        <div className="rise mx-auto max-w-3xl text-center">
+          <Eyebrow dark center>
+            Seventeen lines
+          </Eyebrow>
+          <Heading dark center>
+            Describe the table. Get the API.
+          </Heading>
+          <Lede dark center>
+            No processor to write, no migrations, no schema to keep in step. Change a rule and
+            Nineveh rebuilds the table from history in the background, then swaps it in — the old
+            data keeps serving the whole time.
+          </Lede>
+        </div>
+
+        <div className="rise mt-16 grid items-start gap-6 lg:grid-cols-2">
+          <Code title="nineveh.yaml" lines={CONFIG} dark />
+          <div className="flex flex-col gap-5">
+            <Code title="your API, a second later" lines={RESPONSE} dark />
+            <p className="text-sm leading-relaxed text-white/50">
+              Wide integers come back as strings, because a{" "}
+              <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                u128
+              </code>{" "}
+              doesn&apos;t fit a JavaScript number. Every table gets the same treatment, plus a live
+              change feed and signed webhooks.
+            </p>
+          </div>
+        </div>
+
+        <div className="rise mt-32">
+          <Eyebrow dark>Under it</Eyebrow>
+          <Heading dark>Four steps, and none of them are yours</Heading>
+        </div>
+        {/* A rail runs through the steps, with a pulse travelling it: one movement, not
+            four boxes. */}
+        <ol className="rise relative mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+          <div className="absolute top-3.5 right-0 left-0 hidden lg:block" aria-hidden>
+            <div className="h-px w-full bg-gradient-to-r from-blue-400/50 via-blue-400/25 to-transparent" />
+            <span className="travel absolute -top-[3px] size-[7px] rounded-full bg-blue-200 shadow-[0_0_14px_4px_oklch(0.716_0.152_259_/_0.65)]" />
+          </div>
+          {STEPS.map((step, i) => (
+            <li key={step.title} className="relative">
+              <div className="flex size-7 items-center justify-center rounded-full border border-white/15 bg-ink-950 font-mono text-[11px] font-semibold text-blue-200">
+                {i + 1}
+              </div>
+              <h3 className="mt-5 font-semibold text-white">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-white/50">{step.body}</p>
+            </li>
+          ))}
+        </ol>
+
+        {/* The promises, stated plainly — the page stops selling for four lines. */}
+        <div className="rise mt-28 grid gap-10 border-t border-white/10 pt-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
+          {GUARANTEES.map((g) => (
+            <div key={g.title}>
+              <div className="text-sm font-semibold text-white">{g.title}</div>
+              <p className="mt-2 text-sm leading-relaxed text-white/50">{g.body}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
-function Footer() {
+function Payoff() {
   return (
-    <footer className="border-t border-ink-200/70">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-ink-400 sm:flex-row">
+    <Section rule={false}>
+      <div className="rise mx-auto max-w-3xl text-center">
+        <Eyebrow center>What you build with it</Eyebrow>
+        <Heading center>Questions your contract already answers, but can&apos;t be asked</Heading>
+        <Lede center>
+          None of these need a contract change. The data is already on-chain; it simply isn&apos;t
+          queryable.
+        </Lede>
+      </div>
+      {/* Each card carries its own `rise`, so they arrive as you reach them. */}
+      <div className="mt-14">
+        <Builds />
+      </div>
+      <p className="rise mt-8 text-center text-sm text-ink-500">
+        Whatever your contract emits, you can fold it into a table shaped like the question you
+        actually ask.
+      </p>
+    </Section>
+  );
+}
+
+/** The page goes down for the last time, and stays there. */
+function Closing() {
+  return (
+    <div className="night to-end">
+      <section className="mx-auto w-full max-w-6xl px-6 pt-48 pb-16 sm:pt-56">
+        <div className="relative overflow-hidden rounded-3xl bg-blue-600 px-8 py-16 text-center shadow-hero sm:px-16 sm:py-20">
+          <div
+            className="absolute inset-0 opacity-70"
+            style={{
+              background:
+                "radial-gradient(30rem 20rem at 20% 0%, oklch(0.716 0.152 259 / 0.7), transparent 70%), radial-gradient(28rem 18rem at 85% 100%, oklch(0.412 0.158 262 / 0.8), transparent 70%)",
+            }}
+            aria-hidden
+          />
+          <div className="relative">
+            <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-balance text-white sm:text-[2.7rem] sm:leading-[1.08]">
+              You deployed the contract. The backend is the easy part now.
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-pretty text-blue-50/90">
+              Backfills, cursors, retries, crash recovery — Nineveh&apos;s problem, not yours.
+            </p>
+            <ol className="mx-auto mt-10 grid max-w-2xl gap-3 text-left sm:grid-cols-3">
+              {[
+                ["Paste your address", "Nineveh reads the contract's modules off the chain."],
+                ["Tick what to follow", "Events, resources and tables become tables of your own."],
+                ["Query it", "REST, a change feed and webhooks, seconds later."],
+              ].map(([title, body], i) => (
+                <li key={title} className="rounded-xl border border-white/20 bg-white/10 p-4">
+                  <span className="font-mono text-xs text-blue-100">0{i + 1}</span>
+                  <div className="mt-2 text-sm font-medium text-white">{title}</div>
+                  <p className="mt-1 text-xs leading-relaxed text-blue-50/75">{body}</p>
+                </li>
+              ))}
+            </ol>
+            <div className="mt-10">
+              <a
+                href="https://github.com/thewoodfish/Nineveh"
+                className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-blue-700 shadow-card transition-colors hover:bg-blue-50"
+              >
+                Get started
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 pt-10 pb-12 text-sm text-white/40 sm:flex-row">
         <div className="flex items-center gap-2">
-          <Logo className="size-4 text-blue-500" />
-          <span className="font-medium text-ink-700">Nineveh</span>
+          <Logo className="size-4 text-blue-400" />
+          <span className="font-medium text-white/80">Nineveh</span>
           <span>— a live backend for Aptos apps</span>
         </div>
         <a
           href="https://github.com/thewoodfish/Nineveh"
-          className="transition-colors hover:text-ink-900"
+          className="transition-colors hover:text-white"
         >
           GitHub
         </a>
-      </div>
-    </footer>
+      </footer>
+    </div>
   );
 }

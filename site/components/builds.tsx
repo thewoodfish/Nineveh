@@ -66,7 +66,7 @@ function Card({
 }) {
   return (
     <article
-      className={`group flex flex-col overflow-hidden rounded-2xl border border-ink-200/70 bg-white/70 backdrop-blur transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-card ${
+      className={`rise group flex flex-col overflow-hidden rounded-2xl border border-ink-200/70 bg-white/70 backdrop-blur transition-[transform,border-color,box-shadow] hover:-translate-y-1 hover:border-blue-200 hover:shadow-card ${
         wide ? "lg:col-span-2" : ""
       }`}
     >
