@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { ConfirmDialog } from "./dialog";
 
 import { type WebhookInfo, control } from "@/lib/api";
 
@@ -41,11 +42,6 @@ export function Webhooks({ project }: { project: string }) {
   };
 
   const rotate = async (name: string) => {
-    if (confirming !== name) {
-      setConfirming(name);
-      setTimeout(() => setConfirming((c) => (c === name ? null : c)), 4000);
-      return;
-    }
     setConfirming(null);
     try {
       await control.rotateWebhook(project, name);
@@ -105,19 +101,31 @@ export function Webhooks({ project }: { project: string }) {
               <code className="min-w-0 flex-1 truncate rounded bg-surface-container-high px-2 py-1 font-mono text-xs">
                 {shown === hook.name ? hook.secret : `${hook.secret.slice(0, 10)}${"•".repeat(12)}`}
               </code>
-              <Button onClick={() => setShown(shown === hook.name ? null : hook.name)}>
+              <Button size="sm" onClick={() => setShown(shown === hook.name ? null : hook.name)}>
                 {shown === hook.name ? "Hide" : "Reveal"}
               </Button>
-              <Button onClick={() => void copy(hook.name, hook.secret)}>
+              <Button size="sm" onClick={() => void copy(hook.name, hook.secret)}>
                 {copied === hook.name ? "Copied" : "Copy"}
               </Button>
-              <Button tone="danger" onClick={() => void rotate(hook.name)}>
-                {confirming === hook.name ? "Replace it?" : "Rotate"}
+              <Button tone="danger" size="sm" onClick={() => setConfirming(hook.name)}>
+                Rotate
               </Button>
             </div>
           </li>
         ))}
       </ul>
+      <ConfirmDialog
+        danger
+        open={confirming !== null}
+        onClose={() => setConfirming(null)}
+        onConfirm={() => confirming !== null && void rotate(confirming)}
+        title="Rotate this signing secret?"
+        confirmLabel="Rotate secret"
+      >
+        Deliveries to <span className="font-mono text-on-surface">{confirming}</span> are signed
+        with the new secret from the next one on. Anything still checking signatures against the old
+        one will reject them until you update it.
+      </ConfirmDialog>
     </Card>
   );
 }

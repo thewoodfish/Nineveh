@@ -235,6 +235,20 @@ body {
   @apply bg-surface text-on-surface antialiased;
 }
 
+/* Tailwind's reset gives buttons `cursor: default`. A control that does something
+   should say so under the pointer, and one that can't should say that too. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+summary,
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 ::selection {
   background: color-mix(in oklab, var(--color-primary) 24%, transparent);
 }

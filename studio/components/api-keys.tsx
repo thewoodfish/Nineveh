@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { ConfirmDialog } from "./dialog";
 
 import { API_URL, type ApiKey, control } from "@/lib/api";
 
@@ -43,11 +44,6 @@ export function ApiKeys({ project, api }: { project: string; api: string }) {
   };
 
   const revoke = async (id: number) => {
-    if (confirming !== id) {
-      setConfirming(id);
-      setTimeout(() => setConfirming((c) => (c === id ? null : c)), 4000);
-      return;
-    }
     setConfirming(null);
     try {
       await control.revokeKey(project, id);
@@ -67,6 +63,8 @@ export function ApiKeys({ project, api }: { project: string; api: string }) {
   const field =
     "rounded-sm border border-outline-variant bg-surface-container-low px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none";
   const url = `${API_URL}${api}/v1/tables`;
+
+  const revoking = keys?.find((k) => k.id === confirming) ?? null;
 
   return (
     <Card>
@@ -136,13 +134,25 @@ export function ApiKeys({ project, api }: { project: string; api: string }) {
                   ? `used ${new Date(key.last_used_at).toLocaleString()}`
                   : "never used"}
               </span>
-              <Button tone="danger" onClick={() => void revoke(key.id)}>
-                {confirming === key.id ? "Revoke it?" : "Revoke"}
+              <Button tone="danger" size="sm" onClick={() => setConfirming(key.id)}>
+                Revoke
               </Button>
             </li>
           ))}
         </ul>
       )}
+      <ConfirmDialog
+        danger
+        open={confirming !== null}
+        onClose={() => setConfirming(null)}
+        onConfirm={() => confirming !== null && void revoke(confirming)}
+        title="Revoke this key?"
+        confirmLabel="Revoke key"
+      >
+        Anything still sending{" "}
+        <span className="font-mono text-on-surface">{revoking?.prefix ?? ""}…</span> stops being
+        answered straight away. This can&apos;t be undone; issue a new key instead.
+      </ConfirmDialog>
     </Card>
   );
 }

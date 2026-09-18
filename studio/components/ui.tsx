@@ -42,7 +42,7 @@ export function PhaseDot({ phase, label = false }: { phase: string; label?: bool
  * the page scrolls under it.
  */
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-sm bg-surface-container-low ${className}`}>{children}</div>;
+  return <div className={`rounded-md bg-surface-container-low ${className}`}>{children}</div>;
 }
 
 /**
@@ -51,7 +51,7 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
  * in light and light blue in dark, so its label can never be the page's text colour.
  */
 export const filledButton =
-  "state inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-6 " +
+  "state inline-flex h-10 items-center justify-center gap-2 rounded-full bg-primary px-6 " +
   "text-sm font-medium text-on-primary shadow-e1";
 
 /** A Material Symbol. One font, one name, the same optical size everywhere. */
@@ -138,7 +138,7 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="inline-flex divide-x divide-outline overflow-hidden rounded-sm border border-outline">
+    <div className="inline-flex divide-x divide-outline overflow-hidden rounded-full border border-outline">
       {options.map((option) => (
         <button
           key={option}
@@ -197,7 +197,7 @@ export function Notice({
   };
   const icons = { neutral: "info", warning: "warning", error: "error" };
   return (
-    <div className={`flex gap-3 rounded-sm px-4 py-3 text-sm ${tones[tone]}`}>
+    <div className={`flex gap-3 rounded-md px-4 py-3 text-sm ${tones[tone]}`}>
       <Icon name={icons[tone]} className="mt-px shrink-0 text-[20px]" />
       <div className="min-w-0">
         <div className="font-medium">{title}</div>
@@ -349,8 +349,8 @@ export function Button({
   className = "",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  tone?: "primary" | "tonal" | "secondary" | "danger" | "text";
-  size?: "md" | "lg";
+  tone?: "primary" | "tonal" | "secondary" | "danger" | "danger-filled" | "text";
+  size?: "sm" | "md" | "lg";
 }) {
   // Material's common buttons, in the order it ranks them: filled for the one action
   // the screen is for, tonal for the next most important, outlined and text for the
@@ -361,13 +361,18 @@ export function Button({
     tonal: "bg-secondary-container text-on-secondary-container",
     secondary: "border border-outline text-primary",
     danger: "border border-outline text-error",
+    "danger-filled": "bg-error text-on-error shadow-e1",
     text: "text-primary",
   };
-  const sizes = { md: "h-9 px-4 text-sm", lg: "h-10 px-6 text-sm" };
+  const sizes = {
+    sm: "h-8 px-4 text-[13px]",
+    md: "h-10 px-6 text-sm",
+    lg: "h-11 px-7 text-sm",
+  };
   return (
     <button
       type="button"
-      className={`state inline-flex items-center justify-center gap-2 rounded-sm font-medium transition-colors disabled:cursor-not-allowed disabled:border-on-surface/12 disabled:bg-on-surface/12 disabled:text-on-surface/38 disabled:shadow-none ${sizes[size]} ${tones[tone]} ${className}`}
+      className={`state inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors disabled:cursor-not-allowed disabled:border-on-surface/12 disabled:bg-on-surface/12 disabled:text-on-surface/38 disabled:shadow-none ${sizes[size]} ${tones[tone]} ${className}`}
       {...props}
     />
   );

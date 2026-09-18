@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ConfirmDialog } from "@/components/dialog";
 import { PageHeader } from "@/components/page-header";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -265,12 +266,8 @@ function ProjectActions({ project }: { project: ProjectSummary }) {
   };
 
   const remove = async () => {
-    if (!confirming) {
-      setConfirming(true);
-      setTimeout(() => setConfirming(false), 5000);
-      return;
-    }
     await act(() => control.remove(project.name));
+    setConfirming(false);
     router.push("/");
   };
 
@@ -287,10 +284,22 @@ function ProjectActions({ project }: { project: ProjectSummary }) {
           Start
         </Button>
       )}
-      <Button tone="danger" disabled={busy} onClick={() => void remove()}>
-        {confirming ? "Delete its data too?" : "Delete"}
+      <Button tone="danger" disabled={busy} onClick={() => setConfirming(true)}>
+        Delete
       </Button>
       {showConfig && <ConfigPanel name={project.name} onClose={() => setShowConfig(false)} />}
+      <ConfirmDialog
+        danger
+        open={confirming}
+        busy={busy}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => void remove()}
+        title={`Delete ${project.name}?`}
+        confirmLabel="Delete project"
+      >
+        This removes the project and every table Nineveh folded for it. The contract is untouched —
+        but the backfill starts from nothing if you create it again.
+      </ConfirmDialog>
     </>
   );
 }
