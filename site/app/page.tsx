@@ -292,9 +292,22 @@ function Closing() {
           You deployed the contract. The backend is the easy part now.
         </h2>
         <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-pretty text-white/60">
-          Paste an address, tick what to follow, and query it. Everything else — backfills,
-          cursors, retries, crash recovery — is Nineveh&apos;s problem.
+          Everything else — backfills, cursors, retries, crash recovery — is Nineveh&apos;s
+          problem.
         </p>
+        <ol className="mx-auto mt-10 grid max-w-2xl gap-3 text-left sm:grid-cols-3">
+          {[
+            ["Paste your address", "Nineveh reads the contract's modules off the chain."],
+            ["Tick what to follow", "Events, resources and tables become tables of your own."],
+            ["Query it", "REST, a change feed, and webhooks, a few seconds later."],
+          ].map(([title, body], i) => (
+            <li key={title} className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+              <span className="font-mono text-xs text-blue-300">0{i + 1}</span>
+              <div className="mt-2 text-sm font-medium text-white">{title}</div>
+              <p className="mt-1 text-xs leading-relaxed text-white/50">{body}</p>
+            </li>
+          ))}
+        </ol>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <Button href="https://github.com/thewoodfish/Nineveh">Get started</Button>
           <Button href="#how" tone="ghost">

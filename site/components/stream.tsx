@@ -61,8 +61,8 @@ export function Stream() {
   const newest = sale(count - 1);
 
   return (
-    <div className="grid gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-2">
-      <Pane title="From the chain" hint="events, as they commit">
+    <div className="relative grid gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-2">
+      <Pane title="From the chain" hint="events, as they commit" side="left">
         <ul className="flex flex-col gap-1.5">
           {sales.map((one) => (
             <li
@@ -80,7 +80,7 @@ export function Stream() {
         </ul>
       </Pane>
 
-      <Pane title="Your table" hint="sellers · key seller">
+      <Pane title="Your table" hint="sellers · key seller" side="right">
         <table className="w-full font-mono text-[11px] sm:text-xs">
           <thead>
             <tr className="text-left text-white/35">
@@ -115,16 +115,30 @@ export function Stream() {
 function Pane({
   title,
   hint,
+  side,
   children,
 }: {
   title: string;
   hint: string;
+  side: "left" | "right";
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-ink-950/80 p-4 backdrop-blur sm:p-5">
+    <div className="relative bg-ink-900/90 p-4 backdrop-blur sm:p-5">
+      {/* A thread of light along the top edge, so the card reads as glass. */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <span className="text-xs font-medium text-white/70">{title}</span>
+        <span className="flex items-center gap-2 text-xs font-medium text-white/70">
+          {side === "right" && (
+            <span className="text-blue-400/70" aria-hidden>
+              {/* The panes sit side by side on a wide screen and stack on a narrow one,
+                  so the arrow has to point the way the eye actually travels. */}
+              <span className="sm:hidden">↓</span>
+              <span className="hidden sm:inline">→</span>
+            </span>
+          )}
+          {title}
+        </span>
         <span className="truncate font-mono text-[11px] text-white/30">{hint}</span>
       </div>
       {children}

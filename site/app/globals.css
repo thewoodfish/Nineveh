@@ -41,6 +41,11 @@ html {
   -webkit-font-smoothing: antialiased;
 }
 
+/* A jumped-to section shouldn't start under the top of the window. */
+section[id] {
+  scroll-margin-top: 1.5rem;
+}
+
 body {
   @apply bg-white text-ink-900;
 }
