@@ -1,4 +1,4 @@
-import { Button, Code, Eyebrow, Heading, Lede, Logo, Section } from "@/components/bits";
+import { Button, Code, Eyebrow, Heading, Lede, Logo, Panel, Section } from "@/components/bits";
 import { Builds } from "@/components/builds";
 import { Stream } from "@/components/stream";
 
@@ -54,7 +54,6 @@ const STEPS = [
   },
 ];
 
-
 const GUARANTEES = [
   { title: "In order", body: "A balance that goes 5 → 12 → 7 lands as 7, never as 12." },
   { title: "Exactly once", body: "Rows and cursor commit together, or neither does." },
@@ -109,33 +108,38 @@ export default function Home() {
           </div>
         </Section>
 
-        <Section id="how">
-          <div className="rise">
-            <Eyebrow>Seventeen lines</Eyebrow>
-            <Heading>Describe the table. Get the API.</Heading>
-            <Lede>
-              No processor to write, no migrations, no schema to keep in step. Change a rule and
-              Nineveh rebuilds the table from history in the background, then swaps it in — the old
-              data keeps serving the whole time.
-            </Lede>
-          </div>
-          <div className="rise mt-12 grid items-start gap-6 lg:grid-cols-2">
-            <Code title="nineveh.yaml" lines={CONFIG} />
-            <div className="flex flex-col gap-5">
-              <Code title="your API, a second later" lines={RESPONSE} />
-              <p className="text-sm leading-relaxed text-ink-500">
-                Wide integers come back as strings, because a{" "}
-                <code className="rounded bg-ink-100 px-1 py-0.5 font-mono text-[12px] text-ink-700">
-                  u128
-                </code>{" "}
-                doesn&apos;t fit a JavaScript number. Every table gets the same treatment, plus a
-                live change feed and signed webhooks.
-              </p>
+        {/* The page goes quiet here: code reads better on a dark ground, and one deep
+            panel gives the argument a centre. */}
+        <Section id="how" rule={false}>
+          <Panel>
+            <div className="rise">
+              <Eyebrow dark>Seventeen lines</Eyebrow>
+              <Heading dark>Describe the table. Get the API.</Heading>
+              <Lede dark>
+                No processor to write, no migrations, no schema to keep in step. Change a rule and
+                Nineveh rebuilds the table from history in the background, then swaps it in — the
+                old data keeps serving the whole time.
+              </Lede>
             </div>
-          </div>
+            <div className="rise mt-12 grid items-start gap-6 lg:grid-cols-2">
+              <Code title="nineveh.yaml" lines={CONFIG} dark />
+              <div className="flex flex-col gap-5">
+                <Code title="your API, a second later" lines={RESPONSE} dark />
+                <p className="text-sm leading-relaxed text-white/50">
+                  Wide integers come back as strings, because a{" "}
+                  <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                    u128
+                  </code>{" "}
+                  doesn&apos;t fit a JavaScript number. Every table gets the same treatment, plus a
+                  live change feed and signed webhooks.
+                </p>
+              </div>
+            </div>
+          </Panel>
         </Section>
 
-        <Section>
+        {/* No hairline here: the panel above already broke the page. */}
+        <Section rule={false}>
           <div className="rise">
             <Eyebrow>How it works</Eyebrow>
             <Heading>Four steps, and none of them are yours</Heading>
@@ -156,11 +160,13 @@ export default function Home() {
               </li>
             ))}
           </ol>
-          <div className="rise mt-16 grid gap-px overflow-hidden rounded-2xl border border-ink-200/70 bg-ink-200/70 sm:grid-cols-2 lg:grid-cols-4">
+          {/* The promises, on the same dark ground as the code: the two places the page
+              stops selling and states facts. */}
+          <div className="rise mt-16 grid gap-px overflow-hidden rounded-2xl bg-white/[0.07] shadow-card ring-1 ring-ink-900 sm:grid-cols-2 lg:grid-cols-4">
             {GUARANTEES.map((g) => (
-              <div key={g.title} className="bg-white/80 p-5 backdrop-blur">
-                <div className="text-sm font-semibold text-ink-900">{g.title}</div>
-                <p className="mt-1.5 text-sm leading-relaxed text-ink-500">{g.body}</p>
+              <div key={g.title} className="bg-ink-900 p-5">
+                <div className="text-sm font-semibold text-white">{g.title}</div>
+                <p className="mt-1.5 text-sm leading-relaxed text-white/55">{g.body}</p>
               </div>
             ))}
           </div>
