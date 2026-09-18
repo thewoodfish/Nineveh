@@ -4,8 +4,9 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Blue, the whole way down: the accent, the washes behind the page, and the tint in
-     the greys, all one hue, so nothing looks borrowed. */
+  /* Blue, the whole way down: the accent, the light behind the page, and the tint in
+     the ground, all one hue, so nothing looks borrowed. On a dark page the scale is
+     read from the light end — 300 and 400 carry text, 600 is for solid fills. */
   --color-blue-50: oklch(0.975 0.012 259);
   --color-blue-100: oklch(0.945 0.028 259);
   --color-blue-200: oklch(0.898 0.055 259);
@@ -17,29 +18,25 @@
   --color-blue-800: oklch(0.412 0.158 262);
   --color-blue-900: oklch(0.36 0.122 263);
 
-  /* Ink: greys with just enough blue to belong to the same family. */
-  --color-ink-50: oklch(0.984 0.003 259);
-  --color-ink-100: oklch(0.966 0.005 259);
-  --color-ink-200: oklch(0.926 0.008 259);
-  --color-ink-300: oklch(0.872 0.012 259);
-  --color-ink-400: oklch(0.708 0.016 259);
-  --color-ink-500: oklch(0.556 0.019 259);
-  --color-ink-600: oklch(0.452 0.021 259);
-  --color-ink-700: oklch(0.372 0.022 259);
-  --color-ink-800: oklch(0.272 0.02 259);
-  --color-ink-900: oklch(0.205 0.019 260);
-  --color-ink-950: oklch(0.152 0.021 262);
+  /* There is no grey scale. On a dark ground, white at a low opacity sits *on* whatever
+     is behind it — the blue washes included — where a fixed grey would cut a hole in
+     them. So the page has two colours and a stack of opacities. */
 
-  --color-page: oklch(0.992 0.004 259);
+  /* The page itself, and the deeper ground one act drops to. */
+  --color-page: oklch(0.163 0.022 262);
+  --color-deep: oklch(0.112 0.019 263);
 
-  /* Shadows carry a little blue, so nothing casts a grey shadow on a blue page. */
-  --shadow-soft: 0 1px 2px oklch(0.4 0.06 259 / 0.06), 0 2px 8px oklch(0.4 0.06 259 / 0.05);
-  --shadow-card: 0 2px 4px oklch(0.4 0.06 259 / 0.05), 0 8px 24px oklch(0.4 0.06 259 / 0.07);
-  --shadow-hero: 0 4px 12px oklch(0.4 0.08 259 / 0.08), 0 24px 64px oklch(0.45 0.12 259 / 0.14);
+  /* On a dark page a shadow is a hole, not a haze — and the one thing that glows is
+     blue, so the call to action can throw light. */
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.4), 0 2px 8px oklch(0 0 0 / 0.28);
+  --shadow-card: 0 2px 6px oklch(0 0 0 / 0.42), 0 12px 32px oklch(0 0 0 / 0.32);
+  --shadow-hero: 0 8px 24px oklch(0 0 0 / 0.45), 0 32px 80px oklch(0 0 0 / 0.45);
+  --shadow-glow: 0 0 0 1px oklch(0.63 0.196 259 / 0.3), 0 20px 70px oklch(0.552 0.221 261 / 0.35);
 }
 
 html {
   scroll-behavior: smooth;
+  color-scheme: dark;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -48,26 +45,27 @@ section[id] {
 }
 
 body {
-  @apply bg-page text-ink-900;
+  @apply bg-page text-white;
 }
 
 ::selection {
-  background: var(--color-blue-100);
+  background: oklch(0.552 0.221 261 / 0.45);
 }
 
 /*
- * One canvas for the whole page. The washes are placed down the length of it rather
- * than per section, so nothing reads as a slab stacked on another slab.
+ * One canvas for the whole page: pools of blue light laid down the length of it rather
+ * than per section, so nothing reads as a slab stacked on another slab. Fixed, so it
+ * behaves like light in a room that the page moves through.
  */
 .canvas {
   position: fixed;
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(52rem 34rem at 50% -6rem, oklch(0.63 0.196 259 / 0.12), transparent 65%),
-    radial-gradient(38rem 26rem at 88% 12%, oklch(0.716 0.152 259 / 0.09), transparent 65%),
-    radial-gradient(42rem 30rem at 6% 42%, oklch(0.63 0.196 259 / 0.07), transparent 62%),
-    radial-gradient(46rem 32rem at 76% 78%, oklch(0.552 0.221 261 / 0.08), transparent 65%);
+    radial-gradient(58rem 38rem at 50% -8rem, oklch(0.552 0.221 261 / 0.4), transparent 62%),
+    radial-gradient(42rem 30rem at 92% 16%, oklch(0.63 0.196 259 / 0.18), transparent 62%),
+    radial-gradient(46rem 32rem at 2% 46%, oklch(0.482 0.196 262 / 0.22), transparent 60%),
+    radial-gradient(50rem 34rem at 82% 84%, oklch(0.552 0.221 261 / 0.2), transparent 62%);
 }
 
 /* The faint rule of the page: structure you feel rather than see. */
@@ -76,16 +74,90 @@ body {
   inset: 0;
   z-index: -1;
   background-image:
-    linear-gradient(to right, oklch(0.552 0.221 261 / 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(0.552 0.221 261 / 0.05) 1px, transparent 1px);
+    linear-gradient(to right, oklch(1 0 0 / 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.04) 1px, transparent 1px);
   background-size: 64px 64px;
   mask-image: linear-gradient(to bottom, black, transparent 22%, transparent 78%, black);
 }
 
-/* Glass: white, but letting the wash behind it through. */
+/* Dark glass: the ground, thickened, letting the light behind it through. */
 .glass {
-  background: oklch(1 0 0 / 0.72);
-  backdrop-filter: blur(12px);
+  background: oklch(0.163 0.022 262 / 0.72);
+  backdrop-filter: blur(14px);
+}
+
+/*
+ * Deep: the stretch where the page drops a floor. It fades in from the page and fades
+ * back out, so there is no line where one act becomes another, and it turns blue at
+ * both edges — a ground that fades straight to black goes flat and grey on the way.
+ * `to-end` keeps it deep all the way to the bottom of the page.
+ */
+.deep {
+  position: relative;
+  isolation: isolate;
+}
+
+.deep::before,
+.deep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 11rem,
+    black calc(100% - 9rem),
+    transparent
+  );
+}
+
+.deep::before {
+  z-index: -2;
+  background-image: linear-gradient(
+    to bottom,
+    oklch(0.3 0.1 262),
+    var(--color-deep) 24rem,
+    var(--color-deep) calc(100% - 22rem),
+    oklch(0.28 0.095 262)
+  );
+}
+
+/* Light in the dark, arriving before the floor drops, and slowly breathing. */
+.deep::after {
+  z-index: -1;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 5rem,
+    black calc(100% - 5rem),
+    transparent
+  );
+  background:
+    radial-gradient(56rem 36rem at 14% 4%, oklch(0.552 0.221 261 / 0.4), transparent 62%),
+    radial-gradient(46rem 32rem at 88% 46%, oklch(0.63 0.196 259 / 0.24), transparent 62%),
+    radial-gradient(50rem 34rem at 30% 96%, oklch(0.482 0.196 262 / 0.36), transparent 62%);
+  animation: breathe 20s ease-in-out infinite alternate;
+}
+
+.deep.to-end::before {
+  background-image: linear-gradient(to bottom, oklch(0.3 0.1 262), var(--color-deep) 24rem);
+}
+
+.deep.to-end::before,
+.deep.to-end::after {
+  mask-image: linear-gradient(to bottom, transparent, black 11rem);
+}
+
+@keyframes breathe {
+  from {
+    opacity: 0.72;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-1.5rem);
+  }
 }
 
 @keyframes arrive {
@@ -105,7 +177,7 @@ body {
 
 @keyframes settle {
   0% {
-    background-color: oklch(0.63 0.196 259 / 0.14);
+    background-color: oklch(0.63 0.196 259 / 0.3);
   }
   100% {
     background-color: transparent;
@@ -133,96 +205,6 @@ body {
   animation-range: entry 0% cover 24%;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
-  .arrive,
-  .settle,
-  .rise {
-    animation: none;
-  }
-}
-
-/*
- * Night: a stretch of the page that goes dark. It fades in from the light canvas and
- * fades back out again, so there is no line where one section becomes another — the
- * page dims, stays down for a while, and comes back up. `to-end` keeps it dark all
- * the way to the bottom of the page.
- */
-.night {
-  position: relative;
-  isolation: isolate;
-}
-
-.night::before,
-.night::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  mask-image: linear-gradient(to bottom, transparent, black 11rem, black calc(100% - 9rem), transparent);
-}
-
-/*
- * The ground, with the page's own weave carried into it. It is blue at the top and
- * bottom and near-black in the middle, so the dim passes through blue rather than
- * through grey — a white page fading straight to black goes muddy on the way.
- */
-.night::before {
-  z-index: -2;
-  background-image:
-    linear-gradient(to right, oklch(1 0 0 / 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(1 0 0 / 0.035) 1px, transparent 1px),
-    linear-gradient(
-      to bottom,
-      oklch(0.34 0.11 262),
-      var(--color-ink-950) 24rem,
-      var(--color-ink-950) calc(100% - 22rem),
-      oklch(0.32 0.1 262)
-    );
-  background-size:
-    64px 64px,
-    64px 64px,
-    100% 100%;
-}
-
-/* Light in the dark: the same blues as the canvas, slowly breathing. */
-.night::after {
-  z-index: -1;
-  mask-image: linear-gradient(to bottom, transparent, black 5rem, black calc(100% - 5rem), transparent);
-  background:
-    linear-gradient(to bottom, oklch(0.63 0.196 259 / 0.22), transparent 26rem),
-    radial-gradient(58rem 38rem at 12% 6%, oklch(0.552 0.221 261 / 0.38), transparent 62%),
-    radial-gradient(48rem 34rem at 88% 44%, oklch(0.63 0.196 259 / 0.26), transparent 62%),
-    radial-gradient(52rem 34rem at 32% 94%, oklch(0.482 0.196 262 / 0.34), transparent 62%);
-  animation: breathe 20s ease-in-out infinite alternate;
-}
-
-.night.to-end::before {
-  background-image:
-    linear-gradient(to right, oklch(1 0 0 / 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(1 0 0 / 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(0.34 0.11 262), var(--color-ink-950) 24rem);
-}
-
-.night.to-end::before,
-.night.to-end::after {
-  mask-image: linear-gradient(to bottom, transparent, black 11rem);
-}
-
-@keyframes breathe {
-  from {
-    opacity: 0.72;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(-1.5rem);
-  }
-}
-
 /* A pulse running the length of the rail: the stream, moving. */
 @keyframes travel {
   0% {
@@ -246,8 +228,15 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .night::after,
-  .travel {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .arrive,
+  .settle,
+  .rise,
+  .travel,
+  .deep::after {
     animation: none;
   }
 }

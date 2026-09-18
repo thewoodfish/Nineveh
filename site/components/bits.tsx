@@ -1,5 +1,5 @@
-// The page's shared pieces. Most of them take a `dark` prop: the page runs in acts and
-// dims into the dark twice, and the same component has to read on either ground.
+// The page's shared pieces. The page is dark throughout, so these have one look: white
+// for what matters, white at low opacity for what supports it, blue for what's alive.
 
 import type { ReactNode } from "react";
 
@@ -25,9 +25,9 @@ export function Button({
 }) {
   const tones = {
     primary:
-      "bg-blue-600 text-white shadow-card hover:bg-blue-500 hover:shadow-hero focus-visible:ring-blue-300",
+      "bg-blue-600 text-white shadow-card hover:bg-blue-500 hover:shadow-glow focus-visible:ring-blue-400",
     quiet:
-      "border border-ink-200 bg-white/80 text-ink-800 shadow-soft backdrop-blur hover:border-blue-200 hover:text-ink-900 focus-visible:ring-blue-200",
+      "border border-white/15 bg-white/[0.06] text-white/80 backdrop-blur hover:border-white/25 hover:bg-white/10 hover:text-white focus-visible:ring-white/30",
   };
   const sizes = { md: "px-4 py-2.5 text-sm", lg: "px-5 py-3 text-sm" };
   return (
@@ -41,22 +41,14 @@ export function Button({
 }
 
 /** The line above a heading: what this stretch of the page is about. */
-export function Eyebrow({
-  children,
-  dark = false,
-  center = false,
-}: {
-  children: ReactNode;
-  dark?: boolean;
-  center?: boolean;
-}) {
+export function Eyebrow({ children, center = false }: { children: ReactNode; center?: boolean }) {
   return (
     <div
-      className={`flex items-center gap-2.5 text-xs font-semibold tracking-[0.14em] uppercase ${
+      className={`flex items-center gap-2.5 text-xs font-semibold tracking-[0.14em] text-blue-300 uppercase ${
         center ? "justify-center" : ""
-      } ${dark ? "text-blue-300" : "text-blue-600"}`}
+      }`}
     >
-      <span className={`h-px w-6 ${dark ? "bg-blue-400/60" : "bg-blue-300"}`} />
+      <span className="h-px w-6 bg-blue-400/60" />
       {children}
     </div>
   );
@@ -77,45 +69,29 @@ export function Section({
 }) {
   return (
     <section id={id} className="mx-auto w-full max-w-6xl px-6">
-      {rule && <hr className="border-0 border-t border-ink-200/70" />}
+      {rule && <hr className="border-0 border-t border-white/10" />}
       <div className="py-20 sm:py-28">{children}</div>
     </section>
   );
 }
 
-export function Heading({
-  children,
-  dark = false,
-  center = false,
-}: {
-  children: ReactNode;
-  dark?: boolean;
-  center?: boolean;
-}) {
+export function Heading({ children, center = false }: { children: ReactNode; center?: boolean }) {
   return (
     <h2
-      className={`mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-balance sm:text-[2.7rem] sm:leading-[1.08] ${
+      className={`mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-balance text-white sm:text-[2.7rem] sm:leading-[1.08] ${
         center ? "mx-auto" : ""
-      } ${dark ? "text-white" : "text-ink-900"}`}
+      }`}
     >
       {children}
     </h2>
   );
 }
 
-export function Lede({
-  children,
-  dark = false,
-  center = false,
-}: {
-  children: ReactNode;
-  dark?: boolean;
-  center?: boolean;
-}) {
+export function Lede({ children, center = false }: { children: ReactNode; center?: boolean }) {
   return (
     <p
-      className={`mt-5 max-w-2xl text-lg leading-relaxed text-pretty ${center ? "mx-auto" : ""} ${
-        dark ? "text-white/60" : "text-ink-500"
+      className={`mt-5 max-w-2xl text-lg leading-relaxed text-pretty text-white/55 ${
+        center ? "mx-auto" : ""
       }`}
     >
       {children}
@@ -123,43 +99,17 @@ export function Lede({
   );
 }
 
-/** A pane of code, coloured by a few plain rules, on either ground. */
-export function Code({
-  title,
-  lines,
-  dark = false,
-}: {
-  title: string;
-  lines: string[];
-  dark?: boolean;
-}) {
+/** A pane of code, coloured by a few plain rules. */
+export function Code({ title, lines }: { title: string; lines: string[] }) {
   return (
-    <div
-      className={`overflow-hidden rounded-2xl ${
-        dark
-          ? "bg-white/[0.045] ring-1 ring-white/10 backdrop-blur"
-          : "border border-ink-200/80 bg-white shadow-card"
-      }`}
-    >
-      <div
-        className={`flex items-center gap-2 px-4 py-2.5 ${
-          dark ? "border-b border-white/10" : "border-b border-ink-200/70 bg-ink-50/60"
-        }`}
-      >
-        <span className={`size-2 rounded-full ${dark ? "bg-white/20" : "bg-ink-200"}`} />
-        <span
-          className={`font-mono text-[11px] font-medium ${dark ? "text-white/40" : "text-ink-400"}`}
-        >
-          {title}
-        </span>
+    <div className="overflow-hidden rounded-2xl bg-white/[0.045] ring-1 ring-white/10 backdrop-blur">
+      <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
+        <span className="size-2 rounded-full bg-white/20" />
+        <span className="font-mono text-[11px] font-medium text-white/40">{title}</span>
       </div>
-      <pre
-        className={`overflow-x-auto px-4 py-4 font-mono text-[12.5px] leading-[1.8] ${
-          dark ? "text-white/75" : "text-ink-700"
-        }`}
-      >
+      <pre className="overflow-x-auto px-4 py-4 font-mono text-[12.5px] leading-[1.8] text-white/75">
         {lines.map((line, i) => (
-          <div key={i}>{paint(line, dark)}</div>
+          <div key={i}>{paint(line)}</div>
         ))}
       </pre>
     </div>
@@ -167,12 +117,9 @@ export function Code({
 }
 
 /** Keys, strings and comments, told apart. */
-function paint(line: string, dark = false) {
-  const comment = dark ? "text-white/30" : "text-ink-400";
-  const key = dark ? "text-blue-300" : "font-medium text-blue-700";
-  const string = dark ? "text-emerald-300/90" : "text-emerald-700";
+function paint(line: string) {
   if (line.trimStart().startsWith("#")) {
-    return <span className={comment}>{line || " "}</span>;
+    return <span className="text-white/30">{line || " "}</span>;
   }
   const parts: ReactNode[] = [];
   const pattern = /("[^"]*")|(\b[a-z_][a-z0-9_]*:)/gi;
@@ -181,7 +128,7 @@ function paint(line: string, dark = false) {
     const index = match.index ?? 0;
     if (index > at) parts.push(line.slice(at, index));
     parts.push(
-      <span key={index} className={match[1] ? string : key}>
+      <span key={index} className={match[1] ? "text-emerald-300/90" : "text-blue-300"}>
         {match[0]}
       </span>,
     );

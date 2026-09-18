@@ -72,10 +72,9 @@ const GUARANTEES = [
 ];
 
 /*
- * The page runs in acts: it opens light, dims into the dark for the part that is all
- * machinery, comes back up bright for what you get out of it, and goes down again to
- * close. The dark stretches fade in and out of the canvas, so no two sections meet at
- * an edge.
+ * The page is dark throughout. It still runs in acts — the machinery drops a floor into
+ * the `deep` ground and the close drops again and stays there — but the change is in
+ * depth and in light, not in whether the lights are on.
  */
 export default function Home() {
   return (
@@ -100,15 +99,15 @@ function Hero() {
       <div className="mx-auto max-w-3xl text-center">
         <a
           href="#how"
-          className="inline-flex items-center gap-2 rounded-full border border-blue-200/70 bg-white/70 px-3.5 py-1.5 text-xs font-medium text-blue-700 backdrop-blur transition-colors hover:border-blue-300 hover:bg-white"
+          className="inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-3.5 py-1.5 text-xs font-medium text-blue-200 backdrop-blur transition-colors hover:border-blue-400/50 hover:bg-blue-500/15"
         >
-          <span className="size-1.5 rounded-full bg-blue-500" />
+          <span className="size-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_2px_oklch(0.716_0.152_259_/_0.6)]" />
           Built for Aptos, on the transaction stream
         </a>
-        <h1 className="mt-7 text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-ink-900 sm:text-[4rem]">
-          A <span className="text-blue-600">live backend</span> for your Aptos contract
+        <h1 className="mt-7 text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-white sm:text-[4rem]">
+          A <span className="text-blue-400">live backend</span> for your Aptos contract
         </h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-ink-500">
+        <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/55">
           Point Nineveh at your contract&apos;s address. Get a database and an API that stay in sync
           with the chain — sorted, filtered, aggregated, live. No indexer to write, nothing to run.
         </p>
@@ -123,10 +122,10 @@ function Hero() {
       </div>
 
       <figure className="mt-16 sm:mt-20">
-        <div className="rounded-[1.4rem] border border-ink-200/60 bg-white/50 p-1.5 shadow-hero backdrop-blur">
+        <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.035] p-1.5 shadow-hero backdrop-blur">
           <Stream />
         </div>
-        <figcaption className="mt-4 text-center text-xs text-ink-400">
+        <figcaption className="mt-4 text-center text-xs text-white/35">
           Every sale the contract emits, folded into the table your app queries.
         </figcaption>
       </figure>
@@ -143,32 +142,32 @@ function Problem() {
           <Heading>The chain answers one kind of question</Heading>
         </div>
         <div className="self-end">
-          <p className="text-lg leading-relaxed text-pretty text-ink-500">
-            <em className="text-ink-700">What is X right now?</em> One account&apos;s balance. One
-            listing by id. It can&apos;t sort, total, join or give you a feed — and the data your app
-            needs isn&apos;t even in storage. It lives in events and write sets, because keeping
+          <p className="text-lg leading-relaxed text-pretty text-white/55">
+            <em className="text-white/80">What is X right now?</em> One account&apos;s balance. One
+            listing by id. It can&apos;t sort, total, join or give you a feed — and the data your
+            app needs isn&apos;t even in storage. It lives in events and write sets, because keeping
             totals on-chain costs gas on every transaction.
           </p>
-          <p className="mt-5 text-ink-500">
+          <p className="mt-5 text-white/55">
             So every team writes an indexer: a processor, a database, a server, a deploy pipeline. A
             week of work, and something to maintain forever.{" "}
-            <span className="font-medium text-ink-900">Nineveh is that week, done.</span>
+            <span className="font-medium text-white">Nineveh is that week, done.</span>
           </p>
         </div>
       </div>
 
       {/* The three asks, set as an editorial list rather than boxed up as cards. */}
-      <dl className="rise mt-16 border-t border-ink-200/70">
+      <dl className="rise mt-16 border-t border-white/10">
         {ASKS.map(([ask, kinds]) => (
           <div
             key={ask}
-            className="group grid gap-1.5 border-b border-ink-200/70 py-7 sm:grid-cols-[1.05fr_1fr] sm:gap-10"
+            className="group grid gap-1.5 border-b border-white/10 py-7 sm:grid-cols-[1.05fr_1fr] sm:gap-10"
           >
-            <dt className="flex items-baseline gap-3 text-xl font-medium tracking-tight text-ink-900 sm:text-2xl">
+            <dt className="flex items-baseline gap-3 text-xl font-medium tracking-tight text-white sm:text-2xl">
               <span className="mt-2 size-1.5 shrink-0 rounded-full bg-blue-400 transition-transform duration-300 group-hover:scale-150" />
               {ask}
             </dt>
-            <dd className="self-center pl-6 text-ink-500 sm:pl-0">{kinds}</dd>
+            <dd className="self-center pl-6 text-white/50 sm:pl-0">{kinds}</dd>
           </div>
         ))}
       </dl>
@@ -176,19 +175,15 @@ function Problem() {
   );
 }
 
-/** The dark act: the config, the machine that runs it, and what it promises. */
+/** The deep act: the config, the machine that runs it, and what it promises. */
 function Machinery() {
   return (
-    <section id="how" className="night">
+    <section id="how" className="deep">
       <div className="mx-auto max-w-6xl px-6 pt-44 pb-40 sm:pt-52 sm:pb-48">
         <div className="rise mx-auto max-w-3xl text-center">
-          <Eyebrow dark center>
-            Seventeen lines
-          </Eyebrow>
-          <Heading dark center>
-            Describe the table. Get the API.
-          </Heading>
-          <Lede dark center>
+          <Eyebrow center>Seventeen lines</Eyebrow>
+          <Heading center>Describe the table. Get the API.</Heading>
+          <Lede center>
             No processor to write, no migrations, no schema to keep in step. Change a rule and
             Nineveh rebuilds the table from history in the background, then swaps it in — the old
             data keeps serving the whole time.
@@ -196,9 +191,9 @@ function Machinery() {
         </div>
 
         <div className="rise mt-16 grid items-start gap-6 lg:grid-cols-2">
-          <Code title="nineveh.yaml" lines={CONFIG} dark />
+          <Code title="nineveh.yaml" lines={CONFIG} />
           <div className="flex flex-col gap-5">
-            <Code title="your API, a second later" lines={RESPONSE} dark />
+            <Code title="your API, a second later" lines={RESPONSE} />
             <p className="text-sm leading-relaxed text-white/50">
               Wide integers come back as strings, because a{" "}
               <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
@@ -211,8 +206,8 @@ function Machinery() {
         </div>
 
         <div className="rise mt-32">
-          <Eyebrow dark>Under it</Eyebrow>
-          <Heading dark>Four steps, and none of them are yours</Heading>
+          <Eyebrow>Under it</Eyebrow>
+          <Heading>Four steps, and none of them are yours</Heading>
         </div>
         {/* A rail runs through the steps, with a pulse travelling it: one movement, not
             four boxes. */}
@@ -223,7 +218,7 @@ function Machinery() {
           </div>
           {STEPS.map((step, i) => (
             <li key={step.title} className="relative">
-              <div className="flex size-7 items-center justify-center rounded-full border border-white/15 bg-ink-950 font-mono text-[11px] font-semibold text-blue-200">
+              <div className="flex size-7 items-center justify-center rounded-full border border-white/15 bg-deep font-mono text-[11px] font-semibold text-blue-200">
                 {i + 1}
               </div>
               <h3 className="mt-5 font-semibold text-white">{step.title}</h3>
@@ -261,7 +256,7 @@ function Payoff() {
       <div className="mt-14">
         <Builds />
       </div>
-      <p className="rise mt-8 text-center text-sm text-ink-500">
+      <p className="rise mt-8 text-center text-sm text-white/45">
         Whatever your contract emits, you can fold it into a table shaped like the question you
         actually ask.
       </p>
@@ -272,9 +267,9 @@ function Payoff() {
 /** The page goes down for the last time, and stays there. */
 function Closing() {
   return (
-    <div className="night to-end">
+    <div className="deep to-end">
       <section className="mx-auto w-full max-w-6xl px-6 pt-48 pb-16 sm:pt-56">
-        <div className="relative overflow-hidden rounded-3xl bg-blue-600 px-8 py-16 text-center shadow-hero sm:px-16 sm:py-20">
+        <div className="relative overflow-hidden rounded-3xl bg-blue-600 px-8 py-16 text-center shadow-glow sm:px-16 sm:py-20">
           <div
             className="absolute inset-0 opacity-70"
             style={{
