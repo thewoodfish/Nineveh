@@ -1,8 +1,9 @@
 "use client";
 
 import { memo, useCallback, useState } from "react";
+import { PageHeader } from "@/components/page-header";
 
-import { Button, Cell, field, Live, OpBadge, PageHeader, Select } from "@/components/ui";
+import { Button, Cell, field, Live, OpBadge, Select } from "@/components/ui";
 import type { Change, Table } from "@/lib/api";
 import { formatInteger } from "@/lib/format";
 import { useFeed, useTables } from "@/lib/hooks";

@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { PageHeader } from "@/components/page-header";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ExpressionInput, type Insert, type Name } from "@/components/expression";
-import { Button, Card, Notice, PageHeader, Select } from "@/components/ui";
+import { Button, Card, Notice, Select } from "@/components/ui";
 import {
   ApiError,
   type ColumnType,

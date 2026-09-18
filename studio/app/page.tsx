@@ -1,22 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { PageHeader } from "@/components/page-header";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
 import { ApiKeys } from "@/components/api-keys";
 import { Webhooks } from "@/components/webhooks";
 import { ConfigPanel } from "@/components/config-panel";
-import {
-  Button,
-  Card,
-  filledButton,
-  Icon,
-  Notice,
-  Offline,
-  PageHeader,
-  PhaseDot,
-} from "@/components/ui";
+import { Button, Card, filledButton, Icon, Notice, Offline, PhaseDot } from "@/components/ui";
 import { API_URL, type ProjectSummary, type Status, control } from "@/lib/api";
 import { behind, formatDuration, formatInteger, progress, shortHex } from "@/lib/format";
 import { useStatus, useTables } from "@/lib/hooks";

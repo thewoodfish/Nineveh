@@ -1,23 +1,41 @@
 "use client";
 
-// The bar across the top of the working area. It carries which project you are in —
-// the console pattern: the picker sits in the bar, and the drawer below is navigation
-// and nothing else.
+// The one bar at the top of the working area. It answers *which project* and *which
+// page* on a single line: the picker on the left, where a console keeps it, then the
+// page's own title, then whatever that page lets you do.
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useStatus } from "@/lib/hooks";
 import { useProject } from "@/lib/project";
 
 import { Icon, PhaseDot } from "./ui";
 
-export function AppBar() {
+export function PageHeader({
+  title,
+  hint,
+  children,
+}: {
+  title: ReactNode;
+  hint?: ReactNode;
+  children?: ReactNode;
+}) {
   const { mode } = useProject();
-  if (mode === "loading" || mode === "offline") return null;
+  const showPicker = mode === "control" || mode === "single";
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-outline-variant px-3">
-      {mode === "control" ? <ProjectPicker /> : <SingleProject />}
+    <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-outline-variant bg-surface px-6 py-3">
+      {showPicker && (
+        <>
+          {mode === "control" ? <ProjectPicker /> : <SingleProject />}
+          <span className="h-6 w-px shrink-0 bg-outline-variant" aria-hidden />
+        </>
+      )}
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-[22px] leading-7 text-on-surface">{title}</h1>
+        {hint && <p className="mt-0.5 truncate text-sm text-on-surface-variant">{hint}</p>}
+      </div>
+      <div className="flex items-center gap-2">{children}</div>
     </header>
   );
 }

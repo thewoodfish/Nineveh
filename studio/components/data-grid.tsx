@@ -8,7 +8,8 @@ import { formatInteger } from "@/lib/format";
 import { useFeed } from "@/lib/hooks";
 import { useProject } from "@/lib/project";
 
-import { Button, Cell, Live, Notice, PageHeader, isNumeric } from "./ui";
+import { PageHeader } from "./page-header";
+import { Button, Cell, Live, Notice, isNumeric } from "./ui";
 
 const PAGE = 50;
 

@@ -179,26 +179,6 @@ export function Stat({
   );
 }
 
-export function PageHeader({
-  title,
-  hint,
-  children,
-}: {
-  title: ReactNode;
-  hint?: ReactNode;
-  children?: ReactNode;
-}) {
-  return (
-    <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 bg-surface px-6 py-3">
-      <div className="min-w-0">
-        <h1 className="truncate text-[22px] leading-7 text-on-surface">{title}</h1>
-        {hint && <p className="mt-0.5 truncate text-sm text-on-surface-variant">{hint}</p>}
-      </div>
-      <div className="flex items-center gap-2">{children}</div>
-    </header>
-  );
-}
-
 export function Notice({
   tone = "neutral",
   title,
