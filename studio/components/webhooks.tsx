@@ -60,28 +60,35 @@ export function Webhooks({ project }: { project: string }) {
 
   return (
     <Card>
-      <div className="border-b border-line px-4 py-3">
+      <div className="border-b border-outline-variant px-4 py-3">
         <h2 className="text-sm font-medium">Webhooks</h2>
-        <p className="text-xs text-dim">
+        <p className="text-xs text-on-surface-variant">
           Where this project&apos;s changes are delivered. Add and remove them in the config; check
           the signature with the secret below.
         </p>
       </div>
 
-      {error && <p className="border-b border-line px-4 py-2 text-sm text-red-300">{error}</p>}
+      {error && (
+        <p className="border-b border-outline-variant px-4 py-2 text-sm text-error">{error}</p>
+      )}
 
-      <ul className="divide-y divide-line">
+      <ul className="divide-y divide-outline-variant">
         {hooks?.map((hook) => (
           <li key={hook.name} className="px-4 py-3">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span className="text-sm font-medium">{hook.name}</span>
-              <code className="min-w-0 flex-1 truncate font-mono text-xs text-dim">{hook.url}</code>
+              <code className="min-w-0 flex-1 truncate font-mono text-xs text-on-surface-variant">
+                {hook.url}
+              </code>
               <Health hook={hook} />
             </div>
 
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-dim">
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-on-surface-variant">
               {hook.on.map((on) => (
-                <span key={on} className="rounded bg-well px-1.5 py-0.5 font-mono">
+                <span
+                  key={on}
+                  className="rounded bg-surface-container-high px-1.5 py-0.5 font-mono"
+                >
                   {on}
                 </span>
               ))}
@@ -89,13 +96,13 @@ export function Webhooks({ project }: { project: string }) {
             </div>
 
             {hook.last_error && (
-              <p className="mt-1.5 truncate text-xs text-red-300" title={hook.last_error}>
+              <p className="mt-1.5 truncate text-xs text-error" title={hook.last_error}>
                 last attempt: {hook.last_error}
               </p>
             )}
 
             <div className="mt-2 flex items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded bg-well px-2 py-1 font-mono text-xs">
+              <code className="min-w-0 flex-1 truncate rounded bg-surface-container-high px-2 py-1 font-mono text-xs">
                 {shown === hook.name ? hook.secret : `${hook.secret.slice(0, 10)}${"•".repeat(12)}`}
               </code>
               <Button onClick={() => setShown(shown === hook.name ? null : hook.name)}>
@@ -119,11 +126,12 @@ export function Webhooks({ project }: { project: string }) {
 function Health({ hook }: { hook: WebhookInfo }) {
   if (hook.failures > 0) {
     return (
-      <span className="text-xs text-red-300">
+      <span className="text-xs text-error">
         failing · {hook.failures} {hook.failures === 1 ? "attempt" : "attempts"}
       </span>
     );
   }
-  if (!hook.delivered) return <span className="text-xs text-faint">nothing sent yet</span>;
-  return <span className="text-xs text-emerald-300">delivered to {hook.delivered}</span>;
+  if (!hook.delivered)
+    return <span className="text-xs text-on-surface-variant">nothing sent yet</span>;
+  return <span className="text-xs text-on-tertiary-container">delivered to {hook.delivered}</span>;
 }

@@ -65,15 +65,15 @@ export function ApiKeys({ project, api }: { project: string; api: string }) {
   };
 
   const field =
-    "rounded-md border border-line bg-card px-2.5 py-1.5 text-sm focus:border-blue-400 focus:outline-none";
+    "rounded-sm border border-outline-variant bg-surface-container-low px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none";
   const url = `${API_URL}${api}/v1/tables`;
 
   return (
     <Card>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant px-4 py-3">
         <div>
           <h2 className="text-sm font-medium">API keys</h2>
-          <p className="text-xs text-dim">
+          <p className="text-xs text-on-surface-variant">
             What your app sends to read this project. Safe in browser code: revoke one any time.
           </p>
         </div>
@@ -97,39 +97,41 @@ export function ApiKeys({ project, api }: { project: string; api: string }) {
         </form>
       </div>
 
-      {error && <p className="border-b border-line px-4 py-2 text-sm text-red-300">{error}</p>}
+      {error && (
+        <p className="border-b border-outline-variant px-4 py-2 text-sm text-error">{error}</p>
+      )}
 
       {created?.key && (
-        <div className="border-b border-line bg-emerald-500/10 px-4 py-3">
+        <div className="border-b border-outline-variant bg-tertiary-container px-4 py-3">
           <div className="text-sm font-medium">
             Copy your key now: it won&apos;t be shown again.
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <code className="min-w-0 flex-1 truncate rounded bg-card px-2 py-1 font-mono text-xs">
+            <code className="min-w-0 flex-1 truncate rounded bg-surface-container-low px-2 py-1 font-mono text-xs">
               {created.key}
             </code>
             <Button onClick={() => void copy(created.key ?? "")}>
               {copied ? "Copied" : "Copy"}
             </Button>
           </div>
-          <pre className="mt-2 overflow-x-auto rounded-lg bg-well px-3 py-2 font-mono text-xs text-white">
+          <pre className="mt-2 overflow-x-auto rounded-sm bg-surface-container-high px-3 py-2 font-mono text-xs text-on-surface">
             {`curl -H 'Authorization: Bearer ${created.key}' \\\n  '${url}'`}
           </pre>
         </div>
       )}
 
       {keys && keys.length === 0 && !created && (
-        <p className="px-4 py-3 text-sm text-dim">
+        <p className="px-4 py-3 text-sm text-on-surface-variant">
           No keys yet. Create one for each app that reads this project.
         </p>
       )}
       {keys && keys.length > 0 && (
-        <ul className="divide-y divide-line">
+        <ul className="divide-y divide-outline-variant">
           {keys.map((key) => (
             <li key={key.id} className="flex items-center gap-4 px-4 py-2.5 text-sm">
               <span className="w-40 truncate">{key.label}</span>
-              <code className="font-mono text-xs text-dim">{key.prefix}…</code>
-              <span className="ml-auto text-xs text-faint">
+              <code className="font-mono text-xs text-on-surface-variant">{key.prefix}…</code>
+              <span className="ml-auto text-xs text-on-surface-variant">
                 {key.last_used_at
                   ? `used ${new Date(key.last_used_at).toLocaleString()}`
                   : "never used"}

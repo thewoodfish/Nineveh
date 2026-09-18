@@ -105,7 +105,7 @@ function isFilled(sources: SourceInfo[]): sources is [SourceInfo, ...SourceInfo[
 }
 
 const field =
-  "rounded-md border border-line bg-card px-2.5 py-1.5 text-sm focus:border-blue-400 focus:outline-none";
+  "rounded-sm border border-outline-variant bg-surface-container-low px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none";
 
 /**
  * Design a state table: a key, typed columns, and rules that fold records into them.
@@ -208,7 +208,7 @@ function StateTableEditor() {
 
   if (mode === "single" || !base) {
     return (
-      <div className="mx-auto mt-24 max-w-md px-6 text-center text-sm text-dim">
+      <div className="mx-auto mt-24 max-w-md px-6 text-center text-sm text-on-surface-variant">
         Open a project first: state tables belong to one.
       </div>
     );
@@ -217,7 +217,7 @@ function StateTableEditor() {
   return (
     <div>
       <PageHeader title={editing ? `Edit ${editing}` : "New state table"}>
-        {checked?.ok && <span className="text-xs text-emerald-300">checks out</span>}
+        {checked?.ok && <span className="text-xs text-on-tertiary-container">checks out</span>}
         <Button tone="primary" disabled={saving || !checked?.ok} onClick={() => void save()}>
           {saving ? "Saving…" : editing ? "Save changes" : "Create table"}
         </Button>
@@ -227,7 +227,7 @@ function StateTableEditor() {
         {!table && !editing && (
           <div>
             <h2 className="text-xl font-semibold tracking-tight">What should this table hold?</h2>
-            <p className="mt-1.5 max-w-2xl text-sm text-dim text-pretty">
+            <p className="mt-1.5 max-w-2xl text-sm text-on-surface-variant text-pretty">
               You say what a row is and how each record changes it. Nineveh folds every record into
               it in order, and serves it over REST with a change feed, like any other table.
             </p>
@@ -266,14 +266,14 @@ function StateTableEditor() {
           <>
             <Editor sources={sources} existing={existing} table={table} onChange={setTable} />
             <Card className="overflow-hidden">
-              <div className="flex items-center justify-between border-b border-line px-4 py-2">
-                <span className="text-xs text-dim">
+              <div className="flex items-center justify-between border-b border-outline-variant px-4 py-2">
+                <span className="text-xs text-on-surface-variant">
                   <span className="font-mono">nineveh.yaml</span>, as this will be saved
                 </span>
                 <button
                   type="button"
                   onClick={() => setTable(null)}
-                  className="text-xs text-dim hover:text-white"
+                  className="text-xs text-on-surface-variant hover:text-on-surface"
                 >
                   {editing ? "Discard changes" : "Start over"}
                 </button>
@@ -354,8 +354,8 @@ function PreviewCard({
   const columns = table.columns.map((c) => c.name);
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
-        <span className="text-xs text-dim">
+      <div className="flex items-center justify-between gap-3 border-b border-outline-variant px-4 py-2">
+        <span className="text-xs text-on-surface-variant">
           {preview
             ? `${preview.row_count} row${preview.row_count === 1 ? "" : "s"} from ${preview.transactions} recent transactions`
             : "What these rules would produce, from the chain's recent transactions"}
@@ -372,7 +372,7 @@ function PreviewCard({
         </div>
       )}
       {preview && !error && preview.rows.length === 0 && (
-        <p className="px-4 py-3 text-sm text-dim">
+        <p className="px-4 py-3 text-sm text-on-surface-variant">
           Nothing in the last {preview.transactions} transactions fed this table. That isn&apos;t a
           problem with the rules — try again once the contract has been used.
         </p>
@@ -380,7 +380,7 @@ function PreviewCard({
       {preview && preview.rows.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-line text-xs text-dim">
+            <thead className="border-b border-outline-variant text-xs text-on-surface-variant">
               <tr>
                 {columns.map((name) => (
                   <th key={name} className="px-4 py-1.5 font-medium">
@@ -391,7 +391,7 @@ function PreviewCard({
             </thead>
             <tbody>
               {preview.rows.map((row, i) => (
-                <tr key={i} className="border-b border-line last:border-0">
+                <tr key={i} className="border-b border-outline-variant last:border-0">
                   {columns.map((name) => (
                     <td key={name} className="px-4 py-1.5 font-mono text-xs">
                       {cell(row[name])}
@@ -402,7 +402,7 @@ function PreviewCard({
             </tbody>
           </table>
           {preview.row_count > preview.rows.length && (
-            <p className="px-4 py-2 text-xs text-dim">
+            <p className="px-4 py-2 text-xs text-on-surface-variant">
               and {preview.row_count - preview.rows.length} more.
             </p>
           )}
@@ -468,8 +468,8 @@ function Templates({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-well px-4 py-3">
-        <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
+      <div className="flex flex-wrap items-end gap-3 rounded-sm border border-outline-variant bg-surface-container-high px-4 py-3">
+        <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
           Fold records from
           <Select
             value={source.name}
@@ -483,7 +483,7 @@ function Templates({
             ))}
           </Select>
         </label>
-        <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
+        <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
           One row per
           <Select value={key} onChange={(e) => setKey(e.target.value)} className="font-mono">
             {keys.map((f) => (
@@ -494,7 +494,7 @@ function Templates({
           </Select>
         </label>
         {amounts.length > 0 && (
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
+          <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
             Adding up
             <Select
               value={amount}
@@ -587,7 +587,7 @@ function Templates({
       <button
         type="button"
         onClick={() => onPick(blank(source))}
-        className="rounded-xl border border-dashed border-edge px-4 py-3 text-sm text-dim transition-colors hover:border-blue-400/60 hover:text-white"
+        className="rounded-sm border border-dashed border-outline px-4 py-3 text-sm text-on-surface-variant transition-colors hover:border-primary hover:text-on-surface"
       >
         Or start from an empty table and write the columns and rules yourself.
       </button>
@@ -603,26 +603,26 @@ function Shape({ table }: { table: StateTable }) {
   const columns = table.columns.slice(0, 4);
   const more = table.columns.length - columns.length;
   return (
-    <div className="mt-3 overflow-hidden rounded-lg border border-line bg-card">
-      <div className="flex items-center gap-3 border-b border-line px-2.5 py-1.5">
+    <div className="mt-3 overflow-hidden rounded-sm border border-outline-variant bg-surface-container-low">
+      <div className="flex items-center gap-3 border-b border-outline-variant px-2.5 py-1.5">
         {columns.map((column) => (
           <span
             key={column.name}
             className={`truncate font-mono text-[10px] ${
-              column.key ? "font-medium text-blue-300" : "text-faint"
+              column.key ? "font-medium text-primary" : "text-on-surface-variant"
             }`}
           >
             {column.name}
           </span>
         ))}
-        {more > 0 && <span className="text-[10px] text-ghost">+{more}</span>}
+        {more > 0 && <span className="text-[10px] text-on-surface-variant/50">+{more}</span>}
       </div>
       {[0.7, 0.45].map((fade, row) => (
         <div key={row} className="flex items-center gap-3 px-2.5 py-1.5" style={{ opacity: fade }}>
           {columns.map((column, i) => (
             <span
               key={column.name}
-              className="h-1.5 rounded-full bg-white/12"
+              className="h-1.5 rounded-full bg-outline-variant"
               style={{ width: `${[38, 22, 30, 18][i % 4]}px` }}
             />
           ))}
@@ -651,10 +651,12 @@ function Template({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="group flex flex-col rounded-xl border border-line bg-card px-4 py-3.5 text-left shadow-card transition-all hover:-translate-y-px hover:border-blue-400/60 hover:shadow-lifted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-line disabled:hover:shadow-card"
+      className="group flex flex-col rounded-sm border border-outline-variant bg-surface-container-low px-4 py-3.5 text-left shadow-e1 transition-all hover:-translate-y-px hover:border-primary hover:shadow-e3 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-outline-variant disabled:hover:shadow-e1"
     >
-      <div className="text-sm font-semibold group-enabled:group-hover:text-blue-200">{title}</div>
-      <div className="mt-1 text-xs leading-relaxed text-dim">{body}</div>
+      <div className="text-sm font-semibold group-enabled:group-hover:text-on-secondary-container">
+        {title}
+      </div>
+      <div className="mt-1 text-xs leading-relaxed text-on-surface-variant">{body}</div>
       {shape && <Shape table={shape} />}
     </button>
   );
@@ -686,9 +688,9 @@ function Editor({
   return (
     <>
       <Card className="overflow-hidden">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line bg-well px-4 py-3">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-outline-variant bg-surface-container-high px-4 py-3">
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-dim">Table name</span>
+            <span className="text-xs font-medium text-on-surface-variant">Table name</span>
             <input
               value={table.name}
               onChange={(e) => set({ name: e.target.value })}
@@ -696,10 +698,11 @@ function Editor({
               className={`${field} w-72 font-mono text-[15px]`}
             />
           </label>
-          <p className="pb-2 text-xs text-dim">
+          <p className="pb-2 text-xs text-on-surface-variant">
             {keyColumns.length > 0 ? (
               <>
-                one row per <span className="font-mono text-white/75">{keyColumns.join(", ")}</span>
+                one row per{" "}
+                <span className="font-mono text-on-surface">{keyColumns.join(", ")}</span>
               </>
             ) : (
               "no key yet: tick the columns that identify a row"
@@ -709,7 +712,7 @@ function Editor({
 
         <div className="overflow-x-auto px-4 pt-3 pb-4">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-faint">
+            <thead className="text-left text-xs text-on-surface-variant">
               <tr>
                 <th className="py-1 font-medium">Name</th>
                 <th className="py-1 font-medium">Type</th>
@@ -759,7 +762,7 @@ function Editor({
                       type="checkbox"
                       checked={column.nullable}
                       onChange={(e) => setColumn(index, { nullable: e.target.checked })}
-                      className="accent-blue-500"
+                      className="accent-primary"
                     />
                   </td>
                   <td className="py-1 pr-2">
@@ -767,7 +770,7 @@ function Editor({
                       type="checkbox"
                       checked={column.key}
                       onChange={(e) => setColumn(index, { key: e.target.checked })}
-                      className="accent-blue-500"
+                      className="accent-primary"
                     />
                   </td>
                   <td className="py-1">
@@ -778,7 +781,7 @@ function Editor({
                           columns: table.columns.filter((_, i) => i !== index),
                         })
                       }
-                      className="text-xs text-faint hover:text-red-300"
+                      className="text-xs text-on-surface-variant hover:text-error"
                     >
                       Remove
                     </button>
@@ -883,7 +886,7 @@ function RuleCard({
       onMouseDown={(e) => e.preventDefault()}
       onClick={() => active.current?.insert(insert)}
       title="Click to put it in the expression you're editing"
-      className="rounded bg-well px-1.5 py-0.5 font-mono hover:bg-blue-500/25"
+      className="rounded bg-surface-container-high px-1.5 py-0.5 font-mono hover:bg-secondary-container"
     >
       {text}
     </button>
@@ -891,14 +894,16 @@ function RuleCard({
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-line bg-well px-4 py-2">
-        <span className="text-xs font-semibold tracking-wide text-dim uppercase">Rule {n}</span>
-        <span className="truncate text-xs text-dim">
+      <div className="flex items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-high px-4 py-2">
+        <span className="text-xs font-semibold tracking-wide text-on-surface-variant uppercase">
+          Rule {n}
+        </span>
+        <span className="truncate text-xs text-on-surface-variant">
           {rule.removes
             ? "deletes the row"
             : `sets ${rule.sets.length || "no"} column${rule.sets.length === 1 ? "" : "s"}`}
           {" on "}
-          <span className="font-mono text-white/75">
+          <span className="font-mono text-on-surface">
             {rule.on}
             {rule.deleted ? ".deleted" : ""}
           </span>
@@ -906,7 +911,7 @@ function RuleCard({
       </div>
       <div className="p-4">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
+          <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
             On each record from
             <Select
               value={rule.on}
@@ -921,17 +926,17 @@ function RuleCard({
             </Select>
           </label>
           {source?.deletes && (
-            <label className="flex items-center gap-2 pb-2 text-xs text-dim">
+            <label className="flex items-center gap-2 pb-2 text-xs text-on-surface-variant">
               <input
                 type="checkbox"
                 checked={rule.deleted}
                 onChange={(e) => onChange({ deleted: e.target.checked })}
-                className="accent-blue-500"
+                className="accent-primary"
               />
               when it&apos;s deleted
             </label>
           )}
-          <label className="flex flex-1 flex-col gap-1.5 text-xs font-medium text-dim">
+          <label className="flex flex-1 flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
             Only when (optional)
             <ExpressionInput
               value={rule.when}
@@ -944,13 +949,13 @@ function RuleCard({
           <button
             type="button"
             onClick={onRemove}
-            className="pb-2 text-xs text-faint hover:text-red-300"
+            className="pb-2 text-xs text-on-surface-variant hover:text-error"
           >
             Remove rule
           </button>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-dim">
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-on-surface-variant">
           Click to use:
           {readable.map((f) => chip(f.name))}
           {table.columns.filter((c) => !c.key).map((c) => chip(c.name))}
@@ -959,7 +964,7 @@ function RuleCard({
         </div>
 
         {unnamed.length > 0 && (
-          <p className="mt-2 text-xs text-amber-300">
+          <p className="mt-2 text-xs text-on-warning-container">
             Say where {unnamed.map((c) => c.name).join(", ")} comes from: the record has no field of
             that name.
           </p>
@@ -970,14 +975,14 @@ function RuleCard({
             type="checkbox"
             checked={rule.removes}
             onChange={(e) => onChange({ removes: e.target.checked })}
-            className="accent-blue-500"
+            className="accent-primary"
           />
           Delete the row instead of setting columns
         </label>
 
         {!rule.removes && (
           <div className="mt-2">
-            <div className="text-xs font-medium text-dim">Set</div>
+            <div className="text-xs font-medium text-on-surface-variant">Set</div>
             {rule.sets.map((assignment, index) => (
               <div key={index} className="mt-1.5 flex items-center gap-2">
                 <Select
@@ -1000,7 +1005,7 @@ function RuleCard({
                       </option>
                     ))}
                 </Select>
-                <span className="text-faint">=</span>
+                <span className="text-on-surface-variant">=</span>
                 <ExpressionInput
                   value={assignment.expression}
                   onChange={(expression) =>
@@ -1015,7 +1020,7 @@ function RuleCard({
                 <button
                   type="button"
                   onClick={() => onChange({ sets: rule.sets.filter((_, i) => i !== index) })}
-                  className="text-xs text-faint hover:text-red-300"
+                  className="text-xs text-on-surface-variant hover:text-error"
                 >
                   Remove
                 </button>
@@ -1036,7 +1041,9 @@ function RuleCard({
 
         {(rule.keys.length > 0 || unnamed.length > 0) && (
           <div className="mt-3">
-            <div className="text-xs font-medium text-dim">Key columns from the record</div>
+            <div className="text-xs font-medium text-on-surface-variant">
+              Key columns from the record
+            </div>
             {rule.keys.map((assignment, index) => (
               <div key={index} className="mt-1.5 flex items-center gap-2">
                 <Select
@@ -1057,7 +1064,7 @@ function RuleCard({
                     </option>
                   ))}
                 </Select>
-                <span className="text-faint">=</span>
+                <span className="text-on-surface-variant">=</span>
                 <ExpressionInput
                   value={assignment.expression}
                   onChange={(expression) =>
@@ -1072,7 +1079,7 @@ function RuleCard({
                 <button
                   type="button"
                   onClick={() => onChange({ keys: rule.keys.filter((_, i) => i !== index) })}
-                  className="text-xs text-faint hover:text-red-300"
+                  className="text-xs text-on-surface-variant hover:text-error"
                 >
                   Remove
                 </button>

@@ -65,15 +65,15 @@ export function ConfigPanel({ name, onClose }: { name: string; onClose: () => vo
   const changed = saved !== null && text !== saved;
 
   return (
-    <div className="fixed inset-0 z-30 flex justify-end bg-black/60" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-30 flex justify-end bg-scrim" onMouseDown={onClose}>
       <div
-        className="flex h-full w-full max-w-2xl flex-col border-l border-line bg-card shadow-xl"
+        className="flex h-full w-full max-w-2xl flex-col border-l border-outline-variant bg-surface-container-low shadow-e3"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+        <div className="flex items-center justify-between gap-3 border-b border-outline-variant px-5 py-4">
           <div>
             <div className="font-semibold tracking-tight">nineveh.yaml</div>
-            <div className="text-xs text-dim">
+            <div className="text-xs text-on-surface-variant">
               The same file the CLI reads. Keep a copy in your repo.
             </div>
           </div>
@@ -88,7 +88,7 @@ export function ConfigPanel({ name, onClose }: { name: string; onClose: () => vo
           </div>
         </div>
         {error && (
-          <div className="border-b border-red-500/30 bg-red-500/15 px-5 py-3 text-sm text-red-200">
+          <div className="border-b border-error bg-error-container px-5 py-3 text-sm text-on-error-container">
             <div className="font-medium">{error.message}</div>
             {error.details && (
               <pre className="mt-2 overflow-x-auto font-mono text-xs whitespace-pre">
@@ -98,7 +98,7 @@ export function ConfigPanel({ name, onClose }: { name: string; onClose: () => vo
           </div>
         )}
         {changed && !error && (
-          <div className="border-b border-line bg-well px-5 py-2 text-xs text-dim">
+          <div className="border-b border-outline-variant bg-surface-container-high px-5 py-2 text-xs text-on-surface-variant">
             Saving pins the layouts again and restarts the project. If the change alters what&apos;s
             built, the tables are rebuilt beside the served ones and swapped in once caught up.
           </div>

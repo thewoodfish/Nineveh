@@ -27,14 +27,14 @@ const TOKENS =
   /\s+|[A-Za-z_][A-Za-z0-9_]*|@0x[0-9a-fA-F]*|\d[\d_]*(?:[iu]\d+)?|"(?:[^"\\]|\\.)*"?|'(?:[^'\\]|\\.)*'?|==|!=|<=|>=|&&|\|\||./g;
 
 const CLASSES: Record<string, string> = {
-  keyword: "text-violet-600",
-  number: "text-amber-300",
-  text: "text-emerald-300",
-  name: "text-sky-300",
-  call: "text-indigo-600",
-  unknown: "text-red-300 underline decoration-wavy decoration-red-400",
-  plain: "text-dim",
-  word: "text-white",
+  keyword: "text-syntax-keyword",
+  number: "text-on-warning-container",
+  text: "text-on-tertiary-container",
+  name: "text-primary",
+  call: "text-syntax-call",
+  unknown: "text-error underline decoration-wavy decoration-error",
+  plain: "text-on-surface-variant",
+  word: "text-on-surface",
 };
 
 /** Colour each token of `text`, given the names that are in scope. */
@@ -156,7 +156,7 @@ export function ExpressionInput({
       <pre
         ref={mirror}
         aria-hidden
-        className="pointer-events-none absolute inset-0 overflow-hidden rounded-md border border-transparent px-2.5 py-1.5 font-mono text-sm whitespace-pre"
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded-sm border border-transparent px-2.5 py-1.5 font-mono text-sm whitespace-pre"
       >
         {painted.map((part, i) => (
           <span key={i} className={CLASSES[part.kind]}>
@@ -208,12 +208,14 @@ export function ExpressionInput({
             setOpen(false);
           }
         }}
-        className={`w-full rounded-md border bg-card px-2.5 py-1.5 font-mono text-sm text-transparent caret-white focus:outline-none ${
-          invalid ? "border-red-400 focus:border-red-500" : "border-line focus:border-blue-400"
+        className={`w-full rounded-sm border bg-surface-container-low px-2.5 py-1.5 font-mono text-sm text-transparent caret-on-surface focus:outline-none ${
+          invalid
+            ? "border-error focus:border-error"
+            : "border-outline-variant focus:border-primary"
         }`}
       />
       {matches.length > 0 && (
-        <ul className="absolute top-full left-0 z-20 mt-1 max-h-56 w-72 overflow-auto rounded-md border border-line bg-card py-1 shadow-lg">
+        <ul className="absolute top-full left-0 z-20 mt-1 max-h-56 w-72 overflow-auto rounded-sm border border-outline-variant bg-surface-container-low py-1 shadow-e2">
           {matches.map((name, i) => (
             <li key={name.label}>
               <button
@@ -222,11 +224,11 @@ export function ExpressionInput({
                 onClick={() => accept(name)}
                 onMouseEnter={() => setPicked(i)}
                 className={`flex w-full items-baseline justify-between gap-3 px-2.5 py-1 text-left font-mono text-xs ${
-                  i === picked ? "bg-blue-500/15" : ""
+                  i === picked ? "bg-secondary-container" : ""
                 }`}
               >
-                <span className="text-white">{name.label}</span>
-                <span className="shrink-0 text-faint">{name.detail}</span>
+                <span className="text-on-surface">{name.label}</span>
+                <span className="shrink-0 text-on-surface-variant">{name.detail}</span>
               </button>
             </li>
           ))}

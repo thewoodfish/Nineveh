@@ -1,58 +1,318 @@
 @import "tailwindcss";
 
+/*
+ * Material 3, the way the Firebase console uses it.
+ *
+ * Colour here is not a palette, it is a set of *roles*. Nothing in a component says
+ * "blue" or "grey 200"; it says `primary`, `surface-container-high`, `outline-variant`,
+ * and the theme decides what those mean. That is the whole trick behind a Google
+ * console switching light to dark without a single component knowing it happened.
+ *
+ * The roles are sampled from two tonal palettes — the brand blue (hue 261) and a
+ * near-neutral tinted with it — at Material's tone stops. `@theme` can only hold
+ * static values, so each role points at a `--md-*` variable, and the light and dark
+ * blocks below are the only places an actual colour is ever written.
+ */
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-roboto), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Blue, the one accent, shared with the landing page so the product is one product.
-     On a dark ground the scale is read from the light end: 300 and 400 carry text and
-     icons, 600 is for solid fills. */
-  --color-blue-50: oklch(0.975 0.012 259);
-  --color-blue-100: oklch(0.945 0.028 259);
-  --color-blue-200: oklch(0.898 0.055 259);
-  --color-blue-300: oklch(0.822 0.095 259);
-  --color-blue-400: oklch(0.716 0.152 259);
-  --color-blue-500: oklch(0.63 0.196 259);
-  --color-blue-600: oklch(0.552 0.221 261);
-  --color-blue-700: oklch(0.482 0.196 262);
+  --color-primary: var(--md-primary);
+  --color-on-primary: var(--md-on-primary);
+  --color-primary-container: var(--md-primary-container);
+  --color-on-primary-container: var(--md-on-primary-container);
 
-  /* Three grounds, so a card lifts off the page and data sinks into it: the page
-     behind everything, cards on top of it, wells sunk into cards for code and rows. */
-  --color-page: oklch(0.155 0.02 262);
-  --color-card: oklch(0.196 0.021 262);
-  --color-well: oklch(0.131 0.018 263);
+  --color-secondary-container: var(--md-secondary-container);
+  --color-on-secondary-container: var(--md-on-secondary-container);
 
-  /* Everything else is white at an opacity rather than a fixed grey, so it sits *on*
-     whatever is behind it — card, well or the wash — instead of cutting a hole in it. */
-  --color-line: oklch(1 0 0 / 0.09);
-  --color-edge: oklch(1 0 0 / 0.18);
-  --color-dim: oklch(1 0 0 / 0.58);
-  --color-faint: oklch(1 0 0 / 0.4);
-  --color-ghost: oklch(1 0 0 / 0.24);
+  --color-tertiary: var(--md-tertiary);
+  --color-tertiary-container: var(--md-tertiary-container);
+  --color-on-tertiary-container: var(--md-on-tertiary-container);
 
-  /* On a dark ground a shadow is a hole, not a haze. */
-  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.4);
-  --shadow-lifted: 0 2px 6px oklch(0 0 0 / 0.4), 0 12px 28px oklch(0 0 0 / 0.35);
+  --color-error: var(--md-error);
+  --color-on-error: var(--md-on-error);
+  --color-error-container: var(--md-error-container);
+  --color-on-error-container: var(--md-on-error-container);
+
+  --color-warning: var(--md-warning);
+  --color-warning-container: var(--md-warning-container);
+  --color-on-warning-container: var(--md-on-warning-container);
+
+  /* Surfaces. The page is `surface`; everything raised above it is a `surface-container`
+     at one of five steps. Elevation is a change of tone, not a shadow — which is why a
+     dark Material app never looks like boxes floating on felt. */
+  --color-surface: var(--md-surface);
+  --color-surface-bright: var(--md-surface-bright);
+  --color-surface-container-lowest: var(--md-surface-container-lowest);
+  --color-surface-container-low: var(--md-surface-container-low);
+  --color-surface-container: var(--md-surface-container);
+  --color-surface-container-high: var(--md-surface-container-high);
+  --color-surface-container-highest: var(--md-surface-container-highest);
+  --color-on-surface: var(--md-on-surface);
+  --color-on-surface-variant: var(--md-on-surface-variant);
+
+  --color-outline: var(--md-outline);
+  --color-outline-variant: var(--md-outline-variant);
+
+  --color-inverse-surface: var(--md-inverse-surface);
+  --color-on-inverse-surface: var(--md-on-inverse-surface);
+
+  --color-scrim: var(--md-scrim);
+
+  /* Syntax highlighting is the one place the role vocabulary runs out — a token type
+     is not a UI state — so it gets its own two hues, which still flip with the theme. */
+  --color-syntax-keyword: var(--md-syntax-keyword);
+  --color-syntax-call: var(--md-syntax-call);
+
+  /* Material's shape scale. Corners carry as much of the brand as colour does. */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
+
+  /* The elevations, keyed to Material's own key/ambient shadow pairs. */
+  --shadow-e1: 0 1px 2px 0 var(--md-shadow-key), 0 1px 3px 1px var(--md-shadow-ambient);
+  --shadow-e2: 0 1px 2px 0 var(--md-shadow-key), 0 2px 6px 2px var(--md-shadow-ambient);
+  --shadow-e3: 0 1px 3px 0 var(--md-shadow-key), 0 4px 8px 3px var(--md-shadow-ambient);
+  --shadow-e4: 0 2px 3px 0 var(--md-shadow-key), 0 6px 10px 4px var(--md-shadow-ambient);
 }
 
+/* ---- Light ---------------------------------------------------------------------- */
+
 :root {
+  color-scheme: light;
+
+  --md-primary: oklch(0.47 0.2 261);
+  --md-on-primary: oklch(1 0 0);
+  --md-primary-container: oklch(0.895 0.058 259);
+  --md-on-primary-container: oklch(0.26 0.115 261);
+
+  --md-secondary-container: oklch(0.925 0.032 261);
+  --md-on-secondary-container: oklch(0.28 0.075 261);
+
+  --md-tertiary: oklch(0.52 0.13 162);
+  --md-tertiary-container: oklch(0.9 0.06 162);
+  --md-on-tertiary-container: oklch(0.28 0.08 162);
+
+  --md-error: oklch(0.5 0.2 27);
+  --md-on-error: oklch(1 0 0);
+  --md-error-container: oklch(0.92 0.05 27);
+  --md-on-error-container: oklch(0.3 0.12 27);
+
+  --md-warning: oklch(0.58 0.14 75);
+  --md-warning-container: oklch(0.93 0.055 80);
+  --md-on-warning-container: oklch(0.34 0.09 70);
+
+  --md-surface: oklch(0.988 0.002 261);
+  --md-surface-bright: oklch(0.988 0.002 261);
+  --md-surface-container-lowest: oklch(1 0 0);
+  --md-surface-container-low: oklch(0.973 0.003 261);
+  --md-surface-container: oklch(0.957 0.003 261);
+  --md-surface-container-high: oklch(0.94 0.003 261);
+  --md-surface-container-highest: oklch(0.925 0.004 261);
+  --md-on-surface: oklch(0.21 0.009 261);
+  --md-on-surface-variant: oklch(0.44 0.018 261);
+
+  --md-outline: oklch(0.62 0.016 261);
+  --md-outline-variant: oklch(0.875 0.01 261);
+
+  --md-inverse-surface: oklch(0.3 0.008 261);
+  --md-on-inverse-surface: oklch(0.96 0.003 261);
+
+  --md-scrim: oklch(0 0 0 / 0.32);
+  --md-syntax-keyword: oklch(0.47 0.2 305);
+  --md-syntax-call: oklch(0.47 0.17 285);
+
+  --md-shadow-key: oklch(0 0 0 / 0.3);
+  --md-shadow-ambient: oklch(0 0 0 / 0.15);
+}
+
+/* ---- Dark ----------------------------------------------------------------------- */
+
+/* The same block twice: once for everyone whose system is dark and who hasn't asked
+   for light, once for anyone who has asked for dark outright. Tailwind's `@theme`
+   can't live inside a media query, so the switch happens on these variables. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --md-primary: oklch(0.8 0.108 259);
+    --md-on-primary: oklch(0.3 0.13 261);
+    --md-primary-container: oklch(0.38 0.17 261);
+    --md-on-primary-container: oklch(0.895 0.058 259);
+
+    --md-secondary-container: oklch(0.34 0.055 261);
+    --md-on-secondary-container: oklch(0.895 0.045 259);
+
+    --md-tertiary: oklch(0.82 0.11 162);
+    --md-tertiary-container: oklch(0.38 0.09 162);
+    --md-on-tertiary-container: oklch(0.9 0.06 162);
+
+    --md-error: oklch(0.8 0.115 25);
+    --md-on-error: oklch(0.28 0.12 27);
+    --md-error-container: oklch(0.4 0.16 27);
+    --md-on-error-container: oklch(0.92 0.05 27);
+
+    --md-warning: oklch(0.83 0.11 80);
+    --md-warning-container: oklch(0.4 0.09 70);
+    --md-on-warning-container: oklch(0.93 0.055 80);
+
+    --md-surface: oklch(0.145 0.008 261);
+    --md-surface-bright: oklch(0.34 0.009 261);
+    --md-surface-container-lowest: oklch(0.115 0.008 261);
+    --md-surface-container-low: oklch(0.19 0.009 261);
+    --md-surface-container: oklch(0.213 0.009 261);
+    --md-surface-container-high: oklch(0.26 0.009 261);
+    --md-surface-container-highest: oklch(0.315 0.009 261);
+    --md-on-surface: oklch(0.925 0.004 261);
+    --md-on-surface-variant: oklch(0.845 0.012 261);
+
+    --md-outline: oklch(0.68 0.016 261);
+    --md-outline-variant: oklch(0.4 0.02 261);
+
+    --md-inverse-surface: oklch(0.925 0.004 261);
+    --md-on-inverse-surface: oklch(0.26 0.009 261);
+
+    --md-scrim: oklch(0 0 0 / 0.55);
+    --md-syntax-keyword: oklch(0.82 0.11 305);
+    --md-syntax-call: oklch(0.82 0.1 285);
+
+    --md-shadow-key: oklch(0 0 0 / 0.5);
+    --md-shadow-ambient: oklch(0 0 0 / 0.4);
+  }
+}
+
+:root[data-theme="dark"] {
   color-scheme: dark;
+
+  --md-primary: oklch(0.8 0.108 259);
+  --md-on-primary: oklch(0.3 0.13 261);
+  --md-primary-container: oklch(0.38 0.17 261);
+  --md-on-primary-container: oklch(0.895 0.058 259);
+
+  --md-secondary-container: oklch(0.34 0.055 261);
+  --md-on-secondary-container: oklch(0.895 0.045 259);
+
+  --md-tertiary: oklch(0.82 0.11 162);
+  --md-tertiary-container: oklch(0.38 0.09 162);
+  --md-on-tertiary-container: oklch(0.9 0.06 162);
+
+  --md-error: oklch(0.8 0.115 25);
+  --md-on-error: oklch(0.28 0.12 27);
+  --md-error-container: oklch(0.4 0.16 27);
+  --md-on-error-container: oklch(0.92 0.05 27);
+
+  --md-warning: oklch(0.83 0.11 80);
+  --md-warning-container: oklch(0.4 0.09 70);
+  --md-on-warning-container: oklch(0.93 0.055 80);
+
+  --md-surface: oklch(0.145 0.008 261);
+  --md-surface-bright: oklch(0.34 0.009 261);
+  --md-surface-container-lowest: oklch(0.115 0.008 261);
+  --md-surface-container-low: oklch(0.19 0.009 261);
+  --md-surface-container: oklch(0.213 0.009 261);
+  --md-surface-container-high: oklch(0.26 0.009 261);
+  --md-surface-container-highest: oklch(0.315 0.009 261);
+  --md-on-surface: oklch(0.925 0.004 261);
+  --md-on-surface-variant: oklch(0.845 0.012 261);
+
+  --md-outline: oklch(0.68 0.016 261);
+  --md-outline-variant: oklch(0.4 0.02 261);
+
+  --md-inverse-surface: oklch(0.925 0.004 261);
+  --md-on-inverse-surface: oklch(0.26 0.009 261);
+
+  --md-scrim: oklch(0 0 0 / 0.55);
+  --md-syntax-keyword: oklch(0.82 0.11 305);
+  --md-syntax-call: oklch(0.82 0.1 285);
+
+  --md-shadow-key: oklch(0 0 0 / 0.5);
+  --md-shadow-ambient: oklch(0 0 0 / 0.4);
 }
 
 body {
-  @apply bg-page text-white antialiased;
+  @apply bg-surface text-on-surface antialiased;
 }
 
-/* The light in the room, the same blue as the landing page, kept faint and fixed so it
-   never competes with a number someone is reading. */
-.wash {
-  position: fixed;
+::selection {
+  background: color-mix(in oklab, var(--color-primary) 24%, transparent);
+}
+
+/*
+ * The state layer: Material's one universal interaction. Anything pressable gets a
+ * translucent sheet of its own foreground colour laid over its background — 8% on
+ * hover, 10% on focus, 12% pressed — instead of every component inventing a hover
+ * colour of its own. It is why Material interfaces feel of a piece, and why a tonal
+ * button and a list row answer the pointer in exactly the same way.
+ */
+.state {
+  position: relative;
+  isolation: isolate;
+}
+
+.state::after {
+  content: "";
+  position: absolute;
   inset: 0;
   z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 120ms linear;
   pointer-events: none;
-  background:
-    radial-gradient(48rem 32rem at 0% 0%, oklch(0.552 0.221 261 / 0.16), transparent 62%),
-    radial-gradient(42rem 30rem at 100% 100%, oklch(0.63 0.196 259 / 0.1), transparent 62%);
+}
+
+.state:hover::after {
+  opacity: 0.08;
+}
+
+.state:focus-visible::after {
+  opacity: 0.1;
+}
+
+.state:active::after {
+  opacity: 0.12;
+}
+
+.state:disabled::after,
+.state[aria-disabled="true"]::after {
+  opacity: 0;
+}
+
+/* Material's focus ring: two pixels of primary, held off the edge of the shape. */
+.state:focus-visible,
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Material Symbols, sized to sit on the baseline wherever it lands. */
+.symbol {
+  font-family: "Material Symbols Outlined", sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  direction: ltr;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.symbol-filled {
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
 }
 
 /* Numbers that change in place shouldn't jiggle. */
@@ -63,7 +323,7 @@ body {
 /* A row the feed just changed. */
 @keyframes flash {
   from {
-    background-color: color-mix(in oklch, var(--color-blue-500) 32%, transparent);
+    background-color: color-mix(in oklab, var(--color-primary) 26%, transparent);
   }
   to {
     background-color: transparent;
@@ -89,7 +349,7 @@ body {
   animation: enter 0.25s ease-out;
 }
 
-/* A step appearing as a flow moves on. */
+/* A step appearing as a flow moves on, on Material's standard easing. */
 @keyframes reveal {
   from {
     opacity: 0;
@@ -102,7 +362,7 @@ body {
 }
 
 .reveal {
-  animation: reveal 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: reveal 0.35s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -110,5 +370,9 @@ body {
   .enter,
   .reveal {
     animation: none;
+  }
+
+  .state::after {
+    transition: none;
   }
 }

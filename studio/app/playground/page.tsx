@@ -68,7 +68,7 @@ export default function Playground() {
       <PageHeader title="API playground" />
       <div className="grid min-h-0 flex-1 max-w-7xl gap-6 overflow-y-auto px-8 py-6 lg:grid-cols-[22rem_1fr] lg:overflow-hidden">
         <Card className="flex h-fit flex-col gap-4 p-4">
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
+          <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
             Table
             <Select
               value={table}
@@ -87,7 +87,7 @@ export default function Playground() {
             </Select>
           </label>
 
-          <div className="flex flex-col gap-1.5 text-xs font-medium text-dim">
+          <div className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
             Filters
             {filters.map((f, i) => (
               <div key={i} className="flex gap-1.5">
@@ -121,7 +121,7 @@ export default function Playground() {
                 <button
                   type="button"
                   onClick={() => setFilters(filters.filter((_, j) => j !== i))}
-                  className="px-1 text-faint hover:text-red-200"
+                  className="px-1 text-on-surface-variant hover:text-on-error-container"
                   aria-label="Remove filter"
                 >
                   ×
@@ -133,14 +133,14 @@ export default function Playground() {
               onClick={() =>
                 setFilters([...filters, { column: current?.columns[0]?.name ?? "", value: "" }])
               }
-              className="self-start text-xs font-medium text-blue-300 hover:underline"
+              className="self-start text-xs font-medium text-primary hover:underline"
             >
               + Add filter
             </button>
           </div>
 
           <div className="flex gap-3">
-            <label className="flex flex-1 flex-col gap-1.5 text-xs font-medium text-dim">
+            <label className="flex flex-1 flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
               Order by
               <Select
                 value={order}
@@ -156,7 +156,7 @@ export default function Playground() {
                 ))}
               </Select>
             </label>
-            <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
+            <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
               Limit
               <input
                 type="number"
@@ -169,7 +169,7 @@ export default function Playground() {
             </label>
           </div>
           {order && (
-            <label className="flex items-center gap-2 text-xs text-dim">
+            <label className="flex items-center gap-2 text-xs text-on-surface-variant">
               <input type="checkbox" checked={desc} onChange={(e) => setDesc(e.target.checked)} />
               Descending
             </label>
@@ -189,7 +189,7 @@ export default function Playground() {
         <div className="flex min-h-0 min-w-0 flex-col gap-4">
           <Card className="shrink-0 p-4">
             <div className="flex items-center gap-2">
-              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[11px] font-medium text-emerald-300">
+              <span className="rounded bg-tertiary-container px-1.5 py-0.5 font-mono text-[11px] font-medium text-on-tertiary-container">
                 GET
               </span>
               <span className="min-w-0 flex-1 truncate font-mono text-sm" title={url}>
@@ -197,21 +197,23 @@ export default function Playground() {
               </span>
               <Button onClick={() => void navigator.clipboard?.writeText(url)}>Copy</Button>
             </div>
-            <div className="mt-3 text-[11px] font-medium tracking-[0.08em] text-faint uppercase">
+            <div className="mt-3 text-[11px] font-medium tracking-[0.08em] text-on-surface-variant uppercase">
               curl
             </div>
-            <pre className="mt-1.5 overflow-x-auto rounded-lg bg-well px-3 py-2.5 font-mono text-xs text-white">
+            <pre className="mt-1.5 overflow-x-auto rounded-sm bg-surface-container-high px-3 py-2.5 font-mono text-xs text-on-surface">
               {hosted
                 ? `curl -H 'Authorization: Bearer YOUR_API_KEY' \\\n  '${url}'`
                 : `curl '${url}'`}
             </pre>
           </Card>
           <Card className="flex min-h-96 flex-1 flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-line bg-well px-4 py-2 text-xs">
-              <span className="font-semibold tracking-wide text-dim uppercase">Response</span>
+            <div className="flex items-center justify-between border-b border-outline-variant bg-surface-container-high px-4 py-2 text-xs">
+              <span className="font-semibold tracking-wide text-on-surface-variant uppercase">
+                Response
+              </span>
               {result && (
                 <span
-                  className={`font-mono ${result.status === "ok" ? "text-emerald-300" : "text-red-300"}`}
+                  className={`font-mono ${result.status === "ok" ? "text-on-tertiary-container" : "text-error"}`}
                 >
                   {result.status === "ok" ? "200 OK" : "error"} · {result.ms.toFixed(0)} ms
                 </span>
@@ -222,7 +224,7 @@ export default function Playground() {
                 {result.body}
               </pre>
             ) : (
-              <p className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-dim">
+              <p className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-on-surface-variant">
                 Run the request to see your state.
               </p>
             )}

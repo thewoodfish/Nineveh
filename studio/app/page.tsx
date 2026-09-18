@@ -29,13 +29,13 @@ function Projects() {
     return (
       <div className="mx-auto mt-24 max-w-lg px-6 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Create your first backend</h1>
-        <p className="mt-3 text-sm text-dim">
+        <p className="mt-3 text-sm text-on-surface-variant">
           Paste an Aptos contract address, pick what to follow, and Nineveh builds live tables you
           can query and subscribe to. No config to write.
         </p>
         <Link
           href="/new"
-          className="mt-8 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-card transition-colors hover:bg-blue-500"
+          className="mt-8 inline-flex rounded-sm bg-primary px-4 py-2 text-sm font-medium text-on-surface shadow-e1 transition-colors hover:bg-primary"
         >
           New project
         </Link>
@@ -47,7 +47,7 @@ function Projects() {
       <PageHeader title="Projects">
         <Link
           href="/new"
-          className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-card transition-colors hover:bg-blue-500"
+          className="rounded-sm bg-primary px-3 py-1.5 text-sm font-medium text-on-surface shadow-e1 transition-colors hover:bg-primary"
         >
           New project
         </Link>
@@ -68,31 +68,31 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
     : null;
   return (
     <Link href={`/?project=${encodeURIComponent(project.name)}`} className="group">
-      <Card className="h-full overflow-hidden transition-colors group-hover:border-edge">
+      <Card className="h-full overflow-hidden transition-colors group-hover:border-outline">
         <div className="px-4 py-3.5">
           <div className="flex items-center justify-between gap-2">
-            <span className="truncate font-medium text-white">{project.name}</span>
+            <span className="truncate font-medium text-on-surface">{project.name}</span>
             <PhaseDot phase={project.state} label />
           </div>
           <div className="mt-2 flex items-center gap-2 text-xs">
-            <span className="rounded bg-white/[0.07] px-1.5 py-0.5 font-mono text-faint">
+            <span className="rounded bg-surface-container-high px-1.5 py-0.5 font-mono text-on-surface-variant">
               {project.network}
             </span>
-            <span className="truncate text-dim tnum">
+            <span className="truncate text-on-surface-variant tnum">
               cursor {formatInteger(pipeline?.cursor ?? null)}
             </span>
           </div>
           {done !== null && (
             <>
-              <div className="mt-3.5 h-1 overflow-hidden rounded-full bg-black/40">
+              <div className="mt-3.5 h-1 overflow-hidden rounded-full bg-surface-container-highest">
                 <div
                   className={`h-full rounded-full transition-[width] duration-700 ease-out ${
-                    done >= 0.9999 ? "bg-emerald-400" : "bg-blue-400"
+                    done >= 0.9999 ? "bg-tertiary" : "bg-primary"
                   }`}
                   style={{ width: `${Math.max(done * 100, 0.5)}%` }}
                 />
               </div>
-              <div className="mt-1.5 text-[11px] text-faint tnum">
+              <div className="mt-1.5 text-[11px] text-on-surface-variant tnum">
                 {done >= 0.9999 ? "following the chain" : `${(done * 100).toFixed(1)}% backfilled`}
               </div>
             </>
@@ -102,11 +102,14 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
             this is history rather than an alarm: readable, and not dressed as a failure
             when the dot beside the name says the project is running. */}
         {project.error && (
-          <div className="border-t border-line bg-black/20 px-4 py-2.5" title={project.error}>
-            <div className="text-[10px] font-medium tracking-[0.08em] text-faint uppercase">
+          <div
+            className="border-t border-outline-variant bg-surface-container px-4 py-2.5"
+            title={project.error}
+          >
+            <div className="text-[10px] font-medium tracking-[0.08em] text-on-surface-variant uppercase">
               Last error
             </div>
-            <p className="mt-1 line-clamp-2 font-mono text-[11px] leading-relaxed text-amber-300/90">
+            <p className="mt-1 line-clamp-2 font-mono text-[11px] leading-relaxed text-on-warning-container">
               {project.error}
             </p>
           </div>
@@ -195,32 +198,32 @@ function Overview() {
         </div>
 
         <Card>
-          <div className="flex items-center justify-between border-b border-line px-4 py-3">
-            <h2 className="text-sm font-semibold text-white">State tables</h2>
+          <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
+            <h2 className="text-sm font-semibold text-on-surface">State tables</h2>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-faint">{tables?.length ?? 0} tables</span>
+              <span className="text-xs text-on-surface-variant">{tables?.length ?? 0} tables</span>
               {mode === "control" && (
                 <Link
                   href={href("/state")}
-                  className="text-xs font-medium text-blue-300 hover:underline"
+                  className="text-xs font-medium text-primary hover:underline"
                 >
                   + New state table
                 </Link>
               )}
             </div>
           </div>
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-outline-variant">
             {tables?.map((table) => (
               <li key={table.name}>
                 <Link
                   href={href("/tables", { name: table.name })}
-                  className="group flex items-center gap-4 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.04]"
+                  className="group flex items-center gap-4 px-4 py-2.5 text-sm transition-colors hover:bg-on-surface/[0.06]"
                 >
-                  <span className="w-52 truncate font-mono font-medium group-hover:text-blue-300">
+                  <span className="w-52 truncate font-mono font-medium group-hover:text-primary">
                     {table.name}
                   </span>
                   <Kind kind={table.kind} />
-                  <span className="truncate text-xs text-dim">
+                  <span className="truncate text-xs text-on-surface-variant">
                     key {table.key.join(", ")} · {table.columns.length} columns
                   </span>
                 </Link>
@@ -231,18 +234,18 @@ function Overview() {
 
         {current && (
           <Card className="px-5 py-4 text-sm">
-            <div className="text-[11px] font-medium tracking-[0.08em] text-faint uppercase">
+            <div className="text-[11px] font-medium tracking-[0.08em] text-on-surface-variant uppercase">
               Your API
             </div>
-            <div className="mt-2 rounded-lg bg-well px-3 py-2 font-mono text-sm break-all">
+            <div className="mt-2 rounded-sm bg-surface-container-high px-3 py-2 font-mono text-sm break-all">
               {`${API_URL}${current.api}/v1/tables`}
             </div>
-            <p className="mt-1 text-xs text-faint">
+            <p className="mt-1 text-xs text-on-surface-variant">
               REST over every table, and a live change feed at{" "}
               <span className="font-mono">/v1/changes</span>.
               {hosted && <> Send one of this project&apos;s API keys with each request.</>} Try it
               in the{" "}
-              <Link href={href("/playground")} className="text-blue-300 hover:underline">
+              <Link href={href("/playground")} className="text-primary hover:underline">
                 API playground
               </Link>
               .
@@ -254,10 +257,10 @@ function Overview() {
         {current && <Webhooks project={current.name} />}
 
         {status.build && (
-          <Card className="grid grid-cols-1 gap-x-8 gap-y-2 px-4 py-3 text-xs text-dim sm:grid-cols-3">
+          <Card className="grid grid-cols-1 gap-x-8 gap-y-2 px-4 py-3 text-xs text-on-surface-variant sm:grid-cols-3">
             <div>
               Build{" "}
-              <span className="font-mono text-white/75">
+              <span className="font-mono text-on-surface">
                 {shortHex(`0x${status.build.fingerprint}`, 8, 6)}
               </span>
             </div>
@@ -304,7 +307,7 @@ function ProjectActions({ project }: { project: ProjectSummary }) {
 
   return (
     <>
-      {error && <span className="text-xs text-red-300">{error}</span>}
+      {error && <span className="text-xs text-error">{error}</span>}
       <Button onClick={() => setShowConfig(true)}>Config</Button>
       {project.running ? (
         <Button disabled={busy} onClick={() => void act(() => control.stop(project.name))}>
@@ -326,9 +329,9 @@ function ProjectActions({ project }: { project: ProjectSummary }) {
 /** What builds a table: the three kinds read differently, so they look different. */
 function Kind({ kind }: { kind: string }) {
   const tones: Record<string, string> = {
-    reduce: "bg-blue-500/15 text-blue-300",
-    mirror: "bg-emerald-500/15 text-emerald-300",
-    log: "bg-white/[0.07] text-dim",
+    reduce: "bg-secondary-container text-primary",
+    mirror: "bg-tertiary-container text-on-tertiary-container",
+    log: "bg-surface-container-high text-on-surface-variant",
   };
   return (
     <span
@@ -352,28 +355,28 @@ function Backfill({ status }: { status: Status }) {
           <span className="text-sm font-semibold">
             {caughtUp ? "Following the chain" : "Backfilling"}
           </span>
-          <span className="text-xs text-dim">
+          <span className="text-xs text-on-surface-variant">
             {caughtUp
               ? "every new transaction, as it commits"
               : "reading history before it can follow along"}
           </span>
         </div>
-        <div className="flex items-baseline gap-0.5 font-mono text-2xl leading-none font-semibold text-white tnum">
+        <div className="flex items-baseline gap-0.5 font-mono text-2xl leading-none font-semibold text-on-surface tnum">
           {(done * 100).toFixed(done < 0.1 ? 2 : 1)}
-          <span className="text-sm font-normal text-faint">%</span>
+          <span className="text-sm font-normal text-on-surface-variant">%</span>
         </div>
       </div>
-      <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/40 inset-ring inset-ring-white/5">
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-container-highest inset-ring inset-ring-outline-variant">
         <div
           className={`h-full rounded-full transition-[width] duration-700 ease-out ${
             caughtUp
-              ? "bg-emerald-400 shadow-[0_0_12px_oklch(0.77_0.15_162_/_0.6)]"
-              : "bg-blue-400 shadow-[0_0_12px_oklch(0.716_0.152_259_/_0.6)]"
+              ? "bg-tertiary shadow-[0_0_12px_oklch(0.77_0.15_162_/_0.6)]"
+              : "bg-primary shadow-[0_0_12px_oklch(0.716_0.152_259_/_0.6)]"
           }`}
           style={{ width: `${Math.max(done * 100, 0.5)}%` }}
         />
       </div>
-      <div className="mt-2 flex justify-between font-mono text-xs text-faint tnum">
+      <div className="mt-2 flex justify-between font-mono text-xs text-on-surface-variant tnum">
         <span>{formatInteger(pipeline.start_version)}</span>
         <span>{formatInteger(pipeline.chain_version)}</span>
       </div>

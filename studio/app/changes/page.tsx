@@ -42,7 +42,7 @@ export default function ChangesPage() {
         <Live connected={connected && !paused} />
       </PageHeader>
 
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-line px-8 py-2.5">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-outline-variant px-8 py-2.5">
         {/* A handful of tables fit as chips; a project with a hundred needs a picker. */}
         {(tables?.length ?? 0) <= CHIPS ? (
           <>
@@ -57,7 +57,7 @@ export default function ChangesPage() {
           </>
         ) : (
           <>
-            <span className="text-xs text-dim">Showing</span>
+            <span className="text-xs text-on-surface-variant">Showing</span>
             <Select
               value={only ?? ""}
               onChange={(e) => setOnly(e.target.value || null)}
@@ -74,14 +74,14 @@ export default function ChangesPage() {
               <button
                 type="button"
                 onClick={() => setOnly(null)}
-                className="text-xs font-medium text-blue-300 hover:underline"
+                className="text-xs font-medium text-primary hover:underline"
               >
                 Clear
               </button>
             )}
           </>
         )}
-        <span className="ml-auto text-xs text-faint tnum">
+        <span className="ml-auto text-xs text-on-surface-variant tnum">
           {shown.length > 0 && `${shown.length}${shown.length === KEEP ? "+" : ""} shown`}
         </span>
       </div>
@@ -89,23 +89,23 @@ export default function ChangesPage() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         {shown.length === 0 ? (
           <div className="mx-auto mt-24 max-w-sm px-8 text-center">
-            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-blue-500/10 ring-1 ring-blue-400/25">
+            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-secondary-container ring-1 ring-primary/40">
               <span className="relative flex size-2.5">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex size-2.5 rounded-full bg-blue-400" />
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-primary" />
               </span>
             </div>
             <p className="mt-4 text-sm font-medium">
               {paused ? "Paused" : only ? `Watching ${only}` : "Watching for changes"}
             </p>
-            <p className="mt-1 text-sm text-dim text-pretty">
+            <p className="mt-1 text-sm text-on-surface-variant text-pretty">
               {paused
                 ? "Nothing is being collected while this is paused."
                 : "Every commit that changes a row shows up here the moment it lands."}
             </p>
           </div>
         ) : (
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-outline-variant">
             {shown.map((change) => (
               <ChangeRow
                 key={`${change.version}.${change.seq}`}
@@ -137,12 +137,12 @@ const ChangeRow = memo(function ChangeRow({
         onClick={() => setOpen(!open)}
         className="flex w-full items-center gap-3 text-left"
       >
-        <span className="w-28 shrink-0 font-mono text-xs text-faint tabular-nums">
+        <span className="w-28 shrink-0 font-mono text-xs text-on-surface-variant tabular-nums">
           {formatInteger(change.version)}
         </span>
         <OpBadge op={change.op} />
         <span className="w-40 shrink-0 truncate font-mono text-[13px]">{change.table}</span>
-        <span className="flex min-w-0 flex-1 gap-3 truncate text-xs text-dim">
+        <span className="flex min-w-0 flex-1 gap-3 truncate text-xs text-on-surface-variant">
           {Object.entries(change.key).map(([column, value]) => (
             <span key={column} className="truncate">
               {column} <Cell plain type={types.get(column) ?? "string"} value={value} />
@@ -151,7 +151,7 @@ const ChangeRow = memo(function ChangeRow({
         </span>
       </button>
       {open && (
-        <pre className="mt-2 ml-31 overflow-x-auto rounded-lg bg-well p-3 font-mono text-xs">
+        <pre className="mt-2 ml-31 overflow-x-auto rounded-sm bg-surface-container-high p-3 font-mono text-xs">
           {JSON.stringify(change.row, null, 2)}
         </pre>
       )}
@@ -173,7 +173,9 @@ function Chip({
       type="button"
       onClick={onClick}
       className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
-        active ? "bg-blue-600 text-white" : "bg-well text-dim hover:bg-white/10"
+        active
+          ? "bg-primary text-on-surface"
+          : "bg-surface-container-high text-on-surface-variant hover:bg-on-surface/[0.08]"
       }`}
     >
       {children}

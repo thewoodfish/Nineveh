@@ -31,10 +31,10 @@ export default function Auth() {
   return (
     <div className="mx-auto mt-32 max-w-sm px-6 text-center">
       <h1 className="text-lg font-semibold tracking-tight">Couldn&apos;t sign you in</h1>
-      <p className="mt-2 text-sm text-dim">{error}</p>
+      <p className="mt-2 text-sm text-on-surface-variant">{error}</p>
       <Link
         href="/"
-        className="mt-6 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+        className="mt-6 inline-flex rounded-sm bg-primary px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-primary"
       >
         Try again
       </Link>

@@ -160,7 +160,8 @@ export function DataGrid({ table }: { table: Table }) {
         title={<span className="font-mono">{table.name}</span>}
         hint={
           <span className="text-xs">
-            {table.kind} · key <span className="font-mono text-dim">{table.key.join(", ")}</span>
+            {table.kind} · key{" "}
+            <span className="font-mono text-on-surface-variant">{table.key.join(", ")}</span>
             {count !== null && ` · ${formatInteger(count)} rows`}
           </span>
         }
@@ -168,7 +169,7 @@ export function DataGrid({ table }: { table: Table }) {
         {table.kind === "reduce" && project && (
           <Link
             href={`/state?project=${encodeURIComponent(project)}&table=${encodeURIComponent(table.name)}`}
-            className="text-xs text-dim hover:text-white"
+            className="text-xs text-on-surface-variant hover:text-on-surface"
           >
             Edit rules
           </Link>
@@ -177,7 +178,7 @@ export function DataGrid({ table }: { table: Table }) {
           <button
             type="button"
             onClick={() => void load()}
-            className="rounded-full bg-blue-500/15 px-2.5 py-0.5 text-xs font-medium text-blue-300 hover:bg-blue-500/25"
+            className="rounded-full bg-secondary-container px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-secondary-container"
           >
             {missed} new {missed === 1 ? "change" : "changes"} · refresh
           </button>
@@ -204,30 +205,30 @@ export function DataGrid({ table }: { table: Table }) {
 
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full border-separate border-spacing-0 text-sm">
-          <thead className="sticky top-0 z-10 bg-page/95 backdrop-blur">
+          <thead className="sticky top-0 z-10 bg-surface/95 backdrop-blur">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column.name}
-                  className={`border-b border-line px-3 py-2 font-medium whitespace-nowrap ${
+                  className={`border-b border-outline-variant px-3 py-2 font-medium whitespace-nowrap ${
                     isNumeric(column.type) ? "text-right" : "text-left"
                   }`}
                 >
                   <button
                     type="button"
                     onClick={() => sortBy(column.name)}
-                    className="inline-flex items-center gap-1 hover:text-blue-300"
+                    className="inline-flex items-center gap-1 hover:text-primary"
                   >
                     <span className="font-mono text-[13px]">{column.name}</span>
                     {table.key.includes(column.name) && (
                       <span
-                        className="rounded bg-blue-500/20 px-1 py-px text-[9px] font-semibold text-blue-300"
+                        className="rounded bg-primary/20 px-1 py-px text-[9px] font-semibold text-primary"
                         title="key column"
                       >
                         KEY
                       </span>
                     )}
-                    <span className="font-mono text-[11px] font-normal text-faint">
+                    <span className="font-mono text-[11px] font-normal text-on-surface-variant">
                       {column.type}
                     </span>
                     {order?.column === column.name && (
@@ -236,22 +237,25 @@ export function DataGrid({ table }: { table: Table }) {
                   </button>
                 </th>
               ))}
-              <th className="border-b border-line px-3 py-2 text-right font-medium whitespace-nowrap">
+              <th className="border-b border-outline-variant px-3 py-2 text-right font-medium whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => sortBy("_version")}
-                  className="inline-flex items-center gap-1 text-[13px] text-faint hover:text-blue-300"
+                  className="inline-flex items-center gap-1 text-[13px] text-on-surface-variant hover:text-primary"
                   title="Version of the row's last change"
                 >
                   version{" "}
                   {order?.column === "_version" ? (order.desc ? "↓" : "↑") : order ? "" : "↓"}
                 </button>
               </th>
-              <th className="w-full border-b border-line" />
+              <th className="w-full border-b border-outline-variant" />
             </tr>
             <tr>
               {columns.map((column) => (
-                <th key={column.name} className="border-b border-line bg-black/20 px-2 py-1">
+                <th
+                  key={column.name}
+                  className="border-b border-outline-variant bg-surface-container px-2 py-1"
+                >
                   {column.type !== "json" && (
                     <input
                       value={draft[column.name] ?? ""}
@@ -259,13 +263,13 @@ export function DataGrid({ table }: { table: Table }) {
                       onKeyDown={(e) => e.key === "Enter" && applyFilters()}
                       onBlur={applyFilters}
                       placeholder="filter ="
-                      className="w-full min-w-28 rounded-md border border-line bg-well px-2 py-1 font-mono text-xs font-normal text-white transition-colors placeholder:text-ghost hover:border-edge focus:border-blue-400 focus:ring-2 focus:ring-blue-500/25 focus:outline-none"
+                      className="w-full min-w-28 rounded-sm border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-xs font-normal text-on-surface transition-colors placeholder:text-on-surface-variant/50 hover:border-outline focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                     />
                   )}
                 </th>
               ))}
-              <th className="border-b border-line bg-black/20" />
-              <th className="border-b border-line bg-black/20" />
+              <th className="border-b border-outline-variant bg-surface-container" />
+              <th className="border-b border-outline-variant bg-surface-container" />
             </tr>
           </thead>
           <tbody>
@@ -274,22 +278,22 @@ export function DataGrid({ table }: { table: Table }) {
               return (
                 <tr
                   key={`${key}:${flashes.get(key) ?? 0}`}
-                  className={`transition-colors hover:bg-white/[0.035] ${flashes.has(key) ? "flash" : ""}`}
+                  className={`transition-colors hover:bg-on-surface/[0.06] ${flashes.has(key) ? "flash" : ""}`}
                 >
                   {columns.map((column) => (
                     <td
                       key={column.name}
-                      className={`max-w-xs truncate border-b border-line px-3 py-1.5 whitespace-nowrap ${
+                      className={`max-w-xs truncate border-b border-outline-variant px-3 py-1.5 whitespace-nowrap ${
                         isNumeric(column.type) ? "text-right" : ""
                       }`}
                     >
                       <Cell type={column.type} value={row[column.name]} />
                     </td>
                   ))}
-                  <td className="border-b border-line px-3 py-1.5 text-right text-xs whitespace-nowrap">
+                  <td className="border-b border-outline-variant px-3 py-1.5 text-right text-xs whitespace-nowrap">
                     <Cell type="version" value={row._version} />
                   </td>
-                  <td className="border-b border-line" />
+                  <td className="border-b border-outline-variant" />
                 </tr>
               );
             })}
@@ -300,7 +304,7 @@ export function DataGrid({ table }: { table: Table }) {
             <p className="text-sm font-medium">
               {filtered ? "Nothing matches these filters" : "No rows yet"}
             </p>
-            <p className="mt-1 text-sm text-dim text-pretty">
+            <p className="mt-1 text-sm text-on-surface-variant text-pretty">
               {filtered
                 ? "Filters match a column exactly."
                 : table.kind === "reduce"
@@ -323,7 +327,7 @@ export function DataGrid({ table }: { table: Table }) {
         )}
       </div>
 
-      <footer className="flex items-center justify-between border-t border-line px-8 py-2.5 text-xs text-dim">
+      <footer className="flex items-center justify-between border-t border-outline-variant px-8 py-2.5 text-xs text-on-surface-variant">
         <span className="tabular-nums">
           {rows.length === 0 ? "0 rows" : `${formatInteger(offset + 1)}–${formatInteger(last)}`}
           {count !== null && ` of ${formatInteger(count)}`}
@@ -358,7 +362,7 @@ function PageButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="rounded-md border border-line px-2.5 py-1 font-medium text-white/75 enabled:hover:bg-well disabled:opacity-40"
+      className="rounded-sm border border-outline-variant px-2.5 py-1 font-medium text-on-surface enabled:hover:bg-surface-container-high disabled:opacity-40"
     >
       {children}
     </button>

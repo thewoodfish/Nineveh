@@ -6,20 +6,23 @@ import { API_URL, type ColumnType } from "@/lib/api";
 import { formatInteger, shortHex } from "@/lib/format";
 
 const PHASES: Record<string, { label: string; dot: string; pulse?: boolean }> = {
-  running: { label: "Running", dot: "bg-emerald-500", pulse: true },
-  serving: { label: "Serving", dot: "bg-emerald-500" },
-  starting: { label: "Starting", dot: "bg-sky-500", pulse: true },
-  retrying: { label: "Retrying", dot: "bg-amber-500", pulse: true },
-  halted: { label: "Halted", dot: "bg-red-500" },
-  failed: { label: "Failed", dot: "bg-red-500" },
-  stopped: { label: "Stopped", dot: "bg-white/30" },
-  offline: { label: "Offline", dot: "bg-white/20" },
+  running: { label: "Running", dot: "bg-tertiary", pulse: true },
+  serving: { label: "Serving", dot: "bg-tertiary" },
+  starting: { label: "Starting", dot: "bg-primary", pulse: true },
+  retrying: { label: "Retrying", dot: "bg-warning", pulse: true },
+  halted: { label: "Halted", dot: "bg-error" },
+  failed: { label: "Failed", dot: "bg-error" },
+  stopped: { label: "Stopped", dot: "bg-outline" },
+  offline: { label: "Offline", dot: "bg-outline-variant" },
 };
 
 export function PhaseDot({ phase, label = false }: { phase: string; label?: boolean }) {
-  const p = PHASES[phase] ?? { label: phase, dot: "bg-white/30" };
+  const p = PHASES[phase] ?? { label: phase, dot: "bg-outline" };
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-dim" title={p.label}>
+    <span
+      className="inline-flex items-center gap-1.5 text-xs text-on-surface-variant"
+      title={p.label}
+    >
       <span className="relative flex size-2">
         {p.pulse && (
           <span
@@ -33,11 +36,29 @@ export function PhaseDot({ phase, label = false }: { phase: string; label?: bool
   );
 }
 
+/**
+ * Material's filled card: a surface container lifted by *tone* rather than by a shadow.
+ * Shadows are kept for things that genuinely float — menus, dialogs, the app bar once
+ * the page scrolls under it.
+ */
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`rounded-sm bg-surface-container-low ${className}`}>{children}</div>;
+}
+
+/** A Material Symbol. One font, one name, the same optical size everywhere. */
+export function Icon({
+  name,
+  filled = false,
+  className = "",
+}: {
+  name: string;
+  filled?: boolean;
+  className?: string;
+}) {
   return (
-    <div className={`rounded-xl border border-line bg-card shadow-card ${className}`}>
-      {children}
-    </div>
+    <span aria-hidden className={`symbol ${filled ? "symbol-filled" : ""} ${className}`}>
+      {name}
+    </span>
   );
 }
 
@@ -46,8 +67,9 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
  * blue ring rather than a border colour, so a field doesn't shift when you click it.
  */
 export const field =
-  "rounded-lg border border-line bg-well px-3 py-2 text-sm text-white outline-none transition-colors " +
-  "placeholder:text-ghost hover:border-edge focus:border-blue-400 focus:ring-2 focus:ring-blue-500/25";
+  "rounded-xs border border-outline bg-transparent px-3 py-2 text-sm text-on-surface outline-none " +
+  "transition-colors placeholder:text-on-surface-variant/60 hover:border-on-surface " +
+  "focus:border-primary focus:ring-1 focus:ring-primary disabled:border-outline-variant";
 
 /**
  * A dropdown. The native element does the work — keyboard, type-to-select, the
@@ -62,25 +84,15 @@ export function Select({
   return (
     <div className="relative inline-flex min-w-0">
       <select
-        className={`${field} w-full cursor-pointer appearance-none pr-8 ${className}`}
+        className={`${field} w-full cursor-pointer appearance-none pr-9 ${className}`}
         {...props}
       >
         {children}
       </select>
-      <svg
-        viewBox="0 0 12 12"
-        className="pointer-events-none absolute top-1/2 right-2.5 size-3 -translate-y-1/2 text-faint"
-        aria-hidden
-      >
-        <path
-          d="M3 4.5 6 7.5 9 4.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <Icon
+        name="arrow_drop_down"
+        className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 text-[20px] text-on-surface-variant"
+      />
     </div>
   );
 }
@@ -99,9 +111,9 @@ export function Field({
 }) {
   return (
     <label className={`flex flex-col gap-1.5 ${className}`}>
-      <span className="text-xs font-medium text-dim">{label}</span>
+      <span className="text-xs font-medium text-on-surface-variant">{label}</span>
       {children}
-      {hint && <span className="text-xs text-dim">{hint}</span>}
+      {hint && <span className="text-xs text-on-surface-variant">{hint}</span>}
     </label>
   );
 }
@@ -117,16 +129,20 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="inline-flex rounded-lg border border-line bg-well p-0.5 shadow-card">
+    <div className="inline-flex divide-x divide-outline overflow-hidden rounded-sm border border-outline">
       {options.map((option) => (
         <button
           key={option}
           type="button"
           onClick={() => onChange(option)}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            option === value ? "bg-card text-white shadow-card" : "text-dim hover:text-white"
+          aria-pressed={option === value}
+          className={`state inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium ${
+            option === value
+              ? "bg-secondary-container text-on-secondary-container"
+              : "text-on-surface-variant"
           }`}
         >
+          {option === value && <Icon name="check" className="text-[16px]" />}
           {option}
         </button>
       ))}
@@ -145,11 +161,11 @@ export function Stat({
 }) {
   return (
     <Card className="px-4 py-4">
-      <div className="text-[11px] font-medium tracking-[0.08em] text-faint uppercase">{label}</div>
-      <div className="mt-2 truncate font-mono text-2xl leading-none font-semibold text-white tnum">
+      <div className="truncate text-xs font-medium text-on-surface-variant">{label}</div>
+      <div className="mt-2 truncate font-mono text-[28px] leading-8 text-on-surface tnum">
         {value}
       </div>
-      {hint && <div className="mt-2 truncate text-xs text-dim">{hint}</div>}
+      {hint && <div className="mt-1.5 truncate text-xs text-on-surface-variant">{hint}</div>}
     </Card>
   );
 }
@@ -164,10 +180,10 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-line bg-page/80 px-8 py-4 backdrop-blur-xl">
+    <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 bg-surface px-6 py-3">
       <div className="min-w-0">
-        <h1 className="truncate text-xl font-semibold tracking-tight text-white">{title}</h1>
-        {hint && <p className="mt-0.5 truncate text-sm text-dim">{hint}</p>}
+        <h1 className="truncate text-[22px] leading-7 text-on-surface">{title}</h1>
+        {hint && <p className="mt-0.5 truncate text-sm text-on-surface-variant">{hint}</p>}
       </div>
       <div className="flex items-center gap-2">{children}</div>
     </header>
@@ -183,15 +199,21 @@ export function Notice({
   title: ReactNode;
   children?: ReactNode;
 }) {
+  // Material has no alert component, so the console states things in a tonal container
+  // with the matching symbol. That is what this is.
   const tones = {
-    neutral: "border-line bg-white/[0.04] text-dim",
-    warning: "border-amber-500/30 bg-amber-500/15 text-amber-200",
-    error: "border-red-500/30 bg-red-500/15 text-red-200",
+    neutral: "bg-surface-container-high text-on-surface",
+    warning: "bg-warning-container text-on-warning-container",
+    error: "bg-error-container text-on-error-container",
   };
+  const icons = { neutral: "info", warning: "warning", error: "error" };
   return (
-    <div className={`rounded-xl border px-4 py-3 text-sm ${tones[tone]}`}>
-      <div className="font-medium">{title}</div>
-      {children && <div className="mt-1 opacity-80">{children}</div>}
+    <div className={`flex gap-3 rounded-sm px-4 py-3 text-sm ${tones[tone]}`}>
+      <Icon name={icons[tone]} className="mt-px shrink-0 text-[20px]" />
+      <div className="min-w-0">
+        <div className="font-medium">{title}</div>
+        {children && <div className="mt-1 opacity-90">{children}</div>}
+      </div>
     </div>
   );
 }
@@ -200,13 +222,16 @@ export function Notice({
 export function Offline({ error }: { error: string }) {
   return (
     <div className="mx-auto mt-24 max-w-md px-6 text-center">
-      <div className="text-sm font-medium">Studio can't reach Nineveh</div>
-      <p className="mt-2 text-sm text-dim">{error}</p>
-      <p className="mt-6 text-sm text-dim">Start it, with a Geomi API key and a Postgres:</p>
-      <pre className="mt-2 rounded-lg bg-well px-4 py-3 text-left font-mono text-sm text-white">
+      <Icon name="cloud_off" className="text-[40px] text-on-surface-variant" />
+      <div className="mt-4 text-lg text-on-surface">Studio can't reach Nineveh</div>
+      <p className="mt-2 text-sm text-on-surface-variant">{error}</p>
+      <p className="mt-6 text-sm text-on-surface-variant">
+        Start it, with a Geomi API key and a Postgres:
+      </p>
+      <pre className="mt-2 rounded-sm bg-surface-container-high px-4 py-3 text-left font-mono text-sm text-on-surface">
         nineveh up
       </pre>
-      <p className="mt-3 text-xs text-faint">
+      <p className="mt-3 text-xs text-on-surface-variant">
         Studio talks to <span className="font-mono">{API_URL}</span>. Set{" "}
         <span className="font-mono">NEXT_PUBLIC_NINEVEH_API</span> to change it.
       </p>
@@ -217,8 +242,10 @@ export function Offline({ error }: { error: string }) {
 export function Live({ connected }: { connected: boolean }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
-        connected ? "bg-emerald-500/15 text-emerald-300" : "bg-well text-dim"
+      className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs font-medium ${
+        connected
+          ? "bg-tertiary-container text-on-tertiary-container"
+          : "bg-surface-container-high text-on-surface-variant"
       }`}
     >
       <PhaseDot phase={connected ? "running" : "offline"} />
@@ -229,12 +256,14 @@ export function Live({ connected }: { connected: boolean }) {
 
 export function OpBadge({ op }: { op: string }) {
   const styles: Record<string, string> = {
-    insert: "bg-emerald-500/15 text-emerald-300",
-    update: "bg-blue-500/15 text-blue-300",
-    delete: "bg-red-500/15 text-red-300",
+    insert: "bg-tertiary-container text-on-tertiary-container",
+    update: "bg-secondary-container text-on-secondary-container",
+    delete: "bg-error-container text-on-error-container",
   };
   return (
-    <span className={`rounded px-1.5 py-0.5 font-mono text-[11px] font-medium ${styles[op] ?? ""}`}>
+    <span
+      className={`rounded-xs px-1.5 py-0.5 font-mono text-[11px] font-medium ${styles[op] ?? ""}`}
+    >
       {op}
     </span>
   );
@@ -262,13 +291,15 @@ export function Cell({
 }) {
   const Long = plain ? Truncated : Copyable;
   if (value === null || value === undefined) {
-    return <span className="text-ghost">null</span>;
+    return <span className="text-on-surface-variant/50">null</span>;
   }
   if (type === "version") {
-    return <span className="font-mono text-faint">{String(value)}</span>;
+    return <span className="font-mono text-on-surface-variant">{String(value)}</span>;
   }
   if (type === "bool") {
-    return <span className={value ? "text-emerald-300" : "text-faint"}>{String(value)}</span>;
+    return (
+      <span className={value ? "text-tertiary" : "text-on-surface-variant"}>{String(value)}</span>
+    );
   }
   if (WIDE.has(type) || NARROW.has(type)) {
     return (
@@ -315,7 +346,7 @@ function Copyable({ text, display }: { text: string; display: string }) {
           setTimeout(() => setCopied(false), 1200);
         });
       }}
-      className="cursor-copy rounded font-mono text-left hover:text-blue-300"
+      className="cursor-copy rounded-xs font-mono text-left hover:text-primary"
     >
       {copied ? "copied" : display}
     </button>
@@ -329,23 +360,44 @@ export function Button({
   className = "",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  tone?: "primary" | "secondary" | "danger";
+  tone?: "primary" | "tonal" | "secondary" | "danger" | "text";
   size?: "md" | "lg";
 }) {
+  // Material's common buttons, in the order it ranks them: filled for the one action
+  // the screen is for, tonal for the next most important, outlined and text for the
+  // rest. Each is a pill, and each takes its hover and press from the shared state
+  // layer rather than from a colour of its own.
   const tones = {
-    primary:
-      "bg-blue-600 text-white shadow-card hover:bg-blue-500 active:bg-blue-700 " +
-      "disabled:bg-white/[0.06] disabled:text-faint disabled:shadow-none",
-    secondary:
-      "border border-line bg-white/[0.06] text-white/85 shadow-card hover:border-edge hover:bg-white/10 hover:text-white",
-    danger: "border border-red-500/30 bg-card text-red-300 shadow-card hover:bg-red-500/15",
+    primary: "bg-primary text-on-primary shadow-e1",
+    tonal: "bg-secondary-container text-on-secondary-container",
+    secondary: "border border-outline text-primary",
+    danger: "border border-outline text-error",
+    text: "text-primary",
   };
-  const sizes = { md: "px-3 py-1.5 text-sm", lg: "px-4 py-2.5 text-sm" };
+  const sizes = { md: "h-9 px-4 text-sm", lg: "h-10 px-6 text-sm" };
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed ${sizes[size]} ${tones[tone]} ${className}`}
+      className={`state inline-flex items-center justify-center gap-2 rounded-sm font-medium transition-colors disabled:cursor-not-allowed disabled:border-on-surface/12 disabled:bg-on-surface/12 disabled:text-on-surface/38 disabled:shadow-none ${sizes[size]} ${tones[tone]} ${className}`}
       {...props}
     />
+  );
+}
+
+/** A button that is only a symbol: Material's icon button, round and 40px. */
+export function IconButton({
+  name,
+  filled = false,
+  className = "",
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { name: string; filled?: boolean }) {
+  return (
+    <button
+      type="button"
+      className={`state grid size-10 shrink-0 place-items-center rounded-full text-on-surface-variant disabled:text-on-surface/38 ${className}`}
+      {...props}
+    >
+      <Icon name={name} filled={filled} className="text-[20px]" />
+    </button>
   );
 }

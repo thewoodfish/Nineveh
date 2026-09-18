@@ -66,9 +66,9 @@ export default function NewProject() {
 
   if (mode === "single") {
     return (
-      <div className="mx-auto mt-24 max-w-md px-6 text-center text-sm text-dim">
+      <div className="mx-auto mt-24 max-w-md px-6 text-center text-sm text-on-surface-variant">
         Creating projects needs the control plane. Run{" "}
-        <span className="font-mono text-white">nineveh up</span> instead of{" "}
+        <span className="font-mono text-on-surface">nineveh up</span> instead of{" "}
         <span className="font-mono">nineveh run --serve</span>.
       </div>
     );
@@ -134,7 +134,7 @@ export default function NewProject() {
               <h2 className="text-3xl font-semibold tracking-tight text-balance">
                 Point Nineveh at your contract
               </h2>
-              <p className="mx-auto mt-3 max-w-lg text-dim text-pretty">
+              <p className="mx-auto mt-3 max-w-lg text-on-surface-variant text-pretty">
                 Paste the address your Move modules are published at. Nineveh reads them off the
                 chain and shows you what it can follow — no config to write.
               </p>
@@ -165,7 +165,7 @@ export default function NewProject() {
             </Button>
           </form>
           {!catalog && !inspecting && (
-            <p className="mt-4 text-xs text-faint">
+            <p className="mt-4 text-xs text-on-surface-variant">
               Nothing is created yet. You&apos;ll see what the contract offers first.
             </p>
           )}
@@ -192,7 +192,7 @@ export default function NewProject() {
               <button
                 type="button"
                 onClick={() => setChoosing(!choosing)}
-                className="mt-2 text-sm font-medium text-blue-300 hover:underline"
+                className="mt-2 text-sm font-medium text-primary hover:underline"
               >
                 {choosing ? "Hide the list" : "Choose what to follow"}
               </button>
@@ -261,7 +261,7 @@ export default function NewProject() {
               </div>
             </Step>
 
-            <div className="sticky bottom-0 -mx-8 flex flex-wrap items-center gap-3 border-t border-line bg-page/85 px-8 py-4 backdrop-blur">
+            <div className="sticky bottom-0 -mx-8 flex flex-wrap items-center gap-3 border-t border-outline-variant bg-surface/85 px-8 py-4 backdrop-blur">
               <Button
                 tone="primary"
                 size="lg"
@@ -278,16 +278,16 @@ export default function NewProject() {
               >
                 {preview ? "Hide config" : "Preview config"}
               </Button>
-              {creating && error && <span className="text-sm text-red-300">{error.message}</span>}
+              {creating && error && <span className="text-sm text-error">{error.message}</span>}
             </div>
             {creating && error?.details && (
-              <pre className="overflow-x-auto rounded-lg bg-red-500/15 p-3 font-mono text-xs text-red-200">
+              <pre className="overflow-x-auto rounded-sm bg-error-container p-3 font-mono text-xs text-on-error-container">
                 {error.details}
               </pre>
             )}
             {preview && (
               <Card className="overflow-hidden">
-                <div className="border-b border-line px-4 py-2 text-xs text-dim">
+                <div className="border-b border-outline-variant px-4 py-2 text-xs text-on-surface-variant">
                   <span className="font-mono">nineveh.yaml</span>: what Nineveh will run. You can
                   edit it after creating, from the project&apos;s Config.
                 </div>
@@ -327,22 +327,24 @@ function Following({ catalog, picked }: { catalog: Catalog; picked: Set<string> 
               {n} {what}
               {n === 1 ? "" : "s"}
             </span>
-            <span className="text-dim"> — {how}</span>
+            <span className="text-on-surface-variant"> — {how}</span>
           </div>
         ))}
-      {total === 0 && <div className="text-dim">Nothing ticked: pick something below.</div>}
+      {total === 0 && (
+        <div className="text-on-surface-variant">Nothing ticked: pick something below.</div>
+      )}
       {unsupported > 0 && (
-        <div className="text-xs text-faint">
+        <div className="text-xs text-on-surface-variant">
           {unsupported} more Nineveh can&apos;t follow yet, listed below with the reason.
         </div>
       )}
       {total > 40 && (
-        <div className="text-xs text-amber-300">
+        <div className="text-xs text-on-warning-container">
           That&apos;s a lot of tables for one project. Narrowing it makes the first build quicker,
           and you can add sources later.
         </div>
       )}
-      <div className="text-xs text-dim">
+      <div className="text-xs text-on-surface-variant">
         Then build your own state tables from these, in the project.
       </div>
     </div>
@@ -363,12 +365,12 @@ function Step({
   return (
     <section>
       <div className="mb-4 flex items-baseline gap-3">
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-xs font-semibold text-blue-300">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary-container text-xs font-semibold text-primary">
           {n}
         </span>
         <div>
           <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-          {hint && <p className="mt-0.5 text-sm text-dim">{hint}</p>}
+          {hint && <p className="mt-0.5 text-sm text-on-surface-variant">{hint}</p>}
         </div>
       </div>
       <div className="pl-9">{children}</div>
@@ -410,10 +412,10 @@ function Group({
   };
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-line bg-well px-4 py-2.5">
+      <div className="flex items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-high px-4 py-2.5">
         <div className="text-sm">
           <span className="font-medium">{title}</span>{" "}
-          <span className="text-xs text-faint">
+          <span className="text-xs text-on-surface-variant">
             {followable.filter((i) => picked.has(i.id)).length} of {items.length} · {hint}
           </span>
         </div>
@@ -421,18 +423,18 @@ function Group({
           <button
             type="button"
             onClick={toggleAll}
-            className="text-xs font-medium text-blue-300 hover:underline"
+            className="text-xs font-medium text-primary hover:underline"
           >
             {all ? "None" : "All"}
           </button>
         )}
       </div>
-      <ul className="divide-y divide-line">
+      <ul className="divide-y divide-outline-variant">
         {items.map((item) => (
           <li key={item.id}>
             <label
               className={`flex items-start gap-3 px-4 py-2.5 text-sm ${
-                item.unsupported ? "opacity-50" : "cursor-pointer hover:bg-well"
+                item.unsupported ? "opacity-50" : "cursor-pointer hover:bg-surface-container-high"
               }`}
             >
               <input
@@ -440,33 +442,34 @@ function Group({
                 disabled={!!item.unsupported}
                 checked={picked.has(item.id)}
                 onChange={() => toggle(item.id)}
-                className="mt-0.5 accent-blue-500"
+                className="mt-0.5 accent-primary"
               />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline gap-x-2">
                   <span className="font-mono text-[13px] font-medium">{item.name}</span>
-                  <span className="text-xs text-faint">{item.module}</span>
-                  {item.generic && <span className="text-xs text-faint">generic</span>}
+                  <span className="text-xs text-on-surface-variant">{item.module}</span>
+                  {item.generic && <span className="text-xs text-on-surface-variant">generic</span>}
                   {item.variants.length > 0 && (
                     <span
-                      className="text-xs text-faint"
+                      className="text-xs text-on-surface-variant"
                       title="A Move enum: its table gets a column per field of any variant"
                     >
                       enum {item.variants.join(", ")}
                     </span>
                   )}
                 </div>
-                <div className="truncate font-mono text-xs text-dim">
+                <div className="truncate font-mono text-xs text-on-surface-variant">
                   {item.unsupported ??
                     item.fields.map((f) => `${f.name}: ${shortType(f.type)}`).join(", ")}
                 </div>
               </div>
               {!item.unsupported && (
                 <span
-                  className="hidden max-w-56 shrink-0 truncate font-mono text-xs text-faint sm:block"
+                  className="hidden max-w-56 shrink-0 truncate font-mono text-xs text-on-surface-variant sm:block"
                   title={`${item.suggested_name} (${becomes} table)`}
                 >
-                  → {item.suggested_name} <span className="text-ghost">{becomes}</span>
+                  → {item.suggested_name}{" "}
+                  <span className="text-on-surface-variant/50">{becomes}</span>
                 </span>
               )}
             </label>
@@ -492,14 +495,14 @@ function Choice({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+      className={`rounded-sm border px-4 py-3 text-left transition-colors ${
         active
-          ? "border-blue-400 bg-blue-500/10 ring-1 ring-blue-400/60"
-          : "border-line hover:border-edge"
+          ? "border-primary bg-secondary-container ring-1 ring-primary"
+          : "border-outline-variant hover:border-outline"
       }`}
     >
       <div className="text-sm font-medium">{title}</div>
-      <div className="mt-0.5 text-xs text-dim">{body}</div>
+      <div className="mt-0.5 text-xs text-on-surface-variant">{body}</div>
     </button>
   );
 }
