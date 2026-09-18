@@ -137,13 +137,12 @@ function Overview() {
 
   return (
     <div>
+      {/* The project and its network are named in the app bar, so the page says which
+          page it is. */}
       <PageHeader
-        title={mode === "control" ? status.project : "Overview"}
+        title="Overview"
         hint={
-          <span className="font-mono text-xs">
-            {status.network}
-            {tables && ` · ${tables.length} ${tables.length === 1 ? "table" : "tables"}`}
-          </span>
+          tables ? `${tables.length} state ${tables.length === 1 ? "table" : "tables"}` : undefined
         }
       >
         <PhaseDot phase={error ? "offline" : phase} label />

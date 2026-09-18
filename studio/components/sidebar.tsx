@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 
 import { behind, formatDuration, formatInteger } from "@/lib/format";
 import { useStatus, useTables } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
 
 import { ThemeToggle } from "./theme";
-import { Icon, PhaseDot } from "./ui";
+import { Icon } from "./ui";
 
 export function Sidebar() {
   const { mode, base } = useProject();
@@ -27,7 +26,6 @@ export function Sidebar() {
           </Link>
           <ThemeToggle />
         </div>
-        <div className="mt-4">{mode === "control" ? <Switcher /> : <SingleProject />}</div>
       </div>
       {base ? (
         <ProjectNav />
@@ -144,95 +142,6 @@ function AccountMenu() {
   );
 }
 
-/** The open project, and every other one a click away. */
-function Switcher() {
-  const { projects, current, name } = useProject();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="state w-full rounded-md bg-surface-container-high px-3 py-2 text-left text-on-surface"
-      >
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-medium text-on-surface">
-            {name ?? "All projects"}
-          </span>
-          <span className="flex shrink-0 items-center gap-1.5">
-            {current && <PhaseDot phase={current.state} />}
-            <Chevron />
-          </span>
-        </div>
-        <div className="mt-0.5 text-xs text-on-surface-variant">
-          {current
-            ? current.network
-            : `${projects?.length ?? 0} project${projects?.length === 1 ? "" : "s"}`}
-        </div>
-      </button>
-      {open && (
-        <div className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-sm bg-surface-container-high py-2 shadow-e2">
-          {projects?.map((p) => (
-            <Link
-              key={p.name}
-              href={`/?project=${encodeURIComponent(p.name)}`}
-              onClick={() => setOpen(false)}
-              className="state flex items-center justify-between gap-2 px-3 py-2 text-sm text-on-surface"
-            >
-              <span className="truncate">{p.name}</span>
-              <PhaseDot phase={p.state} />
-            </Link>
-          ))}
-          <div className="my-2 border-t border-outline-variant" />
-          <Link
-            href="/"
-            onClick={() => setOpen(false)}
-            className="state block px-3 py-2 text-sm text-on-surface-variant"
-          >
-            All projects
-          </Link>
-          <Link
-            href="/new"
-            onClick={() => setOpen(false)}
-            className="state block px-3 py-2 text-sm font-medium text-primary"
-          >
-            + New project
-          </Link>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** `nineveh run --serve`: one project, no control plane. */
-function SingleProject() {
-  const { data: status, error } = useStatus();
-  const phase = error ? "offline" : (status?.pipeline?.phase ?? (status ? "serving" : "offline"));
-  return (
-    <div className="rounded-md bg-surface-container-high px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-sm font-medium text-on-surface">
-          {status?.project ?? "No project"}
-        </span>
-        <PhaseDot phase={phase} />
-      </div>
-      <div className="mt-0.5 text-xs text-on-surface-variant">
-        {status ? `${status.network} · ${status.schema}` : "API not reachable"}
-      </div>
-    </div>
-  );
-}
-
 function ProjectNav() {
   const { tables } = useTables();
   const pathname = usePathname();
@@ -300,14 +209,6 @@ function NavLink({
       {icon && <Icon name={icon} filled={active} className="shrink-0 text-[20px]" />}
       {children}
     </Link>
-  );
-}
-
-function Chevron() {
-  return (
-    <svg viewBox="0 0 16 16" className="size-3.5 text-on-surface-variant" aria-hidden>
-      <path fill="none" stroke="currentColor" strokeWidth="1.5" d="M4.5 6.5 8 10l3.5-3.5" />
-    </svg>
   );
 }
 

@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { SIGN_IN_URL } from "@/lib/api";
 import { useProject } from "@/lib/project";
 
+import { AppBar } from "./app-bar";
 import { Sidebar } from "./sidebar";
 import { filledButton } from "@/components/ui";
 
@@ -19,7 +20,10 @@ export function Gate({ children }: { children: ReactNode }) {
   return (
     <>
       <Sidebar />
-      <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <AppBar />
+        <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+      </div>
     </>
   );
 }
