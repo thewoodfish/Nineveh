@@ -10,7 +10,14 @@ import { useEffect, useState } from "react";
 const SELLERS = ["0x7a3f…c41d", "0x1e87…8d2a", "0x9b02…4f77", "0x6146…e554"];
 const ITEMS = ["brass lamp", "oak chair", "wool rug", "clay mug", "iron kettle"];
 
-type Sale = { n: number; seller: number; item: string; price: number; fee: number; version: number };
+type Sale = {
+  n: number;
+  seller: number;
+  item: string;
+  price: number;
+  fee: number;
+  version: number;
+};
 
 /** A small deterministic sequence: the same numbers every time, on both sides. */
 function roll(n: number): number {
@@ -61,29 +68,33 @@ export function Stream() {
   const newest = sale(count - 1);
 
   return (
-    <div className="relative grid gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-2">
-      <Pane title="From the chain" hint="events, as they commit" side="left">
-        <ul className="flex flex-col gap-1.5">
+    <div className="grid overflow-hidden rounded-2xl border border-ink-200/70 bg-white sm:grid-cols-2">
+      <div className="border-b border-ink-200/70 p-5 sm:border-r sm:border-b-0">
+        <Label title="From the chain" hint="events, as they commit" />
+        <ul className="mt-4 flex flex-col gap-1.5">
           {sales.map((one) => (
             <li
               key={one.n}
-              className="arrive flex items-baseline gap-2.5 rounded-lg bg-white/[0.04] px-3 py-2 font-mono text-[11px] sm:text-xs"
+              className="arrive flex items-baseline gap-2.5 rounded-lg bg-ink-50/80 px-3 py-2 font-mono text-[11px] sm:text-xs"
             >
-              <span className="text-white/35 tabular-nums">v{one.version.toLocaleString("en-US")}</span>
-              <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-200">
+              <span className="text-ink-400 tabular-nums">
+                v{one.version.toLocaleString("en-US")}
+              </span>
+              <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
                 Sold
               </span>
-              <span className="min-w-0 flex-1 truncate text-white/60">{one.item}</span>
-              <span className="text-white/80 tabular-nums">{one.price}</span>
+              <span className="min-w-0 flex-1 truncate text-ink-500">{one.item}</span>
+              <span className="text-ink-700 tabular-nums">{one.price}</span>
             </li>
           ))}
         </ul>
-      </Pane>
+      </div>
 
-      <Pane title="Your table" hint="sellers · key seller" side="right">
-        <table className="w-full font-mono text-[11px] sm:text-xs">
+      <div className="bg-blue-50/30 p-5">
+        <Label title="Your table" hint="sellers · key seller" arrow />
+        <table className="mt-4 w-full font-mono text-[11px] sm:text-xs">
           <thead>
-            <tr className="text-left text-white/35">
+            <tr className="text-left text-ink-400">
               <th className="pb-2 font-medium">seller</th>
               <th className="pb-2 text-right font-medium">sold</th>
               <th className="pb-2 text-right font-medium">revenue</th>
@@ -93,55 +104,40 @@ export function Stream() {
             {rows.map((row, i) => (
               <tr
                 key={SELLERS[i]}
-                className={`${i === newest.seller ? "settle" : ""} border-t border-white/[0.06]`}
+                className={`${i === newest.seller ? "settle" : ""} border-t border-ink-200/60`}
               >
-                <td className="py-1.5 text-white/70">{SELLERS[i]}</td>
-                <td className="py-1.5 text-right text-white/80 tabular-nums">{row.sold}</td>
-                <td className="py-1.5 text-right font-medium text-white tabular-nums">
+                <td className="py-1.5 text-ink-600">{SELLERS[i]}</td>
+                <td className="py-1.5 text-right text-ink-600 tabular-nums">{row.sold}</td>
+                <td className="py-1.5 text-right font-medium text-ink-900 tabular-nums">
                   {row.revenue.toLocaleString("en-US")}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="mt-4 text-[11px] text-white/35">
+        <p className="mt-4 text-[11px] text-ink-400">
           revenue = price − fee, folded from every sale
         </p>
-      </Pane>
+      </div>
     </div>
   );
 }
 
-function Pane({
-  title,
-  hint,
-  side,
-  children,
-}: {
-  title: string;
-  hint: string;
-  side: "left" | "right";
-  children: React.ReactNode;
-}) {
+function Label({ title, hint, arrow = false }: { title: string; hint: string; arrow?: boolean }) {
   return (
-    <div className="relative bg-ink-900/90 p-4 backdrop-blur sm:p-5">
-      {/* A thread of light along the top edge, so the card reads as glass. */}
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <span className="flex items-center gap-2 text-xs font-medium text-white/70">
-          {side === "right" && (
-            <span className="text-blue-400/70" aria-hidden>
-              {/* The panes sit side by side on a wide screen and stack on a narrow one,
-                  so the arrow has to point the way the eye actually travels. */}
-              <span className="sm:hidden">↓</span>
-              <span className="hidden sm:inline">→</span>
-            </span>
-          )}
-          {title}
-        </span>
-        <span className="truncate font-mono text-[11px] text-white/30">{hint}</span>
-      </div>
-      {children}
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="flex items-center gap-2 text-xs font-semibold text-ink-700">
+        {arrow && (
+          <span className="text-blue-500" aria-hidden>
+            {/* The panes sit side by side on a wide screen and stack on a narrow one,
+                so the arrow points the way the eye actually travels. */}
+            <span className="sm:hidden">↓</span>
+            <span className="hidden sm:inline">→</span>
+          </span>
+        )}
+        {title}
+      </span>
+      <span className="truncate font-mono text-[11px] text-ink-400">{hint}</span>
     </div>
   );
 }

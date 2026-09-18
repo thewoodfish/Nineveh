@@ -4,36 +4,37 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Blue, the whole way down. One hue, used for the accent, the glow and the ink,
-     so the page reads as one thing rather than a palette. */
-  --color-blue-50: oklch(0.971 0.014 259);
-  --color-blue-100: oklch(0.938 0.031 259);
-  --color-blue-200: oklch(0.885 0.059 259);
-  --color-blue-300: oklch(0.809 0.099 259);
-  --color-blue-400: oklch(0.708 0.156 259);
-  --color-blue-500: oklch(0.623 0.198 259);
-  --color-blue-600: oklch(0.545 0.222 261);
-  --color-blue-700: oklch(0.476 0.196 262);
-  --color-blue-800: oklch(0.406 0.158 262);
-  --color-blue-900: oklch(0.356 0.122 263);
-  --color-blue-950: oklch(0.24 0.086 264);
+  /* Blue, the whole way down: the accent, the washes behind the page, and the tint in
+     the greys, all one hue, so nothing looks borrowed. */
+  --color-blue-50: oklch(0.975 0.012 259);
+  --color-blue-100: oklch(0.945 0.028 259);
+  --color-blue-200: oklch(0.898 0.055 259);
+  --color-blue-300: oklch(0.822 0.095 259);
+  --color-blue-400: oklch(0.716 0.152 259);
+  --color-blue-500: oklch(0.63 0.196 259);
+  --color-blue-600: oklch(0.552 0.221 261);
+  --color-blue-700: oklch(0.482 0.196 262);
+  --color-blue-800: oklch(0.412 0.158 262);
+  --color-blue-900: oklch(0.36 0.122 263);
 
-  /* Ink: near-neutral, with just enough blue in it to belong. */
-  --color-ink-50: oklch(0.985 0.002 264);
-  --color-ink-100: oklch(0.967 0.003 264);
-  --color-ink-200: oklch(0.925 0.005 264);
-  --color-ink-300: oklch(0.867 0.008 264);
-  --color-ink-400: oklch(0.704 0.012 264);
-  --color-ink-500: oklch(0.548 0.015 264);
-  --color-ink-600: oklch(0.44 0.016 264);
-  --color-ink-700: oklch(0.363 0.017 264);
-  --color-ink-800: oklch(0.256 0.016 264);
-  --color-ink-900: oklch(0.194 0.017 264);
-  --color-ink-950: oklch(0.13 0.016 264);
+  /* Ink: greys with just enough blue to belong to the same family. */
+  --color-ink-50: oklch(0.984 0.003 259);
+  --color-ink-100: oklch(0.966 0.005 259);
+  --color-ink-200: oklch(0.926 0.008 259);
+  --color-ink-300: oklch(0.872 0.012 259);
+  --color-ink-400: oklch(0.708 0.016 259);
+  --color-ink-500: oklch(0.556 0.019 259);
+  --color-ink-600: oklch(0.452 0.021 259);
+  --color-ink-700: oklch(0.372 0.022 259);
+  --color-ink-800: oklch(0.272 0.02 259);
+  --color-ink-900: oklch(0.205 0.019 260);
 
-  --shadow-card: 0 1px 2px oklch(0.2 0.02 264 / 0.05), 0 1px 3px oklch(0.2 0.02 264 / 0.04);
-  --shadow-lifted: 0 8px 24px oklch(0.2 0.02 264 / 0.08), 0 2px 6px oklch(0.2 0.02 264 / 0.05);
-  --shadow-glow: 0 0 60px oklch(0.623 0.198 259 / 0.35);
+  --color-page: oklch(0.992 0.004 259);
+
+  /* Shadows carry a little blue, so nothing casts a grey shadow on a blue page. */
+  --shadow-soft: 0 1px 2px oklch(0.4 0.06 259 / 0.06), 0 2px 8px oklch(0.4 0.06 259 / 0.05);
+  --shadow-card: 0 2px 4px oklch(0.4 0.06 259 / 0.05), 0 8px 24px oklch(0.4 0.06 259 / 0.07);
+  --shadow-hero: 0 4px 12px oklch(0.4 0.08 259 / 0.08), 0 24px 64px oklch(0.45 0.12 259 / 0.14);
 }
 
 html {
@@ -41,39 +42,49 @@ html {
   -webkit-font-smoothing: antialiased;
 }
 
-/* A jumped-to section shouldn't start under the top of the window. */
 section[id] {
-  scroll-margin-top: 1.5rem;
+  scroll-margin-top: 2rem;
 }
 
 body {
-  @apply bg-white text-ink-900;
+  @apply bg-page text-ink-900;
 }
 
 ::selection {
-  background: var(--color-blue-200);
+  background: var(--color-blue-100);
 }
 
-/* A section that sits on the dark end of the page. */
-.on-dark {
-  @apply bg-ink-950 text-ink-100;
-}
-
-/* The light that sits behind the hero: a wide, soft blue aurora. */
-.aurora {
+/*
+ * One canvas for the whole page. The washes are placed down the length of it rather
+ * than per section, so nothing reads as a slab stacked on another slab.
+ */
+.canvas {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background:
-    radial-gradient(60rem 32rem at 50% -8rem, oklch(0.545 0.222 261 / 0.5), transparent 70%),
-    radial-gradient(40rem 24rem at 12% 8rem, oklch(0.476 0.196 262 / 0.28), transparent 70%),
-    radial-gradient(36rem 22rem at 88% 4rem, oklch(0.623 0.198 259 / 0.22), transparent 70%);
+    radial-gradient(52rem 34rem at 50% -6rem, oklch(0.63 0.196 259 / 0.12), transparent 65%),
+    radial-gradient(38rem 26rem at 88% 12%, oklch(0.716 0.152 259 / 0.09), transparent 65%),
+    radial-gradient(42rem 30rem at 6% 42%, oklch(0.63 0.196 259 / 0.07), transparent 62%),
+    radial-gradient(46rem 32rem at 76% 78%, oklch(0.552 0.221 261 / 0.08), transparent 65%);
 }
 
-/* The faint grid the hero sits on: structure, barely seen. */
-.grid-lines {
+/* The faint rule of the page: structure you feel rather than see. */
+.weave {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background-image:
-    linear-gradient(to right, oklch(1 0 0 / 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(1 0 0 / 0.045) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(48rem 32rem at 50% 20%, black, transparent 80%);
+    linear-gradient(to right, oklch(0.552 0.221 261 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.552 0.221 261 / 0.05) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to bottom, black, transparent 22%, transparent 78%, black);
+}
+
+/* Glass: white, but letting the wash behind it through. */
+.glass {
+  background: oklch(1 0 0 / 0.72);
+  backdrop-filter: blur(12px);
 }
 
 @keyframes arrive {
@@ -93,7 +104,7 @@ body {
 
 @keyframes settle {
   0% {
-    background-color: oklch(0.623 0.198 259 / 0.22);
+    background-color: oklch(0.63 0.196 259 / 0.14);
   }
   100% {
     background-color: transparent;
@@ -101,13 +112,13 @@ body {
 }
 
 .settle {
-  animation: settle 1.4s ease-out;
+  animation: settle 1.5s ease-out;
 }
 
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -115,11 +126,10 @@ body {
   }
 }
 
-/* Sections lift into place as they're reached. */
 .rise {
-  animation: rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: rise 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   animation-timeline: view();
-  animation-range: entry 0% cover 22%;
+  animation-range: entry 0% cover 24%;
 }
 
 @media (prefers-reduced-motion: reduce) {
