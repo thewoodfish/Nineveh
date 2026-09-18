@@ -36,7 +36,7 @@ function SignIn() {
         </p>
         <a
           href={SIGN_IN_URL}
-          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-md bg-well px-4 py-2.5 text-sm font-medium text-white hover:bg-white/10"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-card transition-colors hover:bg-blue-500"
         >
           <GitHubMark />
           Continue with GitHub

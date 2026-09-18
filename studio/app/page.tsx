@@ -67,25 +67,49 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
     ? progress(pipeline.start_version, pipeline.cursor, pipeline.chain_version)
     : null;
   return (
-    <Link href={`/?project=${encodeURIComponent(project.name)}`}>
-      <Card className="px-4 py-3.5 transition-colors hover:border-edge">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate font-medium">{project.name}</span>
-          <PhaseDot phase={project.state} label />
-        </div>
-        <div className="mt-1 text-xs text-dim">
-          {project.network} · cursor {formatInteger(pipeline?.cursor ?? null)}
-        </div>
-        {done !== null && (
-          <div className="mt-3 h-1 overflow-hidden rounded-full bg-black/40">
-            <div
-              className="h-full rounded-full bg-blue-400"
-              style={{ width: `${Math.max(done * 100, 0.5)}%` }}
-            />
+    <Link href={`/?project=${encodeURIComponent(project.name)}`} className="group">
+      <Card className="h-full overflow-hidden transition-colors group-hover:border-edge">
+        <div className="px-4 py-3.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate font-medium text-white">{project.name}</span>
+            <PhaseDot phase={project.state} label />
           </div>
-        )}
+          <div className="mt-2 flex items-center gap-2 text-xs">
+            <span className="rounded bg-white/[0.07] px-1.5 py-0.5 font-mono text-faint">
+              {project.network}
+            </span>
+            <span className="truncate text-dim tnum">
+              cursor {formatInteger(pipeline?.cursor ?? null)}
+            </span>
+          </div>
+          {done !== null && (
+            <>
+              <div className="mt-3.5 h-1 overflow-hidden rounded-full bg-black/40">
+                <div
+                  className={`h-full rounded-full transition-[width] duration-700 ease-out ${
+                    done >= 0.9999 ? "bg-emerald-400" : "bg-blue-400"
+                  }`}
+                  style={{ width: `${Math.max(done * 100, 0.5)}%` }}
+                />
+              </div>
+              <div className="mt-1.5 text-[11px] text-faint tnum">
+                {done >= 0.9999 ? "following the chain" : `${(done * 100).toFixed(1)}% backfilled`}
+              </div>
+            </>
+          )}
+        </div>
+        {/* The pipeline records the last thing that went wrong even while it recovers, so
+            this is history rather than an alarm: readable, and not dressed as a failure
+            when the dot beside the name says the project is running. */}
         {project.error && (
-          <p className="mt-2 truncate font-mono text-xs text-red-300">{project.error}</p>
+          <div className="border-t border-line bg-black/20 px-4 py-2.5" title={project.error}>
+            <div className="text-[10px] font-medium tracking-[0.08em] text-faint uppercase">
+              Last error
+            </div>
+            <p className="mt-1 line-clamp-2 font-mono text-[11px] leading-relaxed text-amber-300/90">
+              {project.error}
+            </p>
+          </div>
         )}
       </Card>
     </Link>
@@ -207,7 +231,9 @@ function Overview() {
 
         {current && (
           <Card className="px-5 py-4 text-sm">
-            <div className="text-[11px] font-medium tracking-[0.08em] text-faint uppercase">Your API</div>
+            <div className="text-[11px] font-medium tracking-[0.08em] text-faint uppercase">
+              Your API
+            </div>
             <div className="mt-2 rounded-lg bg-well px-3 py-2 font-mono text-sm break-all">
               {`${API_URL}${current.api}/v1/tables`}
             </div>

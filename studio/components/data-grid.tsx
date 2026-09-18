@@ -220,11 +220,16 @@ export function DataGrid({ table }: { table: Table }) {
                   >
                     <span className="font-mono text-[13px]">{column.name}</span>
                     {table.key.includes(column.name) && (
-                      <span className="rounded bg-blue-500/20 px-1 py-px text-[9px] font-semibold text-blue-300" title="key column">
+                      <span
+                        className="rounded bg-blue-500/20 px-1 py-px text-[9px] font-semibold text-blue-300"
+                        title="key column"
+                      >
                         KEY
                       </span>
                     )}
-                    <span className="font-mono text-[11px] font-normal text-faint">{column.type}</span>
+                    <span className="font-mono text-[11px] font-normal text-faint">
+                      {column.type}
+                    </span>
                     {order?.column === column.name && (
                       <span className="text-xs">{order.desc ? "↓" : "↑"}</span>
                     )}

@@ -334,7 +334,8 @@ export function Button({
 }) {
   const tones = {
     primary:
-      "bg-blue-600 text-white shadow-card hover:bg-blue-500 active:bg-blue-700 disabled:bg-blue-600/50",
+      "bg-blue-600 text-white shadow-card hover:bg-blue-500 active:bg-blue-700 " +
+      "disabled:bg-white/[0.06] disabled:text-faint disabled:shadow-none",
     secondary:
       "border border-line bg-white/[0.06] text-white/85 shadow-card hover:border-edge hover:bg-white/10 hover:text-white",
     danger: "border border-red-500/30 bg-card text-red-300 shadow-card hover:bg-red-500/15",
@@ -343,7 +344,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 ${sizes[size]} ${tones[tone]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed ${sizes[size]} ${tones[tone]} ${className}`}
       {...props}
     />
   );

@@ -64,10 +64,10 @@ export default function Playground() {
   };
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <PageHeader title="API playground" />
-      <div className="grid max-w-7xl gap-6 px-8 py-6 lg:grid-cols-[22rem_1fr]">
-        <Card className="flex flex-col gap-4 p-4">
+      <div className="grid min-h-0 flex-1 max-w-7xl gap-6 overflow-y-auto px-8 py-6 lg:grid-cols-[22rem_1fr] lg:overflow-hidden">
+        <Card className="flex h-fit flex-col gap-4 p-4">
           <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
             Table
             <Select
@@ -186,8 +186,8 @@ export default function Playground() {
           </Button>
         </Card>
 
-        <div className="flex min-w-0 flex-col gap-4">
-          <Card className="p-4">
+        <div className="flex min-h-0 min-w-0 flex-col gap-4">
+          <Card className="shrink-0 p-4">
             <div className="flex items-center gap-2">
               <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[11px] font-medium text-emerald-300">
                 GET
@@ -197,7 +197,7 @@ export default function Playground() {
               </span>
               <Button onClick={() => void navigator.clipboard?.writeText(url)}>Copy</Button>
             </div>
-            <div className="mt-3 text-[11px] font-medium tracking-wide text-dim uppercase">
+            <div className="mt-3 text-[11px] font-medium tracking-[0.08em] text-faint uppercase">
               curl
             </div>
             <pre className="mt-1.5 overflow-x-auto rounded-lg bg-well px-3 py-2.5 font-mono text-xs text-white">
@@ -206,7 +206,7 @@ export default function Playground() {
                 : `curl '${url}'`}
             </pre>
           </Card>
-          <Card className="flex min-h-96 flex-col overflow-hidden">
+          <Card className="flex min-h-96 flex-1 flex-col overflow-hidden">
             <div className="flex items-center justify-between border-b border-line bg-well px-4 py-2 text-xs">
               <span className="font-semibold tracking-wide text-dim uppercase">Response</span>
               {result && (
@@ -218,7 +218,7 @@ export default function Playground() {
               )}
             </div>
             {result ? (
-              <pre className="max-h-[60vh] flex-1 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">
+              <pre className="min-h-0 flex-1 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">
                 {result.body}
               </pre>
             ) : (

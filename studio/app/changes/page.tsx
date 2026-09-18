@@ -89,8 +89,11 @@ export default function ChangesPage() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         {shown.length === 0 ? (
           <div className="mx-auto mt-24 max-w-sm px-8 text-center">
-            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-well">
-              <span className="size-2 animate-ping rounded-full bg-blue-400" />
+            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-blue-500/10 ring-1 ring-blue-400/25">
+              <span className="relative flex size-2.5">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-blue-400" />
+              </span>
             </div>
             <p className="mt-4 text-sm font-medium">
               {paused ? "Paused" : only ? `Watching ${only}` : "Watching for changes"}
