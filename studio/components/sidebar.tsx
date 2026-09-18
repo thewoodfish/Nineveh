@@ -13,12 +13,12 @@ export function Sidebar() {
   const { mode, base } = useProject();
   const pathname = usePathname();
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50/60 dark:border-zinc-800 dark:bg-zinc-900/40">
+    <aside className="flex w-60 shrink-0 flex-col border-r border-zinc-200/80 bg-page dark:border-zinc-800">
       <div className="px-4 pt-4 pb-3">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2 px-1">
           <Logo />
-          <span className="text-sm font-semibold tracking-tight">Nineveh</span>
-          <span className="text-sm text-zinc-400">Studio</span>
+          <span className="text-[15px] font-semibold tracking-tight">Nineveh</span>
+          <span className="text-[15px] text-zinc-400">Studio</span>
         </Link>
         <div className="mt-4">{mode === "control" ? <Switcher /> : <SingleProject />}</div>
       </div>
@@ -83,7 +83,7 @@ function Switcher() {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+        className="w-full rounded-lg border border-zinc-200 bg-card px-3 py-2 text-left shadow-card transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
       >
         <div className="flex items-center justify-between gap-2">
           <span className="truncate text-sm font-medium">{name ?? "All projects"}</span>
@@ -134,7 +134,7 @@ function SingleProject() {
   const { data: status, error } = useStatus();
   const phase = error ? "offline" : (status?.pipeline?.phase ?? (status ? "serving" : "offline"));
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-lg border border-zinc-200 bg-card px-3 py-2 shadow-card dark:border-zinc-800">
       <div className="flex items-center justify-between gap-2">
         <span className="truncate text-sm font-medium">{status?.project ?? "No project"}</span>
         <PhaseDot phase={phase} />
@@ -168,7 +168,7 @@ function ProjectNav() {
         </NavLink>
       </nav>
 
-      <div className="mt-5 px-4 text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
+      <div className="mt-6 px-3 text-[11px] font-medium tracking-wider text-zinc-400 uppercase">
         Tables
       </div>
       <nav className="mt-1 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-4 text-sm">
@@ -178,8 +178,8 @@ function ProjectNav() {
             href={href("/tables", { name: table.name })}
             active={pathname === "/tables" && selected === table.name}
           >
-            <span className="truncate font-mono text-[13px]">{table.name}</span>
-            <span className="ml-auto text-[11px] text-zinc-400">{table.kind}</span>
+            <span className="truncate font-mono text-[12.5px]">{table.name}</span>
+            <span className="ml-auto shrink-0 text-[11px] text-zinc-400">{table.kind}</span>
           </NavLink>
         ))}
         {tables?.length === 0 && <p className="px-2 text-xs text-zinc-400">No state tables.</p>}
@@ -200,10 +200,10 @@ function NavLink({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors ${
+      className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] transition-colors ${
         active
-          ? "bg-white font-medium text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-800 dark:text-white dark:ring-zinc-700"
-          : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
+          ? "bg-lapis-50 font-medium text-lapis-700 dark:bg-lapis-500/15 dark:text-lapis-300"
+          : "text-zinc-600 hover:bg-well hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       }`}
     >
       {children}
@@ -222,7 +222,7 @@ function Chevron() {
 function Logo() {
   // A stepped ziggurat: Nineveh's skyline, and state built up layer on layer.
   return (
-    <svg viewBox="0 0 20 20" className="size-5 text-lapis-500" aria-hidden>
+    <svg viewBox="0 0 20 20" className="size-[18px] text-lapis-500" aria-hidden>
       <path fill="currentColor" d="M8 3h4v3H8zM5 7h10v4H5zM2 12h16v5H2z" />
     </svg>
   );

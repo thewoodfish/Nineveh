@@ -34,28 +34,99 @@ export function PhaseDot({ phase, label = false }: { phase: string; label?: bool
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 ${className}`}
+      className={`rounded-xl border border-zinc-200/80 bg-card shadow-card dark:border-zinc-800 ${className}`}
     >
       {children}
     </div>
   );
 }
 
+/**
+ * The shared shape of anything typed into: inputs, selects, textareas. Focus is a
+ * lapis ring rather than a border colour, so a field doesn't shift when you click it.
+ */
+export const field =
+  "rounded-lg border border-zinc-200 bg-card px-3 py-2 text-sm shadow-card outline-none " +
+  "placeholder:text-zinc-400 focus:border-lapis-400 focus:ring-2 focus:ring-lapis-400/25 " +
+  "dark:border-zinc-700 dark:placeholder:text-zinc-500";
+
+/** A labelled field, with the hint that stops people guessing. */
+export function Field({
+  label,
+  hint,
+  children,
+  className = "",
+}: {
+  label: ReactNode;
+  hint?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={`flex flex-col gap-1.5 ${className}`}>
+      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">{label}</span>
+      {children}
+      {hint && <span className="text-xs text-zinc-500">{hint}</span>}
+    </label>
+  );
+}
+
+/** One choice among a few, all visible at once. */
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly T[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-lg border border-zinc-200 bg-well p-0.5 shadow-card dark:border-zinc-700">
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onChange(option)}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            option === value
+              ? "bg-card text-zinc-900 shadow-card dark:text-zinc-100"
+              : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
+          }`}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
   return (
-    <Card className="px-4 py-3.5">
-      <div className="text-xs font-medium text-zinc-500">{label}</div>
-      <div className="mt-1 truncate font-mono text-xl font-medium tabular-nums">{value}</div>
-      {hint && <div className="mt-0.5 truncate text-xs text-zinc-400">{hint}</div>}
+    <Card className="px-4 py-4">
+      <div className="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{label}</div>
+      <div className="mt-1.5 truncate font-mono text-2xl leading-none font-semibold tnum">{value}</div>
+      {hint && <div className="mt-1.5 truncate text-xs text-zinc-400">{hint}</div>}
     </Card>
   );
 }
 
-export function PageHeader({ title, children }: { title: ReactNode; children?: ReactNode }) {
+export function PageHeader({
+  title,
+  hint,
+  children,
+}: {
+  title: ReactNode;
+  hint?: ReactNode;
+  children?: ReactNode;
+}) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-8 py-5 dark:border-zinc-800">
-      <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-      <div className="flex items-center gap-3">{children}</div>
+    <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200/80 bg-page/85 px-8 py-4 backdrop-blur dark:border-zinc-800">
+      <div className="min-w-0">
+        <h1 className="truncate text-xl font-semibold tracking-tight">{title}</h1>
+        {hint && <p className="mt-0.5 truncate text-sm text-zinc-500">{hint}</p>}
+      </div>
+      <div className="flex items-center gap-2">{children}</div>
     </header>
   );
 }
@@ -70,7 +141,7 @@ export function Notice({
   children?: ReactNode;
 }) {
   const tones = {
-    neutral: "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900",
+    neutral: "border-zinc-200 bg-well dark:border-zinc-800",
     warning:
       "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200",
     error:
@@ -204,21 +275,26 @@ function Copyable({ text, display }: { text: string; display: string }) {
 /** A button in Studio's three tones. */
 export function Button({
   tone = "secondary",
+  size = "md",
   className = "",
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { tone?: "primary" | "secondary" | "danger" }) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  tone?: "primary" | "secondary" | "danger";
+  size?: "md" | "lg";
+}) {
   const tones = {
     primary:
-      "bg-lapis-600 text-white hover:bg-lapis-500 disabled:bg-lapis-400 dark:bg-lapis-500 dark:hover:bg-lapis-400",
+      "bg-lapis-600 text-white shadow-card hover:bg-lapis-500 active:bg-lapis-700 disabled:bg-lapis-400 dark:bg-lapis-500 dark:hover:bg-lapis-400",
     secondary:
-      "border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800",
+      "border border-zinc-200 bg-card shadow-card hover:bg-well dark:border-zinc-700 dark:hover:bg-zinc-800",
     danger:
-      "border border-red-200 bg-white text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:bg-zinc-900 dark:text-red-300 dark:hover:bg-red-950/40",
+      "border border-red-200 bg-card text-red-700 shadow-card hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/40",
   };
+  const sizes = { md: "px-3 py-1.5 text-sm", lg: "px-4 py-2.5 text-sm" };
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${tones[tone]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-lapis-400/40 disabled:cursor-not-allowed disabled:opacity-60 ${sizes[size]} ${tones[tone]} ${className}`}
       {...props}
     />
   );

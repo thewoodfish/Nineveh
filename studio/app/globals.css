@@ -3,20 +3,50 @@
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
   /* Lapis: the one accent. */
   --color-lapis-50: oklch(0.97 0.02 262);
   --color-lapis-100: oklch(0.93 0.04 262);
   --color-lapis-400: oklch(0.66 0.16 262);
   --color-lapis-500: oklch(0.57 0.2 262);
   --color-lapis-600: oklch(0.5 0.21 262);
+  --color-lapis-700: oklch(0.43 0.19 262);
+
+  /* Three surfaces, so a card lifts off the page instead of blending into it:
+     the page behind everything, cards on top of it, and sunken wells inside
+     cards for code and data. */
+  --color-page: oklch(0.985 0.002 265);
+  --color-card: oklch(1 0 0);
+  --color-well: oklch(0.975 0.003 265);
+
+  /* The shadow a card casts: barely there, but enough to separate. */
+  --shadow-card: 0 1px 2px oklch(0.2 0.02 265 / 0.05), 0 1px 3px oklch(0.2 0.02 265 / 0.04);
+  --shadow-lifted: 0 4px 12px oklch(0.2 0.02 265 / 0.08), 0 1px 3px oklch(0.2 0.02 265 / 0.05);
 }
 
 :root {
   color-scheme: light dark;
 }
 
+/* The same three surfaces after dark: the variables `@theme` generated, overridden in
+   place. `@theme` itself can't live in a media query — its declarations escape it. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-page: oklch(0.17 0.006 265);
+    --color-card: oklch(0.212 0.006 265);
+    --color-well: oklch(0.185 0.006 265);
+    --shadow-card: 0 1px 2px oklch(0 0 0 / 0.3);
+    --shadow-lifted: 0 4px 12px oklch(0 0 0 / 0.4);
+  }
+}
+
 body {
-  @apply bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+  @apply bg-page text-zinc-900 antialiased dark:text-zinc-100;
+}
+
+/* Numbers that change in place shouldn't jiggle. */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }
 
 /* A row the feed just changed. */
@@ -46,4 +76,20 @@ body {
 
 .enter {
   animation: enter 0.25s ease-out;
+}
+
+/* A step appearing as a flow moves on. */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.reveal {
+  animation: reveal 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }

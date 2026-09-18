@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { Button, Card, Notice, PageHeader } from "@/components/ui";
+import { Button, Card, Field, Notice, PageHeader, Segmented, field } from "@/components/ui";
 import { ApiError, type Catalog, type CatalogItem, type Network, type Start, control } from "@/lib/api";
 import { useProject } from "@/lib/project";
 
@@ -91,38 +91,58 @@ export default function NewProject() {
     }
   };
 
-  const field =
-    "rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-lapis-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900";
-
   return (
     <div>
       <PageHeader title="New project" />
-      <div className="mx-auto flex max-w-4xl flex-col gap-8 px-8 py-6">
-        <Step n={1} title="Your contract" hint="Where your Move modules are published.">
+      <div className="mx-auto flex max-w-4xl flex-col gap-8 px-8 pt-10 pb-16">
+        {/* Until there's an address, it's the only thing on the page. */}
+        <section className={catalog ? "" : "pt-6 text-center"}>
+          {!catalog && (
+            <>
+              <h2 className="text-3xl font-semibold tracking-tight text-balance">
+                Point Nineveh at your contract
+              </h2>
+              <p className="mx-auto mt-3 max-w-lg text-zinc-500 text-pretty">
+                Paste the address your Move modules are published at. Nineveh reads them off the
+                chain and shows you what it can follow — no config to write.
+              </p>
+            </>
+          )}
           <form
-            className="flex flex-wrap gap-2"
+            className={`mt-7 flex flex-col gap-3 sm:flex-row ${catalog ? "" : "mx-auto max-w-2xl"}`}
             onSubmit={(e) => {
               e.preventDefault();
               void inspect();
             }}
           >
-            <select value={network} onChange={(e) => setNetwork(e.target.value as Network)} className={field}>
-              <option value="testnet">testnet</option>
-              <option value="mainnet">mainnet</option>
-              <option value="devnet">devnet</option>
-            </select>
+            <Segmented
+              options={["mainnet", "testnet", "devnet"] as const}
+              value={network}
+              onChange={(n) => setNetwork(n)}
+            />
             <input
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="0x… contract address"
+              placeholder="0x…"
               spellCheck={false}
-              className={`${field} min-w-72 flex-1 font-mono`}
+              autoFocus
+              className={`${field} min-w-0 flex-1 py-2.5 font-mono`}
             />
-            <Button type="submit" tone="primary" disabled={inspecting || !address.trim()}>
+            <Button
+              type="submit"
+              tone="primary"
+              size="lg"
+              disabled={inspecting || !address.trim()}
+            >
               {inspecting ? "Reading modules…" : "Inspect"}
             </Button>
           </form>
-        </Step>
+          {!catalog && !inspecting && (
+            <p className="mt-4 text-xs text-zinc-400">
+              Nothing is created yet. You&apos;ll see what the contract offers first.
+            </p>
+          )}
+        </section>
 
         {error && !creating && (
           <Notice tone="error" title={error.message}>
@@ -131,9 +151,9 @@ export default function NewProject() {
         )}
 
         {catalog && (
-          <>
+          <div className="reveal flex flex-col gap-8">
             <Step
-              n={2}
+              n={1}
               title="What Nineveh will follow"
               hint={`${catalog.modules.length} module${catalog.modules.length === 1 ? "" : "s"} at ${shortAddress(catalog.address)}.`}
             >
@@ -172,21 +192,25 @@ export default function NewProject() {
               </div>
             </Step>
 
-            <Step n={3} title="Name and history">
+            <Step n={2} title="Name and history">
               <div className="flex flex-col gap-4">
-                <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
-                  Project name
+                <Field
+                  label="Project name"
+                  hint={
+                    <>
+                      Lowercase letters, digits and <span className="font-mono">_</span>. It names
+                      your API and your Postgres schema.
+                    </>
+                  }
+                  className="max-w-sm"
+                >
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     spellCheck={false}
-                    className={`${field} max-w-sm font-mono text-zinc-900 dark:text-zinc-100`}
+                    className={`${field} font-mono`}
                   />
-                  <span className="font-normal text-zinc-400">
-                    Lowercase letters, digits and <span className="font-mono">_</span>. It names your API and your
-                    Postgres schema.
-                  </span>
-                </label>
+                </Field>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Choice
                     active={start === "auto"}
@@ -204,14 +228,16 @@ export default function NewProject() {
               </div>
             </Step>
 
-            <div className="flex flex-wrap items-center gap-3 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+            <div className="sticky bottom-0 -mx-8 flex flex-wrap items-center gap-3 border-t border-zinc-200/80 bg-page/85 px-8 py-4 backdrop-blur dark:border-zinc-800">
               <Button
                 tone="primary"
+                size="lg"
                 disabled={creating || draft.picks.length === 0 || !name}
                 onClick={() => void create()}
-                className="px-4 py-2"
               >
-                {creating ? "Pinning layouts and starting…" : `Create backend with ${draft.picks.length} tables`}
+                {creating
+                  ? "Pinning layouts and starting…"
+                  : `Create backend with ${draft.picks.length} ${draft.picks.length === 1 ? "table" : "tables"}`}
               </Button>
               <Button disabled={creating || draft.picks.length === 0} onClick={() => void (preview ? setPreview(null) : showPreview())}>
                 {preview ? "Hide config" : "Preview config"}
@@ -230,7 +256,7 @@ export default function NewProject() {
                 <pre className="max-h-96 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">{preview}</pre>
               </Card>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -296,13 +322,13 @@ function Step({
 }) {
   return (
     <section>
-      <div className="mb-3 flex items-baseline gap-3">
+      <div className="mb-4 flex items-baseline gap-3">
         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-lapis-50 text-xs font-semibold text-lapis-600 dark:bg-lapis-500/15 dark:text-lapis-400">
           {n}
         </span>
         <div>
-          <h2 className="text-sm font-semibold">{title}</h2>
-          {hint && <p className="text-xs text-zinc-500">{hint}</p>}
+          <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+          {hint && <p className="mt-0.5 text-sm text-zinc-500">{hint}</p>}
         </div>
       </div>
       <div className="pl-9">{children}</div>
@@ -344,7 +370,7 @@ function Group({
   };
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50/60 px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900/60">
+      <div className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-well px-4 py-2.5 dark:border-zinc-800">
         <div className="text-sm">
           <span className="font-medium">{title}</span>{" "}
           <span className="text-xs text-zinc-400">
@@ -362,7 +388,7 @@ function Group({
           <li key={item.id}>
             <label
               className={`flex items-start gap-3 px-4 py-2.5 text-sm ${
-                item.unsupported ? "opacity-50" : "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+                item.unsupported ? "opacity-50" : "cursor-pointer hover:bg-well"
               }`}
             >
               <input

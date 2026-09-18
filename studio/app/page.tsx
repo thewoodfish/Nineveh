@@ -100,7 +100,15 @@ function Overview() {
 
   return (
     <div>
-      <PageHeader title={mode === "control" ? status.project : "Overview"}>
+      <PageHeader
+        title={mode === "control" ? status.project : "Overview"}
+        hint={
+          <span className="font-mono text-xs">
+            {status.network}
+            {tables && ` · ${tables.length} ${tables.length === 1 ? "table" : "tables"}`}
+          </span>
+        }
+      >
         <PhaseDot phase={error ? "offline" : phase} label />
         {current && <ProjectActions project={current} />}
       </PageHeader>
@@ -138,7 +146,7 @@ function Overview() {
 
         <Card>
           <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-            <h2 className="text-sm font-medium">State tables</h2>
+            <h2 className="text-sm font-semibold">State tables</h2>
             <div className="flex items-center gap-3">
               <span className="text-xs text-zinc-400">{tables?.length ?? 0} tables</span>
               {mode === "control" && (
@@ -153,10 +161,12 @@ function Overview() {
               <li key={table.name}>
                 <Link
                   href={href("/tables", { name: table.name })}
-                  className="flex items-center gap-4 px-4 py-2.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+                  className="group flex items-center gap-4 px-4 py-2.5 text-sm hover:bg-well"
                 >
-                  <span className="w-48 truncate font-mono">{table.name}</span>
-                  <span className="w-16 text-xs text-zinc-400">{table.kind}</span>
+                  <span className="w-52 truncate font-mono font-medium group-hover:text-lapis-600 dark:group-hover:text-lapis-400">
+                    {table.name}
+                  </span>
+                  <Kind kind={table.kind} />
                   <span className="truncate text-xs text-zinc-500">
                     key {table.key.join(", ")} · {table.columns.length} columns
                   </span>
@@ -167,9 +177,11 @@ function Overview() {
         </Card>
 
         {current && (
-          <Card className="px-4 py-3 text-sm">
-            <div className="text-xs font-medium text-zinc-500">Your API</div>
-            <div className="mt-1 font-mono text-sm break-all">{`${API_URL}${current.api}/v1/tables`}</div>
+          <Card className="px-5 py-4 text-sm">
+            <div className="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">Your API</div>
+            <div className="mt-2 rounded-lg bg-well px-3 py-2 font-mono text-sm break-all">
+              {`${API_URL}${current.api}/v1/tables`}
+            </div>
             <p className="mt-1 text-xs text-zinc-400">
               REST over every table, and a live change feed at <span className="font-mono">/v1/changes</span>.
               {hosted && <> Send one of this project&apos;s API keys with each request.</>} Try it in the{" "}
@@ -248,6 +260,20 @@ function ProjectActions({ project }: { project: ProjectSummary }) {
   );
 }
 
+/** What builds a table: the three kinds read differently, so they look different. */
+function Kind({ kind }: { kind: string }) {
+  const tones: Record<string, string> = {
+    reduce: "bg-lapis-50 text-lapis-600 dark:bg-lapis-500/15 dark:text-lapis-400",
+    mirror: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
+    log: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
+  };
+  return (
+    <span className={`w-16 shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-medium ${tones[kind] ?? ""}`}>
+      {kind}
+    </span>
+  );
+}
+
 function Backfill({ status }: { status: Status }) {
   const pipeline = status.pipeline;
   if (!pipeline || pipeline.schema !== status.schema) return null;
@@ -255,18 +281,32 @@ function Backfill({ status }: { status: Status }) {
   if (done === null) return null;
   const caughtUp = done >= 0.9999;
   return (
-    <Card className="px-4 py-4">
-      <div className="flex items-baseline justify-between">
-        <div className="text-sm font-medium">{caughtUp ? "Following the chain" : "Backfilling"}</div>
-        <div className="font-mono text-sm tabular-nums">{(done * 100).toFixed(done < 0.1 ? 2 : 1)}%</div>
+    <Card className="px-5 py-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-semibold">
+            {caughtUp ? "Following the chain" : "Backfilling"}
+          </span>
+          <span className="text-xs text-zinc-500">
+            {caughtUp
+              ? "every new transaction, as it commits"
+              : "reading history before it can follow along"}
+          </span>
+        </div>
+        <div className="font-mono text-2xl leading-none font-semibold tnum">
+          {(done * 100).toFixed(done < 0.1 ? 2 : 1)}
+          <span className="text-base font-normal text-zinc-400">%</span>
+        </div>
       </div>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
         <div
-          className="h-full rounded-full bg-lapis-500 transition-[width] duration-700 ease-out"
+          className={`h-full rounded-full transition-[width] duration-700 ease-out ${
+            caughtUp ? "bg-emerald-500" : "bg-lapis-500"
+          }`}
           style={{ width: `${Math.max(done * 100, 0.5)}%` }}
         />
       </div>
-      <div className="mt-2 flex justify-between font-mono text-xs text-zinc-400">
+      <div className="mt-2 flex justify-between font-mono text-xs text-zinc-400 tnum">
         <span>{formatInteger(pipeline.start_version)}</span>
         <span>{formatInteger(pipeline.chain_version)}</span>
       </div>
