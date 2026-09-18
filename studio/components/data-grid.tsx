@@ -204,9 +204,9 @@ export function DataGrid({ table }: { table: Table }) {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto bg-surface-container-low">
         <table className="w-full border-separate border-spacing-0 text-sm">
-          <thead className="sticky top-0 z-10 bg-surface/95 backdrop-blur">
+          <thead className="sticky top-0 z-10 bg-surface-container-low/95 backdrop-blur">
             <tr>
               {columns.map((column) => (
                 <th

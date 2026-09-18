@@ -104,18 +104,22 @@
   --md-warning-container: oklch(0.93 0.055 80);
   --md-on-warning-container: oklch(0.34 0.09 70);
 
-  --md-surface: oklch(0.988 0.002 261);
-  --md-surface-bright: oklch(0.988 0.002 261);
+  /* The page is the grey and the cards are the white, which is the way a console reads
+     in daylight — and the opposite of Material's own light ramp, where every container
+     sits *below* the surface. Followed literally, that ramp put a 0.973 card on a 0.988
+     page: a step of one and a half percent, which is no step at all. */
+  --md-surface: oklch(0.953 0.004 261);
+  --md-surface-bright: oklch(1 0 0);
   --md-surface-container-lowest: oklch(1 0 0);
-  --md-surface-container-low: oklch(0.973 0.003 261);
-  --md-surface-container: oklch(0.957 0.003 261);
-  --md-surface-container-high: oklch(0.94 0.003 261);
-  --md-surface-container-highest: oklch(0.925 0.004 261);
+  --md-surface-container-low: oklch(0.992 0.001 261);
+  --md-surface-container: oklch(0.973 0.003 261);
+  --md-surface-container-high: oklch(0.941 0.005 261);
+  --md-surface-container-highest: oklch(0.912 0.006 261);
   --md-on-surface: oklch(0.21 0.009 261);
-  --md-on-surface-variant: oklch(0.44 0.018 261);
+  --md-on-surface-variant: oklch(0.42 0.018 261);
 
-  --md-outline: oklch(0.62 0.016 261);
-  --md-outline-variant: oklch(0.875 0.01 261);
+  --md-outline: oklch(0.6 0.016 261);
+  --md-outline-variant: oklch(0.855 0.012 261);
 
   --md-inverse-surface: oklch(0.3 0.008 261);
   --md-on-inverse-surface: oklch(0.96 0.003 261);
