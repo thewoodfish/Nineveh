@@ -1,15 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ConfirmDialog } from "@/components/dialog";
 import { PageHeader } from "@/components/page-header";
-import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
 import { ApiKeys } from "@/components/api-keys";
 import { Webhooks } from "@/components/webhooks";
-import { ConfigPanel } from "@/components/config-panel";
-import { Button, Card, filledButton, Icon, Notice, Offline, PhaseDot } from "@/components/ui";
+import { Card, filledButton, Icon, Notice, Offline, PhaseDot } from "@/components/ui";
 import { API_URL, type ProjectSummary, type Status, control } from "@/lib/api";
 import { behind, formatDuration, formatInteger, progress, shortHex } from "@/lib/format";
 import { useStatus, useTables } from "@/lib/hooks";
@@ -137,10 +134,7 @@ function Overview() {
         hint={
           tables ? `${tables.length} state ${tables.length === 1 ? "table" : "tables"}` : undefined
         }
-      >
-        <PhaseDot phase={error ? "offline" : phase} label />
-        {current && <ProjectActions project={current} />}
-      </PageHeader>
+      ></PageHeader>
 
       <div className="flex max-w-6xl flex-col gap-6 px-8 py-6">
         {error && (
@@ -240,67 +234,6 @@ function Overview() {
         )}
       </div>
     </div>
-  );
-}
-
-/** Start or stop the project, see and edit its config, or delete it. */
-function ProjectActions({ project }: { project: ProjectSummary }) {
-  const { refresh } = useProject();
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const act = async (action: () => Promise<unknown>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await action();
-      await refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const remove = async () => {
-    await act(() => control.remove(project.name));
-    setConfirming(false);
-    router.push("/");
-  };
-
-  return (
-    <>
-      {error && <span className="text-xs text-error">{error}</span>}
-      <Button onClick={() => setShowConfig(true)}>Config</Button>
-      {project.running ? (
-        <Button disabled={busy} onClick={() => void act(() => control.stop(project.name))}>
-          Stop
-        </Button>
-      ) : (
-        <Button disabled={busy} onClick={() => void act(() => control.start(project.name))}>
-          Start
-        </Button>
-      )}
-      <Button tone="danger" disabled={busy} onClick={() => setConfirming(true)}>
-        Delete
-      </Button>
-      <ConfigPanel name={project.name} open={showConfig} onClose={() => setShowConfig(false)} />
-      <ConfirmDialog
-        danger
-        open={confirming}
-        busy={busy}
-        onClose={() => setConfirming(false)}
-        onConfirm={() => void remove()}
-        title={`Delete ${project.name}?`}
-        confirmLabel="Delete project"
-      >
-        This removes the project and every table Nineveh folded for it. The contract is untouched —
-        but the backfill starts from nothing if you create it again.
-      </ConfirmDialog>
-    </>
   );
 }
 

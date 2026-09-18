@@ -7,10 +7,16 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { useRouter } from "next/navigation";
+
+import { control, type ProjectSummary } from "@/lib/api";
 import { useStatus } from "@/lib/hooks";
 import { useProject } from "@/lib/project";
 
-import { Icon, PhaseDot } from "./ui";
+import { ConfigPanel } from "./config-panel";
+import { ConfirmDialog } from "./dialog";
+
+import { Icon, IconButton, PhaseDot } from "./ui";
 
 export function PageHeader({
   title,
@@ -21,7 +27,7 @@ export function PageHeader({
   hint?: ReactNode;
   children?: ReactNode;
 }) {
-  const { mode } = useProject();
+  const { mode, current } = useProject();
   const showPicker = mode === "control" || mode === "single";
   return (
     <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-outline-variant bg-surface px-6 py-3">
@@ -32,10 +38,14 @@ export function PageHeader({
       {showPicker && (
         <>
           {mode === "control" ? <ProjectPicker /> : <SingleProject />}
-          <span className="h-6 w-px shrink-0 bg-outline-variant" aria-hidden />
+          {current && <ProjectMenu project={current} />}
         </>
       )}
-      <div className="flex items-center gap-2">{children}</div>
+      {/* The rule only earns its place when there is something on both sides of it. */}
+      {showPicker && children && (
+        <span className="h-6 w-px shrink-0 bg-outline-variant" aria-hidden />
+      )}
+      {children && <div className="flex items-center gap-2">{children}</div>}
     </header>
   );
 }
@@ -144,6 +154,132 @@ function SingleProject() {
           {status.network}
         </span>
       )}
+    </div>
+  );
+}
+
+/**
+ * What you can do to the project, rather than to the page: its config, running or not,
+ * and deleting it. They live behind an overflow menu beside the picker because they
+ * follow the project onto every screen, and because a Delete button sitting in the
+ * corner of every page is an accident waiting for a tired afternoon.
+ */
+function ProjectMenu({ project }: { project: ProjectSummary }) {
+  const { refresh } = useProject();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const escape = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+
+  const act = async (action: () => Promise<unknown>) => {
+    setBusy(true);
+    setError(null);
+    setOpen(false);
+    try {
+      await action();
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    await act(() => control.remove(project.name));
+    setConfirming(false);
+    router.push("/");
+  };
+
+  const item = "state flex w-full items-center gap-3 px-4 py-2 text-left text-sm";
+
+  return (
+    <div ref={ref} className="relative">
+      {error && <span className="mr-2 text-xs text-error">{error}</span>}
+      <IconButton
+        name="more_vert"
+        aria-label={`Actions for ${project.name}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={busy}
+        onClick={() => setOpen(!open)}
+      />
+      {open && (
+        <div
+          role="menu"
+          className="absolute top-full right-0 z-30 mt-1 min-w-56 overflow-hidden rounded-sm bg-surface-container-high py-2 shadow-e2"
+        >
+          <button
+            type="button"
+            className={`${item} text-on-surface`}
+            onClick={() => {
+              setShowConfig(true);
+              setOpen(false);
+            }}
+          >
+            <Icon name="description" className="text-[18px] text-on-surface-variant" />
+            Edit nineveh.yaml
+          </button>
+          <button
+            type="button"
+            className={`${item} text-on-surface`}
+            onClick={() =>
+              void act(() =>
+                project.running ? control.stop(project.name) : control.start(project.name),
+              )
+            }
+          >
+            <Icon
+              name={project.running ? "pause" : "play_arrow"}
+              className="text-[18px] text-on-surface-variant"
+            />
+            {project.running ? "Stop project" : "Start project"}
+          </button>
+          <div className="my-2 border-t border-outline-variant" />
+          <button
+            type="button"
+            className={`${item} text-error`}
+            onClick={() => {
+              setConfirming(true);
+              setOpen(false);
+            }}
+          >
+            <Icon name="delete" className="text-[18px]" />
+            Delete project
+          </button>
+        </div>
+      )}
+
+      <ConfigPanel name={project.name} open={showConfig} onClose={() => setShowConfig(false)} />
+      <ConfirmDialog
+        danger
+        open={confirming}
+        busy={busy}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => void remove()}
+        title={`Delete ${project.name}?`}
+        confirmLabel="Delete project"
+      >
+        This removes the project and every table Nineveh folded for it. The contract is untouched —
+        but the backfill starts from nothing if you create it again.
+      </ConfirmDialog>
     </div>
   );
 }
