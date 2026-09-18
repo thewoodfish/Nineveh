@@ -287,7 +287,7 @@ function ProjectActions({ project }: { project: ProjectSummary }) {
       <Button tone="danger" disabled={busy} onClick={() => setConfirming(true)}>
         Delete
       </Button>
-      {showConfig && <ConfigPanel name={project.name} onClose={() => setShowConfig(false)} />}
+      <ConfigPanel name={project.name} open={showConfig} onClose={() => setShowConfig(false)} />
       <ConfirmDialog
         danger
         open={confirming}

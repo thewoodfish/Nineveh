@@ -301,6 +301,29 @@ button:disabled,
   outline-offset: 2px;
 }
 
+/*
+ * A side sheet: the same `<dialog>` machinery as a modal — top layer, focus trap,
+ * Escape — pinned to the right edge. The slide itself is a class the component toggles
+ * a frame after opening, rather than `@starting-style`: the declarative version depends
+ * on the transition starting in the same frame the element enters the top layer, and
+ * that is a race this doesn't need to run.
+ */
+dialog.sheet {
+  margin: 0 0 0 auto;
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+dialog.sheet::backdrop {
+  background: var(--color-scrim, oklch(0 0 0 / 0.45));
+  opacity: 0;
+  transition: opacity 250ms ease;
+}
+
+dialog.sheet[open]::backdrop {
+  opacity: 1;
+}
+
 /* Material Symbols, sized to sit on the baseline wherever it lands. */
 .symbol {
   font-family: "Material Symbols Outlined", sans-serif;

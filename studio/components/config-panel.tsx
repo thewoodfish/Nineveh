@@ -1,28 +1,62 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ApiError, control } from "@/lib/api";
 import { useProject } from "@/lib/project";
 
-import { Button } from "./ui";
+import { ConfirmDialog } from "./dialog";
+import { Button, Icon, IconButton } from "./ui";
 
 /**
  * A project's `nineveh.yaml`: read it, copy it into your repo, or change it. Saving a
  * change that alters what's built rebuilds the tables beside the served ones (ADR 0016).
+ *
+ * It is a side sheet on the platform's `<dialog>`, so it borrows the top layer, the
+ * backdrop, focus trapping and Escape rather than re-implementing them — and it stays
+ * mounted while closed so it has something to animate out.
  */
-export function ConfigPanel({ name, onClose }: { name: string; onClose: () => void }) {
+export function ConfigPanel({
+  name,
+  open,
+  onClose,
+}: {
+  name: string;
+  open: boolean;
+  onClose: () => void;
+}) {
   const { refresh } = useProject();
+  const ref = useRef<HTMLDialogElement>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [text, setText] = useState("");
-  const [error, setError] = useState<{
-    message: string;
-    details?: string;
-  } | null>(null);
+  const [error, setError] = useState<{ message: string; details?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
+  // Separate from `open`: the element has to be in the top layer for a frame before the
+  // slide can animate, and has to finish sliding out before it leaves.
+  const [slid, setSlid] = useState(false);
+
+  const changed = saved !== null && text !== saved;
 
   useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (open) {
+      if (!el.open) el.showModal();
+      const frame = requestAnimationFrame(() => setSlid(true));
+      return () => cancelAnimationFrame(frame);
+    }
+    setSlid(false);
+    const done = setTimeout(() => el.open && el.close(), 300);
+    return () => clearTimeout(done);
+  }, [open]);
+
+  // Read the config when the sheet opens rather than on mount: it stays mounted so it
+  // can animate, and the project's config is only interesting once it is on screen.
+  useEffect(() => {
+    if (!open) return;
+    setError(null);
     control
       .project(name)
       .then((p) => {
@@ -30,13 +64,10 @@ export function ConfigPanel({ name, onClose }: { name: string; onClose: () => vo
         setText(p.config);
       })
       .catch((e: unknown) => setError({ message: e instanceof Error ? e.message : String(e) }));
-  }, [name]);
+  }, [name, open]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  /** Closing with edits in the box would throw them away silently. */
+  const tryClose = () => (changed ? setDiscarding(true) : onClose());
 
   const save = async () => {
     setSaving(true);
@@ -62,54 +93,92 @@ export function ConfigPanel({ name, onClose }: { name: string; onClose: () => vo
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const changed = saved !== null && text !== saved;
-
   return (
-    <div className="fixed inset-0 z-30 flex justify-end bg-scrim" onMouseDown={onClose}>
-      <div
-        className="flex h-full w-full max-w-2xl flex-col border-l border-outline-variant bg-surface-container-low shadow-e3"
-        onMouseDown={(e) => e.stopPropagation()}
+    <>
+      <dialog
+        ref={ref}
+        className={`sheet w-[min(46rem,100vw)] rounded-none bg-surface-container-low p-0 text-on-surface shadow-e4 transition-transform duration-300 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ${
+          slid ? "translate-x-0" : "translate-x-full"
+        }`}
+        onCancel={(e) => {
+          e.preventDefault();
+          tryClose();
+        }}
+        onClick={(e) => {
+          if (e.target === ref.current) tryClose();
+        }}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-outline-variant px-5 py-4">
-          <div>
-            <div className="font-semibold tracking-tight">nineveh.yaml</div>
-            <div className="text-xs text-on-surface-variant">
-              The same file the CLI reads. Keep a copy in your repo.
+        <div className="flex h-full flex-col">
+          <header className="flex items-start justify-between gap-3 px-5 py-4">
+            <div className="min-w-0">
+              <h2 className="font-mono text-base text-on-surface">nineveh.yaml</h2>
+              <p className="mt-0.5 text-xs text-on-surface-variant">
+                The same file the CLI reads. Keep a copy in your repo.
+              </p>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={() => void copy()}>{copied ? "Copied" : "Copy"}</Button>
+            <IconButton name="close" aria-label="Close" onClick={tryClose} />
+          </header>
+
+          {error && (
+            <div className="mx-5 mb-3 flex gap-3 rounded-md bg-error-container px-4 py-3 text-sm text-on-error-container">
+              <Icon name="error" className="mt-px shrink-0 text-[20px]" />
+              <div className="min-w-0">
+                <div className="font-medium">{error.message}</div>
+                {error.details && (
+                  <pre className="mt-2 overflow-x-auto font-mono text-xs whitespace-pre">
+                    {error.details}
+                  </pre>
+                )}
+              </div>
+            </div>
+          )}
+
+          {changed && !error && (
+            <p className="mx-5 mb-3 rounded-md bg-surface-container-high px-4 py-3 text-xs leading-relaxed text-on-surface-variant">
+              Saving pins the layouts again and restarts the project. If the change alters
+              what&apos;s built, the tables are rebuilt beside the served ones and swapped in once
+              caught up.
+            </p>
+          )}
+
+          {/* `wrap="off"`: a config file that reflows mid-identifier is unreadable, so it
+              scrolls sideways the way an editor does. */}
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            spellCheck={false}
+            wrap="off"
+            aria-label="nineveh.yaml"
+            className="mx-5 min-h-0 flex-1 resize-none overflow-auto rounded-md bg-surface-container px-4 py-3 font-mono text-[13px] leading-relaxed text-on-surface outline-none focus:ring-1 focus:ring-primary"
+          />
+
+          <footer className="flex items-center justify-end gap-2 px-5 py-4">
+            <Button tone="text" onClick={() => void copy()}>
+              <Icon name={copied ? "check" : "content_copy"} className="text-[18px]" />
+              {copied ? "Copied" : "Copy"}
+            </Button>
             <Button tone="primary" disabled={!changed || saving} onClick={() => void save()}>
               {saving ? "Saving…" : "Save changes"}
             </Button>
-            <Button onClick={onClose} aria-label="Close">
-              ✕
-            </Button>
-          </div>
+          </footer>
         </div>
-        {error && (
-          <div className="border-b border-error bg-error-container px-5 py-3 text-sm text-on-error-container">
-            <div className="font-medium">{error.message}</div>
-            {error.details && (
-              <pre className="mt-2 overflow-x-auto font-mono text-xs whitespace-pre">
-                {error.details}
-              </pre>
-            )}
-          </div>
-        )}
-        {changed && !error && (
-          <div className="border-b border-outline-variant bg-surface-container-high px-5 py-2 text-xs text-on-surface-variant">
-            Saving pins the layouts again and restarts the project. If the change alters what&apos;s
-            built, the tables are rebuilt beside the served ones and swapped in once caught up.
-          </div>
-        )}
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          spellCheck={false}
-          className="min-h-0 flex-1 resize-none bg-transparent px-5 py-4 font-mono text-[13px] leading-relaxed focus:outline-none"
-        />
-      </div>
-    </div>
+      </dialog>
+
+      <ConfirmDialog
+        danger
+        open={discarding}
+        onClose={() => setDiscarding(false)}
+        onConfirm={() => {
+          setDiscarding(false);
+          setText(saved ?? "");
+          onClose();
+        }}
+        title="Discard your changes?"
+        confirmLabel="Discard"
+      >
+        The config in the box hasn&apos;t been saved. Closing now leaves the project running the
+        version it already had.
+      </ConfirmDialog>
+    </>
   );
 }
