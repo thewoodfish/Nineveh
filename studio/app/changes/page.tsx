@@ -2,12 +2,14 @@
 
 import { memo, useCallback, useState } from "react";
 
-import { Cell, Live, OpBadge, PageHeader } from "@/components/ui";
+import { Button, Cell, Live, OpBadge, PageHeader, field } from "@/components/ui";
 import type { Change, Table } from "@/lib/api";
 import { formatInteger } from "@/lib/format";
 import { useFeed, useTables } from "@/lib/hooks";
 
 const KEEP = 300;
+/** Up to this many tables are chips; more than that is a picker. */
+const CHIPS = 8;
 
 /** Every committed change, across all tables, as it happens. */
 export default function ChangesPage() {
@@ -33,31 +35,68 @@ export default function ChangesPage() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader title="Change feed">
-        <button
-          type="button"
-          onClick={() => setPaused(!paused)}
-          className="rounded-md border border-zinc-200 px-2.5 py-1 text-xs font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-        >
-          {paused ? "Resume" : "Pause"}
-        </button>
+        <Button onClick={() => setPaused(!paused)}>{paused ? "Resume" : "Pause"}</Button>
         <Live connected={connected && !paused} />
       </PageHeader>
 
-      <div className="flex flex-wrap gap-1.5 border-b border-zinc-200 px-8 py-2.5 dark:border-zinc-800">
-        <Chip active={only === null} onClick={() => setOnly(null)}>
-          All tables
-        </Chip>
-        {tables?.map((t) => (
-          <Chip key={t.name} active={only === t.name} onClick={() => setOnly(t.name)}>
-            <span className="font-mono">{t.name}</span>
-          </Chip>
-        ))}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-zinc-200 px-8 py-2.5 dark:border-zinc-800">
+        {/* A handful of tables fit as chips; a project with a hundred needs a picker. */}
+        {(tables?.length ?? 0) <= CHIPS ? (
+          <>
+            <Chip active={only === null} onClick={() => setOnly(null)}>
+              All tables
+            </Chip>
+            {tables?.map((t) => (
+              <Chip key={t.name} active={only === t.name} onClick={() => setOnly(t.name)}>
+                <span className="font-mono">{t.name}</span>
+              </Chip>
+            ))}
+          </>
+        ) : (
+          <>
+            <span className="text-xs text-zinc-500">Showing</span>
+            <select
+              value={only ?? ""}
+              onChange={(e) => setOnly(e.target.value || null)}
+              className={`${field} py-1 font-mono text-xs`}
+            >
+              <option value="">all {tables?.length} tables</option>
+              {tables?.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            {only && (
+              <button
+                type="button"
+                onClick={() => setOnly(null)}
+                className="text-xs font-medium text-lapis-600 hover:underline dark:text-lapis-400"
+              >
+                Clear
+              </button>
+            )}
+          </>
+        )}
+        <span className="ml-auto text-xs text-zinc-400 tnum">
+          {shown.length > 0 && `${shown.length}${shown.length === KEEP ? "+" : ""} shown`}
+        </span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {shown.length === 0 ? (
-          <div className="px-8 py-20 text-center text-sm text-zinc-500">
-            Waiting for changes. Each commit that changes a row shows up here the moment it lands.
+          <div className="mx-auto mt-24 max-w-sm px-8 text-center">
+            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-well">
+              <span className="size-2 animate-ping rounded-full bg-lapis-400" />
+            </div>
+            <p className="mt-4 text-sm font-medium">
+              {paused ? "Paused" : only ? `Watching ${only}` : "Watching for changes"}
+            </p>
+            <p className="mt-1 text-sm text-zinc-500 text-pretty">
+              {paused
+                ? "Nothing is being collected while this is paused."
+                : "Every commit that changes a row shows up here the moment it lands."}
+            </p>
           </div>
         ) : (
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/70">

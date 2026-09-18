@@ -8,7 +8,7 @@ import { formatInteger } from "@/lib/format";
 import { useFeed } from "@/lib/hooks";
 import { useProject } from "@/lib/project";
 
-import { Cell, Live, Notice, PageHeader, isNumeric } from "./ui";
+import { Button, Cell, Live, Notice, PageHeader, isNumeric } from "./ui";
 
 const PAGE = 50;
 
@@ -143,12 +143,12 @@ export function DataGrid({ table }: { table: Table }) {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
-        title={
-          <span className="flex items-baseline gap-3">
-            <span className="font-mono">{table.name}</span>
-            <span className="text-xs font-normal text-zinc-400">
-              {table.kind} · key {table.key.join(", ")}
-            </span>
+        title={<span className="font-mono">{table.name}</span>}
+        hint={
+          <span className="text-xs">
+            {table.kind} · key{" "}
+            <span className="font-mono text-zinc-600 dark:text-zinc-400">{table.key.join(", ")}</span>
+            {count !== null && ` · ${formatInteger(count)} rows`}
           </span>
         }
       >
@@ -191,7 +191,7 @@ export function DataGrid({ table }: { table: Table }) {
 
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full border-separate border-spacing-0 text-sm">
-          <thead className="sticky top-0 z-10 bg-white dark:bg-zinc-950">
+          <thead className="sticky top-0 z-10 bg-page">
             <tr>
               {columns.map((column) => (
                 <th
@@ -229,20 +229,20 @@ export function DataGrid({ table }: { table: Table }) {
             </tr>
             <tr>
               {columns.map((column) => (
-                <th key={column.name} className="border-b border-zinc-200 px-2 py-1 dark:border-zinc-800">
+                <th key={column.name} className="border-b border-zinc-200 bg-well px-2 py-1 dark:border-zinc-800">
                   {column.type !== "json" && (
                     <input
                       value={draft[column.name] ?? ""}
                       onChange={(e) => setDraft({ ...draft, [column.name]: e.target.value })}
                       onKeyDown={(e) => e.key === "Enter" && applyFilters()}
                       onBlur={applyFilters}
-                      placeholder="="
-                      className="w-full min-w-16 rounded border border-transparent bg-zinc-50 px-2 py-1 font-mono text-xs font-normal placeholder:text-zinc-300 focus:border-lapis-400 focus:bg-white focus:outline-none dark:bg-zinc-900 dark:placeholder:text-zinc-600 dark:focus:bg-zinc-950"
+                      placeholder="filter ="
+                      className="w-full min-w-16 rounded border border-transparent bg-card px-2 py-1 font-mono text-xs font-normal shadow-card placeholder:text-zinc-300 focus:border-lapis-400 focus:outline-none dark:placeholder:text-zinc-600"
                     />
                   )}
                 </th>
               ))}
-              <th className="border-b border-zinc-200 dark:border-zinc-800" />
+              <th className="border-b border-zinc-200 bg-well dark:border-zinc-800" />
             </tr>
           </thead>
           <tbody>
@@ -272,8 +272,31 @@ export function DataGrid({ table }: { table: Table }) {
           </tbody>
         </table>
         {!loading && rows.length === 0 && !error && (
-          <div className="px-8 py-16 text-center text-sm text-zinc-500">
-            {filtered ? "No rows match these filters." : "No rows yet. They'll appear here as the chain is folded."}
+          <div className="mx-auto max-w-sm px-8 py-20 text-center">
+            <p className="text-sm font-medium">
+              {filtered ? "Nothing matches these filters" : "No rows yet"}
+            </p>
+            <p className="mt-1 text-sm text-zinc-500 text-pretty">
+              {filtered ? (
+                "Filters match a column exactly."
+              ) : table.kind === "reduce" ? (
+                "Rows appear as records reach this table's rules."
+              ) : (
+                "Rows appear as the chain is folded into this table."
+              )}
+            </p>
+            {filtered && (
+              <Button
+                className="mt-4"
+                onClick={() => {
+                  setDraft({});
+                  setFilters({});
+                  setOffset(0);
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
           </div>
         )}
       </div>

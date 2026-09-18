@@ -418,8 +418,12 @@ function Group({
                 </div>
               </div>
               {!item.unsupported && (
-                <span className="hidden shrink-0 font-mono text-xs text-zinc-400 sm:block">
-                  → {item.suggested_name} <span className="text-zinc-300 dark:text-zinc-600">{becomes}</span>
+                <span
+                  className="hidden max-w-56 shrink-0 truncate font-mono text-xs text-zinc-400 sm:block"
+                  title={`${item.suggested_name} (${becomes} table)`}
+                >
+                  → {item.suggested_name}{" "}
+                  <span className="text-zinc-300 dark:text-zinc-600">{becomes}</span>
                 </span>
               )}
             </label>

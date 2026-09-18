@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Card, PageHeader } from "@/components/ui";
+import { Button, Card, PageHeader, field } from "@/components/ui";
 import { getPath, rowsPath } from "@/lib/api";
 import { useTables } from "@/lib/hooks";
 import { useProject } from "@/lib/project";
@@ -49,15 +49,12 @@ export default function Playground() {
     }
   };
 
-  const field =
-    "rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-sm focus:border-lapis-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900";
-
   return (
     <div>
       <PageHeader title="API playground" />
       <div className="mx-auto grid max-w-6xl gap-6 px-8 py-6 lg:grid-cols-[22rem_1fr]">
         <Card className="flex flex-col gap-4 p-4">
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
+          <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             Table
             <select value={table} onChange={(e) => { setTable(e.target.value); setFilters([]); setOrder(""); }} className={`${field} font-mono`}>
               {tables?.map((t) => (
@@ -68,7 +65,7 @@ export default function Playground() {
             </select>
           </label>
 
-          <div className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
+          <div className="flex flex-col gap-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             Filters
             {filters.map((f, i) => (
               <div key={i} className="flex gap-1.5">
@@ -142,37 +139,49 @@ export default function Playground() {
             </label>
           )}
 
-          <button
-            type="button"
-            onClick={() => void run()}
-            disabled={running}
-            className="mt-1 rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-          >
-            {running ? "Running…" : "Run"}
-          </button>
+          <Button tone="primary" size="lg" className="mt-1" onClick={() => void run()} disabled={running}>
+            {running ? "Running…" : "Run request"}
+          </Button>
         </Card>
 
         <div className="flex min-w-0 flex-col gap-4">
           <Card className="p-4">
-            <div className="text-xs font-medium text-zinc-500">GET</div>
-            <div className="mt-1 font-mono text-sm break-all">{url}</div>
-            <div className="mt-3 text-xs font-medium text-zinc-500">curl</div>
-            <pre className="mt-1 overflow-x-auto rounded-lg bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-100">
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-[11px] font-medium text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                GET
+              </span>
+              <span className="min-w-0 flex-1 truncate font-mono text-sm" title={url}>
+                {url}
+              </span>
+              <Button onClick={() => void navigator.clipboard?.writeText(url)}>Copy</Button>
+            </div>
+            <div className="mt-3 text-[11px] font-medium tracking-wide text-zinc-500 uppercase">
+              curl
+            </div>
+            <pre className="mt-1.5 overflow-x-auto rounded-lg bg-zinc-900 px-3 py-2.5 font-mono text-xs text-zinc-100">
               {hosted ? `curl -H 'Authorization: Bearer YOUR_API_KEY' \\\n  '${url}'` : `curl '${url}'`}
             </pre>
           </Card>
-          <Card className="min-h-64 p-4">
-            <div className="flex items-center justify-between text-xs text-zinc-500">
-              <span className="font-medium">Response</span>
+          <Card className="flex min-h-96 flex-col overflow-hidden">
+            <div className="flex items-center justify-between border-b border-zinc-200 bg-well px-4 py-2 text-xs dark:border-zinc-800">
+              <span className="font-semibold tracking-wide text-zinc-500 uppercase">Response</span>
               {result && (
-                <span className={result.status === "ok" ? "text-emerald-600" : "text-red-600"}>
-                  {result.status === "ok" ? "200" : "error"} · {result.ms.toFixed(0)} ms
+                <span
+                  className={`font-mono ${result.status === "ok" ? "text-emerald-600" : "text-red-600"}`}
+                >
+                  {result.status === "ok" ? "200 OK" : "error"} · {result.ms.toFixed(0)} ms
                 </span>
               )}
             </div>
-            <pre className="mt-2 max-h-[60vh] overflow-auto font-mono text-xs leading-relaxed">
-              {result?.body ?? "Run the request to see your state."}
-            </pre>
+            {result ? (
+              <pre className="max-h-[60vh] flex-1 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">
+                {result.body}
+              </pre>
+            ) : (
+              <p className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-zinc-500">
+                Run the request to see your state.
+              </p>
+            )}
           </Card>
         </div>
       </div>
