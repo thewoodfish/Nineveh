@@ -2,12 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { ApiKeys } from "@/components/api-keys";
 import { Webhooks } from "@/components/webhooks";
 import { ConfigPanel } from "@/components/config-panel";
-import { Button, Card, Notice, Offline, PageHeader, PhaseDot, Stat } from "@/components/ui";
+import {
+  Button,
+  Card,
+  filledButton,
+  Icon,
+  Notice,
+  Offline,
+  PageHeader,
+  PhaseDot,
+} from "@/components/ui";
 import { API_URL, type ProjectSummary, type Status, control } from "@/lib/api";
 import { behind, formatDuration, formatInteger, progress, shortHex } from "@/lib/format";
 import { useStatus, useTables } from "@/lib/hooks";
@@ -33,10 +42,7 @@ function Projects() {
           Paste an Aptos contract address, pick what to follow, and Nineveh builds live tables you
           can query and subscribe to. No config to write.
         </p>
-        <Link
-          href="/new"
-          className="mt-8 inline-flex rounded-sm bg-primary px-4 py-2 text-sm font-medium text-on-surface shadow-e1 transition-colors hover:bg-primary"
-        >
+        <Link href="/new" className={`mt-8 ${filledButton}`}>
           New project
         </Link>
       </div>
@@ -45,10 +51,7 @@ function Projects() {
   return (
     <div>
       <PageHeader title="Projects">
-        <Link
-          href="/new"
-          className="rounded-sm bg-primary px-3 py-1.5 text-sm font-medium text-on-surface shadow-e1 transition-colors hover:bg-primary"
-        >
+        <Link href="/new" className={filledButton}>
           New project
         </Link>
       </PageHeader>
@@ -170,32 +173,7 @@ function Overview() {
         )}
         {status.rebuild && <Rebuild status={status} />}
 
-        <Backfill status={status} />
-
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Cursor" value={formatInteger(cursor)} hint="last committed version" />
-          <Stat
-            label="Behind the chain"
-            value={formatInteger(behind(cursor, pipeline?.chain_version ?? null))}
-            hint={
-              pipeline?.chain_version
-                ? `chain at ${formatInteger(pipeline.chain_version)}`
-                : "no pipeline here"
-            }
-          />
-          <Stat
-            label="Lag"
-            value={formatDuration(pipeline?.lag_secs)}
-            hint="since the last block committed"
-          />
-          <Stat
-            label="Throughput"
-            value={
-              pipeline?.versions_per_sec != null ? formatInteger(pipeline.versions_per_sec) : "—"
-            }
-            hint="versions / second"
-          />
-        </div>
+        <Health status={status} />
 
         <Card>
           <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
@@ -342,45 +320,109 @@ function Kind({ kind }: { kind: string }) {
   );
 }
 
-function Backfill({ status }: { status: Status }) {
+/**
+ * The one question this page exists to answer — *is my backend keeping up?* — as one
+ * number, with the sentence that makes it mean something. Four equally loud stats
+ * answered it four times and therefore not at all; those are the supporting row now.
+ */
+function Health({ status }: { status: Status }) {
   const pipeline = status.pipeline;
-  if (!pipeline || pipeline.schema !== status.schema) return null;
-  const done = progress(pipeline.start_version, pipeline.cursor, pipeline.chain_version);
-  if (done === null) return null;
-  const caughtUp = done >= 0.9999;
+  const cursor = pipeline?.cursor ?? status.build?.cursor ?? null;
+  const chain = pipeline?.chain_version ?? null;
+  const done =
+    pipeline && pipeline.schema === status.schema
+      ? progress(pipeline.start_version, pipeline.cursor, pipeline.chain_version)
+      : null;
+  const backfilling = done !== null && done < 0.9999;
+  const behindBy = behind(cursor, chain);
+
   return (
-    <Card className="px-5 py-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold">
-            {caughtUp ? "Following the chain" : "Backfilling"}
-          </span>
-          <span className="text-xs text-on-surface-variant">
-            {caughtUp
-              ? "every new transaction, as it commits"
-              : "reading history before it can follow along"}
+    <Card className="overflow-hidden">
+      <div className="px-6 pt-6 pb-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-xs font-medium tracking-[0.08em] text-on-surface-variant uppercase">
+              {backfilling ? "Reading history" : "Following the chain"}
+            </div>
+            <div className="mt-2 flex items-baseline gap-1 font-mono text-[52px] leading-none text-on-surface tnum">
+              {backfilling ? (
+                <>
+                  {(done * 100).toFixed(done < 0.1 ? 2 : 1)}
+                  <span className="text-2xl text-on-surface-variant">%</span>
+                </>
+              ) : (
+                formatInteger(behindBy ?? "0")
+              )}
+            </div>
+            <p className="mt-3 text-sm text-on-surface-variant">
+              {backfilling ? (
+                <>
+                  folded, of the history between{" "}
+                  <span className="font-mono text-on-surface">
+                    {formatInteger(pipeline?.start_version ?? null)}
+                  </span>{" "}
+                  and <span className="font-mono text-on-surface">{formatInteger(chain)}</span> —
+                  the tables serve what has landed so far
+                </>
+              ) : (
+                <>
+                  versions behind the chain · committed through{" "}
+                  <span className="font-mono text-on-surface">{formatInteger(cursor)}</span>
+                  {pipeline?.lag_secs != null && (
+                    <> · last block {formatDuration(pipeline.lag_secs)} ago</>
+                  )}
+                </>
+              )}
+            </p>
+          </div>
+          <span
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-sm px-2 py-1 text-xs font-medium ${
+              backfilling
+                ? "bg-secondary-container text-on-secondary-container"
+                : "bg-tertiary-container text-on-tertiary-container"
+            }`}
+          >
+            <Icon name={backfilling ? "history" : "check_circle"} className="text-[14px]" />
+            {backfilling ? "Backfilling" : "Caught up"}
           </span>
         </div>
-        <div className="flex items-baseline gap-0.5 font-mono text-2xl leading-none font-semibold text-on-surface tnum">
-          {(done * 100).toFixed(done < 0.1 ? 2 : 1)}
-          <span className="text-sm font-normal text-on-surface-variant">%</span>
-        </div>
+
+        {done !== null && (
+          <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-surface-container-highest">
+            <div
+              className={`h-full rounded-full transition-[width] duration-700 ease-out ${
+                backfilling ? "bg-primary" : "bg-tertiary"
+              }`}
+              style={{ width: `${Math.max(done * 100, 0.5)}%` }}
+            />
+          </div>
+        )}
       </div>
-      <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-container-highest inset-ring inset-ring-outline-variant">
-        <div
-          className={`h-full rounded-full transition-[width] duration-700 ease-out ${
-            caughtUp
-              ? "bg-tertiary shadow-[0_0_12px_oklch(0.77_0.15_162_/_0.6)]"
-              : "bg-primary shadow-[0_0_12px_oklch(0.716_0.152_259_/_0.6)]"
-          }`}
-          style={{ width: `${Math.max(done * 100, 0.5)}%` }}
+
+      {/* The supporting numbers, demoted to a row: still there, no longer shouting. */}
+      <dl className="grid grid-cols-2 divide-outline-variant border-t border-outline-variant sm:grid-cols-4 sm:divide-x">
+        <Supporting label="Cursor" value={formatInteger(cursor)} />
+        <Supporting label="Chain head" value={formatInteger(chain)} />
+        <Supporting label="Lag" value={formatDuration(pipeline?.lag_secs)} />
+        <Supporting
+          label="Throughput"
+          value={
+            pipeline?.versions_per_sec != null
+              ? `${formatInteger(pipeline.versions_per_sec)}/s`
+              : "—"
+          }
         />
-      </div>
-      <div className="mt-2 flex justify-between font-mono text-xs text-on-surface-variant tnum">
-        <span>{formatInteger(pipeline.start_version)}</span>
-        <span>{formatInteger(pipeline.chain_version)}</span>
-      </div>
+      </dl>
     </Card>
+  );
+}
+
+function Supporting({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="px-6 py-3.5">
+      <dt className="text-xs text-on-surface-variant">{label}</dt>
+      <dd className="mt-1 truncate font-mono text-sm text-on-surface tnum">{value}</dd>
+    </div>
   );
 }
 

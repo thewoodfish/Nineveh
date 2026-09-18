@@ -45,6 +45,15 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   return <div className={`rounded-sm bg-surface-container-low ${className}`}>{children}</div>;
 }
 
+/**
+ * The filled button's look as a bare class, for the few places the control has to be a
+ * link rather than a button. `on-primary` is the point: a filled primary is dark blue
+ * in light and light blue in dark, so its label can never be the page's text colour.
+ */
+export const filledButton =
+  "state inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-primary px-6 " +
+  "text-sm font-medium text-on-primary shadow-e1";
+
 /** A Material Symbol. One font, one name, the same optical size everywhere. */
 export function Icon({
   name,

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { behind, formatDuration, formatInteger } from "@/lib/format";
 import { useStatus, useTables } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
 
@@ -43,29 +44,101 @@ export function Sidebar() {
         )
       )}
       <div className="mt-auto" />
+      <ChainLag />
       <AccountMenu />
     </aside>
   );
 }
 
-/** Hosted: who's signed in, and signing out. */
-function AccountMenu() {
-  const { account, signOut } = useProject();
-  if (!account) return null;
+/**
+ * How far behind the chain this project is, kept in the drawer so it is answered on
+ * every screen rather than only on Overview.
+ */
+function ChainLag() {
+  const { base } = useProject();
+  const { data: status } = useStatus();
+  const pipeline = status?.pipeline;
+  if (!base || !pipeline) return null;
+  const behindBy = behind(pipeline.cursor, pipeline.chain_version);
+  const caughtUp = behindBy === "0" || behindBy === null;
   return (
-    <div className="flex items-center gap-2 border-t border-outline-variant px-4 py-3">
+    <div className="mx-3 mb-2 rounded-md bg-surface-container px-3 py-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-on-surface">
+          <span
+            className={`size-1.5 rounded-full ${caughtUp ? "bg-tertiary" : "bg-primary"}`}
+            aria-hidden
+          />
+          {caughtUp ? "Following the chain" : "Catching up"}
+        </span>
+        <span className="font-mono text-[11px] text-on-surface-variant tnum">
+          {formatDuration(pipeline.lag_secs)}
+        </span>
+      </div>
+      <dl className="mt-2 space-y-1 font-mono text-[11px] tnum">
+        <div className="flex justify-between gap-2">
+          <dt className="text-on-surface-variant">behind</dt>
+          <dd className={caughtUp ? "text-on-surface-variant" : "text-on-surface"}>
+            {formatInteger(behindBy)}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-on-surface-variant">cursor</dt>
+          <dd className="truncate text-on-surface-variant">{formatInteger(pipeline.cursor)}</dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-on-surface-variant">chain head</dt>
+          <dd className="truncate text-on-surface-variant">
+            {formatInteger(pipeline.chain_version)}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+/**
+ * Who is signed in, and how to stop being. Hosted shows the GitHub account; local mode
+ * has nobody to sign out, and says so rather than leaving the drawer to end in nothing.
+ */
+function AccountMenu() {
+  const { account, signOut, hosted } = useProject();
+  if (!account) {
+    return (
+      <div className="flex items-center gap-2.5 border-t border-outline-variant px-4 py-3">
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-container-high">
+          <Icon name="computer" className="text-[16px] text-on-surface-variant" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm text-on-surface">Local mode</span>
+          <span className="block truncate text-[11px] text-on-surface-variant">
+            {hosted ? "not signed in" : "loopback only, no sign-in"}
+          </span>
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2.5 border-t border-outline-variant px-4 py-3">
       {account.avatar_url ? (
-        <img src={account.avatar_url} alt="" className="size-6 rounded-full" />
+        <img src={account.avatar_url} alt="" className="size-7 shrink-0 rounded-full" />
       ) : (
-        <span className="size-6 rounded-full bg-outline-variant" />
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-container-high">
+          <Icon name="person" className="text-[16px] text-on-surface-variant" />
+        </span>
       )}
-      <span className="min-w-0 flex-1 truncate text-sm">{account.login}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm text-on-surface">{account.login}</span>
+        <span className="block truncate text-[11px] text-on-surface-variant">Signed in</span>
+      </span>
       <button
         type="button"
         onClick={() => void signOut()}
-        className="text-xs text-on-surface-variant hover:text-on-surface"
+        title="Sign out"
+        aria-label="Sign out"
+        className="state grid size-9 shrink-0 place-items-center rounded-full text-on-surface-variant"
       >
-        Sign out
+        <Icon name="logout" className="text-[18px]" />
       </button>
     </div>
   );

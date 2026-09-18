@@ -7,6 +7,7 @@ import { SIGN_IN_URL } from "@/lib/api";
 import { useProject } from "@/lib/project";
 
 import { Sidebar } from "./sidebar";
+import { filledButton } from "@/components/ui";
 
 /** Studio's frame, or the sign-in screen when a hosted Nineveh needs one. */
 export function Gate({ children }: { children: ReactNode }) {
@@ -34,10 +35,7 @@ function SignIn() {
         <p className="mt-2 text-sm text-on-surface-variant">
           A live backend for your Aptos contract, from its address. Nothing to run.
         </p>
-        <a
-          href={SIGN_IN_URL}
-          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-sm bg-primary px-4 py-2.5 text-sm font-medium text-on-surface shadow-e1 transition-colors hover:bg-primary"
-        >
+        <a href={SIGN_IN_URL} className={`mt-8 w-full ${filledButton}`}>
           <GitHubMark />
           Continue with GitHub
         </a>

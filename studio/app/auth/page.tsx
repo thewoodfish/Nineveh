@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { setSession } from "@/lib/session";
+import { filledButton } from "@/components/ui";
 
 /**
  * Where signing in ends (ADR 0018). The control plane sends the browser here with the
@@ -32,10 +33,7 @@ export default function Auth() {
     <div className="mx-auto mt-32 max-w-sm px-6 text-center">
       <h1 className="text-lg font-semibold tracking-tight">Couldn&apos;t sign you in</h1>
       <p className="mt-2 text-sm text-on-surface-variant">{error}</p>
-      <Link
-        href="/"
-        className="mt-6 inline-flex rounded-sm bg-primary px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-primary"
-      >
+      <Link href="/" className={`mt-6 ${filledButton}`}>
         Try again
       </Link>
     </div>
