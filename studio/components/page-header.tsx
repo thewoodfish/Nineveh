@@ -25,16 +25,16 @@ export function PageHeader({
   const showPicker = mode === "control" || mode === "single";
   return (
     <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-outline-variant bg-surface px-6 py-3">
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-[22px] leading-7 text-on-surface">{title}</h1>
+        {hint && <p className="mt-0.5 truncate text-sm text-on-surface-variant">{hint}</p>}
+      </div>
       {showPicker && (
         <>
           {mode === "control" ? <ProjectPicker /> : <SingleProject />}
           <span className="h-6 w-px shrink-0 bg-outline-variant" aria-hidden />
         </>
       )}
-      <div className="min-w-0 flex-1">
-        <h1 className="truncate text-[22px] leading-7 text-on-surface">{title}</h1>
-        {hint && <p className="mt-0.5 truncate text-sm text-on-surface-variant">{hint}</p>}
-      </div>
       <div className="flex items-center gap-2">{children}</div>
     </header>
   );
@@ -86,7 +86,7 @@ function ProjectPicker() {
       {open && (
         <div
           role="menu"
-          className="absolute top-full left-0 z-30 mt-1 min-w-72 overflow-hidden rounded-sm bg-surface-container-high py-2 shadow-e2"
+          className="absolute top-full right-0 z-30 mt-1 min-w-72 overflow-hidden rounded-sm bg-surface-container-high py-2 shadow-e2"
         >
           {projects?.map((p) => (
             <Link
