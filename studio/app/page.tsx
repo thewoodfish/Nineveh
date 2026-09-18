@@ -4,8 +4,6 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { useState, type ReactNode } from "react";
 
-import { ApiKeys } from "@/components/api-keys";
-import { Webhooks } from "@/components/webhooks";
 import { Card, filledButton, Icon, Notice, Offline, PhaseDot } from "@/components/ui";
 import { API_URL, type ProjectSummary, type Status, control } from "@/lib/api";
 import { behind, formatDuration, formatInteger, progress, shortHex } from "@/lib/format";
@@ -246,9 +244,6 @@ function Overview() {
             </p>
           </Card>
         )}
-
-        {current && hosted && <ApiKeys project={current.name} api={current.api} />}
-        {current && <Webhooks project={current.name} />}
 
         {status.build && (
           <Card className="grid grid-cols-1 gap-x-8 gap-y-2 px-4 py-3 text-xs text-on-surface-variant sm:grid-cols-3">

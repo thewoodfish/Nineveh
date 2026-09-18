@@ -162,6 +162,9 @@ function ProjectNav() {
         <NavLink href={href("/state")} active={pathname === "/state"} icon="add_circle">
           New state table
         </NavLink>
+        <NavLink href={href("/settings")} active={pathname === "/settings"} icon="settings">
+          Settings
+        </NavLink>
       </nav>
 
       <div className="mt-6 px-3 text-[11px] font-medium tracking-[0.08em] text-on-surface-variant uppercase">

@@ -5,7 +5,7 @@ import { ConfirmDialog } from "./dialog";
 
 import { type WebhookInfo, control } from "@/lib/api";
 
-import { Button, Card } from "./ui";
+import { Button, Card, Icon } from "./ui";
 
 /**
  * A project's webhook endpoints (ADR 0020): where its state changes are delivered, how
@@ -52,12 +52,23 @@ export function Webhooks({ project }: { project: string }) {
     }
   };
 
-  if (hooks && hooks.length === 0) return null;
+  if (hooks && hooks.length === 0) {
+    return (
+      <Card className="flex flex-col items-center px-6 py-10 text-center">
+        <Icon name="webhook" className="text-[32px] text-on-surface-variant" />
+        <p className="mt-3 text-sm text-on-surface">No webhooks yet</p>
+        <p className="mt-1 max-w-sm text-sm text-on-surface-variant">
+          Declare them under <span className="font-mono">webhooks:</span> in the config and Nineveh
+          signs and delivers every change to them, with a cursor per endpoint.
+        </p>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <div className="border-b border-outline-variant px-4 py-3">
-        <h2 className="text-sm font-medium">Webhooks</h2>
+        <h2 className="text-sm font-medium">Endpoints</h2>
         <p className="text-xs text-on-surface-variant">
           Where this project&apos;s changes are delivered. Add and remove them in the config; check
           the signature with the secret below.

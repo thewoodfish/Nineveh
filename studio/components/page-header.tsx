@@ -226,6 +226,14 @@ function ProjectMenu({ project }: { project: ProjectSummary }) {
           role="menu"
           className="absolute top-full right-0 z-30 mt-1 min-w-56 overflow-hidden rounded-sm bg-surface-container-high py-2 shadow-e2"
         >
+          <Link
+            href={`/settings?project=${encodeURIComponent(project.name)}`}
+            onClick={() => setOpen(false)}
+            className={`${item} text-on-surface`}
+          >
+            <Icon name="settings" className="text-[18px] text-on-surface-variant" />
+            Project settings
+          </Link>
           <button
             type="button"
             className={`${item} text-on-surface`}
