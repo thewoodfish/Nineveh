@@ -27,25 +27,32 @@ function Projects() {
   if (projects.length === 0) {
     return (
       <div className="mx-auto mt-24 max-w-lg px-6 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Create your first backend</h1>
+        <Icon name="database" className="text-[40px] text-on-surface-variant" />
+        <h1 className="mt-4 text-2xl leading-8 text-on-surface">Create your first backend</h1>
         <p className="mt-3 text-sm text-on-surface-variant">
           Paste an Aptos contract address, pick what to follow, and Nineveh builds live tables you
           can query and subscribe to. No config to write.
         </p>
         <Link href="/new" className={`mt-8 ${filledButton}`}>
+          <Icon name="add" className="text-[18px]" />
           New project
         </Link>
       </div>
     );
   }
+  const following = projects.filter((p) => p.running).length;
   return (
     <div>
-      <PageHeader title="Projects">
+      <PageHeader
+        title="Projects"
+        hint={`${projects.length} ${projects.length === 1 ? "backend" : "backends"}, ${following} following the chain`}
+      >
         <Link href="/new" className={filledButton}>
+          <Icon name="add" className="text-[18px]" />
           New project
         </Link>
       </PageHeader>
-      <div className="grid max-w-6xl gap-3 px-8 py-6 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid max-w-6xl auto-rows-fr gap-4 px-6 py-6 sm:grid-cols-2 xl:grid-cols-3">
         {projects.map((p) => (
           <ProjectCard key={p.name} project={p} />
         ))}
@@ -54,59 +61,82 @@ function Projects() {
   );
 }
 
+/**
+ * The Transaction Stream closes a connection once it has run for its maximum duration
+ * and expects the client to open another; the pipeline does, and carries on. It is by
+ * far the commonest thing to find in `error`, and it is not a fault — so it doesn't get
+ * to make every healthy project on this page look broken.
+ */
+function routine(error: string): boolean {
+  return error.includes("Stream-duration-limit-reached");
+}
+
 function ProjectCard({ project }: { project: ProjectSummary }) {
   const pipeline = project.pipeline;
   const done = pipeline
     ? progress(pipeline.start_version, pipeline.cursor, pipeline.chain_version)
     : null;
+  const backfilling = done !== null && done < 0.9999;
+  const worrying = project.error && !(project.running && routine(project.error));
+
   return (
     <Link href={`/?project=${encodeURIComponent(project.name)}`} className="group">
-      <Card className="h-full overflow-hidden transition-colors group-hover:border-outline">
-        <div className="px-4 py-3.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate font-medium text-on-surface">{project.name}</span>
-            <PhaseDot phase={project.state} label />
-          </div>
-          <div className="mt-2 flex items-center gap-2 text-xs">
-            <span className="rounded bg-surface-container-high px-1.5 py-0.5 font-mono text-on-surface-variant">
-              {project.network}
-            </span>
-            <span className="truncate text-on-surface-variant tnum">
-              cursor {formatInteger(pipeline?.cursor ?? null)}
-            </span>
-          </div>
-          {done !== null && (
-            <>
-              <div className="mt-3.5 h-1 overflow-hidden rounded-full bg-surface-container-highest">
-                <div
-                  className={`h-full rounded-full transition-[width] duration-700 ease-out ${
-                    done >= 0.9999 ? "bg-tertiary" : "bg-primary"
-                  }`}
-                  style={{ width: `${Math.max(done * 100, 0.5)}%` }}
-                />
-              </div>
-              <div className="mt-1.5 text-[11px] text-on-surface-variant tnum">
-                {done >= 0.9999 ? "following the chain" : `${(done * 100).toFixed(1)}% backfilled`}
-              </div>
-            </>
-          )}
-        </div>
-        {/* The pipeline records the last thing that went wrong even while it recovers, so
-            this is history rather than an alarm: readable, and not dressed as a failure
-            when the dot beside the name says the project is running. */}
-        {project.error && (
-          <div
-            className="border-t border-outline-variant bg-surface-container px-4 py-2.5"
-            title={project.error}
-          >
-            <div className="text-[10px] font-medium tracking-[0.08em] text-on-surface-variant uppercase">
-              Last error
+      <Card className="flex h-full flex-col p-5 transition-shadow group-hover:shadow-e2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="truncate text-base font-medium text-on-surface">{project.name}</div>
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className="rounded-xs bg-surface-container-high px-1.5 py-0.5 font-mono text-[11px] text-on-surface-variant">
+                {project.network}
+              </span>
+              <span className="truncate text-xs text-on-surface-variant">
+                since {new Date(project.created_at).toLocaleDateString()}
+              </span>
             </div>
-            <p className="mt-1 line-clamp-2 font-mono text-[11px] leading-relaxed text-on-warning-container">
-              {project.error}
-            </p>
           </div>
-        )}
+          <span className="flex shrink-0 items-center gap-1.5">
+            {/* The message itself is a wall of Rust; the card says something is wrong and
+                keeps the detail for whoever hovers it. */}
+            {worrying && (
+              <span title={project.error ?? ""} className="flex">
+                <Icon name="warning" className="text-[16px] text-on-warning-container" />
+              </span>
+            )}
+            <PhaseDot phase={project.state} label />
+          </span>
+        </div>
+
+        <div className="mt-5">
+          <div className="truncate font-mono text-2xl leading-none text-on-surface tnum">
+            {formatInteger(pipeline?.cursor ?? null)}
+          </div>
+          <div className="mt-1.5 text-xs text-on-surface-variant">last committed version</div>
+        </div>
+
+        <div className="mt-auto pt-5">
+          {done !== null && (
+            <div className="h-1 overflow-hidden rounded-full bg-surface-container-highest">
+              <div
+                className={`h-full rounded-full transition-[width] duration-700 ease-out ${
+                  backfilling ? "bg-primary" : "bg-tertiary"
+                }`}
+                style={{ width: `${Math.max(done * 100, 0.5)}%` }}
+              />
+            </div>
+          )}
+          <div className="mt-2 flex items-baseline justify-between gap-2 text-[11px] text-on-surface-variant tnum">
+            <span className="truncate">
+              {done === null
+                ? "no pipeline"
+                : backfilling
+                  ? `${(done * 100).toFixed(1)}% backfilled`
+                  : "following the chain"}
+            </span>
+            {pipeline?.versions_per_sec != null && (
+              <span className="shrink-0">{formatInteger(pipeline.versions_per_sec)}/s</span>
+            )}
+          </div>
+        </div>
       </Card>
     </Link>
   );

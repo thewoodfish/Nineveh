@@ -28,7 +28,7 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   const { mode, current } = useProject();
-  const showPicker = mode === "control" || mode === "single";
+  const showPicker = (mode === "control" && current !== null) || mode === "single";
   return (
     <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-outline-variant bg-surface px-6 py-3">
       <div className="min-w-0 flex-1">
