@@ -234,11 +234,19 @@ function StateTableEditor() {
           </div>
         )}
 
-        {loadError && (
-          <Notice tone="error" title="Couldn't read this project">
-            {loadError}
-          </Notice>
-        )}
+        {/* Some of these aren't failures: a mirror or a log has no rules to edit, and
+            saying "couldn't read this project" over that explains nothing. */}
+        {loadError &&
+          (loadError.includes("no rules to edit") ? (
+            <Notice tone="neutral" title="Nothing to edit here">
+              {loadError}. Only tables built by reducers have rules; use New state table to fold
+              these records into one of your own.
+            </Notice>
+          ) : (
+            <Notice tone="error" title="Couldn't read this project">
+              {loadError}
+            </Notice>
+          ))}
         {error && (
           <Notice tone="error" title="That didn't save">
             <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">{error}</pre>
