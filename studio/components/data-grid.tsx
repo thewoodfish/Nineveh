@@ -34,11 +34,18 @@ export function DataGrid({ table }: { table: Table }) {
   const [missed, setMissed] = useState(0);
 
   const columns = table.columns;
-  const defaultView = offset === 0 && order === undefined && Object.values(filters).every((v) => v === "");
+  const defaultView =
+    offset === 0 && order === undefined && Object.values(filters).every((v) => v === "");
 
   const load = useCallback(async () => {
     if (!base) return;
-    const query: RowsQuery = { limit: PAGE, offset, order, filters, count: true };
+    const query: RowsQuery = {
+      limit: PAGE,
+      offset,
+      order,
+      filters,
+      count: true,
+    };
     try {
       const page = await getRows(base, table.name, query);
       setRows(page.rows);
@@ -83,7 +90,10 @@ export function DataGrid({ table }: { table: Table }) {
           });
           return [...fresh, ...rest].slice(0, PAGE);
         });
-        const delta = batch.reduce((n, c) => n + (c.op === "insert" ? 1 : c.op === "delete" ? -1 : 0), 0);
+        const delta = batch.reduce(
+          (n, c) => n + (c.op === "insert" ? 1 : c.op === "delete" ? -1 : 0),
+          0,
+        );
         setCount((c) => (c === null ? c : c + delta));
       } else {
         const shown = new Set(view.current.rows.map((r) => rowKey(table, r)));
@@ -109,7 +119,11 @@ export function DataGrid({ table }: { table: Table }) {
     },
     [table],
   );
-  const connected = useFeed({ tables: [table.name], onChanges, onReset: () => void reload.current() });
+  const connected = useFeed({
+    tables: [table.name],
+    onChanges,
+    onReset: () => void reload.current(),
+  });
 
   // Forget flashes once they've played.
   useEffect(() => {
@@ -146,8 +160,7 @@ export function DataGrid({ table }: { table: Table }) {
         title={<span className="font-mono">{table.name}</span>}
         hint={
           <span className="text-xs">
-            {table.kind} · key{" "}
-            <span className="font-mono text-zinc-600 dark:text-zinc-400">{table.key.join(", ")}</span>
+            {table.kind} · key <span className="font-mono text-dim">{table.key.join(", ")}</span>
             {count !== null && ` · ${formatInteger(count)} rows`}
           </span>
         }
@@ -155,7 +168,7 @@ export function DataGrid({ table }: { table: Table }) {
         {table.kind === "reduce" && project && (
           <Link
             href={`/state?project=${encodeURIComponent(project)}&table=${encodeURIComponent(table.name)}`}
-            className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="text-xs text-dim hover:text-white"
           >
             Edit rules
           </Link>
@@ -164,7 +177,7 @@ export function DataGrid({ table }: { table: Table }) {
           <button
             type="button"
             onClick={() => void load()}
-            className="rounded-full bg-lapis-50 px-2.5 py-0.5 text-xs font-medium text-lapis-600 hover:bg-lapis-100 dark:bg-lapis-600/15 dark:text-lapis-400"
+            className="rounded-full bg-blue-500/15 px-2.5 py-0.5 text-xs font-medium text-blue-300 hover:bg-blue-500/25"
           >
             {missed} new {missed === 1 ? "change" : "changes"} · refresh
           </button>
@@ -191,45 +204,49 @@ export function DataGrid({ table }: { table: Table }) {
 
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full border-separate border-spacing-0 text-sm">
-          <thead className="sticky top-0 z-10 bg-page">
+          <thead className="sticky top-0 z-10 bg-page/95 backdrop-blur">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column.name}
-                  className={`border-b border-zinc-200 px-3 py-2 font-medium whitespace-nowrap dark:border-zinc-800 ${
+                  className={`border-b border-line px-3 py-2 font-medium whitespace-nowrap ${
                     isNumeric(column.type) ? "text-right" : "text-left"
                   }`}
                 >
                   <button
                     type="button"
                     onClick={() => sortBy(column.name)}
-                    className="inline-flex items-center gap-1 hover:text-lapis-600 dark:hover:text-lapis-400"
+                    className="inline-flex items-center gap-1 hover:text-blue-300"
                   >
                     <span className="font-mono text-[13px]">{column.name}</span>
                     {table.key.includes(column.name) && (
-                      <span className="text-[10px] text-lapis-500" title="key column">
+                      <span className="rounded bg-blue-500/20 px-1 py-px text-[9px] font-semibold text-blue-300" title="key column">
                         KEY
                       </span>
                     )}
-                    <span className="text-[11px] font-normal text-zinc-400">{column.type}</span>
-                    {order?.column === column.name && <span className="text-xs">{order.desc ? "↓" : "↑"}</span>}
+                    <span className="font-mono text-[11px] font-normal text-faint">{column.type}</span>
+                    {order?.column === column.name && (
+                      <span className="text-xs">{order.desc ? "↓" : "↑"}</span>
+                    )}
                   </button>
                 </th>
               ))}
-              <th className="border-b border-zinc-200 px-3 py-2 text-right font-medium whitespace-nowrap dark:border-zinc-800">
+              <th className="border-b border-line px-3 py-2 text-right font-medium whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => sortBy("_version")}
-                  className="inline-flex items-center gap-1 text-[13px] text-zinc-400 hover:text-lapis-600"
+                  className="inline-flex items-center gap-1 text-[13px] text-faint hover:text-blue-300"
                   title="Version of the row's last change"
                 >
-                  version {order?.column === "_version" ? (order.desc ? "↓" : "↑") : order ? "" : "↓"}
+                  version{" "}
+                  {order?.column === "_version" ? (order.desc ? "↓" : "↑") : order ? "" : "↓"}
                 </button>
               </th>
+              <th className="w-full border-b border-line" />
             </tr>
             <tr>
               {columns.map((column) => (
-                <th key={column.name} className="border-b border-zinc-200 bg-well px-2 py-1 dark:border-zinc-800">
+                <th key={column.name} className="border-b border-line bg-black/20 px-2 py-1">
                   {column.type !== "json" && (
                     <input
                       value={draft[column.name] ?? ""}
@@ -237,12 +254,13 @@ export function DataGrid({ table }: { table: Table }) {
                       onKeyDown={(e) => e.key === "Enter" && applyFilters()}
                       onBlur={applyFilters}
                       placeholder="filter ="
-                      className="w-full min-w-16 rounded border border-transparent bg-card px-2 py-1 font-mono text-xs font-normal shadow-card placeholder:text-zinc-300 focus:border-lapis-400 focus:outline-none dark:placeholder:text-zinc-600"
+                      className="w-full min-w-28 rounded-md border border-line bg-well px-2 py-1 font-mono text-xs font-normal text-white transition-colors placeholder:text-ghost hover:border-edge focus:border-blue-400 focus:ring-2 focus:ring-blue-500/25 focus:outline-none"
                     />
                   )}
                 </th>
               ))}
-              <th className="border-b border-zinc-200 bg-well dark:border-zinc-800" />
+              <th className="border-b border-line bg-black/20" />
+              <th className="border-b border-line bg-black/20" />
             </tr>
           </thead>
           <tbody>
@@ -251,21 +269,22 @@ export function DataGrid({ table }: { table: Table }) {
               return (
                 <tr
                   key={`${key}:${flashes.get(key) ?? 0}`}
-                  className={`hover:bg-zinc-50 dark:hover:bg-zinc-900/60 ${flashes.has(key) ? "flash" : ""}`}
+                  className={`transition-colors hover:bg-white/[0.035] ${flashes.has(key) ? "flash" : ""}`}
                 >
                   {columns.map((column) => (
                     <td
                       key={column.name}
-                      className={`max-w-xs truncate border-b border-zinc-100 px-3 py-1.5 dark:border-zinc-800/70 ${
+                      className={`max-w-xs truncate border-b border-line px-3 py-1.5 whitespace-nowrap ${
                         isNumeric(column.type) ? "text-right" : ""
                       }`}
                     >
                       <Cell type={column.type} value={row[column.name]} />
                     </td>
                   ))}
-                  <td className="border-b border-zinc-100 px-3 py-1.5 text-right text-xs dark:border-zinc-800/70">
+                  <td className="border-b border-line px-3 py-1.5 text-right text-xs whitespace-nowrap">
                     <Cell type="version" value={row._version} />
                   </td>
+                  <td className="border-b border-line" />
                 </tr>
               );
             })}
@@ -276,14 +295,12 @@ export function DataGrid({ table }: { table: Table }) {
             <p className="text-sm font-medium">
               {filtered ? "Nothing matches these filters" : "No rows yet"}
             </p>
-            <p className="mt-1 text-sm text-zinc-500 text-pretty">
-              {filtered ? (
-                "Filters match a column exactly."
-              ) : table.kind === "reduce" ? (
-                "Rows appear as records reach this table's rules."
-              ) : (
-                "Rows appear as the chain is folded into this table."
-              )}
+            <p className="mt-1 text-sm text-dim text-pretty">
+              {filtered
+                ? "Filters match a column exactly."
+                : table.kind === "reduce"
+                  ? "Rows appear as records reach this table's rules."
+                  : "Rows appear as the chain is folded into this table."}
             </p>
             {filtered && (
               <Button
@@ -301,7 +318,7 @@ export function DataGrid({ table }: { table: Table }) {
         )}
       </div>
 
-      <footer className="flex items-center justify-between border-t border-zinc-200 px-8 py-2.5 text-xs text-zinc-500 dark:border-zinc-800">
+      <footer className="flex items-center justify-between border-t border-line px-8 py-2.5 text-xs text-dim">
         <span className="tabular-nums">
           {rows.length === 0 ? "0 rows" : `${formatInteger(offset + 1)}–${formatInteger(last)}`}
           {count !== null && ` of ${formatInteger(count)}`}
@@ -336,7 +353,7 @@ function PageButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="rounded-md border border-zinc-200 px-2.5 py-1 font-medium text-zinc-700 enabled:hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:enabled:hover:bg-zinc-800"
+      className="rounded-md border border-line px-2.5 py-1 font-medium text-white/75 enabled:hover:bg-well disabled:opacity-40"
     >
       {children}
     </button>

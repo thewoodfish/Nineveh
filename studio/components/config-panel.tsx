@@ -15,7 +15,10 @@ export function ConfigPanel({ name, onClose }: { name: string; onClose: () => vo
   const { refresh } = useProject();
   const [saved, setSaved] = useState<string | null>(null);
   const [text, setText] = useState("");
-  const [error, setError] = useState<{ message: string; details?: string } | null>(null);
+  const [error, setError] = useState<{
+    message: string;
+    details?: string;
+  } | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -62,15 +65,15 @@ export function ConfigPanel({ name, onClose }: { name: string; onClose: () => vo
   const changed = saved !== null && text !== saved;
 
   return (
-    <div className="fixed inset-0 z-30 flex justify-end bg-zinc-950/30" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-30 flex justify-end bg-black/60" onMouseDown={onClose}>
       <div
-        className="flex h-full w-full max-w-2xl flex-col border-l border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-950"
+        className="flex h-full w-full max-w-2xl flex-col border-l border-line bg-card shadow-xl"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
+        <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
           <div>
             <div className="font-semibold tracking-tight">nineveh.yaml</div>
-            <div className="text-xs text-zinc-500">
+            <div className="text-xs text-dim">
               The same file the CLI reads. Keep a copy in your repo.
             </div>
           </div>
@@ -85,15 +88,17 @@ export function ConfigPanel({ name, onClose }: { name: string; onClose: () => vo
           </div>
         </div>
         {error && (
-          <div className="border-b border-red-200 bg-red-50 px-5 py-3 text-sm text-red-900 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200">
+          <div className="border-b border-red-500/30 bg-red-500/15 px-5 py-3 text-sm text-red-200">
             <div className="font-medium">{error.message}</div>
             {error.details && (
-              <pre className="mt-2 overflow-x-auto font-mono text-xs whitespace-pre">{error.details}</pre>
+              <pre className="mt-2 overflow-x-auto font-mono text-xs whitespace-pre">
+                {error.details}
+              </pre>
             )}
           </div>
         )}
         {changed && !error && (
-          <div className="border-b border-zinc-200 bg-zinc-50 px-5 py-2 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="border-b border-line bg-well px-5 py-2 text-xs text-dim">
             Saving pins the layouts again and restarts the project. If the change alters what&apos;s
             built, the tables are rebuilt beside the served ones and swapped in once caught up.
           </div>

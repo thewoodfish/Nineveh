@@ -29,13 +29,13 @@ function Projects() {
     return (
       <div className="mx-auto mt-24 max-w-lg px-6 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Create your first backend</h1>
-        <p className="mt-3 text-sm text-zinc-500">
-          Paste an Aptos contract address, pick what to follow, and Nineveh builds live tables
-          you can query and subscribe to. No config to write.
+        <p className="mt-3 text-sm text-dim">
+          Paste an Aptos contract address, pick what to follow, and Nineveh builds live tables you
+          can query and subscribe to. No config to write.
         </p>
         <Link
           href="/new"
-          className="mt-8 inline-flex rounded-md bg-lapis-600 px-4 py-2 text-sm font-medium text-white hover:bg-lapis-500"
+          className="mt-8 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-card transition-colors hover:bg-blue-500"
         >
           New project
         </Link>
@@ -47,12 +47,12 @@ function Projects() {
       <PageHeader title="Projects">
         <Link
           href="/new"
-          className="rounded-md bg-lapis-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-lapis-500"
+          className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white shadow-card transition-colors hover:bg-blue-500"
         >
           New project
         </Link>
       </PageHeader>
-      <div className="mx-auto grid max-w-5xl gap-3 px-8 py-6 sm:grid-cols-2">
+      <div className="grid max-w-6xl gap-3 px-8 py-6 sm:grid-cols-2 xl:grid-cols-3">
         {projects.map((p) => (
           <ProjectCard key={p.name} project={p} />
         ))}
@@ -63,23 +63,30 @@ function Projects() {
 
 function ProjectCard({ project }: { project: ProjectSummary }) {
   const pipeline = project.pipeline;
-  const done = pipeline ? progress(pipeline.start_version, pipeline.cursor, pipeline.chain_version) : null;
+  const done = pipeline
+    ? progress(pipeline.start_version, pipeline.cursor, pipeline.chain_version)
+    : null;
   return (
     <Link href={`/?project=${encodeURIComponent(project.name)}`}>
-      <Card className="px-4 py-3.5 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700">
+      <Card className="px-4 py-3.5 transition-colors hover:border-edge">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate font-medium">{project.name}</span>
           <PhaseDot phase={project.state} label />
         </div>
-        <div className="mt-1 text-xs text-zinc-500">
+        <div className="mt-1 text-xs text-dim">
           {project.network} · cursor {formatInteger(pipeline?.cursor ?? null)}
         </div>
         {done !== null && (
-          <div className="mt-3 h-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-            <div className="h-full rounded-full bg-lapis-500" style={{ width: `${Math.max(done * 100, 0.5)}%` }} />
+          <div className="mt-3 h-1 overflow-hidden rounded-full bg-black/40">
+            <div
+              className="h-full rounded-full bg-blue-400"
+              style={{ width: `${Math.max(done * 100, 0.5)}%` }}
+            />
           </div>
         )}
-        {project.error && <p className="mt-2 truncate font-mono text-xs text-red-600">{project.error}</p>}
+        {project.error && (
+          <p className="mt-2 truncate font-mono text-xs text-red-300">{project.error}</p>
+        )}
       </Card>
     </Link>
   );
@@ -113,11 +120,20 @@ function Overview() {
         {current && <ProjectActions project={current} />}
       </PageHeader>
 
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-8 py-6">
-        {error && <Notice tone="warning" title="Lost the API">{error}. Showing the last known state.</Notice>}
+      <div className="flex max-w-6xl flex-col gap-6 px-8 py-6">
+        {error && (
+          <Notice tone="warning" title="Lost the API">
+            {error}. Showing the last known state.
+          </Notice>
+        )}
         {(phase === "halted" || phase === "failed") && (
-          <Notice tone="error" title={phase === "halted" ? "The pipeline halted" : "The project failed"}>
-            <span className="font-mono text-xs whitespace-pre-wrap">{current?.error ?? pipeline?.last_error}</span>
+          <Notice
+            tone="error"
+            title={phase === "halted" ? "The pipeline halted" : "The project failed"}
+          >
+            <span className="font-mono text-xs whitespace-pre-wrap">
+              {current?.error ?? pipeline?.last_error}
+            </span>
           </Notice>
         )}
         {pipeline?.phase === "retrying" && (
@@ -134,40 +150,53 @@ function Overview() {
           <Stat
             label="Behind the chain"
             value={formatInteger(behind(cursor, pipeline?.chain_version ?? null))}
-            hint={pipeline?.chain_version ? `chain at ${formatInteger(pipeline.chain_version)}` : "no pipeline here"}
+            hint={
+              pipeline?.chain_version
+                ? `chain at ${formatInteger(pipeline.chain_version)}`
+                : "no pipeline here"
+            }
           />
-          <Stat label="Lag" value={formatDuration(pipeline?.lag_secs)} hint="since the last block committed" />
+          <Stat
+            label="Lag"
+            value={formatDuration(pipeline?.lag_secs)}
+            hint="since the last block committed"
+          />
           <Stat
             label="Throughput"
-            value={pipeline?.versions_per_sec != null ? formatInteger(pipeline.versions_per_sec) : "—"}
+            value={
+              pipeline?.versions_per_sec != null ? formatInteger(pipeline.versions_per_sec) : "—"
+            }
             hint="versions / second"
           />
         </div>
 
         <Card>
-          <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-            <h2 className="text-sm font-semibold">State tables</h2>
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <h2 className="text-sm font-semibold text-white">State tables</h2>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-zinc-400">{tables?.length ?? 0} tables</span>
+              <span className="text-xs text-faint">{tables?.length ?? 0} tables</span>
               {mode === "control" && (
-                <Link href={href("/state")} className="text-xs font-medium text-lapis-600 hover:underline">
+                <Link
+                  href={href("/state")}
+                  className="text-xs font-medium text-blue-300 hover:underline"
+                >
                   + New state table
                 </Link>
               )}
             </div>
           </div>
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <ul className="divide-y divide-line">
             {tables?.map((table) => (
               <li key={table.name}>
                 <Link
                   href={href("/tables", { name: table.name })}
-                  className="group flex items-center gap-4 px-4 py-2.5 text-sm hover:bg-well"
+                  className="group flex items-center gap-4 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.04]"
                 >
-                  <span className="w-52 truncate font-mono font-medium group-hover:text-lapis-600 dark:group-hover:text-lapis-400">
+                  <span className="w-52 truncate font-mono font-medium group-hover:text-blue-300">
                     {table.name}
                   </span>
                   <Kind kind={table.kind} />
-                  <span className="truncate text-xs text-zinc-500">
+                  <span className="truncate text-xs text-dim">
                     key {table.key.join(", ")} · {table.columns.length} columns
                   </span>
                 </Link>
@@ -178,14 +207,19 @@ function Overview() {
 
         {current && (
           <Card className="px-5 py-4 text-sm">
-            <div className="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">Your API</div>
+            <div className="text-[11px] font-medium tracking-[0.08em] text-faint uppercase">Your API</div>
             <div className="mt-2 rounded-lg bg-well px-3 py-2 font-mono text-sm break-all">
               {`${API_URL}${current.api}/v1/tables`}
             </div>
-            <p className="mt-1 text-xs text-zinc-400">
-              REST over every table, and a live change feed at <span className="font-mono">/v1/changes</span>.
-              {hosted && <> Send one of this project&apos;s API keys with each request.</>} Try it in the{" "}
-              <Link href={href("/playground")} className="text-lapis-600 hover:underline">API playground</Link>.
+            <p className="mt-1 text-xs text-faint">
+              REST over every table, and a live change feed at{" "}
+              <span className="font-mono">/v1/changes</span>.
+              {hosted && <> Send one of this project&apos;s API keys with each request.</>} Try it
+              in the{" "}
+              <Link href={href("/playground")} className="text-blue-300 hover:underline">
+                API playground
+              </Link>
+              .
             </p>
           </Card>
         )}
@@ -194,9 +228,12 @@ function Overview() {
         {current && <Webhooks project={current.name} />}
 
         {status.build && (
-          <Card className="grid grid-cols-1 gap-x-8 gap-y-2 px-4 py-3 text-xs text-zinc-500 sm:grid-cols-3">
+          <Card className="grid grid-cols-1 gap-x-8 gap-y-2 px-4 py-3 text-xs text-dim sm:grid-cols-3">
             <div>
-              Build <span className="font-mono text-zinc-700 dark:text-zinc-300">{shortHex(`0x${status.build.fingerprint}`, 8, 6)}</span>
+              Build{" "}
+              <span className="font-mono text-white/75">
+                {shortHex(`0x${status.build.fingerprint}`, 8, 6)}
+              </span>
             </div>
             <div>Created {new Date(status.build.created_at).toLocaleString()}</div>
             <div>Last commit {new Date(status.build.updated_at).toLocaleString()}</div>
@@ -241,7 +278,7 @@ function ProjectActions({ project }: { project: ProjectSummary }) {
 
   return (
     <>
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && <span className="text-xs text-red-300">{error}</span>}
       <Button onClick={() => setShowConfig(true)}>Config</Button>
       {project.running ? (
         <Button disabled={busy} onClick={() => void act(() => control.stop(project.name))}>
@@ -263,12 +300,14 @@ function ProjectActions({ project }: { project: ProjectSummary }) {
 /** What builds a table: the three kinds read differently, so they look different. */
 function Kind({ kind }: { kind: string }) {
   const tones: Record<string, string> = {
-    reduce: "bg-lapis-50 text-lapis-600 dark:bg-lapis-500/15 dark:text-lapis-400",
-    mirror: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
-    log: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
+    reduce: "bg-blue-500/15 text-blue-300",
+    mirror: "bg-emerald-500/15 text-emerald-300",
+    log: "bg-white/[0.07] text-dim",
   };
   return (
-    <span className={`w-16 shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-medium ${tones[kind] ?? ""}`}>
+    <span
+      className={`w-16 shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-medium ${tones[kind] ?? ""}`}
+    >
       {kind}
     </span>
   );
@@ -287,26 +326,28 @@ function Backfill({ status }: { status: Status }) {
           <span className="text-sm font-semibold">
             {caughtUp ? "Following the chain" : "Backfilling"}
           </span>
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-dim">
             {caughtUp
               ? "every new transaction, as it commits"
               : "reading history before it can follow along"}
           </span>
         </div>
-        <div className="font-mono text-2xl leading-none font-semibold tnum">
+        <div className="flex items-baseline gap-0.5 font-mono text-2xl leading-none font-semibold text-white tnum">
           {(done * 100).toFixed(done < 0.1 ? 2 : 1)}
-          <span className="text-base font-normal text-zinc-400">%</span>
+          <span className="text-sm font-normal text-faint">%</span>
         </div>
       </div>
-      <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/40 inset-ring inset-ring-white/5">
         <div
           className={`h-full rounded-full transition-[width] duration-700 ease-out ${
-            caughtUp ? "bg-emerald-500" : "bg-lapis-500"
+            caughtUp
+              ? "bg-emerald-400 shadow-[0_0_12px_oklch(0.77_0.15_162_/_0.6)]"
+              : "bg-blue-400 shadow-[0_0_12px_oklch(0.716_0.152_259_/_0.6)]"
           }`}
           style={{ width: `${Math.max(done * 100, 0.5)}%` }}
         />
       </div>
-      <div className="mt-2 flex justify-between font-mono text-xs text-zinc-400 tnum">
+      <div className="mt-2 flex justify-between font-mono text-xs text-faint tnum">
         <span>{formatInteger(pipeline.start_version)}</span>
         <span>{formatInteger(pipeline.chain_version)}</span>
       </div>

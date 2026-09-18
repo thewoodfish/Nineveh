@@ -27,23 +27,21 @@ function SignIn() {
   return (
     <main className="flex min-w-0 flex-1 items-center justify-center px-6">
       <div className="w-full max-w-sm text-center">
-        <svg viewBox="0 0 20 20" className="mx-auto size-9 text-lapis-500" aria-hidden>
+        <svg viewBox="0 0 20 20" className="mx-auto size-9 text-blue-400" aria-hidden>
           <path fill="currentColor" d="M8 3h4v3H8zM5 7h10v4H5zM2 12h16v5H2z" />
         </svg>
         <h1 className="mt-5 text-xl font-semibold tracking-tight">Sign in to Nineveh</h1>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-dim">
           A live backend for your Aptos contract, from its address. Nothing to run.
         </p>
         <a
           href={SIGN_IN_URL}
-          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-md bg-well px-4 py-2.5 text-sm font-medium text-white hover:bg-white/10"
         >
           <GitHubMark />
           Continue with GitHub
         </a>
-        <p className="mt-4 text-xs text-zinc-400">
-          Nineveh reads only your public GitHub profile.
-        </p>
+        <p className="mt-4 text-xs text-faint">Nineveh reads only your public GitHub profile.</p>
       </div>
     </main>
   );

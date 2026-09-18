@@ -1,21 +1,10 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  ExpressionInput,
-  type Insert,
-  type Name,
-} from "@/components/expression";
-import { Button, Card, Notice, PageHeader } from "@/components/ui";
+import { ExpressionInput, type Insert, type Name } from "@/components/expression";
+import { Button, Card, Notice, PageHeader, Select } from "@/components/ui";
 import {
   ApiError,
   type ColumnType,
@@ -111,14 +100,12 @@ function namesInScope(
 }
 
 /** Narrows a list to one with a first element, so pickers always have a selection. */
-function isFilled(
-  sources: SourceInfo[],
-): sources is [SourceInfo, ...SourceInfo[]] {
+function isFilled(sources: SourceInfo[]): sources is [SourceInfo, ...SourceInfo[]] {
   return sources.length > 0;
 }
 
 const field =
-  "rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-sm focus:border-lapis-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900";
+  "rounded-md border border-line bg-card px-2.5 py-1.5 text-sm focus:border-blue-400 focus:outline-none";
 
 /**
  * Design a state table: a key, typed columns, and rules that fold records into them.
@@ -152,8 +139,7 @@ function StateTableEditor() {
 
   useEffect(() => {
     if (!project) return;
-    const failed = (e: unknown) =>
-      setLoadError(e instanceof Error ? e.message : String(e));
+    const failed = (e: unknown) => setLoadError(e instanceof Error ? e.message : String(e));
     control.sources(project).then(setSources).catch(failed);
     control
       .project(project)
@@ -182,10 +168,7 @@ function StateTableEditor() {
       .catch(() => setExisting([]));
   }, [base]);
 
-  const yaml = useMemo(
-    () => (table && config ? withTable(config, table) : null),
-    [table, config],
-  );
+  const yaml = useMemo(() => (table && config ? withTable(config, table) : null), [table, config]);
   const listed = table ? problems(table) : [];
 
   // Check with the server as it's written, once it's worth checking.
@@ -201,8 +184,7 @@ function StateTableEditor() {
         .catch((e: unknown) =>
           setChecked({
             ok: false,
-            details:
-              e instanceof ApiError ? (e.details ?? e.message) : String(e),
+            details: e instanceof ApiError ? (e.details ?? e.message) : String(e),
           }),
         );
     }, 400);
@@ -226,7 +208,7 @@ function StateTableEditor() {
 
   if (mode === "single" || !base) {
     return (
-      <div className="mx-auto mt-24 max-w-md px-6 text-center text-sm text-zinc-500">
+      <div className="mx-auto mt-24 max-w-md px-6 text-center text-sm text-dim">
         Open a project first: state tables belong to one.
       </div>
     );
@@ -235,28 +217,19 @@ function StateTableEditor() {
   return (
     <div>
       <PageHeader title={editing ? `Edit ${editing}` : "New state table"}>
-        {checked?.ok && (
-          <span className="text-xs text-emerald-600">checks out</span>
-        )}
-        <Button
-          tone="primary"
-          disabled={saving || !checked?.ok}
-          onClick={() => void save()}
-        >
+        {checked?.ok && <span className="text-xs text-emerald-300">checks out</span>}
+        <Button tone="primary" disabled={saving || !checked?.ok} onClick={() => void save()}>
           {saving ? "Saving…" : editing ? "Save changes" : "Create table"}
         </Button>
       </PageHeader>
 
-      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-8 py-6">
+      <div className="flex max-w-6xl flex-col gap-6 px-8 py-6">
         {!table && !editing && (
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">
-              What should this table hold?
-            </h2>
-            <p className="mt-1.5 max-w-2xl text-sm text-zinc-500 text-pretty">
-              You say what a row is and how each record changes it. Nineveh
-              folds every record into it in order, and serves it over REST with
-              a change feed, like any other table.
+            <h2 className="text-xl font-semibold tracking-tight">What should this table hold?</h2>
+            <p className="mt-1.5 max-w-2xl text-sm text-dim text-pretty">
+              You say what a row is and how each record changes it. Nineveh folds every record into
+              it in order, and serves it over REST with a change feed, like any other table.
             </p>
           </div>
         )}
@@ -268,9 +241,7 @@ function StateTableEditor() {
         )}
         {error && (
           <Notice tone="error" title="That didn't save">
-            <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">
-              {error}
-            </pre>
+            <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">{error}</pre>
           </Notice>
         )}
         {sources?.length === 0 && (
@@ -285,22 +256,16 @@ function StateTableEditor() {
 
         {sources && table && (
           <>
-            <Editor
-              sources={sources}
-              existing={existing}
-              table={table}
-              onChange={setTable}
-            />
+            <Editor sources={sources} existing={existing} table={table} onChange={setTable} />
             <Card className="overflow-hidden">
-              <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
-                <span className="text-xs text-zinc-500">
-                  <span className="font-mono">nineveh.yaml</span>, as this will
-                  be saved
+              <div className="flex items-center justify-between border-b border-line px-4 py-2">
+                <span className="text-xs text-dim">
+                  <span className="font-mono">nineveh.yaml</span>, as this will be saved
                 </span>
                 <button
                   type="button"
                   onClick={() => setTable(null)}
-                  className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                  className="text-xs text-dim hover:text-white"
                 >
                   {editing ? "Discard changes" : "Start over"}
                 </button>
@@ -381,8 +346,8 @@ function PreviewCard({
   const columns = table.columns.map((c) => c.name);
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
-        <span className="text-xs text-zinc-500">
+      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
+        <span className="text-xs text-dim">
           {preview
             ? `${preview.row_count} row${preview.row_count === 1 ? "" : "s"} from ${preview.transactions} recent transactions`
             : "What these rules would produce, from the chain's recent transactions"}
@@ -394,23 +359,20 @@ function PreviewCard({
       {error && (
         <div className="px-4 py-3">
           <Notice tone="error" title="These rules don't survive real data">
-            <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">
-              {error}
-            </pre>
+            <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">{error}</pre>
           </Notice>
         </div>
       )}
       {preview && !error && preview.rows.length === 0 && (
-        <p className="px-4 py-3 text-sm text-zinc-500">
-          Nothing in the last {preview.transactions} transactions fed this
-          table. That isn&apos;t a problem with the rules — try again once the
-          contract has been used.
+        <p className="px-4 py-3 text-sm text-dim">
+          Nothing in the last {preview.transactions} transactions fed this table. That isn&apos;t a
+          problem with the rules — try again once the contract has been used.
         </p>
       )}
       {preview && preview.rows.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800">
+            <thead className="border-b border-line text-xs text-dim">
               <tr>
                 {columns.map((name) => (
                   <th key={name} className="px-4 py-1.5 font-medium">
@@ -421,10 +383,7 @@ function PreviewCard({
             </thead>
             <tbody>
               {preview.rows.map((row, i) => (
-                <tr
-                  key={i}
-                  className="border-b border-zinc-100 last:border-0 dark:border-zinc-800/60"
-                >
+                <tr key={i} className="border-b border-line last:border-0">
                   {columns.map((name) => (
                     <td key={name} className="px-4 py-1.5 font-mono text-xs">
                       {cell(row[name])}
@@ -435,7 +394,7 @@ function PreviewCard({
             </tbody>
           </table>
           {preview.row_count > preview.rows.length && (
-            <p className="px-4 py-2 text-xs text-zinc-500">
+            <p className="px-4 py-2 text-xs text-dim">
               and {preview.row_count - preview.rows.length} more.
             </p>
           )}
@@ -448,8 +407,7 @@ function PreviewCard({
 /** One preview value, short enough for a cell. */
 function cell(value: unknown): string {
   if (value === null || value === undefined) return "—";
-  const text =
-    typeof value === "object" ? JSON.stringify(value) : String(value);
+  const text = typeof value === "object" ? JSON.stringify(value) : String(value);
   return text.length > 40 ? `${text.slice(0, 39)}…` : text;
 }
 
@@ -477,11 +435,7 @@ function Templates({
     ? { name: source.name, deleted: true }
     : sources
         .filter((s) => s.name !== source.name)
-        .filter((s) =>
-          s.fields.some(
-            (f) => f.name === keyField?.name && f.type === keyField?.type,
-          ),
-        )
+        .filter((s) => s.fields.some((f) => f.name === keyField?.name && f.type === keyField?.type))
         .map((s) => ({ name: s.name, deleted: false }))[0];
 
   // A table this one could look a row up in: keyed by one column of the same type as
@@ -506,51 +460,45 @@ function Templates({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200/80 bg-well px-4 py-3 dark:border-zinc-800">
-        <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-well px-4 py-3">
+        <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
           Fold records from
-          <select
+          <Select
             value={source.name}
-            onChange={(e) =>
-              pick(sources.find((s) => s.name === e.target.value) ?? sources[0])
-            }
-            className={`${field} font-mono`}
+            onChange={(e) => pick(sources.find((s) => s.name === e.target.value) ?? sources[0])}
+            className="font-mono"
           >
             {sources.map((s) => (
               <option key={s.name} value={s.name}>
                 {s.name} ({s.kind})
               </option>
             ))}
-          </select>
+          </Select>
         </label>
-        <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
+        <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
           One row per
-          <select
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            className={`${field} font-mono`}
-          >
+          <Select value={key} onChange={(e) => setKey(e.target.value)} className="font-mono">
             {keys.map((f) => (
               <option key={f.name} value={f.name}>
                 {f.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         {amounts.length > 0 && (
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
+          <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
             Adding up
-            <select
+            <Select
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className={`${field} font-mono`}
+              className="font-mono"
             >
               {amounts.map((f) => (
                 <option key={f.name} value={f.name}>
                   {f.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
       </div>
@@ -575,21 +523,13 @@ function Templates({
               : "This source has no amounts to add up."
           }
           disabled={!keyField || !amountField}
-          shape={
-            keyField && amountField && sumPer(source, keyField, amountField)
-          }
-          onClick={() =>
-            keyField &&
-            amountField &&
-            onPick(sumPer(source, keyField, amountField))
-          }
+          shape={keyField && amountField && sumPer(source, keyField, amountField)}
+          onClick={() => keyField && amountField && onPick(sumPer(source, keyField, amountField))}
         />
         <Template
           title="Latest per row"
           body={
-            keyField
-              ? `The newest ${source.name} for each ${keyField.name}, field by field.`
-              : ""
+            keyField ? `The newest ${source.name} for each ${keyField.name}, field by field.` : ""
           }
           disabled={!keyField}
           shape={keyField && latestPer(source, keyField)}
@@ -604,9 +544,7 @@ function Templates({
           }
           disabled={!keyField}
           shape={keyField && dailyPer(source, keyField, amountField)}
-          onClick={() =>
-            keyField && onPick(dailyPer(source, keyField, amountField))
-          }
+          onClick={() => keyField && onPick(dailyPer(source, keyField, amountField))}
         />
         <Template
           title="Appears and disappears"
@@ -617,9 +555,7 @@ function Templates({
           }
           disabled={!keyField || !gone}
           shape={keyField && gone && liveSet(source, keyField, gone)}
-          onClick={() =>
-            keyField && gone && onPick(liveSet(source, keyField, gone))
-          }
+          onClick={() => keyField && gone && onPick(liveSet(source, keyField, gone))}
         />
         <Template
           title="With a value from another table"
@@ -630,16 +566,12 @@ function Templates({
           }
           disabled={!keyField || !joinable}
           shape={
-            keyField &&
-            joinable &&
-            withLookup(source, keyField, joinable.table, joinable.column)
+            keyField && joinable && withLookup(source, keyField, joinable.table, joinable.column)
           }
           onClick={() =>
             keyField &&
             joinable &&
-            onPick(
-              withLookup(source, keyField, joinable.table, joinable.column),
-            )
+            onPick(withLookup(source, keyField, joinable.table, joinable.column))
           }
         />
       </div>
@@ -647,7 +579,7 @@ function Templates({
       <button
         type="button"
         onClick={() => onPick(blank(source))}
-        className="rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-zinc-500 transition-colors hover:border-lapis-400 hover:text-zinc-900 dark:border-zinc-700 dark:hover:text-zinc-100"
+        className="rounded-xl border border-dashed border-edge px-4 py-3 text-sm text-dim transition-colors hover:border-blue-400/60 hover:text-white"
       >
         Or start from an empty table and write the columns and rules yourself.
       </button>
@@ -663,36 +595,26 @@ function Shape({ table }: { table: StateTable }) {
   const columns = table.columns.slice(0, 4);
   const more = table.columns.length - columns.length;
   return (
-    <div className="mt-3 overflow-hidden rounded-lg border border-zinc-200/80 bg-card dark:border-zinc-700/60">
-      <div className="flex items-center gap-3 border-b border-zinc-200/80 px-2.5 py-1.5 dark:border-zinc-700/60">
+    <div className="mt-3 overflow-hidden rounded-lg border border-line bg-card">
+      <div className="flex items-center gap-3 border-b border-line px-2.5 py-1.5">
         {columns.map((column) => (
           <span
             key={column.name}
             className={`truncate font-mono text-[10px] ${
-              column.key
-                ? "font-medium text-lapis-600 dark:text-lapis-400"
-                : "text-zinc-400"
+              column.key ? "font-medium text-blue-300" : "text-faint"
             }`}
           >
             {column.name}
           </span>
         ))}
-        {more > 0 && (
-          <span className="text-[10px] text-zinc-300 dark:text-zinc-600">
-            +{more}
-          </span>
-        )}
+        {more > 0 && <span className="text-[10px] text-ghost">+{more}</span>}
       </div>
       {[0.7, 0.45].map((fade, row) => (
-        <div
-          key={row}
-          className="flex items-center gap-3 px-2.5 py-1.5"
-          style={{ opacity: fade }}
-        >
+        <div key={row} className="flex items-center gap-3 px-2.5 py-1.5" style={{ opacity: fade }}>
           {columns.map((column, i) => (
             <span
               key={column.name}
-              className="h-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700"
+              className="h-1.5 rounded-full bg-white/12"
               style={{ width: `${[38, 22, 30, 18][i % 4]}px` }}
             />
           ))}
@@ -721,12 +643,10 @@ function Template({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="group flex flex-col rounded-xl border border-zinc-200 bg-card px-4 py-3.5 text-left shadow-card transition-all hover:-translate-y-px hover:border-lapis-400 hover:shadow-lifted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-zinc-200 disabled:hover:shadow-card dark:border-zinc-800"
+      className="group flex flex-col rounded-xl border border-line bg-card px-4 py-3.5 text-left shadow-card transition-all hover:-translate-y-px hover:border-blue-400/60 hover:shadow-lifted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-line disabled:hover:shadow-card"
     >
-      <div className="text-sm font-semibold group-enabled:group-hover:text-lapis-700 dark:group-enabled:group-hover:text-lapis-300">
-        {title}
-      </div>
-      <div className="mt-1 text-xs leading-relaxed text-zinc-500">{body}</div>
+      <div className="text-sm font-semibold group-enabled:group-hover:text-blue-200">{title}</div>
+      <div className="mt-1 text-xs leading-relaxed text-dim">{body}</div>
       {shape && <Shape table={shape} />}
     </button>
   );
@@ -744,30 +664,23 @@ function Editor({
   table: StateTable;
   onChange: (table: StateTable) => void;
 }) {
-  const set = (changes: Partial<StateTable>) =>
-    onChange({ ...table, ...changes });
+  const set = (changes: Partial<StateTable>) => onChange({ ...table, ...changes });
   const setColumn = (index: number, changes: Partial<Column>) =>
     set({
-      columns: table.columns.map((c, i) =>
-        i === index ? { ...c, ...changes } : c,
-      ),
+      columns: table.columns.map((c, i) => (i === index ? { ...c, ...changes } : c)),
     });
   const setRule = (index: number, changes: Partial<Rule>) =>
     set({
-      rules: table.rules.map((r, i) =>
-        i === index ? { ...r, ...changes } : r,
-      ),
+      rules: table.rules.map((r, i) => (i === index ? { ...r, ...changes } : r)),
     });
 
   const keyColumns = table.columns.filter((c) => c.key).map((c) => c.name);
   return (
     <>
       <Card className="overflow-hidden">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-200 bg-well px-4 py-3 dark:border-zinc-800">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line bg-well px-4 py-3">
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
-              Table name
-            </span>
+            <span className="text-xs font-medium text-dim">Table name</span>
             <input
               value={table.name}
               onChange={(e) => set({ name: e.target.value })}
@@ -775,13 +688,10 @@ function Editor({
               className={`${field} w-72 font-mono text-[15px]`}
             />
           </label>
-          <p className="pb-2 text-xs text-zinc-500">
+          <p className="pb-2 text-xs text-dim">
             {keyColumns.length > 0 ? (
               <>
-                one row per{" "}
-                <span className="font-mono text-zinc-700 dark:text-zinc-300">
-                  {keyColumns.join(", ")}
-                </span>
+                one row per <span className="font-mono text-white/75">{keyColumns.join(", ")}</span>
               </>
             ) : (
               "no key yet: tick the columns that identify a row"
@@ -791,7 +701,7 @@ function Editor({
 
         <div className="overflow-x-auto px-4 pt-3 pb-4">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-zinc-400">
+            <thead className="text-left text-xs text-faint">
               <tr>
                 <th className="py-1 font-medium">Name</th>
                 <th className="py-1 font-medium">Type</th>
@@ -809,34 +719,28 @@ function Editor({
                   <td className="py-1 pr-2">
                     <input
                       value={column.name}
-                      onChange={(e) =>
-                        setColumn(index, { name: e.target.value })
-                      }
+                      onChange={(e) => setColumn(index, { name: e.target.value })}
                       spellCheck={false}
                       className={`${field} w-40 font-mono`}
                     />
                   </td>
                   <td className="py-1 pr-2">
-                    <select
+                    <Select
                       value={column.type}
-                      onChange={(e) =>
-                        setColumn(index, { type: e.target.value as ColumnType })
-                      }
-                      className={`${field} font-mono`}
+                      onChange={(e) => setColumn(index, { type: e.target.value as ColumnType })}
+                      className="font-mono"
                     >
                       {COLUMN_TYPES.map((type) => (
                         <option key={type} value={type}>
                           {type}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </td>
                   <td className="py-1 pr-2">
                     <input
                       value={column.default}
-                      onChange={(e) =>
-                        setColumn(index, { default: e.target.value })
-                      }
+                      onChange={(e) => setColumn(index, { default: e.target.value })}
                       placeholder="none"
                       spellCheck={false}
                       className={`${field} w-24 font-mono`}
@@ -846,20 +750,16 @@ function Editor({
                     <input
                       type="checkbox"
                       checked={column.nullable}
-                      onChange={(e) =>
-                        setColumn(index, { nullable: e.target.checked })
-                      }
-                      className="accent-lapis-600"
+                      onChange={(e) => setColumn(index, { nullable: e.target.checked })}
+                      className="accent-blue-500"
                     />
                   </td>
                   <td className="py-1 pr-2">
                     <input
                       type="checkbox"
                       checked={column.key}
-                      onChange={(e) =>
-                        setColumn(index, { key: e.target.checked })
-                      }
-                      className="accent-lapis-600"
+                      onChange={(e) => setColumn(index, { key: e.target.checked })}
+                      className="accent-blue-500"
                     />
                   </td>
                   <td className="py-1">
@@ -870,7 +770,7 @@ function Editor({
                           columns: table.columns.filter((_, i) => i !== index),
                         })
                       }
-                      className="text-xs text-zinc-400 hover:text-red-600"
+                      className="text-xs text-faint hover:text-red-300"
                     >
                       Remove
                     </button>
@@ -910,9 +810,7 @@ function Editor({
           table={table}
           rule={rule}
           onChange={(changes) => setRule(index, changes)}
-          onRemove={() =>
-            set({ rules: table.rules.filter((_, i) => i !== index) })
-          }
+          onRemove={() => set({ rules: table.rules.filter((_, i) => i !== index) })}
         />
       ))}
       <Button
@@ -956,9 +854,7 @@ function RuleCard({
   onRemove: () => void;
 }) {
   const source = sources.find((s) => s.name === rule.on);
-  const readable = rule.deleted
-    ? (source?.delete_fields ?? [])
-    : (source?.fields ?? []);
+  const readable = rule.deleted ? (source?.delete_fields ?? []) : (source?.fields ?? []);
   const keyColumns = table.columns.filter((c) => c.key);
   const mapped = new Set(rule.keys.map((k) => k.column));
   // A key column the record doesn't name has to be mapped.
@@ -979,7 +875,7 @@ function RuleCard({
       onMouseDown={(e) => e.preventDefault()}
       onClick={() => active.current?.insert(insert)}
       title="Click to put it in the expression you're editing"
-      className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono hover:bg-lapis-100 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+      className="rounded bg-well px-1.5 py-0.5 font-mono hover:bg-blue-500/25"
     >
       {text}
     </button>
@@ -987,16 +883,14 @@ function RuleCard({
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-well px-4 py-2 dark:border-zinc-800">
-        <span className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-          Rule {n}
-        </span>
-        <span className="truncate text-xs text-zinc-500">
+      <div className="flex items-center justify-between gap-3 border-b border-line bg-well px-4 py-2">
+        <span className="text-xs font-semibold tracking-wide text-dim uppercase">Rule {n}</span>
+        <span className="truncate text-xs text-dim">
           {rule.removes
             ? "deletes the row"
             : `sets ${rule.sets.length || "no"} column${rule.sets.length === 1 ? "" : "s"}`}
           {" on "}
-          <span className="font-mono text-zinc-700 dark:text-zinc-300">
+          <span className="font-mono text-white/75">
             {rule.on}
             {rule.deleted ? ".deleted" : ""}
           </span>
@@ -1004,32 +898,32 @@ function RuleCard({
       </div>
       <div className="p-4">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-zinc-500">
+          <label className="flex flex-col gap-1.5 text-xs font-medium text-dim">
             On each record from
-            <select
+            <Select
               value={rule.on}
               onChange={(e) => onChange({ on: e.target.value, deleted: false })}
-              className={`${field} font-mono`}
+              className="font-mono"
             >
               {sources.map((s) => (
                 <option key={s.name} value={s.name}>
                   {s.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           {source?.deletes && (
-            <label className="flex items-center gap-2 pb-2 text-xs text-zinc-500">
+            <label className="flex items-center gap-2 pb-2 text-xs text-dim">
               <input
                 type="checkbox"
                 checked={rule.deleted}
                 onChange={(e) => onChange({ deleted: e.target.checked })}
-                className="accent-lapis-600"
+                className="accent-blue-500"
               />
               when it&apos;s deleted
             </label>
           )}
-          <label className="flex flex-1 flex-col gap-1.5 text-xs font-medium text-zinc-500">
+          <label className="flex flex-1 flex-col gap-1.5 text-xs font-medium text-dim">
             Only when (optional)
             <ExpressionInput
               value={rule.when}
@@ -1042,26 +936,24 @@ function RuleCard({
           <button
             type="button"
             onClick={onRemove}
-            className="pb-2 text-xs text-zinc-400 hover:text-red-600"
+            className="pb-2 text-xs text-faint hover:text-red-300"
           >
             Remove rule
           </button>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-dim">
           Click to use:
           {readable.map((f) => chip(f.name))}
           {table.columns.filter((c) => !c.key).map((c) => chip(c.name))}
           {chip("tx.timestamp")}
-          {existing.map((t) =>
-            chip(`${t.name}[${t.key.join(", ")}]`, `${t.name}[`),
-          )}
+          {existing.map((t) => chip(`${t.name}[${t.key.join(", ")}]`, `${t.name}[`))}
         </div>
 
         {unnamed.length > 0 && (
-          <p className="mt-2 text-xs text-amber-600">
-            Say where {unnamed.map((c) => c.name).join(", ")} comes from: the
-            record has no field of that name.
+          <p className="mt-2 text-xs text-amber-300">
+            Say where {unnamed.map((c) => c.name).join(", ")} comes from: the record has no field of
+            that name.
           </p>
         )}
 
@@ -1070,17 +962,17 @@ function RuleCard({
             type="checkbox"
             checked={rule.removes}
             onChange={(e) => onChange({ removes: e.target.checked })}
-            className="accent-lapis-600"
+            className="accent-blue-500"
           />
           Delete the row instead of setting columns
         </label>
 
         {!rule.removes && (
           <div className="mt-2">
-            <div className="text-xs font-medium text-zinc-500">Set</div>
+            <div className="text-xs font-medium text-dim">Set</div>
             {rule.sets.map((assignment, index) => (
               <div key={index} className="mt-1.5 flex items-center gap-2">
-                <select
+                <Select
                   value={assignment.column}
                   onChange={(e) =>
                     onChange({
@@ -1099,15 +991,13 @@ function RuleCard({
                         {c.name}
                       </option>
                     ))}
-                </select>
-                <span className="text-zinc-400">=</span>
+                </Select>
+                <span className="text-faint">=</span>
                 <ExpressionInput
                   value={assignment.expression}
                   onChange={(expression) =>
                     onChange({
-                      sets: rule.sets.map((s, i) =>
-                        i === index ? { ...s, expression } : s,
-                      ),
+                      sets: rule.sets.map((s, i) => (i === index ? { ...s, expression } : s)),
                     })
                   }
                   names={names}
@@ -1116,10 +1006,8 @@ function RuleCard({
                 />
                 <button
                   type="button"
-                  onClick={() =>
-                    onChange({ sets: rule.sets.filter((_, i) => i !== index) })
-                  }
-                  className="text-xs text-zinc-400 hover:text-red-600"
+                  onClick={() => onChange({ sets: rule.sets.filter((_, i) => i !== index) })}
+                  className="text-xs text-faint hover:text-red-300"
                 >
                   Remove
                 </button>
@@ -1140,12 +1028,10 @@ function RuleCard({
 
         {(rule.keys.length > 0 || unnamed.length > 0) && (
           <div className="mt-3">
-            <div className="text-xs font-medium text-zinc-500">
-              Key columns from the record
-            </div>
+            <div className="text-xs font-medium text-dim">Key columns from the record</div>
             {rule.keys.map((assignment, index) => (
               <div key={index} className="mt-1.5 flex items-center gap-2">
-                <select
+                <Select
                   value={assignment.column}
                   onChange={(e) =>
                     onChange({
@@ -1162,15 +1048,13 @@ function RuleCard({
                       {c.name}
                     </option>
                   ))}
-                </select>
-                <span className="text-zinc-400">=</span>
+                </Select>
+                <span className="text-faint">=</span>
                 <ExpressionInput
                   value={assignment.expression}
                   onChange={(expression) =>
                     onChange({
-                      keys: rule.keys.map((k, i) =>
-                        i === index ? { ...k, expression } : k,
-                      ),
+                      keys: rule.keys.map((k, i) => (i === index ? { ...k, expression } : k)),
                     })
                   }
                   names={keyNames}
@@ -1179,10 +1063,8 @@ function RuleCard({
                 />
                 <button
                   type="button"
-                  onClick={() =>
-                    onChange({ keys: rule.keys.filter((_, i) => i !== index) })
-                  }
-                  className="text-xs text-zinc-400 hover:text-red-600"
+                  onClick={() => onChange({ keys: rule.keys.filter((_, i) => i !== index) })}
+                  className="text-xs text-faint hover:text-red-300"
                 >
                   Remove
                 </button>
@@ -1192,10 +1074,7 @@ function RuleCard({
               className="mt-2"
               onClick={() =>
                 onChange({
-                  keys: [
-                    ...rule.keys,
-                    { column: unnamed[0]?.name ?? "", expression: "" },
-                  ],
+                  keys: [...rule.keys, { column: unnamed[0]?.name ?? "", expression: "" }],
                 })
               }
             >

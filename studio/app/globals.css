@@ -1,47 +1,58 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Lapis: the one accent. */
-  --color-lapis-50: oklch(0.97 0.02 262);
-  --color-lapis-100: oklch(0.93 0.04 262);
-  --color-lapis-400: oklch(0.66 0.16 262);
-  --color-lapis-500: oklch(0.57 0.2 262);
-  --color-lapis-600: oklch(0.5 0.21 262);
-  --color-lapis-700: oklch(0.43 0.19 262);
+  /* Blue, the one accent, shared with the landing page so the product is one product.
+     On a dark ground the scale is read from the light end: 300 and 400 carry text and
+     icons, 600 is for solid fills. */
+  --color-blue-50: oklch(0.975 0.012 259);
+  --color-blue-100: oklch(0.945 0.028 259);
+  --color-blue-200: oklch(0.898 0.055 259);
+  --color-blue-300: oklch(0.822 0.095 259);
+  --color-blue-400: oklch(0.716 0.152 259);
+  --color-blue-500: oklch(0.63 0.196 259);
+  --color-blue-600: oklch(0.552 0.221 261);
+  --color-blue-700: oklch(0.482 0.196 262);
 
-  /* Three surfaces, so a card lifts off the page instead of blending into it:
-     the page behind everything, cards on top of it, and sunken wells inside
-     cards for code and data. */
-  --color-page: oklch(0.985 0.002 265);
-  --color-card: oklch(1 0 0);
-  --color-well: oklch(0.975 0.003 265);
+  /* Three grounds, so a card lifts off the page and data sinks into it: the page
+     behind everything, cards on top of it, wells sunk into cards for code and rows. */
+  --color-page: oklch(0.155 0.02 262);
+  --color-card: oklch(0.196 0.021 262);
+  --color-well: oklch(0.131 0.018 263);
 
-  /* The shadow a card casts: barely there, but enough to separate. */
-  --shadow-card: 0 1px 2px oklch(0.2 0.02 265 / 0.05), 0 1px 3px oklch(0.2 0.02 265 / 0.04);
-  --shadow-lifted: 0 4px 12px oklch(0.2 0.02 265 / 0.08), 0 1px 3px oklch(0.2 0.02 265 / 0.05);
+  /* Everything else is white at an opacity rather than a fixed grey, so it sits *on*
+     whatever is behind it — card, well or the wash — instead of cutting a hole in it. */
+  --color-line: oklch(1 0 0 / 0.09);
+  --color-edge: oklch(1 0 0 / 0.18);
+  --color-dim: oklch(1 0 0 / 0.58);
+  --color-faint: oklch(1 0 0 / 0.4);
+  --color-ghost: oklch(1 0 0 / 0.24);
+
+  /* On a dark ground a shadow is a hole, not a haze. */
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-lifted: 0 2px 6px oklch(0 0 0 / 0.4), 0 12px 28px oklch(0 0 0 / 0.35);
 }
 
 :root {
-  color-scheme: light dark;
-}
-
-/* The same three surfaces after dark: the variables `@theme` generated, overridden in
-   place. `@theme` itself can't live in a media query — its declarations escape it. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-page: oklch(0.17 0.006 265);
-    --color-card: oklch(0.212 0.006 265);
-    --color-well: oklch(0.185 0.006 265);
-    --shadow-card: 0 1px 2px oklch(0 0 0 / 0.3);
-    --shadow-lifted: 0 4px 12px oklch(0 0 0 / 0.4);
-  }
+  color-scheme: dark;
 }
 
 body {
-  @apply bg-page text-zinc-900 antialiased dark:text-zinc-100;
+  @apply bg-page text-white antialiased;
+}
+
+/* The light in the room, the same blue as the landing page, kept faint and fixed so it
+   never competes with a number someone is reading. */
+.wash {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(48rem 32rem at 0% 0%, oklch(0.552 0.221 261 / 0.16), transparent 62%),
+    radial-gradient(42rem 30rem at 100% 100%, oklch(0.63 0.196 259 / 0.1), transparent 62%);
 }
 
 /* Numbers that change in place shouldn't jiggle. */
@@ -52,7 +63,7 @@ body {
 /* A row the feed just changed. */
 @keyframes flash {
   from {
-    background-color: color-mix(in oklch, var(--color-lapis-400) 28%, transparent);
+    background-color: color-mix(in oklch, var(--color-blue-500) 32%, transparent);
   }
   to {
     background-color: transparent;
@@ -92,4 +103,12 @@ body {
 
 .reveal {
   animation: reveal 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash,
+  .enter,
+  .reveal {
+    animation: none;
+  }
 }

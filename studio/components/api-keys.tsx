@@ -65,15 +65,15 @@ export function ApiKeys({ project, api }: { project: string; api: string }) {
   };
 
   const field =
-    "rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-sm focus:border-lapis-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900";
+    "rounded-md border border-line bg-card px-2.5 py-1.5 text-sm focus:border-blue-400 focus:outline-none";
   const url = `${API_URL}${api}/v1/tables`;
 
   return (
     <Card>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
         <div>
           <h2 className="text-sm font-medium">API keys</h2>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-dim">
             What your app sends to read this project. Safe in browser code: revoke one any time.
           </p>
         </div>
@@ -97,34 +97,42 @@ export function ApiKeys({ project, api }: { project: string; api: string }) {
         </form>
       </div>
 
-      {error && <p className="border-b border-zinc-200 px-4 py-2 text-sm text-red-600 dark:border-zinc-800">{error}</p>}
+      {error && <p className="border-b border-line px-4 py-2 text-sm text-red-300">{error}</p>}
 
       {created?.key && (
-        <div className="border-b border-zinc-200 bg-emerald-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-emerald-950/30">
-          <div className="text-sm font-medium">Copy your key now: it won&apos;t be shown again.</div>
+        <div className="border-b border-line bg-emerald-500/10 px-4 py-3">
+          <div className="text-sm font-medium">
+            Copy your key now: it won&apos;t be shown again.
+          </div>
           <div className="mt-2 flex items-center gap-2">
-            <code className="min-w-0 flex-1 truncate rounded bg-white px-2 py-1 font-mono text-xs dark:bg-zinc-900">
+            <code className="min-w-0 flex-1 truncate rounded bg-card px-2 py-1 font-mono text-xs">
               {created.key}
             </code>
-            <Button onClick={() => void copy(created.key ?? "")}>{copied ? "Copied" : "Copy"}</Button>
+            <Button onClick={() => void copy(created.key ?? "")}>
+              {copied ? "Copied" : "Copy"}
+            </Button>
           </div>
-          <pre className="mt-2 overflow-x-auto rounded-lg bg-zinc-900 px-3 py-2 font-mono text-xs text-zinc-100">
+          <pre className="mt-2 overflow-x-auto rounded-lg bg-well px-3 py-2 font-mono text-xs text-white">
             {`curl -H 'Authorization: Bearer ${created.key}' \\\n  '${url}'`}
           </pre>
         </div>
       )}
 
       {keys && keys.length === 0 && !created && (
-        <p className="px-4 py-3 text-sm text-zinc-500">No keys yet. Create one for each app that reads this project.</p>
+        <p className="px-4 py-3 text-sm text-dim">
+          No keys yet. Create one for each app that reads this project.
+        </p>
       )}
       {keys && keys.length > 0 && (
-        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+        <ul className="divide-y divide-line">
           {keys.map((key) => (
             <li key={key.id} className="flex items-center gap-4 px-4 py-2.5 text-sm">
               <span className="w-40 truncate">{key.label}</span>
-              <code className="font-mono text-xs text-zinc-500">{key.prefix}…</code>
-              <span className="ml-auto text-xs text-zinc-400">
-                {key.last_used_at ? `used ${new Date(key.last_used_at).toLocaleString()}` : "never used"}
+              <code className="font-mono text-xs text-dim">{key.prefix}…</code>
+              <span className="ml-auto text-xs text-faint">
+                {key.last_used_at
+                  ? `used ${new Date(key.last_used_at).toLocaleString()}`
+                  : "never used"}
               </span>
               <Button tone="danger" onClick={() => void revoke(key.id)}>
                 {confirming === key.id ? "Revoke it?" : "Revoke"}

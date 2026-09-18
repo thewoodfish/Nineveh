@@ -4,13 +4,40 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button, Card, Field, Notice, PageHeader, Segmented, field } from "@/components/ui";
-import { ApiError, type Catalog, type CatalogItem, type Network, type Start, control } from "@/lib/api";
+import {
+  ApiError,
+  type Catalog,
+  type CatalogItem,
+  type Network,
+  type Start,
+  control,
+} from "@/lib/api";
 import { useProject } from "@/lib/project";
 
-const KINDS: { kind: CatalogItem["kind"]; title: string; becomes: string; hint: string }[] = [
-  { kind: "event", title: "Events", becomes: "log", hint: "a row per event, in order" },
-  { kind: "resource", title: "Resources", becomes: "mirror", hint: "the latest value at each address" },
-  { kind: "table", title: "Tables", becomes: "mirror", hint: "the latest value of each item" },
+const KINDS: {
+  kind: CatalogItem["kind"];
+  title: string;
+  becomes: string;
+  hint: string;
+}[] = [
+  {
+    kind: "event",
+    title: "Events",
+    becomes: "log",
+    hint: "a row per event, in order",
+  },
+  {
+    kind: "resource",
+    title: "Resources",
+    becomes: "mirror",
+    hint: "the latest value at each address",
+  },
+  {
+    kind: "table",
+    title: "Tables",
+    becomes: "mirror",
+    hint: "the latest value of each item",
+  },
 ];
 
 type Failure = { message: string; details?: string };
@@ -39,9 +66,9 @@ export default function NewProject() {
 
   if (mode === "single") {
     return (
-      <div className="mx-auto mt-24 max-w-md px-6 text-center text-sm text-zinc-500">
+      <div className="mx-auto mt-24 max-w-md px-6 text-center text-sm text-dim">
         Creating projects needs the control plane. Run{" "}
-        <span className="font-mono text-zinc-800 dark:text-zinc-200">nineveh up</span> instead of{" "}
+        <span className="font-mono text-white">nineveh up</span> instead of{" "}
         <span className="font-mono">nineveh run --serve</span>.
       </div>
     );
@@ -66,7 +93,12 @@ export default function NewProject() {
     }
   };
 
-  const draft = { name, network, start, picks: catalog?.items.filter((i) => picked.has(i.id)).map((i) => i.id) ?? [] };
+  const draft = {
+    name,
+    network,
+    start,
+    picks: catalog?.items.filter((i) => picked.has(i.id)).map((i) => i.id) ?? [],
+  };
 
   const showPreview = async () => {
     setError(null);
@@ -102,7 +134,7 @@ export default function NewProject() {
               <h2 className="text-3xl font-semibold tracking-tight text-balance">
                 Point Nineveh at your contract
               </h2>
-              <p className="mx-auto mt-3 max-w-lg text-zinc-500 text-pretty">
+              <p className="mx-auto mt-3 max-w-lg text-dim text-pretty">
                 Paste the address your Move modules are published at. Nineveh reads them off the
                 chain and shows you what it can follow — no config to write.
               </p>
@@ -128,17 +160,12 @@ export default function NewProject() {
               autoFocus
               className={`${field} min-w-0 flex-1 py-2.5 font-mono`}
             />
-            <Button
-              type="submit"
-              tone="primary"
-              size="lg"
-              disabled={inspecting || !address.trim()}
-            >
+            <Button type="submit" tone="primary" size="lg" disabled={inspecting || !address.trim()}>
               {inspecting ? "Reading modules…" : "Inspect"}
             </Button>
           </form>
           {!catalog && !inspecting && (
-            <p className="mt-4 text-xs text-zinc-400">
+            <p className="mt-4 text-xs text-faint">
               Nothing is created yet. You&apos;ll see what the contract offers first.
             </p>
           )}
@@ -146,7 +173,11 @@ export default function NewProject() {
 
         {error && !creating && (
           <Notice tone="error" title={error.message}>
-            {error.details && <pre className="mt-1 overflow-x-auto font-mono text-xs whitespace-pre">{error.details}</pre>}
+            {error.details && (
+              <pre className="mt-1 overflow-x-auto font-mono text-xs whitespace-pre">
+                {error.details}
+              </pre>
+            )}
           </Notice>
         )}
 
@@ -161,7 +192,7 @@ export default function NewProject() {
               <button
                 type="button"
                 onClick={() => setChoosing(!choosing)}
-                className="mt-2 text-sm font-medium text-lapis-600 hover:underline"
+                className="mt-2 text-sm font-medium text-blue-300 hover:underline"
               >
                 {choosing ? "Hide the list" : "Choose what to follow"}
               </button>
@@ -182,7 +213,9 @@ export default function NewProject() {
                     items={catalog.items.filter(
                       (i) =>
                         i.kind === kind &&
-                        `${i.module}::${i.name}`.toLowerCase().includes(search.trim().toLowerCase()),
+                        `${i.module}::${i.name}`
+                          .toLowerCase()
+                          .includes(search.trim().toLowerCase()),
                     )}
                     becomes={becomes}
                     picked={picked}
@@ -228,7 +261,7 @@ export default function NewProject() {
               </div>
             </Step>
 
-            <div className="sticky bottom-0 -mx-8 flex flex-wrap items-center gap-3 border-t border-zinc-200/80 bg-page/85 px-8 py-4 backdrop-blur dark:border-zinc-800">
+            <div className="sticky bottom-0 -mx-8 flex flex-wrap items-center gap-3 border-t border-line bg-page/85 px-8 py-4 backdrop-blur">
               <Button
                 tone="primary"
                 size="lg"
@@ -239,21 +272,28 @@ export default function NewProject() {
                   ? "Pinning layouts and starting…"
                   : `Create backend with ${draft.picks.length} ${draft.picks.length === 1 ? "table" : "tables"}`}
               </Button>
-              <Button disabled={creating || draft.picks.length === 0} onClick={() => void (preview ? setPreview(null) : showPreview())}>
+              <Button
+                disabled={creating || draft.picks.length === 0}
+                onClick={() => void (preview ? setPreview(null) : showPreview())}
+              >
                 {preview ? "Hide config" : "Preview config"}
               </Button>
-              {creating && error && <span className="text-sm text-red-600">{error.message}</span>}
+              {creating && error && <span className="text-sm text-red-300">{error.message}</span>}
             </div>
             {creating && error?.details && (
-              <pre className="overflow-x-auto rounded-lg bg-red-50 p-3 font-mono text-xs text-red-900">{error.details}</pre>
+              <pre className="overflow-x-auto rounded-lg bg-red-500/15 p-3 font-mono text-xs text-red-200">
+                {error.details}
+              </pre>
             )}
             {preview && (
               <Card className="overflow-hidden">
-                <div className="border-b border-zinc-200 px-4 py-2 text-xs text-zinc-500 dark:border-zinc-800">
-                  <span className="font-mono">nineveh.yaml</span>: what Nineveh will run. You can edit it after
-                  creating, from the project&apos;s Config.
+                <div className="border-b border-line px-4 py-2 text-xs text-dim">
+                  <span className="font-mono">nineveh.yaml</span>: what Nineveh will run. You can
+                  edit it after creating, from the project&apos;s Config.
                 </div>
-                <pre className="max-h-96 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">{preview}</pre>
+                <pre className="max-h-96 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">
+                  {preview}
+                </pre>
               </Card>
             )}
           </div>
@@ -287,22 +327,22 @@ function Following({ catalog, picked }: { catalog: Catalog; picked: Set<string> 
               {n} {what}
               {n === 1 ? "" : "s"}
             </span>
-            <span className="text-zinc-500"> — {how}</span>
+            <span className="text-dim"> — {how}</span>
           </div>
         ))}
-      {total === 0 && <div className="text-zinc-500">Nothing ticked: pick something below.</div>}
+      {total === 0 && <div className="text-dim">Nothing ticked: pick something below.</div>}
       {unsupported > 0 && (
-        <div className="text-xs text-zinc-400">
+        <div className="text-xs text-faint">
           {unsupported} more Nineveh can&apos;t follow yet, listed below with the reason.
         </div>
       )}
       {total > 40 && (
-        <div className="text-xs text-amber-600">
-          That&apos;s a lot of tables for one project. Narrowing it makes the first build
-          quicker, and you can add sources later.
+        <div className="text-xs text-amber-300">
+          That&apos;s a lot of tables for one project. Narrowing it makes the first build quicker,
+          and you can add sources later.
         </div>
       )}
-      <div className="text-xs text-zinc-500">
+      <div className="text-xs text-dim">
         Then build your own state tables from these, in the project.
       </div>
     </div>
@@ -323,12 +363,12 @@ function Step({
   return (
     <section>
       <div className="mb-4 flex items-baseline gap-3">
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-lapis-50 text-xs font-semibold text-lapis-600 dark:bg-lapis-500/15 dark:text-lapis-400">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-xs font-semibold text-blue-300">
           {n}
         </span>
         <div>
           <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-          {hint && <p className="mt-0.5 text-sm text-zinc-500">{hint}</p>}
+          {hint && <p className="mt-0.5 text-sm text-dim">{hint}</p>}
         </div>
       </div>
       <div className="pl-9">{children}</div>
@@ -370,20 +410,24 @@ function Group({
   };
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-well px-4 py-2.5 dark:border-zinc-800">
+      <div className="flex items-center justify-between gap-3 border-b border-line bg-well px-4 py-2.5">
         <div className="text-sm">
           <span className="font-medium">{title}</span>{" "}
-          <span className="text-xs text-zinc-400">
+          <span className="text-xs text-faint">
             {followable.filter((i) => picked.has(i.id)).length} of {items.length} · {hint}
           </span>
         </div>
         {followable.length > 0 && (
-          <button type="button" onClick={toggleAll} className="text-xs font-medium text-lapis-600 hover:underline">
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="text-xs font-medium text-blue-300 hover:underline"
+          >
             {all ? "None" : "All"}
           </button>
         )}
       </div>
-      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+      <ul className="divide-y divide-line">
         {items.map((item) => (
           <li key={item.id}>
             <label
@@ -396,34 +440,33 @@ function Group({
                 disabled={!!item.unsupported}
                 checked={picked.has(item.id)}
                 onChange={() => toggle(item.id)}
-                className="mt-0.5 accent-lapis-600"
+                className="mt-0.5 accent-blue-500"
               />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline gap-x-2">
                   <span className="font-mono text-[13px] font-medium">{item.name}</span>
-                  <span className="text-xs text-zinc-400">{item.module}</span>
-                  {item.generic && <span className="text-xs text-zinc-400">generic</span>}
+                  <span className="text-xs text-faint">{item.module}</span>
+                  {item.generic && <span className="text-xs text-faint">generic</span>}
                   {item.variants.length > 0 && (
                     <span
-                      className="text-xs text-zinc-400"
+                      className="text-xs text-faint"
                       title="A Move enum: its table gets a column per field of any variant"
                     >
                       enum {item.variants.join(", ")}
                     </span>
                   )}
                 </div>
-                <div className="truncate font-mono text-xs text-zinc-500">
+                <div className="truncate font-mono text-xs text-dim">
                   {item.unsupported ??
                     item.fields.map((f) => `${f.name}: ${shortType(f.type)}`).join(", ")}
                 </div>
               </div>
               {!item.unsupported && (
                 <span
-                  className="hidden max-w-56 shrink-0 truncate font-mono text-xs text-zinc-400 sm:block"
+                  className="hidden max-w-56 shrink-0 truncate font-mono text-xs text-faint sm:block"
                   title={`${item.suggested_name} (${becomes} table)`}
                 >
-                  → {item.suggested_name}{" "}
-                  <span className="text-zinc-300 dark:text-zinc-600">{becomes}</span>
+                  → {item.suggested_name} <span className="text-ghost">{becomes}</span>
                 </span>
               )}
             </label>
@@ -434,19 +477,29 @@ function Group({
   );
 }
 
-function Choice({ active, onClick, title, body }: { active: boolean; onClick: () => void; title: string; body: string }) {
+function Choice({
+  active,
+  onClick,
+  title,
+  body,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  body: string;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`rounded-lg border px-4 py-3 text-left transition-colors ${
         active
-          ? "border-lapis-400 bg-lapis-50/60 ring-1 ring-lapis-400 dark:bg-lapis-500/10"
-          : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
+          ? "border-blue-400 bg-blue-500/10 ring-1 ring-blue-400/60"
+          : "border-line hover:border-edge"
       }`}
     >
       <div className="text-sm font-medium">{title}</div>
-      <div className="mt-0.5 text-xs text-zinc-500">{body}</div>
+      <div className="mt-0.5 text-xs text-dim">{body}</div>
     </button>
   );
 }
@@ -467,7 +520,11 @@ function suggestName(catalog: Catalog, taken: string[]): string {
     if (!item.unsupported) counts.set(item.module, (counts.get(item.module) ?? 0) + 1);
   }
   const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "app";
-  const base = top.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^[^a-z]+/, "") || "app";
+  const base =
+    top
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "_")
+      .replace(/^[^a-z]+/, "") || "app";
   let name = base;
   for (let n = 2; taken.includes(name); n++) name = `${base}_${n}`;
   return name;
