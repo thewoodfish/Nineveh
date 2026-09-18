@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Blue, the whole way down. One hue, used for the accent, the glow and the ink,
+     so the page reads as one thing rather than a palette. */
+  --color-blue-50: oklch(0.971 0.014 259);
+  --color-blue-100: oklch(0.938 0.031 259);
+  --color-blue-200: oklch(0.885 0.059 259);
+  --color-blue-300: oklch(0.809 0.099 259);
+  --color-blue-400: oklch(0.708 0.156 259);
+  --color-blue-500: oklch(0.623 0.198 259);
+  --color-blue-600: oklch(0.545 0.222 261);
+  --color-blue-700: oklch(0.476 0.196 262);
+  --color-blue-800: oklch(0.406 0.158 262);
+  --color-blue-900: oklch(0.356 0.122 263);
+  --color-blue-950: oklch(0.24 0.086 264);
+
+  /* Ink: near-neutral, with just enough blue in it to belong. */
+  --color-ink-50: oklch(0.985 0.002 264);
+  --color-ink-100: oklch(0.967 0.003 264);
+  --color-ink-200: oklch(0.925 0.005 264);
+  --color-ink-300: oklch(0.867 0.008 264);
+  --color-ink-400: oklch(0.704 0.012 264);
+  --color-ink-500: oklch(0.548 0.015 264);
+  --color-ink-600: oklch(0.44 0.016 264);
+  --color-ink-700: oklch(0.363 0.017 264);
+  --color-ink-800: oklch(0.256 0.016 264);
+  --color-ink-900: oklch(0.194 0.017 264);
+  --color-ink-950: oklch(0.13 0.016 264);
+
+  --shadow-card: 0 1px 2px oklch(0.2 0.02 264 / 0.05), 0 1px 3px oklch(0.2 0.02 264 / 0.04);
+  --shadow-lifted: 0 8px 24px oklch(0.2 0.02 264 / 0.08), 0 2px 6px oklch(0.2 0.02 264 / 0.05);
+  --shadow-glow: 0 0 60px oklch(0.623 0.198 259 / 0.35);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  @apply bg-white text-ink-900;
+}
+
+::selection {
+  background: var(--color-blue-200);
+}
+
+/* A section that sits on the dark end of the page. */
+.on-dark {
+  @apply bg-ink-950 text-ink-100;
+}
+
+/* The light that sits behind the hero: a wide, soft blue aurora. */
+.aurora {
+  background:
+    radial-gradient(60rem 32rem at 50% -8rem, oklch(0.545 0.222 261 / 0.5), transparent 70%),
+    radial-gradient(40rem 24rem at 12% 8rem, oklch(0.476 0.196 262 / 0.28), transparent 70%),
+    radial-gradient(36rem 22rem at 88% 4rem, oklch(0.623 0.198 259 / 0.22), transparent 70%);
+}
+
+/* The faint grid the hero sits on: structure, barely seen. */
+.grid-lines {
+  background-image:
+    linear-gradient(to right, oklch(1 0 0 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(1 0 0 / 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(48rem 32rem at 50% 20%, black, transparent 80%);
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.arrive {
+  animation: arrive 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes settle {
+  0% {
+    background-color: oklch(0.623 0.198 259 / 0.22);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.settle {
+  animation: settle 1.4s ease-out;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Sections lift into place as they're reached. */
+.rise {
+  animation: rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-timeline: view();
+  animation-range: entry 0% cover 22%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .arrive,
+  .settle,
+  .rise {
+    animation: none;
+  }
+}
