@@ -1,4 +1,5 @@
 import { Button, Code, Eyebrow, Heading, Lede, Logo, Section } from "@/components/bits";
+import { Builds } from "@/components/builds";
 import { Stream } from "@/components/stream";
 
 const CONFIG = [
@@ -53,29 +54,6 @@ const STEPS = [
   },
 ];
 
-const BUILDS = [
-  { title: "Leaderboards", chain: "one player's record", you: "every player, ranked, live" },
-  {
-    title: "Marketplaces",
-    chain: "listings with no address to read",
-    you: "what's for sale now, and revenue per seller",
-  },
-  {
-    title: "Token & points apps",
-    chain: "one balance at a time",
-    you: "every holder, sortable, with their history",
-  },
-  {
-    title: "Feeds and activity",
-    chain: "no history, no order",
-    you: "history you can page through",
-  },
-  {
-    title: "Protocol dashboards",
-    chain: "no totals, no aggregates",
-    you: "volume, fees, who's near liquidation",
-  },
-];
 
 const GUARANTEES = [
   { title: "In order", body: "A balance that goes 5 → 12 → 7 lands as 7, never as 12." },
@@ -197,30 +175,13 @@ export default function Home() {
               isn&apos;t queryable.
             </Lede>
           </div>
-          <div className="rise mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {BUILDS.map((b) => (
-              <div
-                key={b.title}
-                className="rounded-2xl border border-ink-200/70 bg-white/70 p-6 backdrop-blur transition-shadow hover:shadow-card"
-              >
-                <h3 className="font-semibold text-ink-900">{b.title}</h3>
-                <p className="mt-4 flex items-baseline gap-2 text-sm text-ink-400">
-                  <span className="w-10 shrink-0 font-mono text-[11px]">chain</span>
-                  <span className="line-through decoration-ink-300">{b.chain}</span>
-                </p>
-                <p className="mt-1.5 flex items-baseline gap-2 text-sm text-ink-700">
-                  <span className="w-10 shrink-0 font-mono text-[11px] text-blue-600">you</span>
-                  <span>{b.you}</span>
-                </p>
-              </div>
-            ))}
-            <div className="flex items-center rounded-2xl border border-dashed border-blue-200 bg-blue-50/40 p-6">
-              <p className="text-sm leading-relaxed text-ink-600">
-                Whatever your contract emits, you can fold it into a table shaped like the question
-                you actually ask.
-              </p>
-            </div>
+          <div className="rise mt-12">
+            <Builds />
           </div>
+          <p className="rise mt-6 text-sm text-ink-500">
+            Whatever your contract emits, you can fold it into a table shaped like the question you
+            actually ask.
+          </p>
         </Section>
 
         <Closing />
