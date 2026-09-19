@@ -43,4 +43,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0018](0018-accounts-sessions-and-api-keys.md) | Sign in with GitHub; reach projects with API keys | Accepted |
 | [0019](0019-reducers-read-other-tables.md) | Let a reducer read other tables by key | Accepted |
 | [0020](0020-signed-webhook-deliveries.md) | Deliver state changes as signed webhooks, one cursor per endpoint | Accepted |
-| [0021](0021-shared-tip-ingest-and-queued-backfill.md) | Share one tip stream per network; queue backfill against a fixed pool | Proposed |
+| [0021](0021-shared-tip-ingest-and-queued-backfill.md) | Acquire the chain once per network; replay projects from their own records | Proposed |
