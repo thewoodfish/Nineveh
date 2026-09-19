@@ -195,3 +195,47 @@ The consequence for the design: a project's history can be acquired exactly once
 the Transaction Stream, and there is no cheaper second route to it afterwards. Decoded
 records kept per project are not an optimization for rebuild speed — they are the only
 copy of that history that doesn't cost a stream slot and several hours to obtain again.
+
+## The concurrent-stream limit, measured (2026-09-19)
+
+ADR 0021 sizes its backfill pool from a number it could only name as an open question:
+how many Transaction Streams this organization may hold at once. Geomi caps it and
+answers over the cap with a 429. `cargo run --release -p nineveh-ingest --example
+stream_cap` opens streams one at a time, reads a batch from each to prove it is really
+being served, and holds every earlier one open until one is refused.
+
+| Network | Streams served | Refused at |
+|---|---|---|
+| testnet | **7** | 8th |
+| mainnet | **22** | 23rd |
+
+The refusal is `Unavailable: grpc-status header missing, mapped from HTTP status code
+429` in both cases, and both numbers reproduced exactly on a repeat run.
+
+Three things the probe establishes beyond the numbers:
+
+**The pools are per network, not one shared pool.** Holding all 7 testnet streams open
+and probing mainnet at the same time still reached 22. So the ceiling is per network —
+a plane serving two networks gets both allowances, not one split between them.
+
+**The pool is per key, across processes.** With 7 testnet streams held by one process,
+a second process on the same key was refused at its *first* stream. The limit is not a
+per-connection or per-process thing that more workers route around; it is an allowance
+attached to the key, and every process sharing that key draws on it.
+
+**Testnet is the scarce one, and testnet is where the free tier lives.** Seven is not a
+ceiling a product grows into — it is a ceiling it starts at. A stream per project caps
+a hosted plane at **seven concurrent testnet projects**, before any consideration of
+load, revenue or demand, and a single deep backfill holds one of those seven for hours.
+
+This is a stronger version of the argument in ADR 0021 rather than a new one. The ADR
+reasoned that a count cannot be bought per customer the way bytes can; the measurement
+says the count is also small enough that the design is at its ceiling with seven
+customers. Acquire-once-per-network changes the steady-state stream count from N (one
+per project) to 1 per network plus a fixed backfill pool — which, against 7, is the
+difference between a product and a demo.
+
+It also sizes the pool concretely. On testnet, `1 shared reader + 4 backfill slots = 5`
+leaves two streams of headroom against 7; on mainnet the same shape has sixteen spare.
+Testnet sets the pool, so the pool is small, which makes the queueing in ADR 0021 —
+backfill takes a slot and waits for one — load-bearing rather than theoretical.
