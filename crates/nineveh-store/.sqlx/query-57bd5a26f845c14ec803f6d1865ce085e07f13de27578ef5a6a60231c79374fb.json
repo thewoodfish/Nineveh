@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT cursor, lock_hash FROM nineveh.record_cursors WHERE project = $1",
+  "query": "SELECT cursor, lock_hash, sources FROM nineveh.record_cursors WHERE project = $1",
   "describe": {
     "columns": [
       {
@@ -12,6 +12,11 @@
         "ordinal": 1,
         "name": "lock_hash",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "sources",
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -21,8 +26,9 @@
     },
     "nullable": [
       true,
+      false,
       false
     ]
   },
-  "hash": "732dd15df7b566b872065eedb81a96bdbaea7cb9fb45ddd4125d43101dc2766e"
+  "hash": "57bd5a26f845c14ec803f6d1865ce085e07f13de27578ef5a6a60231c79374fb"
 }

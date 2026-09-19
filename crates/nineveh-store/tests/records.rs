@@ -123,6 +123,7 @@ async fn records_survive_the_database_unchanged() {
         &pool,
         &name,
         "lock-a",
+        &["sold".to_owned()],
         &logged(&originals),
         Version::new(100),
     )
@@ -146,6 +147,11 @@ async fn records_survive_the_database_unchanged() {
     let state = records::state(&pool, &name).await.unwrap().unwrap();
     assert_eq!(state.cursor, Some(Version::new(100)));
     assert_eq!(state.lock_hash, "lock-a");
+    assert_eq!(
+        state.sources,
+        vec!["sold".to_owned()],
+        "the log records what it covers"
+    );
 
     records::forget(&pool, &name).await.unwrap();
 }
@@ -160,9 +166,16 @@ async fn appending_a_version_twice_is_idempotent() {
     let rows = logged(&originals);
 
     for _ in 0..2 {
-        records::append(&pool, &name, "lock-a", &rows, Version::new(100))
-            .await
-            .unwrap();
+        records::append(
+            &pool,
+            &name,
+            "lock-a",
+            &["sold".to_owned()],
+            &rows,
+            Version::new(100),
+        )
+        .await
+        .unwrap();
     }
 
     let read = records::read(&pool, &name, Version::new(0), Version::new(200))
@@ -184,12 +197,26 @@ async fn projects_do_not_see_each_others_records() {
     let Some(pool) = pool().await else { return };
     let (a, b) = (project(3), project(4));
     let rows = logged(&every_kind());
-    records::append(&pool, &a, "lock-a", &rows, Version::new(100))
-        .await
-        .unwrap();
-    records::append(&pool, &b, "lock-b", &rows, Version::new(100))
-        .await
-        .unwrap();
+    records::append(
+        &pool,
+        &a,
+        "lock-a",
+        &["sold".to_owned()],
+        &rows,
+        Version::new(100),
+    )
+    .await
+    .unwrap();
+    records::append(
+        &pool,
+        &b,
+        "lock-b",
+        &["sold".to_owned()],
+        &rows,
+        Version::new(100),
+    )
+    .await
+    .unwrap();
 
     records::forget(&pool, &a).await.unwrap();
     assert!(
@@ -231,9 +258,16 @@ async fn a_corrupt_row_is_an_error_not_a_panic() {
         address: "not an address".to_owned(),
         ty: "0x1::a::B".to_owned(),
     };
-    records::append(&pool, &name, "lock-a", &rows, Version::new(100))
-        .await
-        .unwrap();
+    records::append(
+        &pool,
+        &name,
+        "lock-a",
+        &["sold".to_owned()],
+        &rows,
+        Version::new(100),
+    )
+    .await
+    .unwrap();
 
     let read = records::read(&pool, &name, Version::new(0), Version::new(200))
         .await

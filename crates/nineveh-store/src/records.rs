@@ -41,6 +41,9 @@ pub struct LogState {
     /// The lock the records were decoded against. A change means they have to be
     /// filled again from the stream: they were decoded under layouts since corrected.
     pub lock_hash: String,
+    /// The sources the log holds records for, sorted. A config that adds one has no
+    /// history for it here.
+    pub sources: Vec<String>,
 }
 
 /// The log's state for `project`, or `None` if it has never been written.
@@ -50,7 +53,7 @@ pub struct LogState {
 /// If the database fails.
 pub async fn state(pool: &PgPool, project: &str) -> Result<Option<LogState>, StoreError> {
     let row = sqlx::query!(
-        "SELECT cursor, lock_hash FROM nineveh.record_cursors WHERE project = $1",
+        "SELECT cursor, lock_hash, sources FROM nineveh.record_cursors WHERE project = $1",
         project
     )
     .fetch_optional(pool)
@@ -61,6 +64,12 @@ pub async fn state(pool: &PgPool, project: &str) -> Result<Option<LogState>, Sto
             .and_then(|c| u64::try_from(c).ok())
             .map(Version::new),
         lock_hash: r.lock_hash,
+        sources: r
+            .sources
+            .split(',')
+            .filter(|s| !s.is_empty())
+            .map(ToOwned::to_owned)
+            .collect(),
     }))
 }
 
@@ -77,6 +86,7 @@ pub async fn append(
     pool: &PgPool,
     project: &str,
     lock_hash: &str,
+    sources: &[String],
     records: &[Logged],
     through: Version,
 ) -> Result<(), StoreError> {
@@ -118,15 +128,17 @@ pub async fn append(
         reason: "version past i64".into(),
     })?;
     sqlx::query!(
-        r#"INSERT INTO nineveh.record_cursors (project, cursor, lock_hash)
-           VALUES ($1, $2, $3)
+        r#"INSERT INTO nineveh.record_cursors (project, cursor, lock_hash, sources)
+           VALUES ($1, $2, $3, $4)
            ON CONFLICT (project) DO UPDATE
                SET cursor = excluded.cursor,
                    lock_hash = excluded.lock_hash,
+                   sources = excluded.sources,
                    updated_at = now()"#,
         project,
         through_i64,
         lock_hash,
+        sources.join(","),
     )
     .execute(&mut *tx)
     .await?;
@@ -181,6 +193,27 @@ pub async fn read(
             })
         })
         .collect()
+}
+
+/// The earliest version logged for `project`, or `None` if nothing is.
+///
+/// A rebuild needs the log to reach back to where it starts; this says how far back
+/// that is.
+///
+/// # Errors
+///
+/// If the database fails.
+pub async fn first_version(pool: &PgPool, project: &str) -> Result<Option<Version>, StoreError> {
+    let row = sqlx::query!(
+        "SELECT min(version) AS earliest FROM nineveh.records WHERE project = $1",
+        project
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(row
+        .earliest
+        .and_then(|v| u64::try_from(v).ok())
+        .map(Version::new))
 }
 
 /// Drop everything logged for `project`. Used when the lock changes: the records were

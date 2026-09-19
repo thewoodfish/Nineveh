@@ -71,6 +71,25 @@ impl Project {
         Some(watcher_name(&table_source, &watcher.parent, &watcher.field))
     }
 
+    /// Every source the decoder can emit records for, named and sorted.
+    ///
+    /// The record log keeps this beside its cursor (ADR 0022). A rebuild may replay
+    /// the log only if every source in the config is one the log already covers:
+    /// adding a source has no history to replay, so it goes back to the stream.
+    #[must_use]
+    pub fn source_names(&self) -> Vec<String> {
+        let mut names: Vec<String> = self
+            .config
+            .sources
+            .iter()
+            .map(|s| s.name.as_str().to_owned())
+            .chain(self.watchers.iter().filter_map(|w| self.source_name(w.id)))
+            .collect();
+        names.sort();
+        names.dedup();
+        names
+    }
+
     /// The id a name has in this config, for a declared source or a watcher.
     ///
     /// The inverse of [`Project::source_name`], used to put a logged record back where

@@ -9,7 +9,9 @@ use nineveh_api::Health;
 use nineveh_config::Project;
 use nineveh_core::Version;
 use nineveh_decode::Lockfile;
-use nineveh_pipeline::{Outcome, Parallel, Pipeline, PipelineConfig, PipelineError, Status};
+use nineveh_pipeline::{
+    Outcome, Parallel, Pipeline, PipelineConfig, PipelineError, Status, replay,
+};
 use nineveh_store::{Store, StoreError, shadow_name};
 use sqlx::PgPool;
 use tokio::sync::watch;
@@ -186,9 +188,15 @@ impl<C: Chain> Runner<C> {
                 through = target.get(),
                 "rebuilding: the current build stays served until the new one catches up"
             );
-            if let Outcome::Finished { .. } =
-                self.pipeline(&shadow, Some(target), stop.clone()).await?
-            {
+            let finished = match self.replay_shadow(&shadow, target).await {
+                Ok(true) => true,
+                Ok(false) => matches!(
+                    self.pipeline(&shadow, Some(target), stop.clone()).await?,
+                    Outcome::Finished { .. }
+                ),
+                Err(error) => return Err(error),
+            };
+            if finished {
                 Store::swap(&self.pool, &self.schema, &shadow).await?;
                 info!(schema = %self.schema, "swapped in the rebuild");
                 // The rebuild's outbox is a different feed. Webhook endpoints move to
@@ -227,6 +235,66 @@ impl<C: Chain> Runner<C> {
     }
 
     /// Run a pipeline into `schema` until `until`, `stop`, or a failure.
+    /// Rebuild the shadow from the project's own record log, if the log can serve it.
+    ///
+    /// Returns whether it did. A rebuild exists because rows are derived, not because
+    /// the chain has to be read again — and reading it again is the expensive part
+    /// (ADR 0022): days of a scarce stream for a contract a few months old, charged on
+    /// the most ordinary action there is, editing a rule. When the records are already
+    /// kept, the history doesn't have to be bought twice.
+    ///
+    /// Anything the log can't cover falls back to the stream, which is always correct
+    /// and only slower.
+    async fn replay_shadow(&self, shadow: &str, target: Version) -> Result<bool, RunError> {
+        let name = self.project.config().name.as_str();
+        let lock_hash = nineveh_store::lock_hash(&self.lock)?;
+        if let Err(why) = replay::available(
+            &self.pool,
+            name,
+            &lock_hash,
+            &self.project.source_names(),
+            self.start,
+            target,
+        )
+        .await?
+        {
+            info!(
+                schema = %self.schema,
+                %why,
+                "rebuilding from the chain: the record log can't serve this one"
+            );
+            return Ok(false);
+        }
+        let mut store = Store::open(self.pool.clone(), shadow, &self.project, &self.lock).await?;
+        if store.cursor().is_some_and(|c| c >= target) {
+            return Ok(true);
+        }
+        let from = match store.cursor() {
+            Some(cursor) => cursor
+                .next()
+                .ok_or(RunError::Pipeline(PipelineError::VersionOverflow))?,
+            None => self.start,
+        };
+        info!(
+            schema = %self.schema,
+            %shadow,
+            from = from.get(),
+            through = target.get(),
+            "rebuilding from the record log, without reading the chain"
+        );
+        replay::rebuild(
+            &self.pool,
+            &mut store,
+            &self.project,
+            name,
+            from,
+            target,
+            PipelineConfig::new(self.start).cache_rows,
+        )
+        .await?;
+        Ok(true)
+    }
+
     async fn pipeline(
         &self,
         schema: &str,

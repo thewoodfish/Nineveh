@@ -26,6 +26,7 @@ use nineveh_core::{ChainId, Version};
 use nineveh_decode::{DecodedTransaction, LockBuilder, Lockfile, Record};
 use nineveh_engine::{Engine, MemoryState, TableId};
 use nineveh_ingest::{Batch, IngestError};
+use nineveh_pipeline::replay;
 use nineveh_pipeline::{
     BatchStream, Outcome, Parallel, Phase, Pipeline, PipelineConfig, PipelineError, Source,
 };
@@ -841,6 +842,183 @@ async fn the_record_log_replays_to_the_same_state() {
         b.sort();
         assert_eq!(a, b, "replaying the log gave different rows for {id:?}");
     }
+
+    nineveh_store::records::forget(&pool, &name).await.unwrap();
+}
+
+/// A rebuild from the record log lands on the same rows as a rebuild from the chain,
+/// and the log refuses rather than guesses when it can't cover the range (ADR 0022).
+///
+/// This is the whole point of keeping records: editing a rule triggers a rebuild, and
+/// a rebuild that has to re-read the chain costs days of a scarce stream for a contract
+/// a few months old. Replaying is only worth doing if it lands in exactly the same
+/// place, so that is what's asserted.
+#[tokio::test]
+async fn a_rebuild_from_the_log_matches_a_rebuild_from_the_chain() {
+    let Some(pool) = pool().await else { return };
+    let (transactions, _) = vault::transactions(&[
+        Op::Deposit { user: 0, amount: 5 },
+        Op::CreateVault { vault: 0 },
+        Op::Deposit { user: 1, amount: 7 },
+        Op::SetPosition {
+            vault: 0,
+            user: 1,
+            size: 3,
+        },
+        Op::Withdraw { user: 0, amount: 2 },
+    ]);
+    let name = format!("vault_rebuild_{}", std::process::id());
+    let (lock, project) = vault::project_named(&name);
+    nineveh_store::records::forget(&pool, &name).await.unwrap();
+
+    let last = Version::new(transactions.last().unwrap().version);
+    let from_chain = fresh_schema(&pool, "fromchain").await;
+    Pipeline::new(
+        Scripted::new(transactions.clone(), vec![2], false),
+        pool.clone(),
+        &from_chain,
+        Arc::new(vault::project_named(&name).1),
+        Arc::new(lock.clone()),
+        config(1_001, Some(last.get())),
+    )
+    .run(pending())
+    .await
+    .unwrap();
+
+    let lock_hash = nineveh_store::lock_hash(&lock).unwrap();
+    let start = Version::new(1_001);
+    replay::available(
+        &pool,
+        &name,
+        &lock_hash,
+        &project.source_names(),
+        start,
+        last,
+    )
+    .await
+    .unwrap()
+    .expect("the log covers what the run just wrote");
+
+    // Rebuild into a second schema, reading only the log.
+    let from_log = fresh_schema(&pool, "fromlog").await;
+    let mut store = Store::open(pool.clone(), &from_log, &project, &lock)
+        .await
+        .unwrap();
+    replay::rebuild(&pool, &mut store, &project, &name, start, last, 10_000)
+        .await
+        .unwrap();
+
+    let chain_store = Store::open(pool.clone(), &from_chain, &project, &lock)
+        .await
+        .unwrap();
+    assert_eq!(
+        store.cursor(),
+        chain_store.cursor(),
+        "both builds end at the same version"
+    );
+    for id in table_ids() {
+        let (mut a, mut b) = (
+            chain_store.scan(id).await.unwrap(),
+            store.scan(id).await.unwrap(),
+        );
+        a.sort();
+        b.sort();
+        assert_eq!(a, b, "the log rebuilt {id:?} differently from the chain");
+    }
+
+    nineveh_store::records::forget(&pool, &name).await.unwrap();
+}
+
+/// The log declines what it can't serve, rather than building something partial.
+///
+/// Each of these sends the rebuild back to the stream, which is always correct and
+/// only slower — the failure mode to avoid is replaying a log that doesn't cover the
+/// range and quietly producing different rows.
+#[tokio::test]
+async fn the_log_refuses_what_it_cannot_cover() {
+    let Some(pool) = pool().await else { return };
+    let (transactions, _) = vault::transactions(&[Op::Deposit { user: 0, amount: 5 }]);
+    let name = format!("vault_refuse_{}", std::process::id());
+    let (lock, project) = vault::project_named(&name);
+    nineveh_store::records::forget(&pool, &name).await.unwrap();
+
+    let last = Version::new(transactions.last().unwrap().version);
+    let schema = fresh_schema(&pool, "refuse").await;
+    Pipeline::new(
+        Scripted::new(transactions.clone(), vec![2], false),
+        pool.clone(),
+        &schema,
+        Arc::new(vault::project_named(&name).1),
+        Arc::new(lock.clone()),
+        config(1_001, Some(last.get())),
+    )
+    .run(pending())
+    .await
+    .unwrap();
+
+    let lock_hash = nineveh_store::lock_hash(&lock).unwrap();
+    let start = Version::new(1_001);
+    let sources = project.source_names();
+
+    assert_eq!(
+        replay::available(
+            &pool,
+            &name,
+            "another-lock",
+            &project.source_names(),
+            start,
+            last
+        )
+        .await
+        .unwrap(),
+        Err(replay::Unavailable::LockChanged),
+        "records decoded against other layouts are not replayed"
+    );
+    assert!(
+        matches!(
+            replay::available(
+                &pool,
+                &name,
+                &lock_hash,
+                &sources,
+                start,
+                Version::new(9_999_999),
+            )
+            .await
+            .unwrap(),
+            Err(replay::Unavailable::EndsEarly { .. })
+        ),
+        "a target past the log is refused"
+    );
+    assert!(
+        matches!(
+            replay::available(&pool, &name, &lock_hash, &sources, Version::new(1), last,)
+                .await
+                .unwrap(),
+            Err(replay::Unavailable::StartsLate { .. })
+        ),
+        "a start before the log is refused"
+    );
+    assert_eq!(
+        replay::available(&pool, "never-logged", &lock_hash, &sources, start, last,)
+            .await
+            .unwrap(),
+        Err(replay::Unavailable::Empty),
+        "a project with no log is refused"
+    );
+
+    // A source the log has never seen has no history to replay: back to the stream.
+    let mut added = sources.clone();
+    added.push("a_source_added_later".to_owned());
+    assert_eq!(
+        replay::available(&pool, &name, &lock_hash, &added, start, last)
+            .await
+            .unwrap(),
+        Err(replay::Unavailable::SourceAdded {
+            name: "a_source_added_later".to_owned()
+        }),
+        "adding a source backfills; it doesn't replay"
+    );
 
     nineveh_store::records::forget(&pool, &name).await.unwrap();
 }

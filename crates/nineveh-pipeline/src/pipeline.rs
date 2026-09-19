@@ -22,7 +22,7 @@ use crate::status::{Phase, Status};
 
 /// Rounds of load-and-refold before a batch is declared stuck. Each round loads every
 /// key the last one missed, so real batches settle in two or three.
-const MAX_LOAD_ROUNDS: usize = 32;
+pub(crate) const MAX_LOAD_ROUNDS: usize = 32;
 
 /// How a run ended, other than by an error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -318,6 +318,7 @@ impl<S: Source + 'static> Pipeline<S> {
             &self.pool,
             self.project.config().name.as_str(),
             &self.lock_hash,
+            &self.project.source_names(),
             &logged,
             covered,
         )
@@ -392,7 +393,7 @@ impl<S: Source + 'static> Pipeline<S> {
 }
 
 /// Fold a batch, loading the keys it reads until it has them all (ADR 0013).
-async fn fold(
+pub(crate) async fn fold(
     engine: &Engine<'_>,
     store: &Store,
     cache: &mut Loaded,

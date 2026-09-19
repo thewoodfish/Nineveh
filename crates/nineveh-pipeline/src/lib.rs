@@ -32,6 +32,7 @@ mod error;
 mod filter;
 mod pipeline;
 mod reader;
+pub mod replay;
 mod source;
 mod status;
 
