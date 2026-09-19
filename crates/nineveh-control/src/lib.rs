@@ -28,6 +28,7 @@ mod pin;
 mod plane;
 mod runner;
 mod scaffold;
+pub mod tier;
 
 pub use auth::{Access, AuthError, ExternalUser, GitHub, IdentityProvider};
 pub use catalog::{Catalog, Item, ItemField, ItemKind, catalog, snake_case};
@@ -40,3 +41,4 @@ pub use plane::{
 };
 pub use runner::{RunError, RunOptions, Runner};
 pub use scaffold::{Draft, ScaffoldError, Start, scaffold};
+pub use tier::{FREE, Limit, Limits};

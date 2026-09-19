@@ -17,7 +17,7 @@ use nineveh_engine::{ChangeSet, Engine, MemoryState, TableId};
 use nineveh_pipeline::{BatchStream, Source};
 use nineveh_realtime::Hub;
 use nineveh_store::accounts::{self, ApiKey};
-use nineveh_store::{Store, StoreError, registry, row_json, shadow_name};
+use nineveh_store::{Store, StoreError, registry, retain, row_json, shadow_name};
 
 use crate::idle::{self, Demand, Verdict};
 use serde::Serialize;
@@ -33,6 +33,7 @@ use crate::deliver::Deliveries;
 use crate::pin::{PinError, pin, retry};
 use crate::runner::{RunError, RunOptions, Runner};
 use crate::scaffold::{Draft, ScaffoldError, Start, scaffold};
+use crate::tier::{self, Limits};
 
 /// Why a control-plane request failed.
 #[derive(Debug, thiserror::Error)]
@@ -496,6 +497,18 @@ impl<C: Chain> ControlPlane<C> {
                 plane.sweep_idle().await;
             }
         });
+        let pruning = Arc::downgrade(&plane);
+        tokio::spawn(async move {
+            let mut every = tokio::time::interval(Self::PRUNE_EVERY);
+            every.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            loop {
+                every.tick().await;
+                let Some(plane) = pruning.upgrade() else {
+                    return;
+                };
+                plane.sweep_retention(tier::FREE).await;
+            }
+        });
         Ok(plane)
     }
 
@@ -782,6 +795,49 @@ impl<C: Chain> ControlPlane<C> {
                     info!(project = %name, reason = ?why, "woken: folding again");
                 }
                 _ => {}
+            }
+        }
+    }
+
+    /// How often the plane prunes. Retention is measured in days and gigabytes, so
+    /// a quarter-hour between passes is frequent enough to keep either from running
+    /// away and rare enough to stay out of the way of the folds.
+    const PRUNE_EVERY: Duration = Duration::from_secs(15 * 60);
+
+    /// Prune every project's outbox and record log back within its tier (ADR 0024).
+    ///
+    /// Both pruners refuse to cross their floor — the slowest webhook endpoint, and
+    /// the fold cursor — so a project that is behind, halted or idle simply keeps what
+    /// it has and stays over its allowance. That is the correct failure: the records
+    /// above the fold cursor are inputs only the chain still has, and buying them back
+    /// costs hours of streaming, while the disk they sit on costs cents.
+    /// The limits are passed rather than held because there is exactly one tier and
+    /// only this one place reads it. When a second tier exists it will vary per
+    /// project, and the argument is where it will arrive.
+    pub async fn sweep_retention(self: &Arc<Self>, limits: Limits) {
+        let names: Vec<String> = self.projects.read().await.keys().cloned().collect();
+        for name in names {
+            match retain::prune_changes(&self.pool, &name, limits.history_days).await {
+                Ok(0) => {}
+                Ok(rows) => info!(project = %name, rows, "pruned delivered changes"),
+                Err(error) => warn!(project = %name, %error, "couldn't prune the outbox"),
+            }
+            // Only records the fold has consumed may go, so the cursor is the floor.
+            let folded = {
+                let projects = self.projects.read().await;
+                projects.get(&name).and_then(|entry| {
+                    entry.health.borrow().as_ref().and_then(|h| {
+                        h.cursor
+                            .as_deref()
+                            .and_then(|c| c.parse::<u64>().ok())
+                            .map(Version::new)
+                    })
+                })
+            };
+            match retain::prune_records(&self.pool, &name, limits.log_bytes, folded).await {
+                Ok(0) => {}
+                Ok(rows) => info!(project = %name, rows, "pruned records over the allowance"),
+                Err(error) => warn!(project = %name, %error, "couldn't prune the record log"),
             }
         }
     }

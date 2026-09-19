@@ -30,6 +30,7 @@ mod layout;
 pub mod reads;
 pub mod records;
 pub mod registry;
+pub mod retain;
 mod rows;
 mod store;
 pub mod webhooks;

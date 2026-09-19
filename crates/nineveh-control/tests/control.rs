@@ -18,7 +18,7 @@ use std::time::Duration;
 
 use axum::Router;
 use axum::http::{Method, StatusCode};
-use nineveh_control::{Access, ControlPlane, idle, router};
+use nineveh_control::{Access, ControlPlane, Limits, idle, router, tier};
 use nineveh_testkit::vault::{self, Op};
 use serde_json::{Value, json};
 
@@ -768,4 +768,103 @@ async fn a_project_nobody_reads_goes_idle_and_a_read_wakes_it() {
     )
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
+}
+
+/// Retention runs against a live project without taking anything it still needs
+/// (ADR 0024).
+///
+/// The pruner is given an allowance of zero, which is as hostile as the setting gets.
+/// What survives is the test: every record the fold has not consumed, because those
+/// are inputs that exist nowhere but here and the chain, and the state tables, which
+/// retention never touches at all.
+#[tokio::test(flavor = "multi_thread")]
+async fn pruning_never_takes_what_the_fold_still_needs() {
+    let Some(pool) = pool("retain").await else {
+        return;
+    };
+    let name = format!("retain_{}", std::process::id());
+    let (chain, _) = chain(&[
+        Op::Deposit { user: 0, amount: 5 },
+        Op::Deposit { user: 1, amount: 7 },
+        Op::Deposit { user: 2, amount: 9 },
+    ]);
+    let plane = ControlPlane::start(Arc::clone(&chain), pool.clone(), options())
+        .await
+        .unwrap();
+    let app = router(Arc::clone(&plane), Access::Local);
+
+    let (status, scaffolded) = call(
+        &app,
+        Method::POST,
+        "/control/v1/scaffold",
+        Some(json!({
+            "name": name,
+            "network": "testnet",
+            "picks": [format!("{}::vault::DepositEvent", vault::MODULE)],
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{scaffolded}");
+    let (status, created) = call(
+        &app,
+        Method::POST,
+        "/control/v1/projects",
+        Some(json!({ "config": scaffolded["config"].as_str().unwrap() })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    wait_for_rows(&app, &name, "deposit_event", 3).await;
+
+    let nothing_allowed = Limits {
+        log_bytes: 0,
+        history_days: 0,
+        ..tier::FREE
+    };
+    plane.sweep_retention(nothing_allowed).await;
+
+    // The rows are a projection of the records, and retention is not a way to lose
+    // them: nothing that reads the API can tell a pruned project from an unpruned one.
+    let (status, rows) = call(
+        &app,
+        Method::GET,
+        &format!("/projects/{name}/v1/tables/deposit_event"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{rows}");
+    assert_eq!(
+        rows["rows"].as_array().unwrap().len(),
+        3,
+        "retention took state, which it must never do: {rows}"
+    );
+
+    // And whatever the fold has not reached is still there. The project is at the tip
+    // of a scripted chain, so in practice that is nothing or nearly nothing — the
+    // assertion that matters is the floor, checked against the cursor rather than a
+    // count we'd have to guess.
+    let folded = state(&app, &name).await["pipeline"]["cursor"]
+        .as_str()
+        .and_then(|c| c.parse::<u64>().ok())
+        .map(nineveh_core::Version::new);
+    if let Some(folded) = folded {
+        let pending = nineveh_store::records::pending(&pool, &name, Some(folded))
+            .await
+            .unwrap();
+        let held = nineveh_store::records::read(
+            &pool,
+            &name,
+            nineveh_core::Version::new(folded.get() + 1),
+            nineveh_core::Version::new(u64::MAX / 2),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            i64::try_from(held.len()).unwrap(),
+            pending,
+            "every unfolded record survived an allowance of nothing"
+        );
+    }
+
+    plane.shutdown().await;
+    nineveh_store::registry::delete(&pool, &name).await.unwrap();
 }
