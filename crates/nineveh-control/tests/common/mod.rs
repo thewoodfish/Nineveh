@@ -12,6 +12,7 @@
 
 use std::future::{Future, pending, ready};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
@@ -32,6 +33,15 @@ use tower::ServiceExt as _;
 /// The vault contract on a chain that holds exactly `transactions`.
 pub struct Scripted {
     pub transactions: Arc<Vec<Transaction>>,
+    /// Streams opened over this chain. The count is what ADR 0021 is about: a plane
+    /// serving many projects must not open one per project.
+    pub opens: Arc<AtomicUsize>,
+}
+
+impl Scripted {
+    pub fn opens(&self) -> usize {
+        self.opens.load(Ordering::Relaxed)
+    }
 }
 
 impl Chain for Scripted {
@@ -83,12 +93,21 @@ impl Chain for Scripted {
     fn source(&self, _: Network, _: Version, _: &Project) -> Replay {
         Replay {
             transactions: Arc::clone(&self.transactions),
+            opens: Arc::clone(&self.opens),
+        }
+    }
+
+    fn network_source(&self, _: Network, _: Version) -> Replay {
+        Replay {
+            transactions: Arc::clone(&self.transactions),
+            opens: Arc::clone(&self.opens),
         }
     }
 }
 
 pub struct Replay {
     transactions: Arc<Vec<Transaction>>,
+    opens: Arc<AtomicUsize>,
 }
 
 impl Source for Replay {
@@ -107,12 +126,17 @@ impl Source for Replay {
             .cloned()
             .collect();
         let end = transactions.last().map_or(from.get(), |t| t.version);
+        self.opens.fetch_add(1, Ordering::Relaxed);
         ready(Ok(ReplayStream {
             batch: Some(Batch {
                 chain_id: ChainId::try_from(2u64).unwrap(),
                 transactions,
                 processed_range: Some(from..=Version::new(end)),
             }),
+            // A bounded range ends when it has covered its versions, as the real
+            // stream does; only the tail stays open. A catch-up that never ended
+            // would leave a project stuck between its own stream and the shared one.
+            bounded: until.is_some(),
         }))
     }
 }
@@ -120,12 +144,14 @@ impl Source for Replay {
 /// Everything in one batch, then an open stream with nothing more: the chain's tip.
 pub struct ReplayStream {
     batch: Option<Batch>,
+    bounded: bool,
 }
 
 impl BatchStream for ReplayStream {
-    async fn next(&mut self) -> Result<Option<Batch>, IngestError> {
+    async fn next(&mut self) -> Result<Option<Arc<Batch>>, IngestError> {
         match self.batch.take() {
-            Some(batch) => Ok(Some(batch)),
+            Some(batch) => Ok(Some(Arc::new(batch))),
+            None if self.bounded => Ok(None),
             None => pending().await,
         }
     }
@@ -226,6 +252,7 @@ pub fn chain(ops: &[Op]) -> (Arc<Scripted>, Model) {
     (
         Arc::new(Scripted {
             transactions: Arc::new(transactions),
+            opens: Arc::new(AtomicUsize::new(0)),
         }),
         model,
     )

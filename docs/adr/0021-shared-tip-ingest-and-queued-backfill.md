@@ -1,6 +1,6 @@
 # 0021. Acquire the chain once per network; replay projects from their own records
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-19
 
 ## Context
@@ -156,12 +156,30 @@ in ADR 0005 holds — ingest → decode → fold stays one-way — but the inges
 and the fold end is many. Supervision in `plane.rs` moves from "one task per project,
 each reading" to "one reader per network, many folds".
 
+## Settled since
+
+**The concurrent-stream limit is 7 on testnet and 22 on mainnet** (measured 2026-09-19,
+`docs/research/spike-a-stream.md`; `cargo run --release -p nineveh-ingest --example
+stream_cap`). The pools are per network and per key, and span processes. Seven is worse
+than this ADR assumed and it lands on the network the free tier lives on, so a stream
+per project would cap a hosted plane at seven customers. The backfill pool is 4, which
+puts steady-state testnet usage at 5 of 7.
+
+**The record log lives in Postgres**, keyed by project (ADR 0022), and **its retention
+is a tier limit** alongside the outbox's (ADR 0024). It is separate from the project's
+`log:` state tables: those are shaped by rules, and the point of the record log is that
+changing a rule never invalidates it.
+
+**Matching before decode is not built.** Each project decodes every batch against its
+own lock, as it did when it had its own unfiltered stream (ADR 0004), so nothing is
+worse than before — but the CPU is now N× the chain rather than N× each project's
+filtered share. It becomes worth building when fold CPU, rather than stream count, is
+what limits projects per plane.
+
 ## Open questions
 
-- The organization's actual concurrent-stream limit, with and without a payment method.
-  It sets the backfill pool size and is the one number this design still needs.
-- Where the record log lives: Postgres alongside the state, or an append-only file per
-  project. Postgres is simpler and already transactional with the commit; a file is
-  cheaper per byte and easier to age out.
-- Whether a project's existing `log:` state tables can serve as its record log where
-  the sources happen to line up, or whether the record log is always separate.
+- Whether the shared reader should match transactions against each project's addresses
+  and type tags before fanning out, and how a `table:` source's dynamically discovered
+  handles (ADR 0012) would take part in that match.
+- What a project should be told when it is detached for falling behind. Today it is a
+  log line and a catch-up; it is arguably a health signal Studio should show.

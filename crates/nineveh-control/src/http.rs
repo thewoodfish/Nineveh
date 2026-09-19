@@ -50,7 +50,7 @@ use crate::chain::Chain;
 use crate::plane::{Caller, ControlError, ControlPlane, ScaffoldRequest};
 
 /// The control plane and how it's reached.
-struct Server<C> {
+struct Server<C: Chain> {
     plane: Arc<ControlPlane<C>>,
     access: Access,
 }

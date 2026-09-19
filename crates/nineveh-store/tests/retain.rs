@@ -93,8 +93,14 @@ async fn the_record_log_is_pruned_oldest_first_to_fit() {
     assert!(taken > 0, "something was over the limit and had to go");
 
     let (left, now) = records::usage(&pool, &project).await.unwrap();
-    assert!(now <= bytes / 2 + bytes / count, "pruned to about the limit");
-    assert!(left > 0 && left < count, "some went, not all: {left} of {count}");
+    assert!(
+        now <= bytes / 2 + bytes / count,
+        "pruned to about the limit"
+    );
+    assert!(
+        left > 0 && left < count,
+        "some went, not all: {left} of {count}"
+    );
 
     let earliest = records::first_version(&pool, &project)
         .await
@@ -128,7 +134,9 @@ async fn records_above_the_fold_cursor_are_never_pruned() {
 
     // A project that has folded nothing keeps everything, however small the allowance.
     assert_eq!(
-        retain::prune_records(&pool, &project, 0, None).await.unwrap(),
+        retain::prune_records(&pool, &project, 0, None)
+            .await
+            .unwrap(),
         0,
         "nothing folded, so nothing may be taken"
     );
@@ -155,12 +163,14 @@ async fn records_above_the_fold_cursor_are_never_pruned() {
 async fn the_outbox_is_not_pruned_past_a_webhook_that_is_behind() {
     let Some(pool) = pool().await else { return };
     let schema = name(3);
-    sqlx::query("INSERT INTO nineveh.projects (schema_name, project, network, fingerprint)
-                 VALUES ($1, $1, 'testnet', 'x') ON CONFLICT (schema_name) DO NOTHING")
-        .bind(&schema)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "INSERT INTO nineveh.projects (schema_name, project, network, fingerprint)
+                 VALUES ($1, $1, 'testnet', 'x') ON CONFLICT (schema_name) DO NOTHING",
+    )
+    .bind(&schema)
+    .execute(&pool)
+    .await
+    .unwrap();
     for version in 1..=10_i64 {
         sqlx::query(
             "INSERT INTO nineveh.changes
@@ -184,7 +194,9 @@ async fn the_outbox_is_not_pruned_past_a_webhook_that_is_behind() {
 
     // An endpoint that has delivered through version 4 pins everything after it.
     webhooks::ensure(&pool, &schema, "slow").await.unwrap();
-    webhooks::delivered(&pool, &schema, "slow", 4, 0).await.unwrap();
+    webhooks::delivered(&pool, &schema, "slow", 4, 0)
+        .await
+        .unwrap();
     retain::prune_changes(&pool, &schema, 7).await.unwrap();
     assert_eq!(
         left(pool.clone(), schema.clone()).await,
@@ -215,12 +227,14 @@ async fn the_outbox_is_not_pruned_past_a_webhook_that_is_behind() {
 async fn recent_changes_are_kept() {
     let Some(pool) = pool().await else { return };
     let schema = name(4);
-    sqlx::query("INSERT INTO nineveh.projects (schema_name, project, network, fingerprint)
-                 VALUES ($1, $1, 'testnet', 'x') ON CONFLICT (schema_name) DO NOTHING")
-        .bind(&schema)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "INSERT INTO nineveh.projects (schema_name, project, network, fingerprint)
+                 VALUES ($1, $1, 'testnet', 'x') ON CONFLICT (schema_name) DO NOTHING",
+    )
+    .bind(&schema)
+    .execute(&pool)
+    .await
+    .unwrap();
     sqlx::query(
         "INSERT INTO nineveh.changes (schema_name, version, seq, table_name, op, key)
          VALUES ($1, 1, 0, 't', 'insert', '{}'::jsonb)",

@@ -14,7 +14,7 @@ use nineveh_config::{
 use nineveh_core::{Address, Network, Value, Version};
 use nineveh_decode::{Lockfile, TransactionDecoder};
 use nineveh_engine::{ChangeSet, Engine, MemoryState, TableId};
-use nineveh_pipeline::{BatchStream, Source};
+use nineveh_pipeline::{BatchStream, SharedTip, Source};
 use nineveh_realtime::Hub;
 use nineveh_store::accounts::{self, ApiKey};
 use nineveh_store::{Store, StoreError, registry, retain, row_json, shadow_name};
@@ -345,8 +345,27 @@ struct Entry {
     idle: bool,
 }
 
+/// What a network's shared reader is doing (ADR 0021).
+///
+/// Worth surfacing because it is the plane's scarcest resource: a reader per network
+/// and a small pool of catch-up streams, against an organization-wide cap of 7 on
+/// testnet.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReaderInfo {
+    pub network: String,
+    /// The last version it has handed out, as a decimal string.
+    pub position: Option<String>,
+    /// Projects reading through it.
+    pub projects: usize,
+    /// Catch-up streams still available.
+    pub slots_free: usize,
+}
+
+/// The shared readers a plane holds, one per network it serves.
+type Readers<C> = tokio::sync::Mutex<Vec<(Network, Arc<SharedTip<<C as Chain>::Source>>)>>;
+
 /// Every project this process manages.
-pub struct ControlPlane<C> {
+pub struct ControlPlane<C: Chain> {
     chain: Arc<C>,
     pool: PgPool,
     options: RunOptions,
@@ -359,9 +378,16 @@ pub struct ControlPlane<C> {
     /// whether anyone read it today, so a write per request would buy nothing; this
     /// keeps the API's hot path off the database between them.
     read_at: Mutex<BTreeMap<String, Instant>>,
+    /// One reader per network, shared by every project on it (ADR 0021).
+    ///
+    /// This is the difference between a stream per project and a stream per network.
+    /// Geomi caps concurrent streams per organization — 7 on testnet, where the free
+    /// tier lives — so a plane that opened one per project would stop accepting
+    /// customers at seven, whatever the demand.
+    readers: Readers<C>,
 }
 
-impl<C> std::fmt::Debug for ControlPlane<C> {
+impl<C: Chain> std::fmt::Debug for ControlPlane<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ControlPlane")
             .field("options", &self.options)
@@ -469,6 +495,7 @@ impl<C: Chain> ControlPlane<C> {
             projects: RwLock::new(BTreeMap::new()),
             changes: tokio::sync::Mutex::new(()),
             read_at: Mutex::new(BTreeMap::new()),
+            readers: tokio::sync::Mutex::new(Vec::new()),
         });
         for record in registry::list(&plane.pool).await? {
             let loaded = load(&record.config, &record.lock).map(Arc::new);
@@ -607,7 +634,11 @@ impl<C: Chain> ControlPlane<C> {
     ///
     /// [`ControlError::Invalid`] if the config has problems, [`ControlError::Conflict`]
     /// if the name is taken, or if the chain or the database fails.
-    pub async fn create(&self, caller: Caller, text: &str) -> Result<Detail, ControlError> {
+    pub async fn create(
+        self: &Arc<Self>,
+        caller: Caller,
+        text: &str,
+    ) -> Result<Detail, ControlError> {
         let _changing = self.changes.lock().await;
         let config = parse(text).map_err(|d| ControlError::invalid(&d, text))?;
         let name = config.name.name.clone();
@@ -644,7 +675,7 @@ impl<C: Chain> ControlPlane<C> {
     /// As [`ControlPlane::create`], and [`ControlError::NotFound`] if there's no such
     /// project.
     pub async fn update(
-        &self,
+        self: &Arc<Self>,
         caller: Caller,
         name: &str,
         text: &str,
@@ -682,7 +713,7 @@ impl<C: Chain> ControlPlane<C> {
     ///
     /// If there's no such project, or the database fails.
     pub async fn set_running(
-        &self,
+        self: &Arc<Self>,
         caller: Caller,
         name: &str,
         running: bool,
@@ -901,6 +932,21 @@ impl<C: Chain> ControlPlane<C> {
             read_ago: nineveh_store::reads::seconds_since_read(&self.pool, name).await?,
             backlog: nineveh_store::records::pending(&self.pool, name, folded).await?,
         }))
+    }
+
+    /// What each network's shared reader is doing.
+    pub async fn readers(&self) -> Vec<ReaderInfo> {
+        self.readers
+            .lock()
+            .await
+            .iter()
+            .map(|(network, reader)| ReaderInfo {
+                network: network.to_string(),
+                position: reader.position().map(|v| v.to_string()),
+                projects: reader.subscribers(),
+                slots_free: reader.slots_free(),
+            })
+            .collect()
     }
 
     /// Every project `caller` may see, by name.
@@ -1457,7 +1503,37 @@ impl<C: Chain> ControlPlane<C> {
 
     /// Run `entry`'s pipeline on a task of its own, until it's stopped or fails in a
     /// way retrying can't fix.
-    fn spawn(&self, name: &str, entry: &mut Entry) {
+    /// How many streams a network keeps for catching up, beside the shared reader.
+    ///
+    /// Four against testnet's cap of seven leaves two spare after the reader itself
+    /// (`docs/research/spike-a-stream.md`). It is deliberately small: a backfill slot
+    /// is the scarce thing, and making projects queue for one is the behaviour ADR
+    /// 0021 wants — a wait, not a refusal, and never a stream the cap won't allow.
+    const BACKFILL_SLOTS: usize = 4;
+
+    /// The shared reader for `network`, started at the chain's tip if this is the
+    /// first project to want it.
+    ///
+    /// Started at the tip rather than at any project's start version: the reader's job
+    /// is the live chain, and history is the backfill pool's job. A project starting
+    /// behind takes a slot, catches up to the reader, and joins without a seam.
+    async fn reader(&self, network: Network) -> Result<Arc<SharedTip<C::Source>>, ChainError> {
+        let mut readers = self.readers.lock().await;
+        if let Some((_, reader)) = readers.iter().find(|(n, _)| *n == network) {
+            return Ok(Arc::clone(reader));
+        }
+        let tip = retry(|| self.chain.tip(network)).await?;
+        let reader = SharedTip::start(
+            Arc::new(self.chain.network_source(network, tip)),
+            tip,
+            Self::BACKFILL_SLOTS,
+        );
+        info!(%network, at = tip.get(), "opened the network's shared reader");
+        readers.push((network, Arc::clone(&reader)));
+        Ok(reader)
+    }
+
+    fn spawn(self: &Arc<Self>, name: &str, entry: &mut Entry) {
         let Ok(loaded) = &entry.loaded else { return };
         let (stop, stopped) = watch::channel(false);
         let ended = Arc::new(Mutex::new(None));
@@ -1475,6 +1551,7 @@ impl<C: Chain> ControlPlane<C> {
             entry.health.clone(),
             stopped,
             Arc::clone(&ended),
+            Arc::downgrade(self),
         ));
         entry.run = Some(Run { stop, task, ended });
     }
@@ -1491,6 +1568,7 @@ async fn supervise<C: Chain>(
     health: watch::Sender<Option<Health>>,
     mut stopped: watch::Receiver<bool>,
     ended: Arc<Mutex<Option<Ended>>>,
+    plane: std::sync::Weak<ControlPlane<C>>,
 ) {
     let mut delay = Duration::from_secs(1);
     let outcome = loop {
@@ -1506,6 +1584,16 @@ async fn supervise<C: Chain>(
                 health.clone(),
             )
             .await?;
+            // Read the network through the plane's shared reader (ADR 0021). Without
+            // a plane — it is being torn down — the project reads for itself, which
+            // is correct but costs a stream; it is about to stop anyway.
+            let runner = match plane.upgrade() {
+                Some(plane) => {
+                    let network = loaded.project.config().network;
+                    runner.sharing(plane.reader(network).await?)
+                }
+                None => runner,
+            };
             runner.run(false, stopped.clone()).await
         };
         match attempt.await {

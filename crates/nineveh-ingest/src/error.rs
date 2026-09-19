@@ -55,6 +55,12 @@ pub enum IngestError {
 
     #[error("the version counter overflowed u64")]
     VersionOverflow,
+
+    /// The shared reader for this network has stopped, so there is nothing to join
+    /// (ADR 0021). Retryable: the plane restarts readers, and the project's own
+    /// cursor means resuming loses nothing.
+    #[error("the shared reader for this network has stopped")]
+    ReaderStopped,
 }
 
 impl IngestError {
@@ -66,7 +72,7 @@ impl IngestError {
     pub fn is_retryable(&self) -> bool {
         use tonic::Code;
         match self {
-            Self::Connect { .. } => true,
+            Self::Connect { .. } | Self::ReaderStopped => true,
             Self::Status(status) => matches!(
                 status.code(),
                 Code::Unavailable

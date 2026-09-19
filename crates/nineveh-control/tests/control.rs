@@ -868,3 +868,97 @@ async fn pruning_never_takes_what_the_fold_still_needs() {
     plane.shutdown().await;
     nineveh_store::registry::delete(&pool, &name).await.unwrap();
 }
+
+/// Two projects on one network cost one stream, not two (ADR 0021).
+///
+/// This is the ceiling the whole design exists to remove: Geomi caps concurrent
+/// streams per organization at 7 on testnet, so a plane opening one per project would
+/// stop taking customers at seven regardless of demand
+/// (`docs/research/spike-a-stream.md`). What is asserted here is the count, because
+/// the count is the product constraint.
+#[tokio::test(flavor = "multi_thread")]
+async fn projects_on_one_network_share_one_stream() {
+    let Some(pool) = pool("shared").await else {
+        return;
+    };
+    let (chain, _) = chain(&[
+        Op::Deposit { user: 0, amount: 5 },
+        Op::Deposit { user: 1, amount: 7 },
+    ]);
+    let plane = ControlPlane::start(Arc::clone(&chain), pool.clone(), options())
+        .await
+        .unwrap();
+    let app = router(Arc::clone(&plane), Access::Local);
+
+    let mut names = Vec::new();
+    for n in 0..3 {
+        let name = format!("shared_{}_{n}", std::process::id());
+        let (status, scaffolded) = call(
+            &app,
+            Method::POST,
+            "/control/v1/scaffold",
+            Some(json!({
+                "name": name,
+                "network": "testnet",
+                "picks": [format!("{}::vault::DepositEvent", vault::MODULE)],
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{scaffolded}");
+        let (status, created) = call(
+            &app,
+            Method::POST,
+            "/control/v1/projects",
+            Some(json!({ "config": scaffolded["config"].as_str().unwrap() })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "{created}");
+        names.push(name);
+    }
+
+    // Every project builds its own state from the same read.
+    for name in &names {
+        wait_for_rows(&app, name, "deposit_event", 2).await;
+    }
+
+    // One reader for the network, plus at most one catch-up per project that started
+    // before the reader reached it — never a standing stream each.
+    // Each project started before the reader did, so each took a catch-up stream
+    // once. Those are transient by design; what matters is where it settles.
+    let opens = chain.opens();
+    assert!(
+        opens <= 1 + names.len(),
+        "three projects opened {opens} streams: a plane must not hold one per project"
+    );
+
+    // The steady state: every project on the one reader, and no stream opened since.
+    for _ in 0..200 {
+        if plane.readers().await.first().map(|r| r.projects) == Some(names.len()) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    let readers = plane.readers().await;
+    assert_eq!(readers.len(), 1, "one network, one reader: {readers:?}");
+    assert_eq!(
+        readers[0].projects,
+        names.len(),
+        "every project joined the shared reader: {readers:?}"
+    );
+    let settled = chain.opens();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(
+        chain.opens(),
+        settled,
+        "once caught up, the plane holds its streams rather than opening more"
+    );
+    assert!(
+        readers[0].slots_free > 0,
+        "the catch-up streams were given back: {readers:?}"
+    );
+
+    plane.shutdown().await;
+    for name in &names {
+        nineveh_store::registry::delete(&pool, name).await.unwrap();
+    }
+}

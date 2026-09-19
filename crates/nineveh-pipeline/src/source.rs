@@ -2,6 +2,7 @@
 //! delivers the same ordered, gap-checked batches (tests use a scripted one).
 
 use std::future::Future;
+use std::sync::Arc;
 
 use nineveh_core::Version;
 use nineveh_ingest::{Batch, IngestError, StreamConfig, TransactionStream};
@@ -28,7 +29,12 @@ pub trait BatchStream: Send {
     ///
     /// Must be cancel-safe: the pipeline may drop an unfinished `next` to forward
     /// what it has already decoded, and call `next` again later, losing nothing.
-    fn next(&mut self) -> impl Future<Output = Result<Option<Batch>, IngestError>> + Send;
+    ///
+    /// A batch is shared rather than owned because one read can serve several
+    /// projects (ADR 0021): the shared reader hands the same `Arc` to every project
+    /// that wants those versions, and each decodes it against its own lock. Nothing
+    /// mutates a batch, so there is nothing to clone.
+    fn next(&mut self) -> impl Future<Output = Result<Option<Arc<Batch>>, IngestError>> + Send;
 }
 
 /// A Transaction Stream endpoint, such as Aptos Labs' hosted one.
@@ -65,7 +71,7 @@ impl Source for StreamSource {
 }
 
 impl BatchStream for TransactionStream {
-    async fn next(&mut self) -> Result<Option<Batch>, IngestError> {
-        self.next_batch().await
+    async fn next(&mut self) -> Result<Option<Arc<Batch>>, IngestError> {
+        Ok(self.next_batch().await?.map(Arc::new))
     }
 }

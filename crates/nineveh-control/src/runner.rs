@@ -10,7 +10,7 @@ use nineveh_config::Project;
 use nineveh_core::Version;
 use nineveh_decode::Lockfile;
 use nineveh_pipeline::{
-    Outcome, Parallel, Pipeline, PipelineConfig, PipelineError, Status, replay,
+    Outcome, Parallel, Pipeline, PipelineConfig, PipelineError, SharedTip, Source, Status, replay,
 };
 use nineveh_store::{Store, StoreError, shadow_name};
 use sqlx::PgPool;
@@ -104,7 +104,7 @@ impl From<PipelineError> for RunError {
 
 /// A project ready to run: its config resolved against its lock, and where a new
 /// build starts.
-pub struct Runner<C> {
+pub struct Runner<C: Chain> {
     chain: Arc<C>,
     project: Arc<Project>,
     lock: Arc<Lockfile>,
@@ -117,9 +117,17 @@ pub struct Runner<C> {
     options: RunOptions,
     /// The pipeline's health, for the API.
     health: watch::Sender<Option<Health>>,
+    /// The network's shared reader, when something else is already reading this
+    /// network (ADR 0021).
+    ///
+    /// `None` is a project reading for itself, which is what `nineveh run` does: one
+    /// project, one stream, and it keeps the server-side filter that a shared stream
+    /// has to give up. A control plane sets this, because its stream count is the
+    /// thing that would otherwise grow with its customers.
+    shared: Option<Arc<SharedTip<C::Source>>>,
 }
 
-impl<C> std::fmt::Debug for Runner<C> {
+impl<C: Chain> std::fmt::Debug for Runner<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Runner")
             .field("project", &self.project.config().name.name)
@@ -127,6 +135,7 @@ impl<C> std::fmt::Debug for Runner<C> {
             .field("start", &self.start)
             .field("tip", &self.tip)
             .field("options", &self.options)
+            .field("shared", &self.shared.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -163,6 +172,7 @@ impl<C: Chain> Runner<C> {
             tip,
             options,
             health,
+            shared: None,
         })
     }
 
@@ -362,14 +372,21 @@ impl<C: Chain> Runner<C> {
         Ok(true)
     }
 
+    /// Read the network through `tip` rather than opening a stream of this project's
+    /// own (ADR 0021).
+    #[must_use]
+    pub fn sharing(mut self, tip: Arc<SharedTip<C::Source>>) -> Self {
+        self.shared = Some(tip);
+        self
+    }
+
     async fn pipeline(
         &self,
         schema: &str,
         until: Option<Version>,
-        mut stop: watch::Receiver<bool>,
+        stop: watch::Receiver<bool>,
     ) -> Result<Outcome, RunError> {
         let network = self.project.config().network;
-        let source = self.chain.source(network, self.start, &self.project);
 
         let mut config = PipelineConfig::new(self.start);
         config.until = until;
@@ -379,22 +396,56 @@ impl<C: Chain> Runner<C> {
             parallel.chunk_versions = self.options.chunk;
             config.parallel = Some(parallel);
         }
-        let pipeline = Pipeline::new(
-            source,
-            self.pool.clone(),
-            schema,
-            Arc::clone(&self.project),
-            Arc::clone(&self.lock),
-            config,
-        );
         info!(
             %schema,
             %network,
             start = self.start.get(),
             chain = self.tip.get(),
             streams = self.options.streams,
+            shared = self.shared.is_some(),
             "running"
         );
+        match &self.shared {
+            Some(tip) => {
+                self.drive(
+                    Pipeline::new(
+                        tip.source(),
+                        self.pool.clone(),
+                        schema,
+                        Arc::clone(&self.project),
+                        Arc::clone(&self.lock),
+                        config,
+                    ),
+                    schema,
+                    stop,
+                )
+                .await
+            }
+            None => {
+                self.drive(
+                    Pipeline::new(
+                        self.chain.source(network, self.start, &self.project),
+                        self.pool.clone(),
+                        schema,
+                        Arc::clone(&self.project),
+                        Arc::clone(&self.lock),
+                        config,
+                    ),
+                    schema,
+                    stop,
+                )
+                .await
+            }
+        }
+    }
+
+    /// Run a pipeline to its end, reporting progress while it goes.
+    async fn drive<S: Source + 'static>(
+        &self,
+        pipeline: Pipeline<S>,
+        schema: &str,
+        mut stop: watch::Receiver<bool>,
+    ) -> Result<Outcome, RunError> {
         let reporter = tokio::spawn(report_progress(
             pipeline.status(),
             self.start,

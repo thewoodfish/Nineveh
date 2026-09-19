@@ -37,7 +37,7 @@ pub use deliver::Deliveries;
 pub use http::router;
 pub use pin::{PinError, pin};
 pub use plane::{
-    Caller, ControlError, ControlPlane, Detail, ScaffoldRequest, StartRequest, Summary,
+    Caller, ControlError, ControlPlane, Detail, ReaderInfo, ScaffoldRequest, StartRequest, Summary,
 };
 pub use runner::{RunError, RunOptions, Runner};
 pub use scaffold::{Draft, ScaffoldError, Start, scaffold};

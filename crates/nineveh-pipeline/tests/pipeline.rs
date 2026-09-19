@@ -199,7 +199,7 @@ struct ScriptedStream {
 
 impl BatchStream for ScriptedStream {
     // Lazy, so a `next` dropped before it's polled takes nothing: cancel-safe.
-    async fn next(&mut self) -> Result<Option<Batch>, IngestError> {
+    async fn next(&mut self) -> Result<Option<Arc<Batch>>, IngestError> {
         if self.quiet && self.responses.is_empty() && self.fault.is_none() {
             pending::<()>().await;
         }
@@ -208,7 +208,7 @@ impl BatchStream for ScriptedStream {
 }
 
 impl ScriptedStream {
-    fn next_now(&mut self) -> Result<Option<Batch>, IngestError> {
+    fn next_now(&mut self) -> Result<Option<Arc<Batch>>, IngestError> {
         match self.fault {
             Some(Fault::FailAfter(n)) if self.served == n => {
                 return Err(tonic::Status::unavailable("scripted").into());
@@ -217,7 +217,7 @@ impl ScriptedStream {
             _ => {}
         }
         self.served += 1;
-        Ok(self.responses.pop_front())
+        Ok(self.responses.pop_front().map(Arc::new))
     }
 }
 

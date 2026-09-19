@@ -51,6 +51,16 @@ pub trait Chain: Send + Sync + 'static {
 
     /// Where `project`'s transactions stream from, starting at `start`.
     fn source(&self, network: Network, start: Version, project: &Project) -> Self::Source;
+
+    /// A stream of the whole network from `start`, belonging to no project.
+    ///
+    /// This is what the shared reader reads (ADR 0021). It carries no filter by
+    /// design: a stream serving several projects carries the union of what they
+    /// follow, and one project with a `resource:` or `table:` source drags that union
+    /// to everything (ADR 0004). The price makes that a non-issue — the entire
+    /// unfiltered mainnet firehose is about $15 a month — while the concurrent-stream
+    /// cap it avoids is 7 on testnet.
+    fn network_source(&self, network: Network, start: Version) -> Self::Source;
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -198,6 +208,12 @@ impl Chain for Hosted {
         let mut stream = StreamConfig::hosted(network, start);
         stream.api_key = self.key(network).cloned();
         stream.filter = stream_filter(project);
+        StreamSource::new(stream)
+    }
+
+    fn network_source(&self, network: Network, start: Version) -> StreamSource {
+        let mut stream = StreamConfig::hosted(network, start);
+        stream.api_key = self.key(network).cloned();
         StreamSource::new(stream)
     }
 }

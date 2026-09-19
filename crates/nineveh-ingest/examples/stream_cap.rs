@@ -77,13 +77,13 @@ async fn main() -> Result<()> {
         // stream that opens and then immediately ends. Read one batch to be sure.
         match stream.next_batch().await {
             Ok(Some(batch)) => {
-                println!(
-                    "{n:>3} open — newest read {}",
-                    batch.transactions.len()
-                );
+                println!("{n:>3} open — newest read {}", batch.transactions.len());
             }
             Ok(None) => {
-                refused = Some((n, "the stream opened and then closed without a batch".into()));
+                refused = Some((
+                    n,
+                    "the stream opened and then closed without a batch".into(),
+                ));
                 break;
             }
             Err(error) => {

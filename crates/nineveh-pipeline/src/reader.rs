@@ -261,12 +261,12 @@ impl<S: Source> RangeReader<S> {
                 };
                 match next {
                     Ok(Some(batch)) => {
-                        let (transactions, covered) = trim(batch, self.range.last);
+                        let (take, covered) = trim(&batch, self.range.last);
                         ended = self.range.last.is_some_and(|last| covered >= Some(last));
                         let project = Arc::clone(&self.project);
                         let lock = Arc::clone(&self.lock);
                         decoding.push_back(tokio::task::spawn_blocking(move || {
-                            decode(&project, &lock, &transactions, covered)
+                            decode(&project, &lock, &batch.transactions[..take], covered)
                         }));
                     }
                     Ok(None) => ended = true,
@@ -319,16 +319,21 @@ impl<S: Source> RangeReader<S> {
 }
 
 /// A response's transactions and the last version it covers, cut at `last`.
-fn trim(batch: Batch, last: Option<Version>) -> (Vec<Transaction>, Option<Version>) {
-    let mut transactions = batch.transactions;
+/// How many of a batch's transactions this range wants, and the last version the
+/// batch accounts for.
+///
+/// It reports a count rather than trimming, because the batch is shared: another
+/// project reading the same `Arc` may want a different part of it (ADR 0021).
+fn trim(batch: &Batch, last: Option<Version>) -> (usize, Option<Version>) {
+    let transactions = &batch.transactions;
     let delivered = transactions.last().map(|tx| Version::new(tx.version));
-    let mut covered = delivered.max(batch.processed_range.map(|range| *range.end()));
+    let mut covered = delivered.max(batch.processed_range.as_ref().map(|range| *range.end()));
+    let mut take = transactions.len();
     if let Some(last) = last {
-        let keep = transactions.partition_point(|tx| tx.version <= last.get());
-        transactions.truncate(keep);
+        take = transactions.partition_point(|tx| tx.version <= last.get());
         covered = covered.map(|c| c.min(last));
     }
-    (transactions, covered)
+    (take, covered)
 }
 
 fn decode(
