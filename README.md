@@ -3,12 +3,25 @@
 The reactive backend for Aptos applications.
 
 Point Nineveh at your contract and describe the state you want. You get a live,
-queryable database (REST + GraphQL) with real-time subscriptions, kept continuously in
-sync with the chain, and no indexing infrastructure to run.
+queryable database with real-time subscriptions, kept continuously in sync with the
+chain, and no indexing infrastructure to run.
 
-> **Status: pre-alpha (milestone M0).** The workspace, CI and Transaction Stream client
-> are in place. Nothing is usable end to end yet. See [`docs/adr/`](docs/adr/) for the
-> architecture decisions made so far.
+> **Status: alpha.** It works end to end — a contract address in, live tables, a REST
+> API, a change feed and signed webhooks out, driven from a browser dashboard. It has
+> not been deployed anywhere yet, and GraphQL is not built. See
+> [What isn't built](docs/guide.md#12-what-isnt-built) before you plan around it.
+
+```sh
+createdb nineveh
+export APTOS_API_KEY_TESTNET=aptoslabs_...    # https://geomi.dev
+export NINEVEH_DATABASE_URL=postgres:///nineveh
+
+nineveh up --streams 1                        # the control plane
+cd studio && npm install && npm run dev       # the dashboard, on :3000
+```
+
+Then point it at `0x1` on testnet and follow one event — you'll have live rows in a
+couple of seconds. **[The guide](docs/guide.md)** walks the whole path.
 
 ## How it works
 
@@ -23,6 +36,16 @@ Nineveh is event sourcing with materialized read models:
 State, change notifications and the processing cursor commit in one Postgres
 transaction. A crash anywhere resumes exactly where it left off, and a replay rebuilds
 exactly the same state.
+
+## Documentation
+
+- **[The guide](docs/guide.md)** — getting started, reading your data, changing a
+  project, limits and retention, operating it, and a walkthrough to test against.
+- [`docs/config.md`](docs/config.md) — every key in `nineveh.yaml`.
+- [`docs/expressions.md`](docs/expressions.md) — the reducer expression language.
+- [`docs/adr/`](docs/adr/) — architecture decisions and why they were made.
+- [`docs/research/`](docs/research/) — what the Transaction Stream actually costs and
+  how fast it goes.
 
 ## Development
 
