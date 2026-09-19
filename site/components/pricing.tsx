@@ -27,12 +27,8 @@ const LIMITS = [
   ["Start within", "6 hours"],
 ];
 
-const LATER = [
-  ["Mainnet", "The stream time a mainnet project uses is the real cost here."],
-  ["Deeper history", "Starting a project further back than six hours."],
-  ["More projects", "Two is where it starts, not where it stays."],
-  ["GraphQL", "REST and the change feed are built; this one isn't."],
-];
+/** Deliberately unexplained: each one answers a line in the Free card's limits. */
+const LATER = ["Mainnet", "More than two projects", "History deeper than six hours", "GraphQL"];
 
 function Check() {
   return (
@@ -125,23 +121,20 @@ export function Pricing() {
               </span>
             </div>
 
-            <p className="mt-5 text-sm leading-relaxed text-white/45">
-              There is no paid plan yet, and no billing to put you on one. These are the
-              things that will need one, and why.
-            </p>
-
-            <dl className="mt-8 border-t border-white/10">
-              {LATER.map(([title, why]) => (
-                <div key={title} className="border-b border-white/10 py-4">
-                  <dt className="text-[15px] text-white/65">{title}</dt>
-                  <dd className="mt-1 text-sm leading-relaxed text-white/35">{why}</dd>
-                </div>
+            <ul className="mt-8 flex flex-col gap-3">
+              {LATER.map((item) => (
+                <li key={item} className="flex gap-3 text-[15px] leading-relaxed text-white/55">
+                  <span
+                    className="mt-[9px] size-1.5 shrink-0 rounded-full border border-white/30"
+                    aria-hidden
+                  />
+                  {item}
+                </li>
               ))}
-            </dl>
+            </ul>
 
-            <p className="mt-7 text-sm text-white/40">
-              Everything above runs on the free plan meanwhile — on testnet, which is where
-              you'd build it anyway.
+            <p className="mt-8 border-t border-white/10 pt-6 text-sm text-white/35">
+              No billing yet, so nothing to buy.
             </p>
           </div>
         </div>
