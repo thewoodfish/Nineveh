@@ -19,7 +19,7 @@ use nineveh_realtime::Hub;
 use nineveh_store::accounts::{self, ApiKey};
 use nineveh_store::{Store, StoreError, registry, row_json, shadow_name};
 
-use crate::idle::Demand;
+use crate::idle::{self, Demand, Verdict};
 use serde::Serialize;
 use sqlx::PgPool;
 use tokio::sync::{RwLock, watch};
@@ -122,6 +122,9 @@ pub struct Summary {
     /// Why it halted, failed, or can't be loaded.
     pub error: Option<String>,
     pub pipeline: Option<Health>,
+    /// Whether it has stopped folding because nothing is reading it (ADR 0023). It is
+    /// still running and still logging records; the next read wakes it.
+    pub idle: bool,
     /// Where its state API and change feed are served, relative to the control plane.
     pub api: String,
     pub created_at: String,
@@ -334,6 +337,11 @@ struct Entry {
     /// The webhook senders of this project, running while it's served (ADR 0020):
     /// a stopped pipeline still delivers what it already committed.
     deliveries: Option<Deliveries>,
+    /// Whether the fold was stopped because nothing was waiting on it (ADR 0023).
+    ///
+    /// Not persisted and not the user's `running`: it is a scheduling decision this
+    /// process made, so a restart starts everything and the sweep settles it again.
+    idle: bool,
 }
 
 /// Every project this process manages.
@@ -390,6 +398,15 @@ impl<C: Chain> ControlPlane<C> {
         });
     }
 
+    /// Note a read and, if the project had stopped folding, start it again.
+    ///
+    /// Waking is not rate-limited the way noting is: it costs nothing when the project
+    /// is already awake, and when it isn't, it is the whole point.
+    pub async fn read_arrived(self: &Arc<Self>, project: &str) {
+        self.note_read(project);
+        self.wake(project).await;
+    }
+
     /// Load every registered project, serve it, and run those that should run.
     ///
     /// # Errors
@@ -425,6 +442,20 @@ impl<C: Chain> ControlPlane<C> {
             info!(project = %name, running = entry.running, "loaded");
             plane.projects.write().await.insert(name, entry);
         }
+        // Reconsider what's worth folding, on a timer. A weak reference so the sweep
+        // doesn't keep the plane alive after everything else has let go of it.
+        let sweeping = Arc::downgrade(&plane);
+        tokio::spawn(async move {
+            let mut every = tokio::time::interval(Self::SWEEP_EVERY);
+            every.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            loop {
+                every.tick().await;
+                let Some(plane) = sweeping.upgrade() else {
+                    return;
+                };
+                plane.sweep_idle().await;
+            }
+        });
         Ok(plane)
     }
 
@@ -656,6 +687,78 @@ impl<C: Chain> ControlPlane<C> {
         }
         info!(project = %name, "deleted");
         Ok(())
+    }
+
+    /// How often the plane reconsiders which projects are worth folding.
+    const SWEEP_EVERY: Duration = Duration::from_secs(60);
+
+    /// Stop folding the projects nothing is waiting on, and start the ones something
+    /// is (ADR 0023).
+    ///
+    /// The record log keeps filling either way — only the fold stops — so a project
+    /// that goes idle stays instantly wakeable and its history keeps accruing. This is
+    /// the plane's decision to make rather than a pipeline's: a pipeline only knows
+    /// about itself, and idleness is about everything that might be reading it.
+    pub async fn sweep_idle(self: &Arc<Self>) {
+        let names: Vec<String> = self.projects.read().await.keys().cloned().collect();
+        for name in names {
+            let Ok(Some(demand)) = self.demand(&name).await else {
+                continue;
+            };
+            let verdict = demand.verdict(idle::IDLE_AFTER);
+            let mut projects = self.projects.write().await;
+            let Some(entry) = projects.get_mut(&name) else {
+                continue;
+            };
+            // A project the user stopped stays stopped: idleness never overrides it,
+            // in either direction.
+            if !entry.running {
+                continue;
+            }
+            match (verdict, entry.idle) {
+                (Verdict::Idle, false) => {
+                    entry.idle = true;
+                    if let Some(run) = entry.run.take() {
+                        drop(projects);
+                        stop(run).await;
+                        info!(project = %name, backlog = demand.backlog, "idle: nothing is reading it, so it has stopped folding");
+                    }
+                }
+                (Verdict::Wanted(why), true) => {
+                    entry.idle = false;
+                    let finished = entry.run.as_ref().is_none_or(|r| r.task.is_finished());
+                    if finished {
+                        entry.run = None;
+                        self.spawn(&name, entry);
+                        info!(project = %name, reason = ?why, "woken: folding again");
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Start folding `project` again now, rather than at the next sweep.
+    ///
+    /// Called when a read arrives, so the answer to the *next* request is current even
+    /// though this one is served from where the fold had got to. The backlog bound is
+    /// what keeps that gap small: a project may only be a couple of seconds of folding
+    /// behind before it is woken regardless of whether anyone is reading.
+    async fn wake(self: &Arc<Self>, name: &str) {
+        let mut projects = self.projects.write().await;
+        let Some(entry) = projects.get_mut(name) else {
+            return;
+        };
+        if !entry.idle || !entry.running {
+            return;
+        }
+        entry.idle = false;
+        let finished = entry.run.as_ref().is_none_or(|r| r.task.is_finished());
+        if finished {
+            entry.run = None;
+            self.spawn(name, entry);
+            info!(project = %name, "woken by a read: folding again");
+        }
     }
 
     /// What is waiting on `project`'s folded state, and therefore whether its fold is
@@ -1244,6 +1347,7 @@ impl<C: Chain> ControlPlane<C> {
             health,
             run: None,
             deliveries,
+            idle: false,
         }
     }
 
@@ -1427,6 +1531,12 @@ fn summary(name: &str, entry: &Entry) -> Summary {
         (Err(e), _, _) => ("failed".to_owned(), Some(e.clone())),
         (_, _, Some(Ended::Halted(e))) => ("halted".to_owned(), Some(e)),
         (_, _, Some(Ended::Failed(e))) => ("failed".to_owned(), Some(e)),
+        // A project that stopped folding because nobody was reading it is still
+        // running, and the next read wakes it. Reporting it as stopped would say the
+        // user had turned it off (ADR 0023).
+        (_, None, _) | (_, _, Some(Ended::Stopped)) if entry.idle && entry.running => {
+            ("idle".to_owned(), None)
+        }
         (_, None, _) | (_, _, Some(Ended::Stopped)) => ("stopped".to_owned(), None),
         (_, Some(_), None) => (
             pipeline
@@ -1439,6 +1549,7 @@ fn summary(name: &str, entry: &Entry) -> Summary {
         name: name.to_owned(),
         network: entry.network.clone(),
         running: entry.running,
+        idle: entry.idle,
         state,
         error,
         pipeline,

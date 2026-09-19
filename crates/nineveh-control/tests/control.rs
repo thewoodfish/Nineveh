@@ -448,6 +448,14 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
     wait_for_rows(&app, &name, "deposit_event", count(model.deposits)).await;
     wait_for_rows(&app, &name, "depositors", 3).await;
 
+    // A sweep can't put this one to sleep now, whatever the timestamps say: the
+    // config declares an endpoint (ADR 0023).
+    plane.sweep_idle().await;
+    assert!(
+        !state(&app, &name).await["idle"].as_bool().unwrap(),
+        "a project with a webhook endpoint never goes idle"
+    );
+
     // An endpoint is a standing instruction to deliver, and deliveries come from the
     // outbox, which only exists if the fold runs. So it is never idle, whatever the
     // timestamps say.
@@ -617,4 +625,112 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
             .unwrap();
     assert!(!exists, "the schema was dropped");
     plane.shutdown().await;
+}
+
+/// A project nothing is reading stops folding, and a read starts it again (ADR 0023).
+///
+/// Idle is a scheduling decision, not a state the user set: the record log keeps
+/// filling, the API keeps serving, and nobody presses a button to make it current.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_project_nobody_reads_goes_idle_and_a_read_wakes_it() {
+    let Some(pool) = pool("idle").await else {
+        return;
+    };
+    let name = format!("idle_{}", std::process::id());
+    let (chain, _) = chain(&[
+        Op::Deposit { user: 0, amount: 5 },
+        Op::Deposit { user: 1, amount: 7 },
+    ]);
+    let plane = ControlPlane::start(Arc::clone(&chain), pool.clone(), options())
+        .await
+        .unwrap();
+    let app = router(Arc::clone(&plane), Access::Local);
+
+    let (status, scaffolded) = call(
+        &app,
+        Method::POST,
+        "/control/v1/scaffold",
+        Some(json!({
+            "name": name,
+            "network": "testnet",
+            "picks": [format!("{}::vault::DepositEvent", vault::MODULE)],
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{scaffolded}");
+    let config = scaffolded["config"].as_str().unwrap().to_owned();
+    let (status, created) = call(
+        &app,
+        Method::POST,
+        "/control/v1/projects",
+        Some(json!({ "config": config })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    wait_for_rows(&app, &name, "deposit_event", 2).await;
+    wait_for_state(&app, &name, "running").await;
+
+    // Reading it to check the rows counts as a read, so forget that to stand for a
+    // project nobody has looked at in a day. The scaffold declares no webhook endpoint
+    // and nothing is subscribed, so nothing is waiting on its rows.
+    nineveh_store::reads::forget(&pool, &name).await.unwrap();
+    let demand = plane.demand(&name).await.unwrap().unwrap();
+    assert_eq!(
+        demand.verdict(idle::IDLE_AFTER),
+        idle::Verdict::Idle,
+        "nothing is waiting on it: {demand:?}"
+    );
+
+    plane.sweep_idle().await;
+    let after = state(&app, &name).await;
+    assert_eq!(
+        after["state"],
+        json!("idle"),
+        "an idle project is not a stopped one: {after}"
+    );
+    assert_eq!(after["idle"], json!(true), "{after}");
+    assert_eq!(
+        after["running"],
+        json!(true),
+        "it is still running — only the fold stopped: {after}"
+    );
+
+    // Reading the project's own API wakes it, without anyone asking.
+    let (status, rows) = call(
+        &app,
+        Method::GET,
+        &format!("/projects/{name}/v1/tables/deposit_event"),
+        None,
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "an idle project still serves: {rows}"
+    );
+    let woken = state(&app, &name).await;
+    assert_eq!(woken["idle"], json!(false), "a read wakes it: {woken}");
+
+    // And a project the user stopped stays stopped: idleness never overrides that.
+    let (status, stopped) = call(
+        &app,
+        Method::POST,
+        &format!("/control/v1/projects/{name}/stop"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{stopped}");
+    plane.sweep_idle().await;
+    let still = state(&app, &name).await;
+    assert_eq!(still["state"], json!("stopped"), "{still}");
+    assert_eq!(still["idle"], json!(false), "{still}");
+
+    let (status, _) = call(
+        &app,
+        Method::DELETE,
+        &format!("/control/v1/projects/{name}"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
 }
