@@ -47,7 +47,8 @@ use tracing::{error, info, warn};
 
 use crate::auth::{self, Access, SESSION_DAYS, SESSION_PREFIX};
 use crate::chain::Chain;
-use crate::plane::{Caller, ControlError, ControlPlane, ScaffoldRequest};
+use crate::plane::{Caller, ControlError, ControlPlane, ReaderInfo, ScaffoldRequest, Usage};
+use crate::tier::{self, Limits};
 
 /// The control plane and how it's reached.
 struct Server<C: Chain> {
@@ -63,6 +64,7 @@ pub fn router<C: Chain>(plane: Arc<ControlPlane<C>>, access: Access) -> Router {
         .route("/control/v1/me", get(me::<C>))
         .route("/control/v1/logout", post(logout::<C>))
         .route("/control/v1/inspect", get(inspect::<C>))
+        .route("/control/v1/readers", get(readers::<C>))
         .route("/control/v1/scaffold", post(scaffold::<C>))
         .route("/control/v1/projects", get(list::<C>).post(create::<C>))
         .route(
@@ -70,6 +72,7 @@ pub fn router<C: Chain>(plane: Arc<ControlPlane<C>>, access: Access) -> Router {
             get(show::<C>).put(update::<C>).delete(remove::<C>),
         )
         .route("/control/v1/projects/{name}/sources", get(sources::<C>))
+        .route("/control/v1/projects/{name}/usage", get(usage::<C>))
         .route("/control/v1/projects/{name}/check", post(check::<C>))
         .route("/control/v1/projects/{name}/preview", post(preview::<C>))
         .route("/control/v1/projects/{name}/webhooks", get(webhooks::<C>))
@@ -162,6 +165,35 @@ impl<C: Chain> Server<C> {
 struct Me {
     mode: &'static str,
     account: Option<AccountView>,
+    /// What this account's tier allows. Studio reads it rather than hard-coding the
+    /// numbers, so "2 projects" and "mainnet is coming soon" are said in one place.
+    /// Absent in local mode: there is no account, so there is no tier.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    limits: Option<LimitsView>,
+}
+
+/// A tier as Studio shows it.
+#[derive(Debug, Serialize)]
+struct LimitsView {
+    name: &'static str,
+    projects: usize,
+    networks: &'static [&'static str],
+    look_back_hours: u64,
+    log_bytes: i64,
+    history_days: i32,
+}
+
+impl From<Limits> for LimitsView {
+    fn from(limits: Limits) -> Self {
+        Self {
+            name: limits.name,
+            projects: limits.projects,
+            networks: limits.networks,
+            look_back_hours: limits.look_back.as_secs() / 3600,
+            log_bytes: limits.log_bytes,
+            history_days: limits.history_days,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -179,6 +211,7 @@ async fn me<C: Chain>(
         Access::Local => Me {
             mode: "local",
             account: None,
+            limits: None,
         },
         Access::Hosted { .. } => {
             let account = server
@@ -192,9 +225,29 @@ async fn me<C: Chain>(
                     name: account.name,
                     avatar_url: account.avatar_url,
                 }),
+                limits: Some(tier::FREE.into()),
             }
         }
     }))
+}
+
+/// What each network's shared reader is doing (ADR 0021): the plane's scarcest
+/// resource, and the thing to look at when backfills are queueing.
+async fn readers<C: Chain>(
+    State(server): Shared<C>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<ReaderInfo>>, ControlError> {
+    server.caller(&headers).await?;
+    Ok(Json(server.plane.readers().await))
+}
+
+async fn usage<C: Chain>(
+    State(server): Shared<C>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+) -> Result<Json<Usage>, ControlError> {
+    let caller = server.caller(&headers).await?;
+    Ok(Json(server.plane.usage(caller, &name).await?))
 }
 
 async fn logout<C: Chain>(

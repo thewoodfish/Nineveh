@@ -239,3 +239,26 @@ It also sizes the pool concretely. On testnet, `1 shared reader + 4 backfill slo
 leaves two streams of headroom against 7; on mainnet the same shape has sixteen spare.
 Testnet sets the pool, so the pool is small, which makes the queueing in ADR 0021 —
 backfill takes a slot and waits for one — load-bearing rather than theoretical.
+
+## How fast each network's version counter moves (2026-09-19)
+
+A tier that says "start within six hours of the tip" has to turn hours into versions,
+so this is the conversion. Measured from the REST API: the tip's timestamp against the
+timestamp of the transaction a fixed number of versions earlier.
+
+| Network | Over 1M versions | Over 10M versions | Taken as |
+|---|---|---|---|
+| testnet | 220.6 /s (1.26 h) | 220.0 /s (12.63 h) | **220 /s** |
+| mainnet | 146.4 /s (1.90 h) | 149.3 /s (18.60 h) | **148 /s** |
+
+Both agree closely across a one-hour and a half-day window, so the rate is steady
+enough to use as a constant. Testnet moves about 1.5× as fast as mainnet — it carries
+less real traffic but the same block cadence, and empty versions count.
+
+Six hours is therefore about **4.75M versions on testnet** and **3.2M on mainnet**.
+
+Two consequences. A six-hour look-back is a few minutes of backfill at the 3.5–11k
+versions/s a stream sustains, which is what makes it a reasonable free-tier bound: it
+is a real backfill, not a token one, and it doesn't hold a catch-up slot for long.
+And mainnet's 148/s puts a day at 12.8M versions, which is the number behind "all of
+mainnet is about two weeks on one stream".

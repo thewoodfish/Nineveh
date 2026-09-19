@@ -11,6 +11,8 @@
 
 use std::time::Duration;
 
+use nineveh_core::Network;
+
 /// What one project may use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
@@ -53,7 +55,26 @@ pub const FREE: Limits = Limits {
     history_days: 7,
 };
 
+/// Versions a network commits in a second, measured from the REST API over both a
+/// one-hour and a half-day window (`docs/research/spike-a-stream.md`, 2026-09-19).
+///
+/// Testnet moves faster than mainnet despite carrying less real traffic: the block
+/// cadence is the same and empty versions still count.
+#[must_use]
+pub const fn versions_per_second(network: Network) -> u64 {
+    match network {
+        Network::Mainnet => 148,
+        Network::Testnet | Network::Devnet => 220,
+    }
+}
+
 impl Limits {
+    /// How far back of `network` this tier's look-back reaches, in versions.
+    #[must_use]
+    pub const fn look_back_versions(&self, network: Network) -> u64 {
+        self.look_back.as_secs() * versions_per_second(network)
+    }
+
     /// Whether a project on this tier may follow `network`.
     #[must_use]
     pub fn allows(&self, network: &str) -> bool {
@@ -157,6 +178,20 @@ mod tests {
             FREE.describe(Limit::LookBack),
             "The Free tier starts a project within 6 hours of the chain's tip. \
              Starting further back is coming soon."
+        );
+    }
+
+    /// The look-back is quoted in hours but enforced in versions, and the two
+    /// networks move at different speeds, so the conversion has to be per network.
+    #[test]
+    fn six_hours_is_a_different_distance_on_each_network() {
+        let testnet = FREE.look_back_versions(Network::Testnet);
+        let mainnet = FREE.look_back_versions(Network::Mainnet);
+        assert_eq!(testnet, 6 * 3600 * 220, "4.75M versions");
+        assert_eq!(mainnet, 6 * 3600 * 148, "3.2M versions");
+        assert!(
+            testnet > mainnet,
+            "testnet's counter moves faster, so six hours of it is further back"
         );
     }
 

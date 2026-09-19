@@ -359,3 +359,130 @@ async fn local_mode_needs_no_sign_in() {
     assert_eq!(status, StatusCode::NOT_FOUND);
     plane.shutdown().await;
 }
+
+/// The free tier's gates, and what they say when they close.
+///
+/// Each one stands for a cost that is real: a third project is fold CPU and a schema,
+/// mainnet is stream time that scales with customers, and a deep backfill holds one of
+/// a handful of catch-up streams for hours (ADR 0021). None of them is a wall with a
+/// price behind it — billing doesn't exist — so the messages say what the tier does
+/// and what is coming, and never "upgrade".
+#[tokio::test(flavor = "multi_thread")]
+#[allow(
+    clippy::too_many_lines,
+    reason = "one account meeting each gate in turn"
+)]
+async fn the_free_tier_says_what_it_allows_and_why() {
+    logs();
+    let Some(pool) = pool("hosted_tier").await else {
+        return;
+    };
+    let (chain, _) = chain(&[Op::Deposit { user: 0, amount: 5 }]);
+    let plane = ControlPlane::start(chain, pool.clone(), options())
+        .await
+        .unwrap();
+    let app = router(
+        Arc::clone(&plane),
+        Access::Hosted {
+            provider: Arc::new(FakeGitHub),
+            studio_url: STUDIO.into(),
+        },
+    );
+    let pid = std::process::id();
+    let token = sign_in(&app, &format!("tier_{pid}")).await;
+
+    // Studio is told the numbers rather than hard-coding them.
+    let (status, _, me) = call_as(&app, Some(&token), Method::GET, "/control/v1/me", None).await;
+    assert_eq!(status, StatusCode::OK, "{me}");
+    assert_eq!(me["limits"]["name"], json!("Free"), "{me}");
+    assert_eq!(me["limits"]["projects"], json!(2), "{me}");
+    assert_eq!(
+        me["limits"]["networks"],
+        json!(["testnet", "devnet"]),
+        "{me}"
+    );
+
+    // Two projects are fine.
+    create(&app, &token, &format!("tier_{pid}_a")).await;
+    create(&app, &token, &format!("tier_{pid}_b")).await;
+
+    // The third is refused, and told how to make room rather than how to pay.
+    let deposits = format!("{}::vault::DepositEvent", vault::MODULE);
+    let (_, _, scaffolded) = call_as(
+        &app,
+        Some(&token),
+        Method::POST,
+        "/control/v1/scaffold",
+        Some(json!({
+            "name": format!("tier_{pid}_c"),
+            "network": "testnet",
+            "picks": [deposits],
+        })),
+    )
+    .await;
+    let (status, _, refused) = call_as(
+        &app,
+        Some(&token),
+        Method::POST,
+        "/control/v1/projects",
+        Some(json!({ "config": scaffolded["config"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    let message = refused["error"].as_str().unwrap_or_default().to_owned();
+    assert!(
+        message.contains("2 projects") && message.contains("Delete one"),
+        "a limit should say its number and the way out: {message}"
+    );
+    assert!(
+        !message.to_lowercase().contains("upgrade"),
+        "there is nothing to upgrade to yet: {message}"
+    );
+
+    // Mainnet is refused as coming soon, not as an error in the config.
+    let (_, _, mainnet) = call_as(
+        &app,
+        Some(&token),
+        Method::POST,
+        "/control/v1/scaffold",
+        Some(json!({
+            "name": format!("tier_{pid}_m"),
+            "network": "mainnet",
+            "picks": [format!("{}::vault::DepositEvent", vault::MODULE)],
+        })),
+    )
+    .await;
+    let config = mainnet["config"]
+        .as_str()
+        .unwrap_or_else(|| panic!("a mainnet config should scaffold: {mainnet}"));
+    let (status, _, refused) = call_as(
+        &app,
+        Some(&token),
+        Method::POST,
+        "/control/v1/projects",
+        Some(json!({ "config": config })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    let message = refused["error"].as_str().unwrap_or_default();
+    assert!(
+        message.contains("Mainnet is coming soon"),
+        "mainnet should read as unfinished, not as refused: {message}"
+    );
+
+    // And a project reports what it is using of its allowance.
+    let (status, _, usage) = call_as(
+        &app,
+        Some(&token),
+        Method::GET,
+        &format!("/control/v1/projects/tier_{pid}_a/usage"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{usage}");
+    assert_eq!(usage["limit_bytes"], json!(1024 * 1024 * 1024), "{usage}");
+    assert_eq!(usage["history_days"], json!(7), "{usage}");
+    assert!(usage["records"].as_i64().is_some(), "{usage}");
+
+    plane.shutdown().await;
+}

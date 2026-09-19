@@ -33,7 +33,7 @@ use crate::deliver::Deliveries;
 use crate::pin::{PinError, pin, retry};
 use crate::runner::{RunError, RunOptions, Runner};
 use crate::scaffold::{Draft, ScaffoldError, Start, scaffold};
-use crate::tier::{self, Limits};
+use crate::tier::{self, Limit, Limits};
 
 /// Why a control-plane request failed.
 #[derive(Debug, thiserror::Error)]
@@ -250,6 +250,23 @@ pub struct Detail {
     #[serde(flatten)]
     pub summary: Summary,
     pub config: String,
+}
+
+/// What a project is using of what it is allowed.
+///
+/// The number that matters is the record log: it is what makes a rebuild local rather
+/// than another backfill (ADR 0022), so its size is really "how far back can this
+/// project be rebuilt for free".
+#[derive(Debug, Clone, Serialize)]
+pub struct Usage {
+    pub records: i64,
+    pub bytes: i64,
+    pub limit_bytes: i64,
+    /// The earliest version still logged, as a decimal string: how far back a rebuild
+    /// reaches without reading the chain.
+    pub earliest_version: Option<String>,
+    /// Days of change feed kept for webhook receivers that fall behind.
+    pub history_days: i32,
 }
 
 /// A scaffold request: [`Draft`] with the start as the control API takes it.
@@ -649,6 +666,8 @@ impl<C: Chain> ControlPlane<C> {
             )));
         }
         let (loaded, lock_text) = self.prepare(&config, text).await?;
+        self.within_tier(caller, config.network, loaded.start)
+            .await?;
         registry::insert(
             &self.pool,
             &name,
@@ -932,6 +951,26 @@ impl<C: Chain> ControlPlane<C> {
             read_ago: nineveh_store::reads::seconds_since_read(&self.pool, name).await?,
             backlog: nineveh_store::records::pending(&self.pool, name, folded).await?,
         }))
+    }
+
+    /// What `caller`'s project `name` is using of its allowance.
+    ///
+    /// # Errors
+    ///
+    /// If the project isn't `caller`'s, or the database fails.
+    pub async fn usage(&self, caller: Caller, name: &str) -> Result<Usage, ControlError> {
+        self.get_entry(caller, name, |_| ()).await?;
+        let limits = tier::FREE;
+        let (records, bytes) = nineveh_store::records::usage(&self.pool, name).await?;
+        Ok(Usage {
+            records,
+            bytes,
+            limit_bytes: limits.log_bytes,
+            earliest_version: nineveh_store::records::first_version(&self.pool, name)
+                .await?
+                .map(|v| v.to_string()),
+            history_days: limits.history_days,
+        })
     }
 
     /// What each network's shared reader is doing.
@@ -1403,6 +1442,47 @@ impl<C: Chain> ControlPlane<C> {
     }
 
     /// Pin `config`'s layouts and resolve it: everything short of saving it.
+    /// Check a new project against the caller's tier (`tier::FREE`).
+    ///
+    /// Only accounts have a tier. In local mode there is no account, and the plane is
+    /// running on the person's own machine with their own key — there is nobody to
+    /// meter and nothing they would be taking from anyone else — so nothing is gated.
+    ///
+    /// `start` is the version the config resolved to, which is why this runs after
+    /// pinning rather than on the text.
+    async fn within_tier(
+        &self,
+        caller: Caller,
+        network: Network,
+        start: Version,
+    ) -> Result<(), ControlError> {
+        let Caller::Account(account) = caller else {
+            return Ok(());
+        };
+        let limits = tier::FREE;
+        if !limits.allows(network.as_str()) {
+            return Err(ControlError::BadRequest(limits.describe(Limit::Network)));
+        }
+        let mine = self
+            .projects
+            .read()
+            .await
+            .values()
+            .filter(|entry| entry.owner_id == Some(account))
+            .count();
+        if mine >= limits.projects {
+            return Err(ControlError::BadRequest(limits.describe(Limit::Projects)));
+        }
+        // A deep backfill holds one of a handful of catch-up streams for hours
+        // (ADR 0021), which is the scarce thing here — not the storage it produces.
+        let tip = retry(|| self.chain.tip(network)).await?;
+        let earliest = tip.get().saturating_sub(limits.look_back_versions(network));
+        if start.get() < earliest {
+            return Err(ControlError::BadRequest(limits.describe(Limit::LookBack)));
+        }
+        Ok(())
+    }
+
     async fn prepare(&self, config: &Config, text: &str) -> Result<(Loaded, String), ControlError> {
         let lock = pin(&*self.chain, config).await?;
         let lock_text = lock
