@@ -35,8 +35,8 @@ const SHOTS = [
     tab: "Is it keeping up?",
     src: "/shots/overview.jpg",
     caption:
-      "Where the cursor is, how far behind the chain, and how fast it's folding. Caught up means caught up.",
-    alt: "Nineveh Studio's overview, showing the project caught up with the chain",
+      "Where the cursor is, how far behind the chain, how fast it's folding — and how much of its own history it's holding, which is how far back it can be rebuilt without reading the chain again.",
+    alt: "Nineveh Studio's overview, showing a project caught up with the chain and its history usage",
   },
 ];
 
