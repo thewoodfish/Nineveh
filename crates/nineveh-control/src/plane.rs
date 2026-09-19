@@ -22,7 +22,7 @@ use serde::Serialize;
 use sqlx::PgPool;
 use tokio::sync::{RwLock, watch};
 use tokio::task::JoinHandle;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::auth;
 use crate::catalog::{Catalog, catalog};
@@ -344,6 +344,10 @@ pub struct ControlPlane<C> {
     projects: RwLock<BTreeMap<String, Entry>>,
     /// Changes to projects happen one at a time.
     changes: tokio::sync::Mutex<()>,
+    /// When each project's read was last written down. The question idleness asks is
+    /// whether anyone read it today, so a write per request would buy nothing; this
+    /// keeps the API's hot path off the database between them.
+    read_at: Mutex<BTreeMap<String, Instant>>,
 }
 
 impl<C> std::fmt::Debug for ControlPlane<C> {
@@ -355,6 +359,35 @@ impl<C> std::fmt::Debug for ControlPlane<C> {
 }
 
 impl<C: Chain> ControlPlane<C> {
+    /// How often a project's read is written down. Idleness is measured in hours, so
+    /// a timestamp a minute out of date answers the question exactly as well.
+    const READ_INTERVAL: Duration = Duration::from_secs(60);
+
+    /// Note that someone read `project`, at most once a minute.
+    ///
+    /// Called from the API's hot path, so it does nothing but compare two instants
+    /// unless the interval has passed, and the write it then does is spawned: a read
+    /// must never wait on bookkeeping about itself.
+    pub fn note_read(self: &Arc<Self>, project: &str) {
+        {
+            let now = Instant::now();
+            let Ok(mut seen) = self.read_at.lock() else {
+                return; // A poisoned lock costs us a timestamp, not a request.
+            };
+            match seen.get(project) {
+                Some(at) if now.duration_since(*at) < Self::READ_INTERVAL => return,
+                _ => seen.insert(project.to_owned(), now),
+            };
+        }
+        let pool = self.pool.clone();
+        let project = project.to_owned();
+        tokio::spawn(async move {
+            if let Err(error) = nineveh_store::reads::touch(&pool, &project).await {
+                debug!(%error, %project, "couldn't note the read");
+            }
+        });
+    }
+
     /// Load every registered project, serve it, and run those that should run.
     ///
     /// # Errors
@@ -375,6 +408,7 @@ impl<C: Chain> ControlPlane<C> {
             hub,
             projects: RwLock::new(BTreeMap::new()),
             changes: tokio::sync::Mutex::new(()),
+            read_at: Mutex::new(BTreeMap::new()),
         });
         for record in registry::list(&plane.pool).await? {
             let loaded = load(&record.config, &record.lock).map(Arc::new);
@@ -605,8 +639,19 @@ impl<C: Chain> ControlPlane<C> {
         if let Err(error) = nineveh_store::webhooks::forget_others(&self.pool, name, &[]).await {
             warn!(%error, project = %name, "couldn't forget the project's webhooks");
         }
+        // The record log and the read history are keyed by project, not by schema, so
+        // dropping the schema doesn't take them (ADR 0022).
+        if let Err(error) = nineveh_store::records::forget(&self.pool, name).await {
+            warn!(%error, project = %name, "couldn't forget the project's records");
+        }
+        if let Err(error) = nineveh_store::reads::forget(&self.pool, name).await {
+            warn!(%error, project = %name, "couldn't forget the project's read history");
+        }
         registry::delete(&self.pool, name).await?;
         self.projects.write().await.remove(name);
+        if let Ok(mut seen) = self.read_at.lock() {
+            seen.remove(name);
+        }
         info!(project = %name, "deleted");
         Ok(())
     }

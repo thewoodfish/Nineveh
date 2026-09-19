@@ -398,6 +398,16 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
+    // Reading the project's API is what keeps it out of idle (ADR 0023), so the
+    // request above has to have been noted.
+    assert!(
+        nineveh_store::reads::seconds_since_read(&pool, &name)
+            .await
+            .unwrap()
+            .is_some(),
+        "reading a project's API notes the read"
+    );
+
     // Following the shares table too rebuilds the project, and the old tables survive.
     let changed = config
         .replace(

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO nineveh.project_reads (project, last_read_at)\n           VALUES ($1, now())\n           ON CONFLICT (project) DO UPDATE SET last_read_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "35143a2c46193656cbb35306d46498bd7afbc26e7b6d8b743c8f0a49c4508052"
+}

@@ -607,6 +607,8 @@ async fn project<C: Chain>(
     let Some(router) = server.plane.router(&name).await else {
         return ControlError::NotFound(format!("no project named `{name}`")).into_response();
     };
+    // Somebody is reading this project, which is what keeps it out of idle (ADR 0023).
+    server.plane.note_read(&name);
     // The key isn't a column filter: the project's API never sees it.
     let kept: Vec<&str> = parts
         .uri

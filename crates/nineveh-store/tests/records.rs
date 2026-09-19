@@ -279,3 +279,43 @@ async fn a_corrupt_row_is_an_error_not_a_panic() {
 
     records::forget(&pool, &name).await.unwrap();
 }
+
+/// Reads are noted, and forgotten with the project (ADR 0023).
+#[tokio::test]
+async fn a_project_remembers_when_it_was_last_read() {
+    let Some(pool) = pool().await else { return };
+    let name = project(6);
+
+    assert!(
+        nineveh_store::reads::seconds_since_read(&pool, &name)
+            .await
+            .unwrap()
+            .is_none(),
+        "a project nobody has read has no reading to report"
+    );
+
+    nineveh_store::reads::touch(&pool, &name).await.unwrap();
+    let ago = nineveh_store::reads::seconds_since_read(&pool, &name)
+        .await
+        .unwrap()
+        .expect("a read was noted");
+    assert!((0..5).contains(&ago), "just read, but reports {ago}s ago");
+
+    // Touching again moves it: the caller rate-limits, not this.
+    nineveh_store::reads::touch(&pool, &name).await.unwrap();
+    assert!(
+        nineveh_store::reads::seconds_since_read(&pool, &name)
+            .await
+            .unwrap()
+            .is_some_and(|a| a < 5)
+    );
+
+    nineveh_store::reads::forget(&pool, &name).await.unwrap();
+    assert!(
+        nineveh_store::reads::seconds_since_read(&pool, &name)
+            .await
+            .unwrap()
+            .is_none(),
+        "a deleted project takes its read history with it"
+    );
+}
