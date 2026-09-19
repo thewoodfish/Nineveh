@@ -40,15 +40,31 @@ export function Button({
   );
 }
 
-/** The line above a heading: what this stretch of the page is about. */
-export function Eyebrow({ children, center = false }: { children: ReactNode; center?: boolean }) {
+/**
+ * A register: one stretch of the page, hung off a rail in the left margin that carries
+ * the section's own anchor.
+ *
+ * The mark is the fragment this section lives at, so the margin is doing navigation —
+ * it says where you are and hands you the link — rather than labelling the heading
+ * underneath it. It replaces the caps eyebrow that used to sit above every heading,
+ * which said nothing the heading didn't already say.
+ */
+export function Register({
+  at,
+  children,
+}: {
+  /** The section's id, without the hash. */
+  at: string;
+  children: ReactNode;
+}) {
   return (
-    <div
-      className={`flex items-center gap-2.5 text-xs font-semibold tracking-[0.14em] text-blue-300 uppercase ${
-        center ? "justify-center" : ""
-      }`}
-    >
-      <span className="h-px w-6 bg-blue-400/60" />
+    <div className="register">
+      <a
+        href={`#${at}`}
+        className="mark mb-5 block transition-colors hover:text-clay-300 2xl:mb-0"
+      >
+        #{at}
+      </a>
       {children}
     </div>
   );
@@ -78,7 +94,7 @@ export function Section({
 export function Heading({ children, center = false }: { children: ReactNode; center?: boolean }) {
   return (
     <h2
-      className={`mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-balance text-white sm:text-[2.7rem] sm:leading-[1.08] ${
+      className={`max-w-3xl font-display text-3xl leading-[1.12] font-semibold tracking-[-0.015em] text-balance text-white sm:text-4xl ${
         center ? "mx-auto" : ""
       }`}
     >
@@ -90,7 +106,7 @@ export function Heading({ children, center = false }: { children: ReactNode; cen
 export function Lede({ children, center = false }: { children: ReactNode; center?: boolean }) {
   return (
     <p
-      className={`mt-5 max-w-2xl text-lg leading-relaxed text-pretty text-white/55 ${
+      className={`mt-5 max-w-[62ch] text-lg leading-relaxed text-pretty text-white/55 ${
         center ? "mx-auto" : ""
       }`}
     >

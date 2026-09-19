@@ -6,6 +6,13 @@
 import { useEffect, useState } from "react";
 import { Button, Logo } from "./bits";
 
+/** The bar's links. `docs` sends you out of the landing page; the rest are anchors. */
+const LINKS = [
+  { label: "How it works", href: "/#how", anchor: true },
+  { label: "Pricing", href: "/#pricing", anchor: true },
+  { label: "Docs", href: "/docs", anchor: false },
+];
+
 export function Nav() {
   const [progress, setProgress] = useState(0);
   const [lifted, setLifted] = useState(false);
@@ -38,24 +45,29 @@ export function Nav() {
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-        <a href="#top" className="flex items-center gap-2 text-white">
+        <a href="/" className="flex items-center gap-2 text-white">
           <Logo className="size-5 text-blue-400" />
           <span className="text-[15px] font-semibold tracking-tight">Nineveh</span>
         </a>
         <div className="flex items-center gap-6 text-sm">
-          <a
-            href="#how"
-            className="hidden text-white/55 transition-colors hover:text-white sm:block"
-          >
-            How it works
-          </a>
+          {LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className={`text-white/55 transition-colors hover:text-white ${
+                link.anchor ? "hidden sm:block" : ""
+              }`}
+            >
+              {link.label}
+            </a>
+          ))}
           <a
             href="https://github.com/thewoodfish/Nineveh"
-            className="text-white/55 transition-colors hover:text-white"
+            className="hidden text-white/55 transition-colors hover:text-white sm:block"
           >
             GitHub
           </a>
-          <Button href="https://github.com/thewoodfish/Nineveh">Get started</Button>
+          <Button href="/docs">Start building</Button>
         </div>
       </div>
       <div

@@ -1,4 +1,6 @@
-import { Button, Code, Eyebrow, Heading, Lede, Logo, Section } from "@/components/bits";
+import { Button, Code, Heading, Lede, Logo, Register, Section } from "@/components/bits";
+import { Pricing } from "@/components/pricing";
+import { Shots } from "@/components/shots";
 import { Builds } from "@/components/builds";
 import { Nav } from "@/components/nav";
 import { Stream } from "@/components/stream";
@@ -86,7 +88,9 @@ export default function Home() {
         <Hero />
         <Problem />
         <Machinery />
+        <Shots />
         <Payoff />
+        <Pricing />
         <Closing />
       </main>
     </>
@@ -104,8 +108,8 @@ function Hero() {
           <span className="size-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_2px_oklch(0.716_0.152_259_/_0.6)]" />
           Built for Aptos, on the transaction stream
         </a>
-        <h1 className="mt-7 text-[2.75rem] leading-[1.05] font-semibold tracking-tight text-balance text-white sm:text-[4rem]">
-          A <span className="text-blue-400">live backend</span> for your Aptos contract
+        <h1 className="mt-7 font-display text-4xl leading-[1.04] font-semibold tracking-[-0.022em] text-balance text-white sm:text-5xl">
+          A live backend for your Aptos contract
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/55">
           Point Nineveh at your contract&apos;s address. Get a database and an API that stay in sync
@@ -136,9 +140,9 @@ function Hero() {
 function Problem() {
   return (
     <Section id="problem" rule={false}>
-      <div className="rise grid gap-8 lg:grid-cols-[1fr_1fr] lg:gap-16">
+      <Register at="problem">
+      <div className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:gap-16">
         <div>
-          <Eyebrow>The problem</Eyebrow>
           <Heading>The chain answers one kind of question</Heading>
         </div>
         <div className="self-end">
@@ -157,7 +161,7 @@ function Problem() {
       </div>
 
       {/* The three asks, set as an editorial list rather than boxed up as cards. */}
-      <dl className="rise mt-16 border-t border-white/10">
+      <dl className="mt-16 border-t border-white/10">
         {ASKS.map(([ask, kinds]) => (
           <div
             key={ask}
@@ -171,6 +175,7 @@ function Problem() {
           </div>
         ))}
       </dl>
+      </Register>
     </Section>
   );
 }
@@ -180,8 +185,8 @@ function Machinery() {
   return (
     <section id="how" className="deep">
       <div className="mx-auto max-w-6xl px-6 pt-44 pb-40 sm:pt-52 sm:pb-48">
-        <div className="rise mx-auto max-w-3xl text-center">
-          <Eyebrow center>Seventeen lines</Eyebrow>
+        <Register at="how">
+        <div className="mx-auto max-w-3xl text-center">
           <Heading center>Describe the table. Get the API.</Heading>
           <Lede center>
             No processor to write, no migrations, no schema to keep in step. Change a rule and
@@ -190,7 +195,7 @@ function Machinery() {
           </Lede>
         </div>
 
-        <div className="rise mt-16 grid items-start gap-6 lg:grid-cols-2">
+        <div className="mt-16 grid items-start gap-6 lg:grid-cols-2">
           <Code title="nineveh.yaml" lines={CONFIG} />
           <div className="flex flex-col gap-5">
             <Code title="your API, a second later" lines={RESPONSE} />
@@ -205,13 +210,12 @@ function Machinery() {
           </div>
         </div>
 
-        <div className="rise mt-32">
-          <Eyebrow>Under it</Eyebrow>
+        <div className="mt-32">
           <Heading>Four steps, and none of them are yours</Heading>
         </div>
         {/* A rail runs through the steps, with a pulse travelling it: one movement, not
             four boxes. */}
-        <ol className="rise relative mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+        <ol className="relative mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
           <div className="absolute top-3.5 right-0 left-0 hidden lg:block" aria-hidden>
             <div className="h-px w-full bg-gradient-to-r from-blue-400/50 via-blue-400/25 to-transparent" />
             <span className="travel absolute -top-[3px] size-[7px] rounded-full bg-blue-200 shadow-[0_0_14px_4px_oklch(0.716_0.152_259_/_0.65)]" />
@@ -228,7 +232,7 @@ function Machinery() {
         </ol>
 
         {/* The promises, stated plainly — the page stops selling for four lines. */}
-        <div className="rise mt-28 grid gap-10 border-t border-white/10 pt-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
+        <div className="mt-28 grid gap-10 border-t border-white/10 pt-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
           {GUARANTEES.map((g) => (
             <div key={g.title}>
               <div className="text-sm font-semibold text-white">{g.title}</div>
@@ -236,6 +240,7 @@ function Machinery() {
             </div>
           ))}
         </div>
+        </Register>
       </div>
     </section>
   );
@@ -244,8 +249,8 @@ function Machinery() {
 function Payoff() {
   return (
     <Section rule={false}>
-      <div className="rise mx-auto max-w-3xl text-center">
-        <Eyebrow center>What you build with it</Eyebrow>
+      <Register at="questions">
+      <div className="mx-auto max-w-3xl text-center">
         <Heading center>Questions your contract already answers, but can&apos;t be asked</Heading>
         <Lede center>
           None of these need a contract change. The data is already on-chain; it simply isn&apos;t
@@ -256,10 +261,11 @@ function Payoff() {
       <div className="mt-14">
         <Builds />
       </div>
-      <p className="rise mt-8 text-center text-sm text-white/45">
+      <p className="mt-8 text-center text-sm text-white/45">
         Whatever your contract emits, you can fold it into a table shaped like the question you
         actually ask.
       </p>
+      </Register>
     </Section>
   );
 }

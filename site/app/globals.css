@@ -2,7 +2,20 @@
 
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-display), ui-serif, Georgia, serif;
   --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* A major-third scale from 16, so headings relate to body text by ratio rather than
+     by eye. Display sizes carry tighter tracking; the serif needs it at scale. */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5625rem;
+  --text-2xl: 1.953rem;
+  --text-3xl: 2.441rem;
+  --text-4xl: 3.052rem;
+  --text-5xl: 3.815rem;
 
   /* Blue, the whole way down: the accent, the light behind the page, and the tint in
      the ground, all one hue, so nothing looks borrowed. On a dark page the scale is
@@ -26,6 +39,15 @@
   --color-page: oklch(0.163 0.022 262);
   --color-deep: oklch(0.112 0.019 263);
 
+  /* Clay: the one warm note, and the only place the page leaves blue. It marks
+     *numbers that came off the chain* — version cursors, counts, prices — so warmth
+     means "this is data" and never "this is decoration". Nineveh's records were kept
+     on clay; a single tan against all that lapis is also what stops a dark page with
+     one bright accent reading as the stock treatment. */
+  --color-clay-300: oklch(0.84 0.055 72);
+  --color-clay-400: oklch(0.775 0.075 68);
+  --color-clay-500: oklch(0.7 0.088 64);
+
   /* On a dark page a shadow is a hole, not a haze — and the one thing that glows is
      blue, so the call to action can throw light. */
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.4), 0 2px 8px oklch(0 0 0 / 0.28);
@@ -46,6 +68,48 @@ section[id] {
 
 body {
   @apply bg-page text-white;
+}
+
+/*
+ * The rail: a hairline in the page's outer margin carrying each section's own anchor.
+ *
+ * It lives *outside* the content column, in the space a centred page already wastes, so
+ * it never pushes the content off-centre — and it only appears once the viewport is wide
+ * enough to hold it. Below that it folds to a small mark above the section. It replaces
+ * the tracked-out caps label that used to sit above every heading, and unlike that label
+ * it does something: it says where you are and hands you the link.
+ */
+.register {
+  position: relative;
+}
+
+.mark {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: var(--color-clay-500);
+}
+
+@media (min-width: 87.5rem) {
+  .register > .mark {
+    position: absolute;
+    top: 0.55rem;
+    left: -6.5rem;
+    width: 5rem;
+    text-align: right;
+    margin-bottom: 0;
+  }
+
+  /* The rule the mark hangs from, set between the mark and the content. */
+  .register > .mark::after {
+    content: "";
+    position: absolute;
+    top: 0.42rem;
+    right: -3.15rem;
+    width: 2.6rem;
+    height: 1px;
+    background: linear-gradient(to right, oklch(1 0 0 / 0.28), oklch(1 0 0 / 0.06));
+  }
 }
 
 ::selection {
@@ -239,4 +303,256 @@ body {
   .deep::after {
     animation: none;
   }
+}
+
+/*
+ * The docs' typography. The guide is mostly prose, tables and code, in that order of
+ * volume, so those three get the attention and everything else inherits sensibly.
+ *
+ * Measure is capped at 68 characters. Headings are numbered in the source, and the
+ * number is pulled into the margin rather than left in the heading — the same rail the
+ * landing page hangs version numbers on.
+ */
+.prose {
+  max-width: 68ch;
+  font-size: 1rem;
+  line-height: 1.72;
+  color: oklch(1 0 0 / 0.68);
+}
+
+.prose > * + * {
+  margin-top: 1.15em;
+}
+
+.prose h2,
+.prose h3,
+.prose h4 {
+  position: relative;
+  color: white;
+  scroll-margin-top: 6rem;
+}
+
+.prose h2 {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  margin-top: 3.25em;
+  padding-top: 1.75rem;
+  border-top: 1px solid oklch(1 0 0 / 0.1);
+}
+
+.prose h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* The section number, in clay: the page's one warm mark, and the same signal the
+   landing page's rail uses — a number that came from the material, not an ornament.
+   Set inline with a hanging indent, so it reads as a numbered manual and can't collide
+   with the rails at any width. */
+.prose h2[data-number] {
+  padding-left: 2.6rem;
+  text-indent: -2.6rem;
+}
+
+.prose h2[data-number]::before {
+  content: attr(data-number);
+  display: inline-block;
+  width: 2.6rem;
+  text-indent: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-clay-500);
+  vertical-align: 0.12em;
+}
+
+.prose h3 {
+  font-size: 1.1875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.006em;
+  margin-top: 2.25em;
+}
+
+.prose h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 1.9em;
+}
+
+/* A quiet link to the heading itself, for sharing a section. */
+.prose .anchor {
+  position: absolute;
+  left: -1.15rem;
+  width: 1rem;
+  text-align: center;
+  color: oklch(1 0 0 / 0.22);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.prose .anchor::before {
+  content: "#";
+}
+
+.prose h2:hover .anchor,
+.prose h3:hover .anchor,
+.prose .anchor:focus-visible {
+  opacity: 1;
+}
+
+.prose strong {
+  color: white;
+  font-weight: 600;
+}
+
+.prose em {
+  color: oklch(1 0 0 / 0.82);
+}
+
+.prose a {
+  color: var(--color-blue-300);
+  text-decoration: underline;
+  text-decoration-color: oklch(0.822 0.095 259 / 0.35);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s;
+}
+
+.prose a:hover {
+  text-decoration-color: var(--color-blue-300);
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.35rem;
+}
+
+.prose li + li {
+  margin-top: 0.45em;
+}
+
+.prose ul > li {
+  list-style: none;
+  position: relative;
+}
+
+.prose ul > li::before {
+  content: "";
+  position: absolute;
+  left: -0.95rem;
+  top: 0.72em;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: oklch(1 0 0 / 0.3);
+}
+
+.prose ol > li {
+  list-style: decimal;
+}
+
+.prose ol > li::marker {
+  color: var(--color-clay-500);
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+}
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.855em;
+  background: oklch(1 0 0 / 0.08);
+  border-radius: 4px;
+  padding: 0.12em 0.36em;
+  color: var(--color-blue-200);
+}
+
+.prose pre {
+  background: oklch(0.112 0.019 263 / 0.85);
+  border: 1px solid oklch(1 0 0 / 0.1);
+  border-radius: 0.85rem;
+  padding: 1.1rem 1.25rem;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.75;
+}
+
+.prose pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  color: oklch(1 0 0 / 0.78);
+}
+
+/* Tables carry a lot of this guide, so they get real attention: a hairline grid, a
+   quiet header, and a first column that reads as the thing being described. */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  display: block;
+  overflow-x: auto;
+}
+
+.prose thead th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  color: oklch(1 0 0 / 0.45);
+  padding: 0 1rem 0.6rem 0;
+  border-bottom: 1px solid oklch(1 0 0 / 0.16);
+  white-space: nowrap;
+}
+
+.prose tbody td {
+  padding: 0.7rem 1rem 0.7rem 0;
+  border-bottom: 1px solid oklch(1 0 0 / 0.07);
+  vertical-align: top;
+}
+
+.prose tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.prose tbody td:first-child {
+  color: oklch(1 0 0 / 0.88);
+  white-space: nowrap;
+}
+
+.prose tbody td:first-child code {
+  white-space: nowrap;
+}
+
+/* Notes and warnings in the source are blockquotes; they read as an aside, not a box. */
+.prose blockquote {
+  border-left: 2px solid var(--color-blue-500);
+  padding-left: 1.15rem;
+  color: oklch(1 0 0 / 0.6);
+}
+
+.prose blockquote p:first-child {
+  margin-top: 0;
+}
+
+.prose hr {
+  border: 0;
+  border-top: 1px solid oklch(1 0 0 / 0.1);
+  margin-top: 3em;
+}
+
+/* An `hr` immediately before a numbered section would double the rule. */
+.prose hr + h2 {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 2em;
+}
+
+.prose img {
+  border-radius: 0.75rem;
+  border: 1px solid oklch(1 0 0 / 0.1);
 }
