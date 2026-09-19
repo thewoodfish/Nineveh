@@ -81,6 +81,9 @@ async fn start(paths: &Paths, options: &RunOptions, replay: bool) -> Result<()> 
         pool.clone(),
         Run {
             until: options.until.map(Version::new),
+            // `nineveh run` is somebody sitting at a terminal waiting for the tables:
+            // it always folds.
+            log_only: false,
             streams: options.streams,
             chunk: options.chunk,
         },

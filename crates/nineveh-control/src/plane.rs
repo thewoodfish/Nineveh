@@ -719,19 +719,27 @@ impl<C: Chain> ControlPlane<C> {
                 (Verdict::Idle, false) => {
                     entry.idle = true;
                     if let Some(run) = entry.run.take() {
-                        drop(projects);
                         stop(run).await;
-                        info!(project = %name, backlog = demand.backlog, "idle: nothing is reading it, so it has stopped folding");
                     }
+                    // Restart it keeping records only. Stopping outright would let it
+                    // fall behind the chain, and waking it would then cost hours of
+                    // re-streaming — the thing the record log exists to avoid.
+                    self.spawn(&name, entry);
+                    info!(
+                        project = %name,
+                        backlog = demand.backlog,
+                        "idle: nothing is reading it, so it keeps records without folding them"
+                    );
                 }
                 (Verdict::Wanted(why), true) => {
                     entry.idle = false;
-                    let finished = entry.run.as_ref().is_none_or(|r| r.task.is_finished());
-                    if finished {
-                        entry.run = None;
-                        self.spawn(&name, entry);
-                        info!(project = %name, reason = ?why, "woken: folding again");
+                    if let Some(run) = entry.run.take() {
+                        stop(run).await;
                     }
+                    // The run that starts here folds the log's backlog before it
+                    // streams anything (`Runner::catch_up_fold`).
+                    self.spawn(&name, entry);
+                    info!(project = %name, reason = ?why, "woken: folding again");
                 }
                 _ => {}
             }
@@ -753,12 +761,11 @@ impl<C: Chain> ControlPlane<C> {
             return;
         }
         entry.idle = false;
-        let finished = entry.run.as_ref().is_none_or(|r| r.task.is_finished());
-        if finished {
-            entry.run = None;
-            self.spawn(name, entry);
-            info!(project = %name, "woken by a read: folding again");
+        if let Some(run) = entry.run.take() {
+            stop(run).await;
         }
+        self.spawn(name, entry);
+        info!(project = %name, "woken by a read: folding again");
     }
 
     /// What is waiting on `project`'s folded state, and therefore whether its fold is
@@ -1357,12 +1364,17 @@ impl<C: Chain> ControlPlane<C> {
         let Ok(loaded) = &entry.loaded else { return };
         let (stop, stopped) = watch::channel(false);
         let ended = Arc::new(Mutex::new(None));
+        // An idle project keeps its records and leaves its state alone (ADR 0023). It
+        // is still running, still following the chain — it just isn't computing rows
+        // nobody has asked for.
+        let mut options = self.options.clone();
+        options.log_only = entry.idle;
         let task = tokio::spawn(supervise(
             Arc::clone(&self.chain),
             Arc::clone(loaded),
             name.to_owned(),
             self.pool.clone(),
-            self.options.clone(),
+            options,
             entry.health.clone(),
             stopped,
             Arc::clone(&ended),
@@ -1531,12 +1543,11 @@ fn summary(name: &str, entry: &Entry) -> Summary {
         (Err(e), _, _) => ("failed".to_owned(), Some(e.clone())),
         (_, _, Some(Ended::Halted(e))) => ("halted".to_owned(), Some(e)),
         (_, _, Some(Ended::Failed(e))) => ("failed".to_owned(), Some(e)),
-        // A project that stopped folding because nobody was reading it is still
-        // running, and the next read wakes it. Reporting it as stopped would say the
-        // user had turned it off (ADR 0023).
-        (_, None, _) | (_, _, Some(Ended::Stopped)) if entry.idle && entry.running => {
-            ("idle".to_owned(), None)
-        }
+        // Idle is its own thing: the project is running and following the chain, it
+        // just isn't folding. Reporting it as stopped would say the user had turned it
+        // off, and reporting it as running would hide that its rows are standing
+        // still (ADR 0023).
+        _ if entry.idle && entry.running => ("idle".to_owned(), None),
         (_, None, _) | (_, _, Some(Ended::Stopped)) => ("stopped".to_owned(), None),
         (_, Some(_), None) => (
             pipeline

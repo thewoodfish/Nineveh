@@ -71,6 +71,9 @@ pub(crate) async fn up(options: UpOptions) -> Result<()> {
         pool,
         RunOptions {
             until: None,
+            // The default for a project the plane starts. Its sweep decides which ones
+            // stop folding, per project (ADR 0023).
+            log_only: false,
             streams: options.streams,
             chunk: options.chunk,
         },

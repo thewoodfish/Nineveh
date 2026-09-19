@@ -1110,3 +1110,109 @@ async fn bench_rebuild_from_the_log() {
 
     nineveh_store::records::forget(&pool, &name).await.unwrap();
 }
+
+/// A run that only keeps records leaves the state alone, and a later folding run picks
+/// up exactly where the log got to (ADR 0023).
+///
+/// This is what makes idle different from stopped. An idle project keeps following the
+/// chain, so waking it is a local fold of what it slept through — not hours of
+/// re-streaming the same history.
+#[tokio::test]
+async fn a_log_only_run_keeps_records_and_the_fold_catches_up_later() {
+    let Some(pool) = pool().await else { return };
+    let (transactions, _) = vault::transactions(&[
+        Op::Deposit { user: 0, amount: 5 },
+        Op::CreateVault { vault: 0 },
+        Op::Deposit { user: 1, amount: 7 },
+        Op::SetPosition {
+            vault: 0,
+            user: 1,
+            size: 3,
+        },
+    ]);
+    let name = format!("vault_logonly_{}", std::process::id());
+    let (lock, project) = vault::project_named(&name);
+    nineveh_store::records::forget(&pool, &name).await.unwrap();
+
+    let last = Version::new(transactions.last().unwrap().version);
+    let schema = fresh_schema(&pool, "logonly").await;
+
+    // Keep the records without folding them.
+    let mut logging = config(1_001, Some(last.get()));
+    logging.fold = false;
+    Pipeline::new(
+        Scripted::new(transactions.clone(), vec![2], false),
+        pool.clone(),
+        &schema,
+        Arc::new(vault::project_named(&name).1),
+        Arc::new(lock.clone()),
+        logging,
+    )
+    .run(pending())
+    .await
+    .unwrap();
+
+    let logged = nineveh_store::records::state(&pool, &name)
+        .await
+        .unwrap()
+        .expect("records were kept");
+    assert_eq!(
+        logged.cursor,
+        Some(last),
+        "the record cursor followed the chain to the end"
+    );
+    let store = Store::open(pool.clone(), &schema, &project, &lock)
+        .await
+        .unwrap();
+    assert_eq!(
+        store.cursor(),
+        None,
+        "and the state was left exactly where it was"
+    );
+    drop(store);
+
+    // Now fold what it slept through, from the log alone — no stream involved.
+    let mut store = Store::open(pool.clone(), &schema, &project, &lock)
+        .await
+        .unwrap();
+    replay::rebuild(
+        &pool,
+        &mut store,
+        &project,
+        &name,
+        Version::new(1_001),
+        last,
+        10_000,
+    )
+    .await
+    .unwrap();
+    assert_eq!(store.cursor(), Some(last), "the fold caught up to the log");
+
+    // And it lands where a run that folded as it went would have.
+    let folded = fresh_schema(&pool, "logonlyref").await;
+    Pipeline::new(
+        Scripted::new(transactions.clone(), vec![2], false),
+        pool.clone(),
+        &folded,
+        Arc::new(vault::project_named(&name).1),
+        Arc::new(lock.clone()),
+        config(1_001, Some(last.get())),
+    )
+    .run(pending())
+    .await
+    .unwrap();
+    let reference = Store::open(pool.clone(), &folded, &project, &lock)
+        .await
+        .unwrap();
+    for id in table_ids() {
+        let (mut a, mut b) = (
+            reference.scan(id).await.unwrap(),
+            store.scan(id).await.unwrap(),
+        );
+        a.sort();
+        b.sort();
+        assert_eq!(a, b, "catching up gave different rows for {id:?}");
+    }
+
+    nineveh_store::records::forget(&pool, &name).await.unwrap();
+}

@@ -632,6 +632,10 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
 /// Idle is a scheduling decision, not a state the user set: the record log keeps
 /// filling, the API keeps serving, and nobody presses a button to make it current.
 #[tokio::test(flavor = "multi_thread")]
+#[allow(
+    clippy::too_many_lines,
+    reason = "one project's idle life, step by step"
+)]
 async fn a_project_nobody_reads_goes_idle_and_a_read_wakes_it() {
     let Some(pool) = pool("idle").await else {
         return;
@@ -693,6 +697,25 @@ async fn a_project_nobody_reads_goes_idle_and_a_read_wakes_it() {
         after["running"],
         json!(true),
         "it is still running — only the fold stopped: {after}"
+    );
+
+    // The point of idle, and the thing that makes it different from stopped: it is
+    // still following the chain and still keeping records. If it weren't, waking it
+    // would mean re-streaming everything it slept through — hours, for a project left
+    // alone for a week (ADR 0023).
+    let logged = nineveh_store::records::state(&pool, &name)
+        .await
+        .unwrap()
+        .expect("the project has a record log");
+    assert!(
+        logged.cursor.is_some(),
+        "an idle project keeps its records: {logged:?}"
+    );
+    let folded = state(&app, &name).await;
+    assert_eq!(
+        folded["pipeline"]["cursor"].as_str().map(str::to_owned),
+        Some(logged.cursor.unwrap().to_string()),
+        "and its state is still where the records are, having only just gone idle"
     );
 
     // Reading the project's own API wakes it, without anyone asking.

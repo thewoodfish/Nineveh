@@ -149,12 +149,40 @@ impl<S: Source + 'static> Pipeline<S> {
         let mut store =
             Store::open(self.pool.clone(), &self.schema, &self.project, &self.lock).await?;
         self.set(|s| s.cursor = store.cursor());
-        let from = match store.cursor() {
+        if !self.config.fold {
+            let logged = records::state(&self.pool, self.project.config().name.as_str())
+                .await?
+                .and_then(|st| st.cursor);
+            self.set(|s| s.cursor = logged.max(store.cursor()));
+        }
+        // A run that folds resumes after the state it committed; one that only keeps
+        // records resumes after the records it kept. They are different cursors, and
+        // starting a log-only run from the fold's would re-stream everything the log
+        // already has (ADR 0022).
+        let resume = if self.config.fold {
+            store.cursor()
+        } else {
+            records::state(&self.pool, self.project.config().name.as_str())
+                .await?
+                .and_then(|s| s.cursor)
+                .max(store.cursor())
+        };
+        let from = match resume {
             Some(cursor) => cursor.next().ok_or(PipelineError::VersionOverflow)?,
             None => self.config.start,
         };
         let until = self.config.until;
-        let finished = |store: &Store| until.is_some_and(|until| store.cursor() >= Some(until));
+        let folding = self.config.fold;
+        // A run is done when what it advances reaches the target: the state cursor for
+        // a folding run, the record cursor for one that only keeps records.
+        let finished = |store: &Store| {
+            let reached = if folding {
+                store.cursor()
+            } else {
+                self.status.borrow().cursor
+            };
+            until.is_some_and(|until| reached >= Some(until))
+        };
         if finished(&store) {
             return Ok(Outcome::Finished {
                 cursor: store.cursor(),
@@ -253,6 +281,13 @@ impl<S: Source + 'static> Pipeline<S> {
         };
 
         self.log_records(&transactions, covered).await?;
+
+        if !self.config.fold {
+            // Keeping the records is the whole job: the state stays where it was, and
+            // whatever wakes this project folds them from the log.
+            self.set(|s| s.cursor = Some(covered));
+            return failure.map_or(Ok(()), Err);
+        }
 
         match fold(engine, store, cache, &transactions).await {
             Ok(changes) => {

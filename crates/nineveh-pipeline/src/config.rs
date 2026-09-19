@@ -7,6 +7,15 @@ use nineveh_core::Version;
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct PipelineConfig {
+    /// Whether to fold the records into state, or only keep them.
+    ///
+    /// A project nothing is reading still has to keep its records — that is what makes
+    /// waking it a local replay rather than hours of re-streaming (ADR 0023) — but
+    /// computing rows nobody will read is the part worth stopping. With this false the
+    /// run logs records and advances the record cursor, and leaves the state where it
+    /// was.
+    pub fold: bool,
+
     /// The first version of a new build. A build that has committed resumes from its
     /// cursor instead. Resolve `start_version: auto` before this.
     pub start: Version,
@@ -42,6 +51,7 @@ impl PipelineConfig {
     pub fn new(start: Version) -> Self {
         Self {
             start,
+            fold: true,
             until: None,
             decode_tasks: 4,
             parallel: None,

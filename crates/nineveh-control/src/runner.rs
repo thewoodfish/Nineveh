@@ -29,12 +29,19 @@ pub struct RunOptions {
     pub streams: usize,
     /// Versions per backfill range.
     pub chunk: u64,
+    /// Keep records without folding them into state (ADR 0023).
+    ///
+    /// Set for a project nothing is reading. The records still accrue — that is what
+    /// keeps waking it a local replay rather than hours of re-streaming — and the
+    /// state stays where it was until something asks for it.
+    pub log_only: bool,
 }
 
 impl Default for RunOptions {
     fn default() -> Self {
         Self {
             until: None,
+            log_only: false,
             streams: 4,
             chunk: 1_000_000,
         }
@@ -166,6 +173,9 @@ impl<C: Chain> Runner<C> {
     ///
     /// If the run fails: see [`RunError`].
     pub async fn run(&self, replay: bool, stop: watch::Receiver<bool>) -> Result<(), RunError> {
+        if !self.options.log_only {
+            self.catch_up_fold().await?;
+        }
         let rebuild = replay
             || matches!(
                 Store::open(self.pool.clone(), &self.schema, &self.project, &self.lock).await,
@@ -235,6 +245,56 @@ impl<C: Chain> Runner<C> {
     }
 
     /// Run a pipeline into `schema` until `until`, `stop`, or a failure.
+    /// Fold whatever the log has that the state hasn't (ADR 0023).
+    ///
+    /// A project that went idle kept its records without folding them, so its state
+    /// cursor sits behind its record cursor. Waking it is that gap, folded — a local
+    /// pass at thousands of records a second, rather than the hours of re-streaming it
+    /// would take to fetch the same history again.
+    ///
+    /// Silent when there is no gap, which is every ordinary run.
+    async fn catch_up_fold(&self) -> Result<(), RunError> {
+        let name = self.project.config().name.as_str();
+        let Some(logged) = nineveh_store::records::state(&self.pool, name)
+            .await?
+            .and_then(|s| s.cursor)
+        else {
+            return Ok(());
+        };
+        let mut store =
+            match Store::open(self.pool.clone(), &self.schema, &self.project, &self.lock).await {
+                Ok(store) => store,
+                // A config change rebuilds instead, and the rebuild replays the log
+                // itself.
+                Err(StoreError::Rebuild { .. }) => return Ok(()),
+                Err(e) => return Err(e.into()),
+            };
+        if store.cursor() >= Some(logged) {
+            return Ok(());
+        }
+        let from = match store.cursor() {
+            Some(cursor) => cursor.next().ok_or(PipelineError::VersionOverflow)?,
+            None => self.start,
+        };
+        info!(
+            schema = %self.schema,
+            from = from.get(),
+            through = logged.get(),
+            "catching the fold up from the record log"
+        );
+        replay::rebuild(
+            &self.pool,
+            &mut store,
+            &self.project,
+            name,
+            from,
+            logged,
+            PipelineConfig::new(self.start).cache_rows,
+        )
+        .await?;
+        Ok(())
+    }
+
     /// Rebuild the shadow from the project's own record log, if the log can serve it.
     ///
     /// Returns whether it did. A rebuild exists because rows are derived, not because
@@ -306,6 +366,7 @@ impl<C: Chain> Runner<C> {
 
         let mut config = PipelineConfig::new(self.start);
         config.until = until;
+        config.fold = !self.options.log_only;
         if self.options.streams > 1 {
             let mut parallel = Parallel::new(self.options.streams, self.tip);
             parallel.chunk_versions = self.options.chunk;
