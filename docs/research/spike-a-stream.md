@@ -117,3 +117,45 @@ targets and events alone wouldn't cover.
   It has to come from the stream or an indexer, because REST is pruned.
 - ADR 0004 stands: filtering is purely a bandwidth optimization and never trades away
   coverage.
+
+## What the chain actually costs to stream (2026-09-19)
+
+Measured after the fact, because the question that decides the ingest architecture
+isn't throughput — it's bytes and connections. One window, mainnet, 20,000
+transactions from version 7,265,000,000, zstd, same tool:
+
+| Measure | Value |
+| --- | --- |
+| Average transaction | 17,437 bytes decoded |
+| Largest transaction | 331,441 bytes |
+| Chain rate over the window | 135 versions/second |
+| Composition | 61% user, 19% block metadata, 19% block epilogue |
+| Changes per transaction | ≈ 9.1 (160,640 resource writes, 22,189 table writes, 5 table deletes over 20,000 txns) |
+
+The window covered 147.8 seconds of chain time, which is the number that turns bytes
+per transaction into bytes per day:
+
+| Period | Decoded volume |
+| --- | --- |
+| Day | ≈ 190 GiB (11.7M versions) |
+| Month | ≈ 5.6 TiB |
+| Year | ≈ 68 TiB |
+| Whole chain to date (7.27B versions) | ≈ 115 TiB |
+
+At Geomi's confirmed Transaction Stream price of **$0.00255 per GiB**, streaming the
+entire unfiltered mainnet firehose costs about **$15 a month** uncompressed — and the
+wire is zstd, so the billed figure is lower again. `avg_txn_bytes` is `encoded_len` on
+the decoded protobuf, not what crossed the wire.
+
+Three conclusions follow, and they set the ingest design:
+
+- **Bytes are not the constraint.** Filtering to save money on a shared stream is
+  pointless at this price; ADR 0004's position that filtering is a bandwidth
+  optimization and never a coverage trade is, if anything, understated.
+- **Concurrent streams are the constraint.** Geomi caps how many streams an
+  organization may hold open at once, shared across gRPC and WebSocket. It is a count,
+  not a bill, so it cannot be bought per customer.
+- **Warehousing the chain is the expensive option, not the cheap one.** A raw log grows
+  at 190 GiB a day; at cold-storage rates that is roughly $115 a month for every month
+  retained, compounding, against $15 a month to re-read the same data from Geomi. Any
+  design that stores the firehose to avoid re-streaming it has the economics backwards.
