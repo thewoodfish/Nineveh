@@ -35,6 +35,11 @@ pub enum PipelineError {
 
     #[error("internal error: a decode task failed: {0}")]
     Task(String),
+
+    /// The decoder produced a record for a source the config doesn't have. Dropping it
+    /// would leave a hole in the record log and so corrupt a later replay (ADR 0022).
+    #[error("internal error: version {version} has a record from unknown source #{id}")]
+    RecordSourceUnknown { version: Version, id: u32 },
 }
 
 impl PipelineError {
@@ -48,9 +53,11 @@ impl PipelineError {
             Self::Decode(e) => e.is_retryable(),
             Self::Store(e) => e.is_retryable(),
             Self::StreamEnded { .. } => true,
-            Self::Halt(_) | Self::VersionOverflow | Self::NotConverging { .. } | Self::Task(_) => {
-                false
-            }
+            Self::Halt(_)
+            | Self::VersionOverflow
+            | Self::NotConverging { .. }
+            | Self::RecordSourceUnknown { .. }
+            | Self::Task(_) => false,
         }
     }
 

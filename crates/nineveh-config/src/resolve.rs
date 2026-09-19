@@ -49,6 +49,43 @@ impl Project {
         Some(source_id(index))
     }
 
+    /// A stable name for the source with this id, declared or hidden.
+    ///
+    /// The record log stores this rather than the id (ADR 0022). Ids are positions —
+    /// declared sources index `config().sources`, and watchers follow them — so a
+    /// reordered config renumbers every one of them and would misattribute every
+    /// record already stored. A name derived from what the source *is* survives that.
+    ///
+    /// Watchers have no name in the config, so theirs is built from the table source
+    /// they serve and the parent they watch, both of which are the user's own words.
+    #[must_use]
+    pub fn source_name(&self, id: SourceId) -> Option<String> {
+        if let Some(source) = usize::try_from(id.0)
+            .ok()
+            .and_then(|i| self.config.sources.get(i))
+        {
+            return Some(source.name.as_str().to_owned());
+        }
+        let watcher = self.watcher(id)?;
+        let table_source = self.source_name(watcher.table_source)?;
+        Some(watcher_name(&table_source, &watcher.parent, &watcher.field))
+    }
+
+    /// The id a name has in this config, for a declared source or a watcher.
+    ///
+    /// The inverse of [`Project::source_name`], used to put a logged record back where
+    /// it belongs when the log is replayed under a config that may have been reordered.
+    #[must_use]
+    pub fn source_by_name(&self, name: &str) -> Option<SourceId> {
+        if let Some(id) = self.source_id(name) {
+            return Some(id);
+        }
+        self.watchers.iter().find_map(|w| {
+            let table_source = self.source_name(w.table_source)?;
+            (watcher_name(&table_source, &w.parent, &w.field) == name).then_some(w.id)
+        })
+    }
+
     /// What the source with this id matches, in `config().sources` order.
     #[must_use]
     pub fn input(&self, id: SourceId) -> Option<&Input> {
@@ -96,6 +133,13 @@ pub struct Watcher {
     /// The parent field holding the table.
     pub field: Identifier,
     pub container: Container,
+}
+
+/// What a watcher is called in the record log: the table source it serves and the
+/// parent field it reads handles from. Both come from the config's own words, so the
+/// name doesn't move when sources are reordered.
+fn watcher_name(table_source: &str, parent: &StructTag, field: &Identifier) -> String {
+    format!("watch:{table_source}:{parent}.{field}")
 }
 
 fn source_id(index: usize) -> SourceId {

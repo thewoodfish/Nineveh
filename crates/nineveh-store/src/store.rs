@@ -603,6 +603,30 @@ impl StateView for Loaded {
 /// Everything that shapes a build's state, hashed: the store's layout, the fold's
 /// semantics, the config's canonical form and the lock. Each part is length-prefixed
 /// so no two builds hash the same input.
+/// A hash of the pinned layouts alone.
+///
+/// The record log keeps it beside the records (ADR 0022): they were decoded against
+/// these layouts, so a change here means the log has to be filled again from the
+/// stream rather than replayed.
+///
+/// # Errors
+///
+/// [`StoreError::Corrupt`] if the lock can't be rendered, which means a bug.
+pub fn lock_hash(lock: &Lockfile) -> Result<String, StoreError> {
+    let json = lock.to_json().map_err(|e| StoreError::Corrupt {
+        table: "nineveh.lock".into(),
+        reason: e.to_string(),
+    })?;
+    let mut hasher = Sha256::new();
+    hasher.update(json.as_bytes());
+    let mut hex = String::with_capacity(64);
+    for byte in hasher.finalize() {
+        // Writing to a String can't fail.
+        let _ = write!(hex, "{byte:02x}");
+    }
+    Ok(hex)
+}
+
 fn fingerprint(project: &Project, lock: &Lockfile) -> Result<String, StoreError> {
     let lock = lock.to_json().map_err(|e| StoreError::Corrupt {
         table: "nineveh.lock".into(),

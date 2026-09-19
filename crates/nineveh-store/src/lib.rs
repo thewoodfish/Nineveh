@@ -35,4 +35,4 @@ pub mod webhooks;
 
 pub use error::StoreError;
 pub use rows::row_json;
-pub use store::{Loaded, NOTIFY_CHANNEL, Store, migrate, shadow_name};
+pub use store::{Loaded, NOTIFY_CHANNEL, Store, lock_hash, migrate, shadow_name};

@@ -104,7 +104,15 @@ pub fn modules() -> Vec<ModuleAbi> {
 }
 
 pub fn project() -> (Lockfile, Project) {
-    let config = parse(CONFIG).unwrap_or_else(|d| panic!("{}", d.render("nineveh.yaml", CONFIG)));
+    project_named("vault")
+}
+
+/// The same project under another name, for tests that share a database and are keyed
+/// by project rather than by schema — the record log is (ADR 0022).
+#[must_use]
+pub fn project_named(name: &str) -> (Lockfile, Project) {
+    let text = CONFIG.replacen("name: vault", &format!("name: {name}"), 1);
+    let config = parse(&text).unwrap_or_else(|d| panic!("{}", d.render("nineveh.yaml", &text)));
     let mut builder = LockBuilder::new(config.network);
     for module in modules() {
         builder.add_module(module);
@@ -112,7 +120,7 @@ pub fn project() -> (Lockfile, Project) {
     let lock = builder.build(&config.roots()).unwrap();
     let project = config
         .resolve(&lock)
-        .unwrap_or_else(|d| panic!("{}", d.render("nineveh.yaml", CONFIG)));
+        .unwrap_or_else(|d| panic!("{}", d.render("nineveh.yaml", &text)));
     (lock, project)
 }
 

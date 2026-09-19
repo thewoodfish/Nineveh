@@ -23,7 +23,7 @@ use std::time::Duration;
 
 use nineveh_config::{Project, parse};
 use nineveh_core::{ChainId, Version};
-use nineveh_decode::{LockBuilder, Lockfile};
+use nineveh_decode::{DecodedTransaction, LockBuilder, Lockfile, Record};
 use nineveh_engine::{Engine, MemoryState, TableId};
 use nineveh_ingest::{Batch, IngestError};
 use nineveh_pipeline::{
@@ -726,4 +726,121 @@ async fn retries_give_up_after_the_limit_and_reset_on_progress() {
 #[allow(dead_code, reason = "a compile-time check")]
 fn the_pipeline_can_run_on_a_spawned_task(pipeline: Pipeline<Scripted>) {
     drop(tokio::spawn(async move { pipeline.run(pending()).await }));
+}
+
+/// The record log holds what the decoder produced, and folding from the log gives the
+/// same state as folding from the stream (ADR 0022).
+///
+/// This is the property a rebuild depends on: it replays these records instead of
+/// re-reading the chain, so if the log and the stream disagree, a rebuild quietly
+/// produces different rows than the run that built the tables.
+#[tokio::test]
+async fn the_record_log_replays_to_the_same_state() {
+    let Some(pool) = pool().await else { return };
+    let (transactions, _) = vault::transactions(&[
+        Op::Deposit { user: 0, amount: 5 },
+        Op::CreateVault { vault: 0 },
+        Op::Deposit { user: 1, amount: 7 },
+        Op::SetPosition {
+            vault: 0,
+            user: 1,
+            size: 3,
+        },
+        Op::Withdraw { user: 0, amount: 2 },
+    ]);
+    let schema = fresh_schema(&pool, "recordlog").await;
+    // The record log is keyed by project, not by schema (ADR 0022), and every other
+    // test in this file runs the project called "vault". Give this one its own.
+    let name = format!("vault_log_{}", std::process::id());
+    let (lock, project) = vault::project_named(&name);
+    nineveh_store::records::forget(&pool, &name).await.unwrap();
+
+    let last = transactions.last().unwrap().version;
+    Pipeline::new(
+        Scripted::new(transactions.clone(), vec![2], false),
+        pool.clone(),
+        &schema,
+        Arc::new(vault::project_named(&name).1),
+        Arc::new(lock.clone()),
+        config(1_001, Some(last)),
+    )
+    .run(pending())
+    .await
+    .unwrap();
+
+    // What the decoder makes of the same transactions, in one pass.
+    let decoded = vault::decode(&lock, &project, &transactions);
+    let expected: Vec<_> = decoded
+        .iter()
+        .flat_map(|tx| tx.records.iter().map(move |r| (tx.version, r.clone())))
+        .collect();
+
+    let logged =
+        nineveh_store::records::read(&pool, &name, Version::new(0), Version::new(u64::MAX / 2))
+            .await
+            .unwrap();
+    assert_eq!(
+        logged.len(),
+        expected.len(),
+        "the log holds every record the decoder produced"
+    );
+
+    for (got, (version, want)) in logged.iter().zip(&expected) {
+        assert_eq!(got.version, *version, "records keep their version");
+        assert_eq!(
+            got.record.source,
+            project.source_name(want.source).unwrap().as_str(),
+            "records name their source"
+        );
+        let back = Record::from_stored(got.record.clone(), want.source).unwrap();
+        assert_eq!(&back, want, "a record changed on its way through the log");
+    }
+
+    // The point of all of it: replaying the log folds to the same state the stream did.
+    let from_log: Vec<DecodedTransaction> = {
+        let mut grouped: Vec<DecodedTransaction> = Vec::new();
+        for entry in &logged {
+            let record = Record::from_stored(
+                entry.record.clone(),
+                project.source_by_name(&entry.record.source).unwrap(),
+            )
+            .unwrap();
+            match grouped.last_mut() {
+                Some(tx) if tx.version == entry.version => tx.records.push(record),
+                _ => grouped.push(DecodedTransaction {
+                    version: entry.version,
+                    timestamp_micros: entry.timestamp_micros,
+                    success: entry.success,
+                    sender: None,
+                    records: vec![record],
+                }),
+            }
+        }
+        grouped
+    };
+
+    let engine = Engine::new(&project);
+    let mut from_stream_state = MemoryState::new();
+    let from_stream = engine.fold(&from_stream_state, &decoded).unwrap();
+    from_stream_state.apply(&from_stream);
+
+    let mut from_log_state = MemoryState::new();
+    let replayed = engine.fold(&from_log_state, &from_log).unwrap();
+    from_log_state.apply(&replayed);
+
+    for id in table_ids() {
+        let mut a: Vec<_> = from_stream_state
+            .rows(id)
+            .map(|(k, r)| (k.clone(), r.clone()))
+            .collect();
+        let mut b: Vec<_> = from_log_state
+            .rows(id)
+            .map(|(k, r)| (k.clone(), r.clone()))
+            .collect();
+        a.sort();
+        b.sort();
+        assert_eq!(a, b, "replaying the log gave different rows for {id:?}");
+    }
+
+    nineveh_store::records::forget(&pool, &name).await.unwrap();
 }

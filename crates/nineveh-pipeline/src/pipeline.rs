@@ -6,8 +6,9 @@ use std::time::Duration;
 
 use nineveh_config::Project;
 use nineveh_core::Version;
-use nineveh_decode::{DecodedTransaction, Lockfile};
+use nineveh_decode::{DecodedTransaction, Lockfile, StoredRecord};
 use nineveh_engine::{ChangeSet, Engine, FoldError};
+use nineveh_store::records::{self, Logged};
 use nineveh_store::{Loaded, Store};
 use sqlx::PgPool;
 use tokio::sync::watch;
@@ -48,6 +49,8 @@ pub struct Pipeline<S> {
     project: Arc<Project>,
     lock: Arc<Lockfile>,
     config: PipelineConfig,
+    /// The layouts the records are decoded against, kept beside them in the log.
+    lock_hash: String,
     status: watch::Sender<Status>,
 }
 
@@ -62,6 +65,9 @@ impl<S: Source + 'static> Pipeline<S> {
         lock: Arc<Lockfile>,
         config: PipelineConfig,
     ) -> Self {
+        // A lock that can't be rendered is a bug, and the log is no worse off with an
+        // empty hash than with a panic here; the mismatch just forces a refill.
+        let lock_hash = nineveh_store::lock_hash(&lock).unwrap_or_default();
         Self {
             source: Arc::new(source),
             pool,
@@ -69,6 +75,7 @@ impl<S: Source + 'static> Pipeline<S> {
             project,
             lock,
             config,
+            lock_hash,
             status: watch::Sender::new(Status::default()),
         }
     }
@@ -245,6 +252,8 @@ impl<S: Source + 'static> Pipeline<S> {
             return failure.map_or(Ok(()), Err);
         };
 
+        self.log_records(&transactions, covered).await?;
+
         match fold(engine, store, cache, &transactions).await {
             Ok(changes) => {
                 self.commit(store, cache, changes, covered, timestamp)
@@ -264,6 +273,56 @@ impl<S: Source + 'static> Pipeline<S> {
             Err(error) => return Err(error),
         }
         failure.map_or(Ok(()), Err)
+    }
+
+    /// Write this batch's records to the log before anything is folded from them.
+    ///
+    /// The log leads the fold (ADR 0022). Records are durable first, so a rebuild
+    /// replays them instead of re-reading the chain, and a rule that fails halts at a
+    /// version whose records are already kept — fix the rule and replay, rather than
+    /// streaming the history again to reproduce the fault.
+    ///
+    /// Records name their source rather than carrying its id, because ids are
+    /// positions in the config's source list and a reordered config would renumber
+    /// them all.
+    async fn log_records(
+        &self,
+        transactions: &[DecodedTransaction],
+        covered: Version,
+    ) -> Result<(), PipelineError> {
+        let mut logged = Vec::new();
+        for tx in transactions {
+            for (ord, record) in tx.records.iter().enumerate() {
+                // Watchers count too: a table source learns its handles from parent
+                // writes that carry a hidden source's id (ADR 0012), and a log without
+                // them replays into a table source that never attributes anything.
+                let Some(source) = self.project.source_name(record.source) else {
+                    // A record from a source this config doesn't have at all is a
+                    // decoder bug, not a user error; dropping it would leave a hole.
+                    return Err(PipelineError::RecordSourceUnknown {
+                        version: tx.version,
+                        id: record.source.0,
+                    });
+                };
+                logged.push(Logged {
+                    version: tx.version,
+                    ord: i32::try_from(ord).unwrap_or(i32::MAX),
+                    timestamp_micros: tx.timestamp_micros,
+                    success: tx.success,
+                    sender: tx.sender.map(|a| a.to_string()),
+                    record: StoredRecord::of(record, &source),
+                });
+            }
+        }
+        records::append(
+            &self.pool,
+            self.project.config().name.as_str(),
+            &self.lock_hash,
+            &logged,
+            covered,
+        )
+        .await
+        .map_err(PipelineError::from)
     }
 
     /// Commit a folded batch covering every version through `covered`.
