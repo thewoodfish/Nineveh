@@ -1022,3 +1022,91 @@ async fn the_log_refuses_what_it_cannot_cover() {
 
     nineveh_store::records::forget(&pool, &name).await.unwrap();
 }
+
+/// How fast a rebuild reads and folds its own record log.
+///
+/// The number this reports is what turns two design questions from guesses into
+/// derivations: how long "editing a rule" actually takes now, and how large an unfolded
+/// backlog a project may carry before the first query after an idle spell gets slow.
+///
+/// Ignored by default — it builds a large workload and is a measurement, not an
+/// assertion. Run it with `--ignored --nocapture`.
+#[tokio::test]
+#[ignore = "a measurement, not a test: run it deliberately"]
+async fn bench_rebuild_from_the_log() {
+    let Some(pool) = pool().await else { return };
+
+    let mut ops = vec![Op::CreateVault { vault: 0 }];
+    for i in 0..20_000u32 {
+        ops.push(Op::Deposit {
+            user: u8::try_from(i % 16).unwrap(),
+            amount: 1 + i % 97,
+        });
+        if i % 4 == 0 {
+            ops.push(Op::SetPosition {
+                vault: 0,
+                user: u8::try_from(i % 16).unwrap(),
+                size: i % 31,
+            });
+        }
+    }
+    let (transactions, _) = vault::transactions(&ops);
+    let name = format!("vault_bench_{}", std::process::id());
+    let (lock, project) = vault::project_named(&name);
+    nineveh_store::records::forget(&pool, &name).await.unwrap();
+
+    let last = Version::new(transactions.last().unwrap().version);
+    let from_chain = fresh_schema(&pool, "benchchain").await;
+    let filling = std::time::Instant::now();
+    Pipeline::new(
+        Scripted::new(transactions.clone(), vec![64], false),
+        pool.clone(),
+        &from_chain,
+        Arc::new(vault::project_named(&name).1),
+        Arc::new(lock.clone()),
+        config(1_001, Some(last.get())),
+    )
+    .run(pending())
+    .await
+    .unwrap();
+    let filled = filling.elapsed();
+
+    let (records, bytes) = nineveh_store::records::usage(&pool, &name).await.unwrap();
+
+    let into = fresh_schema(&pool, "benchlog").await;
+    let mut store = Store::open(pool.clone(), &into, &project, &lock)
+        .await
+        .unwrap();
+    let started = std::time::Instant::now();
+    replay::rebuild(
+        &pool,
+        &mut store,
+        &project,
+        &name,
+        Version::new(1_001),
+        last,
+        10_000,
+    )
+    .await
+    .unwrap();
+    let took = started.elapsed();
+
+    let per_sec = f64::from(u32::try_from(records).unwrap_or(u32::MAX)) / took.as_secs_f64();
+    eprintln!("\n--- rebuild from the record log ---");
+    eprintln!("transactions        {}", transactions.len());
+    eprintln!("records logged      {records}");
+    eprintln!(
+        "log size            {:.1} MiB ({} bytes/record)",
+        bytes as f64 / (1024.0 * 1024.0),
+        bytes / records.max(1)
+    );
+    eprintln!("first build (stream + fold + log)  {filled:?}");
+    eprintln!("rebuild from log                   {took:?}");
+    eprintln!("                                   {per_sec:.0} records/second");
+    eprintln!(
+        "\nat that rate, a 2-second first query allows a backlog of about {:.0} records",
+        per_sec * 2.0
+    );
+
+    nineveh_store::records::forget(&pool, &name).await.unwrap();
+}
