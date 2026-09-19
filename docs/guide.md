@@ -432,10 +432,17 @@ doesn't flag it.
 
 ### One plane at a time
 
-**Run exactly one control plane against a database.** Nothing currently enforces it,
-and two planes would both fold the same projects into the same tables — two writers,
-which breaks the single-writer property everything rests on. This matters most for
-rolling deploys, where a new instance is healthy before the old one drains.
+**Run one control plane against a database.** Two won't corrupt anything — a commit is
+a compare-and-swap on the cursor, taken under a row lock, so the second writer is
+refused before it writes a row and halts that project with `the cursor for X moved …:
+another writer is committing to this project`. That error is deliberately not
+retryable, so it stops rather than spins.
+
+What two planes do cost you is projects halted partway through, needing a start to come
+back, and a second shared reader per network spending streams against a cap of 7 on
+testnet. It is detected at commit time rather than at startup, so a plane can't tell it
+is the second one until it tries to write — which matters most for rolling deploys,
+where a new instance is healthy before the old one drains. Prefer stop-then-start.
 
 ---
 
