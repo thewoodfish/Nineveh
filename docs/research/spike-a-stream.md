@@ -159,3 +159,39 @@ Three conclusions follow, and they set the ingest design:
   at 190 GiB a day; at cold-storage rates that is roughly $115 a month for every month
   retained, compounding, against $15 a month to re-read the same data from Geomi. Any
   design that stores the firehose to avoid re-streaming it has the economics backwards.
+
+## Why the stream is the only source of history (2026-09-19)
+
+Backfill is the one thing that competes for Geomi's concurrent-stream cap, so it is
+worth knowing whether history can come from anywhere else. It can't, for two
+independent reasons, both checked against mainnet.
+
+**The hosted Indexer GraphQL has no generic event or writeset table.** Its query root
+exposes 36 base tables and every one is domain-specific: fungible assets, tokens and
+NFTs, staking and delegation, ANS names, objects, table items, transactions. There is
+no `events` table and no resource-change table, so a custom contract's events cannot be
+asked for by type at any price. This is the gap Nineveh exists to fill, and it is the
+boundary `CLAUDE.md` draws — everything the Indexer serves is generic; none of it is an
+app's own state.
+
+`account_transactions` can enumerate versions touching an address, but it is unusable
+as a backfill source: it pages at 100 rows (a `limit: 2000` returns 100), aggregating
+over a busy contract exceeds the 10-second upstream timeout, and it indexes accounts
+*affected by* a transaction — so a contract keeping its state under user addresses is
+under-covered, which is exactly what ADR 0004 forbids.
+
+**The REST API keeps about a fortnight.** Mainnet at the time of measuring:
+
+| | Version |
+| --- | --- |
+| Ledger | 7,265,320,209 |
+| Oldest retained | 7,115,520,228 |
+| Span | 149,799,981 ≈ **12.8 days** |
+
+So even with a list of versions in hand, fetching those transactions from REST only
+works for the last two weeks or so. Anything older is gone from that API.
+
+The consequence for the design: a project's history can be acquired exactly once, from
+the Transaction Stream, and there is no cheaper second route to it afterwards. Decoded
+records kept per project are not an optimization for rebuild speed — they are the only
+copy of that history that doesn't cost a stream slot and several hours to obtain again.
