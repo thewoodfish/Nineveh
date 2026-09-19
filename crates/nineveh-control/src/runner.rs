@@ -292,6 +292,13 @@ impl<C: Chain> Runner<C> {
             PipelineConfig::new(self.start).cache_rows,
         )
         .await?;
+        // Say so, so a read waiting on the catch-up learns it is over without polling
+        // the database for a cursor it can be told about (ADR 0023).
+        self.health.send_modify(|health| {
+            if let Some(health) = health.as_mut() {
+                health.cursor = Some(logged.get().to_string());
+            }
+        });
         Ok(())
     }
 

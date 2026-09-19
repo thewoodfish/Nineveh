@@ -398,13 +398,53 @@ impl<C: Chain> ControlPlane<C> {
         });
     }
 
-    /// Note a read and, if the project had stopped folding, start it again.
+    /// Note a read, wake the project if it had stopped folding, and give the catch-up
+    /// a moment to finish before the answer is served (ADR 0023).
     ///
-    /// Waking is not rate-limited the way noting is: it costs nothing when the project
-    /// is already awake, and when it isn't, it is the whole point.
+    /// The wait is bounded by [`idle::WAKE_BUDGET`], which is the same budget the
+    /// backlog bound was derived from: a project may only fall a couple of seconds of
+    /// folding behind before it is woken whether or not anyone is reading, so this
+    /// almost always returns having caught up.
+    ///
+    /// When it doesn't — a long backlog, a slow database, a fold that halts — the read
+    /// is answered anyway, from wherever the fold had got to. A request must not hang
+    /// on bookkeeping, and stale-by-a-moment beats a timeout.
     pub async fn read_arrived(self: &Arc<Self>, project: &str) {
         self.note_read(project);
-        self.wake(project).await;
+        if !self.wake(project).await {
+            return;
+        }
+        let Ok(Some(logged)) = nineveh_store::records::state(&self.pool, project).await else {
+            return;
+        };
+        let Some(target) = logged.cursor else { return };
+        let Some(mut health) = self
+            .projects
+            .read()
+            .await
+            .get(project)
+            .map(|e| e.health.subscribe())
+        else {
+            return;
+        };
+        let caught_up = |h: &Option<Health>| {
+            h.as_ref()
+                .and_then(|h| h.cursor.as_deref())
+                .and_then(|c| c.parse::<u64>().ok())
+                .is_some_and(|c| c >= target.get())
+        };
+        if caught_up(&health.borrow()) {
+            return;
+        }
+        let waited =
+            tokio::time::timeout(idle::WAKE_BUDGET, health.wait_for(|h| caught_up(h))).await;
+        if waited.is_err() {
+            debug!(
+                %project,
+                through = target.get(),
+                "served a read before the fold caught up"
+            );
+        }
     }
 
     /// Load every registered project, serve it, and run those that should run.
@@ -752,13 +792,13 @@ impl<C: Chain> ControlPlane<C> {
     /// though this one is served from where the fold had got to. The backlog bound is
     /// what keeps that gap small: a project may only be a couple of seconds of folding
     /// behind before it is woken regardless of whether anyone is reading.
-    async fn wake(self: &Arc<Self>, name: &str) {
+    async fn wake(self: &Arc<Self>, name: &str) -> bool {
         let mut projects = self.projects.write().await;
         let Some(entry) = projects.get_mut(name) else {
-            return;
+            return false;
         };
         if !entry.idle || !entry.running {
-            return;
+            return false;
         }
         entry.idle = false;
         if let Some(run) = entry.run.take() {
@@ -766,6 +806,7 @@ impl<C: Chain> ControlPlane<C> {
         }
         self.spawn(name, entry);
         info!(project = %name, "woken by a read: folding again");
+        true
     }
 
     /// What is waiting on `project`'s folded state, and therefore whether its fold is

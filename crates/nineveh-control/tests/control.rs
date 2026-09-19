@@ -718,7 +718,9 @@ async fn a_project_nobody_reads_goes_idle_and_a_read_wakes_it() {
         "and its state is still where the records are, having only just gone idle"
     );
 
-    // Reading the project's own API wakes it, without anyone asking.
+    // Reading the project's own API wakes it, without anyone asking, and the read
+    // waits for the catch-up rather than answering from behind it (ADR 0023).
+    let reading = std::time::Instant::now();
     let (status, rows) = call(
         &app,
         Method::GET,
@@ -730,6 +732,16 @@ async fn a_project_nobody_reads_goes_idle_and_a_read_wakes_it() {
         status,
         StatusCode::OK,
         "an idle project still serves: {rows}"
+    );
+    assert!(
+        reading.elapsed() < idle::WAKE_BUDGET * 2,
+        "a read waits for the catch-up but is never held open: took {:?}",
+        reading.elapsed()
+    );
+    assert_eq!(
+        rows["rows"].as_array().unwrap().len(),
+        2,
+        "and it answers with the rows, caught up: {rows}"
     );
     let woken = state(&app, &name).await;
     assert_eq!(woken["idle"], json!(false), "a read wakes it: {woken}");
