@@ -1097,7 +1097,7 @@ async fn bench_rebuild_from_the_log() {
     eprintln!("records logged      {records}");
     eprintln!(
         "log size            {:.1} MiB ({} bytes/record)",
-        bytes as f64 / (1024.0 * 1024.0),
+        f64::from(u32::try_from(bytes).unwrap_or(u32::MAX)) / (1024.0 * 1024.0),
         bytes / records.max(1)
     );
     eprintln!("first build (stream + fold + log)  {filled:?}");
