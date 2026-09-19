@@ -45,3 +45,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0020](0020-signed-webhook-deliveries.md) | Deliver state changes as signed webhooks, one cursor per endpoint | Accepted |
 | [0021](0021-shared-tip-ingest-and-queued-backfill.md) | Acquire the chain once per network; replay projects from their own records | Proposed |
 | [0022](0022-per-project-record-log.md) | Keep each project's decoded records; let the log lead the fold | Proposed |
+| [0023](0023-idle-projects-fold-on-demand.md) | Fold on demand; idle is invisible, stopped is deliberate | Proposed |
