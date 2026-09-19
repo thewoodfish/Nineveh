@@ -91,6 +91,11 @@ pub async fn append(
     through: Version,
 ) -> Result<(), StoreError> {
     let mut tx = pool.begin().await?;
+    // What this batch adds to the log's running totals. A version re-read after a
+    // crash rewrites its own rows, and rewrites them with identical bytes, so only a
+    // genuine insert counts — `xmax = 0` is how Postgres reports which it was.
+    let mut added_count: i64 = 0;
+    let mut added_bytes: i64 = 0;
     for logged in records {
         // sqlx is built without its `json` feature, so JSON crosses as text and
         // Postgres does the cast — the same way the outbox writes `new_row`.
@@ -103,7 +108,7 @@ pub async fn append(
             reason: "version past i64".into(),
         })?;
         let timestamp = i64::try_from(logged.timestamp_micros).unwrap_or(i64::MAX);
-        sqlx::query!(
+        let written = sqlx::query!(
             r#"INSERT INTO nineveh.records
                    (project, version, ord, timestamp_micros, success, sender, record)
                VALUES ($1, $2, $3, $4, $5, $6, $7::text::jsonb)
@@ -111,7 +116,8 @@ pub async fn append(
                    SET timestamp_micros = excluded.timestamp_micros,
                        success          = excluded.success,
                        sender           = excluded.sender,
-                       record           = excluded.record"#,
+                       record           = excluded.record
+               RETURNING (xmax = 0) AS "inserted!", pg_column_size(record) AS "size!""#,
             project,
             version,
             logged.ord,
@@ -120,25 +126,34 @@ pub async fn append(
             logged.sender,
             json,
         )
-        .execute(&mut *tx)
+        .fetch_one(&mut *tx)
         .await?;
+        if written.inserted {
+            added_count += 1;
+            added_bytes += i64::from(written.size);
+        }
     }
     let through_i64 = i64::try_from(through.get()).map_err(|_| StoreError::Corrupt {
         table: "nineveh.record_cursors".into(),
         reason: "version past i64".into(),
     })?;
     sqlx::query!(
-        r#"INSERT INTO nineveh.record_cursors (project, cursor, lock_hash, sources)
-           VALUES ($1, $2, $3, $4)
+        r#"INSERT INTO nineveh.record_cursors
+               (project, cursor, lock_hash, sources, record_count, record_bytes)
+           VALUES ($1, $2, $3, $4, $5, $6)
            ON CONFLICT (project) DO UPDATE
                SET cursor = excluded.cursor,
                    lock_hash = excluded.lock_hash,
                    sources = excluded.sources,
+                   record_count = nineveh.record_cursors.record_count + excluded.record_count,
+                   record_bytes = nineveh.record_cursors.record_bytes + excluded.record_bytes,
                    updated_at = now()"#,
         project,
         through_i64,
         lock_hash,
         sources.join(","),
+        added_count,
+        added_bytes,
     )
     .execute(&mut *tx)
     .await?;
@@ -267,16 +282,20 @@ pub async fn forget(pool: &PgPool, project: &str) -> Result<(), StoreError> {
 /// How many records and how many bytes `project` has logged — the number a tier is
 /// metered on, and the one Studio shows.
 ///
+/// Read from the running totals rather than measured. Measuring meant a full heap scan
+/// with a detoast per row — ten seconds on a log of 860,000 records — on a query Studio
+/// polls and the retention sweep calls, which made an over-quota project the slowest
+/// one to ask about.
+///
 /// # Errors
 ///
 /// If the database fails.
 pub async fn usage(pool: &PgPool, project: &str) -> Result<(i64, i64), StoreError> {
     let row = sqlx::query!(
-        r#"SELECT count(*) AS "count!", coalesce(sum(pg_column_size(record)), 0)::bigint AS "bytes!"
-           FROM nineveh.records WHERE project = $1"#,
+        "SELECT record_count, record_bytes FROM nineveh.record_cursors WHERE project = $1",
         project
     )
-    .fetch_one(pool)
+    .fetch_optional(pool)
     .await?;
-    Ok((row.count, row.bytes))
+    Ok(row.map_or((0, 0), |r| (r.record_count, r.record_bytes)))
 }

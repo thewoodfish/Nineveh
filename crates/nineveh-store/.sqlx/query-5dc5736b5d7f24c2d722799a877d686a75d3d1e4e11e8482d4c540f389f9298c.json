@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO nineveh.record_cursors\n               (project, cursor, lock_hash, sources, record_count, record_bytes)\n           VALUES ($1, $2, $3, $4, $5, $6)\n           ON CONFLICT (project) DO UPDATE\n               SET cursor = excluded.cursor,\n                   lock_hash = excluded.lock_hash,\n                   sources = excluded.sources,\n                   record_count = nineveh.record_cursors.record_count + excluded.record_count,\n                   record_bytes = nineveh.record_cursors.record_bytes + excluded.record_bytes,\n                   updated_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5dc5736b5d7f24c2d722799a877d686a75d3d1e4e11e8482d4c540f389f9298c"
+}

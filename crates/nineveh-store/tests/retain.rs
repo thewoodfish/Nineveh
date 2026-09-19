@@ -256,3 +256,70 @@ async fn recent_changes_are_kept() {
         .await
         .unwrap();
 }
+
+/// The log's size is a running total, not a measurement, so the two places that change
+/// it — appending and pruning — have to agree with what is actually there.
+#[tokio::test]
+async fn the_logs_size_tracks_what_it_holds() {
+    let Some(pool) = pool().await else { return };
+    let project = name(5);
+    records::forget(&pool, &project).await.unwrap();
+
+    let measured = |pool: PgPool, project: String| async move {
+        sqlx::query_as::<_, (i64, i64)>(
+            "SELECT count(*), coalesce(sum(pg_column_size(record)), 0)::bigint
+             FROM nineveh.records WHERE project = $1",
+        )
+        .bind(project)
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+    };
+
+    let rows = logged(100..160);
+    records::append(
+        &pool,
+        &project,
+        "lock",
+        &["sold".to_owned()],
+        &rows,
+        Version::new(159),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        records::usage(&pool, &project).await.unwrap(),
+        measured(pool.clone(), project.clone()).await,
+        "the total after appending is what the table holds"
+    );
+
+    // Appending the same versions again rewrites them; it must not count them twice.
+    records::append(
+        &pool,
+        &project,
+        "lock",
+        &["sold".to_owned()],
+        &rows,
+        Version::new(159),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        records::usage(&pool, &project).await.unwrap(),
+        measured(pool.clone(), project.clone()).await,
+        "a version re-read after a crash is rewritten, not counted again"
+    );
+
+    // And pruning gives back exactly what it took.
+    let (_, bytes) = records::usage(&pool, &project).await.unwrap();
+    retain::prune_records(&pool, &project, bytes / 2, Some(Version::new(159)))
+        .await
+        .unwrap();
+    assert_eq!(
+        records::usage(&pool, &project).await.unwrap(),
+        measured(pool.clone(), project.clone()).await,
+        "the total after pruning is what the table still holds"
+    );
+
+    records::forget(&pool, &project).await.unwrap();
+}

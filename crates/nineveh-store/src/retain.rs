@@ -95,7 +95,10 @@ pub async fn prune_records(
         return Ok(0);
     }
     let over = bytes - limit_bytes;
-    let done = sqlx::query!(
+    // The delete and the running totals move together, so a crash between them can't
+    // leave the log claiming bytes it no longer holds.
+    let mut tx = pool.begin().await?;
+    let taken = sqlx::query!(
         r#"WITH running AS (
                SELECT version, ord,
                       sum(pg_column_size(record)) OVER (ORDER BY version, ord) AS so_far
@@ -107,13 +110,33 @@ pub async fn prune_records(
            doomed AS (SELECT version, ord FROM running WHERE so_far <= $3)
            DELETE FROM nineveh.records r
            USING doomed d
-           WHERE r.project = $1 AND r.version = d.version AND r.ord = d.ord"#,
+           WHERE r.project = $1 AND r.version = d.version AND r.ord = d.ord
+           RETURNING pg_column_size(r.record) AS "size!""#,
         project,
         folded,
         over,
         BATCH,
     )
-    .execute(pool)
+    .fetch_all(&mut *tx)
     .await?;
-    Ok(done.rows_affected())
+
+    let count = i64::try_from(taken.len()).unwrap_or(i64::MAX);
+    let freed: i64 = taken.iter().map(|r| i64::from(r.size)).sum();
+    if count > 0 {
+        // `greatest(…, 0)` because the totals are a gauge: if they have drifted low,
+        // the answer is zero, never a negative allowance that would prune forever.
+        sqlx::query!(
+            "UPDATE nineveh.record_cursors
+             SET record_count = greatest(record_count - $2, 0),
+                 record_bytes = greatest(record_bytes - $3, 0)
+             WHERE project = $1",
+            project,
+            count,
+            freed,
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(u64::try_from(count).unwrap_or(0))
 }

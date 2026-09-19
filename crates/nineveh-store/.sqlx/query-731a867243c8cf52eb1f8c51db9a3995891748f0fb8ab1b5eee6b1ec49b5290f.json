@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO nineveh.records\n                   (project, version, ord, timestamp_micros, success, sender, record)\n               VALUES ($1, $2, $3, $4, $5, $6, $7::text::jsonb)\n               ON CONFLICT (project, version, ord) DO UPDATE\n                   SET timestamp_micros = excluded.timestamp_micros,\n                       success          = excluded.success,\n                       sender           = excluded.sender,\n                       record           = excluded.record\n               RETURNING (xmax = 0) AS \"inserted!\", pg_column_size(record) AS \"size!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "inserted!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 1,
+        "name": "size!",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int4",
+        "Int8",
+        "Bool",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "731a867243c8cf52eb1f8c51db9a3995891748f0fb8ab1b5eee6b1ec49b5290f"
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT record_count, record_bytes FROM nineveh.record_cursors WHERE project = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "record_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "record_bytes",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "f13cdaac8cce6604586c22d88fd2daaefbcdf2cf9d7bf6fefa0df37cdd4ae733"
+}

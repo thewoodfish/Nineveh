@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE nineveh.record_cursors\n             SET record_count = greatest(record_count - $2, 0),\n                 record_bytes = greatest(record_bytes - $3, 0)\n             WHERE project = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d122ece9dc749d6488b6e7a96062f275088935a1b33d2fb675b1533d9891f24a"
+}

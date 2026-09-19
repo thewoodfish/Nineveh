@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH running AS (\n               SELECT version, ord,\n                      sum(pg_column_size(record)) OVER (ORDER BY version, ord) AS so_far\n               FROM nineveh.records\n               WHERE project = $1 AND version <= $2\n               ORDER BY version, ord\n               LIMIT $4\n           ),\n           doomed AS (SELECT version, ord FROM running WHERE so_far <= $3)\n           DELETE FROM nineveh.records r\n           USING doomed d\n           WHERE r.project = $1 AND r.version = d.version AND r.ord = d.ord\n           RETURNING pg_column_size(r.record) AS \"size!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "size!",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "66830144309c88b3d0a3a80e478df2caf7054e13e12df67cac8e7df05b4af98c"
+}
