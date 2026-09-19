@@ -517,12 +517,15 @@ fn every_record_survives_the_record_log() {
     for name in all_fixture_names() {
         let (_, tx) = decode_everything(&name);
         for record in &tx.records {
-            let stored = StoredRecord::from(record);
+            // The log names its source; the id is resolved again on the way out, so
+            // the name here stands in for whatever the config called it.
+            let stored = StoredRecord::of(record, &format!("source_{}", record.source.0));
             let json = serde_json::to_string(&stored)
                 .unwrap_or_else(|e| panic!("{name}: serializing {record:?}: {e}"));
             let back: StoredRecord = serde_json::from_str(&json)
                 .unwrap_or_else(|e| panic!("{name}: reading back {json}: {e}"));
-            let record_back = Record::try_from(back)
+            assert_eq!(back.source, format!("source_{}", record.source.0));
+            let record_back = Record::from_stored(back, record.source)
                 .unwrap_or_else(|e| panic!("{name}: converting back {json}: {e}"));
             assert_eq!(
                 &record_back, record,

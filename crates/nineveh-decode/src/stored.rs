@@ -10,6 +10,12 @@
 //! those parents are pinned rather than declared — dropping them would lose handle
 //! attribution on replay and break table sources without saying so.
 //!
+//! Records name their source rather than numbering it. [`SourceId`] is an index into
+//! `config.sources` (`resolve.rs`), so reordering the sources in a config would
+//! renumber every one of them and silently misattribute every record already stored.
+//! The name is what the user wrote and what survives an edit, so the log stores that
+//! and the id is resolved again on the way out.
+//!
 //! `success` and `sender` are kept although nothing folds them today. The log is
 //! meant to be replayable under rules written later, and a rule that reads
 //! `tx.sender` shouldn't force a backfill of history we already had.
@@ -25,7 +31,8 @@ use crate::record::{Container, Origin, Record, RecordData, SourceId};
 /// One record, as it is written to the log.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StoredRecord {
-    pub source: u32,
+    /// The source's name in the config, not its id: ids are positional.
+    pub source: String,
     pub origin: StoredOrigin,
     pub data: StoredData,
 }
@@ -107,11 +114,13 @@ fn int(what: &'static str, s: &str) -> Result<u64, InvalidRecord> {
     s.parse().map_err(|e| InvalidRecord::field(what, &e))
 }
 
-impl From<&Record> for StoredRecord {
-    fn from(record: &Record) -> Self {
+impl StoredRecord {
+    /// A record as the log stores it, under the name its source has in the config.
+    #[must_use]
+    pub fn of(record: &Record, source: &str) -> Self {
         let v = Stored::from;
         Self {
-            source: record.source.0,
+            source: source.to_owned(),
             origin: match record.origin {
                 Origin::Event(i) => StoredOrigin::Event(i),
                 Origin::Change(i) => StoredOrigin::Change(i),
@@ -172,12 +181,17 @@ impl From<&Record> for StoredRecord {
     }
 }
 
-impl TryFrom<StoredRecord> for Record {
-    type Error = InvalidRecord;
-
-    fn try_from(stored: StoredRecord) -> Result<Self, Self::Error> {
+impl Record {
+    /// A logged record, back in the shape the engine folds, under the id its source
+    /// has in the config being replayed.
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidRecord`] if the stored record doesn't decode, which means an older
+    /// encoder or a corrupted row.
+    pub fn from_stored(stored: StoredRecord, source: SourceId) -> Result<Self, InvalidRecord> {
         Ok(Self {
-            source: SourceId(stored.source),
+            source,
             origin: match stored.origin {
                 StoredOrigin::Event(i) => Origin::Event(i),
                 StoredOrigin::Change(i) => Origin::Change(i),

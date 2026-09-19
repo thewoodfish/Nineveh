@@ -27,6 +27,7 @@ mod cells;
 mod codec;
 mod error;
 mod layout;
+pub mod records;
 pub mod registry;
 mod rows;
 mod store;
