@@ -51,7 +51,7 @@ impl TypeMatcher {
 }
 
 /// The framework collection a `table:` source's field holds (ADR 0003).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Container {
     /// `Table<K, V>` or `TableWithLength<K, V>`: one item per entry.
     Table,

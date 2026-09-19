@@ -21,6 +21,7 @@ mod layout;
 mod lock;
 mod metadata;
 mod record;
+mod stored;
 
 pub use abi::{BuildError, FieldAbi, LockBuilder, ModuleAbi, ModuleId, StructAbi, VariantAbi};
 pub use json::{Decoder, Reason, ValueError};
@@ -31,3 +32,4 @@ pub use record::{
     Container, DecodeError, DecodeErrorKind, DecodedTransaction, Origin, Record, RecordData,
     Selection, SelectionError, SourceId, TableMatcher, TransactionDecoder, TypeMatcher,
 };
+pub use stored::{InvalidRecord, StoredData, StoredOrigin, StoredRecord};

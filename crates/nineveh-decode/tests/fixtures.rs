@@ -19,8 +19,8 @@ use std::path::{Path, PathBuf};
 
 use nineveh_core::{Address, Network, StructName, StructTag, TypeTag, Value};
 use nineveh_decode::{
-    Container, DecodedTransaction, LockBuilder, Lockfile, ModuleAbi, Origin, RecordData, Selection,
-    SourceId, TableMatcher, TransactionDecoder, TypeMatcher,
+    Container, DecodedTransaction, LockBuilder, Lockfile, ModuleAbi, Origin, Record, RecordData,
+    Selection, SourceId, StoredRecord, TableMatcher, TransactionDecoder, TypeMatcher,
 };
 use nineveh_proto::transaction::{Transaction, transaction::TxnData, write_set_change::Change};
 use prost::Message;
@@ -504,5 +504,35 @@ fn failed_transactions_still_have_records() {
         tx.records
             .iter()
             .any(|r| matches!(r.data, RecordData::ResourceWrite { .. }))
+    );
+}
+
+/// The record log replays a project's own records instead of re-reading the chain
+/// (ADR 0022), so every record has to survive a round trip through its stored shape.
+/// Running it over the whole fixture corpus means every rendering convention the
+/// decoder handles is also a convention the log can store.
+#[test]
+fn every_record_survives_the_record_log() {
+    let mut checked = 0_usize;
+    for name in all_fixture_names() {
+        let (_, tx) = decode_everything(&name);
+        for record in &tx.records {
+            let stored = StoredRecord::from(record);
+            let json = serde_json::to_string(&stored)
+                .unwrap_or_else(|e| panic!("{name}: serializing {record:?}: {e}"));
+            let back: StoredRecord = serde_json::from_str(&json)
+                .unwrap_or_else(|e| panic!("{name}: reading back {json}: {e}"));
+            let record_back = Record::try_from(back)
+                .unwrap_or_else(|e| panic!("{name}: converting back {json}: {e}"));
+            assert_eq!(
+                &record_back, record,
+                "{name}: a record changed on its way through the log"
+            );
+            checked += 1;
+        }
+    }
+    assert!(
+        checked >= 100,
+        "only {checked} records round-tripped; the fixture corpus should be richer than that"
     );
 }
