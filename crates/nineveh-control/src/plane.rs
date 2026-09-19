@@ -18,6 +18,8 @@ use nineveh_pipeline::{BatchStream, Source};
 use nineveh_realtime::Hub;
 use nineveh_store::accounts::{self, ApiKey};
 use nineveh_store::{Store, StoreError, registry, row_json, shadow_name};
+
+use crate::idle::Demand;
 use serde::Serialize;
 use sqlx::PgPool;
 use tokio::sync::{RwLock, watch};
@@ -654,6 +656,44 @@ impl<C: Chain> ControlPlane<C> {
         }
         info!(project = %name, "deleted");
         Ok(())
+    }
+
+    /// What is waiting on `project`'s folded state, and therefore whether its fold is
+    /// worth running (ADR 0023).
+    ///
+    /// The two declarations come from what the project *is* — its config's endpoints,
+    /// and who is listening to its feed — and only the last two are looked up, so a
+    /// project with a webhook endpoint never depends on a query succeeding.
+    ///
+    /// # Errors
+    ///
+    /// If the database fails while counting the backlog or reading the timestamp.
+    pub async fn demand(&self, name: &str) -> Result<Option<Demand>, StoreError> {
+        let (webhooks, folded) = {
+            let projects = self.projects.read().await;
+            let Some(entry) = projects.get(name) else {
+                return Ok(None);
+            };
+            let webhooks = entry
+                .loaded
+                .as_ref()
+                .is_ok_and(|l| !l.project.config().webhooks.is_empty());
+            // The health snapshot carries the cursor as a decimal string, since it is
+            // what the API serves.
+            let folded = entry.health.borrow().as_ref().and_then(|h| {
+                h.cursor
+                    .as_deref()
+                    .and_then(|c| c.parse::<u64>().ok())
+                    .map(Version::new)
+            });
+            (webhooks, folded)
+        };
+        Ok(Some(Demand {
+            webhooks,
+            listeners: self.hub.feed(name).listeners(),
+            read_ago: nineveh_store::reads::seconds_since_read(&self.pool, name).await?,
+            backlog: nineveh_store::records::pending(&self.pool, name, folded).await?,
+        }))
     }
 
     /// Every project `caller` may see, by name.

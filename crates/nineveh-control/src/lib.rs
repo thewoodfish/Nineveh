@@ -23,6 +23,7 @@ mod catalog;
 mod chain;
 mod deliver;
 mod http;
+pub mod idle;
 mod pin;
 mod plane;
 mod runner;

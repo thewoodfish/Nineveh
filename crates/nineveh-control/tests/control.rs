@@ -18,7 +18,7 @@ use std::time::Duration;
 
 use axum::Router;
 use axum::http::{Method, StatusCode};
-use nineveh_control::{Access, ControlPlane, router};
+use nineveh_control::{Access, ControlPlane, idle, router};
 use nineveh_testkit::vault::{self, Op};
 use serde_json::{Value, json};
 
@@ -408,6 +408,20 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
         "reading a project's API notes the read"
     );
 
+    // And that read is what keeps the project out of idle (ADR 0023): nothing else is
+    // waiting on it yet, since this config declares no webhook endpoint.
+    let demand = plane
+        .demand(&name)
+        .await
+        .unwrap()
+        .expect("the project exists");
+    assert!(!demand.webhooks, "no endpoints in the config yet");
+    assert_eq!(
+        demand.verdict(idle::IDLE_AFTER),
+        idle::Verdict::Wanted(idle::Reason::Read),
+        "a project read a moment ago is not idle: {demand:?}"
+    );
+
     // Following the shares table too rebuilds the project, and the old tables survive.
     let changed = config
         .replace(
@@ -433,6 +447,21 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
     wait_for_rows(&app, &name, "vault_shares", shares).await;
     wait_for_rows(&app, &name, "deposit_event", count(model.deposits)).await;
     wait_for_rows(&app, &name, "depositors", 3).await;
+
+    // An endpoint is a standing instruction to deliver, and deliveries come from the
+    // outbox, which only exists if the fold runs. So it is never idle, whatever the
+    // timestamps say.
+    let demand = plane
+        .demand(&name)
+        .await
+        .unwrap()
+        .expect("the project exists");
+    assert!(demand.webhooks, "the new config declares an endpoint");
+    assert_eq!(
+        demand.verdict(Duration::from_secs(0)),
+        idle::Verdict::Wanted(idle::Reason::Webhooks),
+        "an endpoint outranks even an idle window of zero: {demand:?}"
+    );
 
     // A saved table comes back in the shape the editor edits, so opening one to
     // change it isn't a one-way trip into YAML.

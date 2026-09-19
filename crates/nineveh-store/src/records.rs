@@ -195,6 +195,33 @@ pub async fn read(
         .collect()
 }
 
+/// How many records are logged past `folded` — the backlog a fold would have to work
+/// through to become current (ADR 0023).
+///
+/// This is the number idleness is bounded by. Catching up reads the log, so the cost
+/// is records rather than elapsed time: a quiet contract idle for months has a smaller
+/// backlog than a busy one idle for an hour.
+///
+/// # Errors
+///
+/// If the database fails.
+pub async fn pending(
+    pool: &PgPool,
+    project: &str,
+    folded: Option<Version>,
+) -> Result<i64, StoreError> {
+    let after = folded.map_or(-1, |v| i64::try_from(v.get()).unwrap_or(i64::MAX));
+    let row = sqlx::query!(
+        r#"SELECT count(*) AS "pending!" FROM nineveh.records
+           WHERE project = $1 AND version > $2"#,
+        project,
+        after
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(row.pending)
+}
+
 /// The earliest version logged for `project`, or `None` if nothing is.
 ///
 /// A rebuild needs the log to reach back to where it starts; this says how far back

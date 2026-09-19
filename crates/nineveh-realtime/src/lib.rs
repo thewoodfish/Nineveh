@@ -139,6 +139,18 @@ impl Feed {
         &self.schema
     }
 
+    /// Roughly how many things are listening to this feed.
+    ///
+    /// Each live change-feed connection holds a wake receiver, so this counts them —
+    /// and also counts the webhook sender when one is running. That conflation is
+    /// harmless for what asks: a project with webhook endpoints is never idle anyway
+    /// (ADR 0023), so an over-count can only keep a project awake, never put it to
+    /// sleep while someone is watching.
+    #[must_use]
+    pub fn listeners(&self) -> usize {
+        self.wake.receiver_count()
+    }
+
     /// Wake-ups for this schema's commits, for anything else that tails the outbox:
     /// the webhook sender delivers within a commit or two rather than a poll (ADR
     /// 0020). A missed wake-up only delays a change until the next poll.
