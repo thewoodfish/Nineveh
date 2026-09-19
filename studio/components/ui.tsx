@@ -5,13 +5,23 @@ import { useState, type ReactNode } from "react";
 import { API_URL, type ColumnType } from "@/lib/api";
 import { formatInteger, shortHex } from "@/lib/format";
 
-const PHASES: Record<string, { label: string; dot: string; pulse?: boolean }> = {
+const PHASES: Record<string, { label: string; dot: string; pulse?: boolean; hint?: string }> = {
   running: { label: "Running", dot: "bg-tertiary", pulse: true },
   serving: { label: "Serving", dot: "bg-tertiary" },
   starting: { label: "Starting", dot: "bg-primary", pulse: true },
   retrying: { label: "Retrying", dot: "bg-warning", pulse: true },
   halted: { label: "Halted", dot: "bg-error" },
   failed: { label: "Failed", dot: "bg-error" },
+  // Idle is not stopped, and must not look like it: the project is still following
+  // the chain and still keeping records, it has just paused computing rows nobody has
+  // asked for (ADR 0023). The explanation lives here rather than in a banner on the
+  // project's own page, because opening that page wakes it — a notice there would
+  // appear and vanish in the same second.
+  idle: {
+    label: "Idle",
+    dot: "bg-on-secondary-container",
+    hint: "Idle — nothing is reading it, so it has paused computing rows. It is still following the chain and keeping its records; opening it brings it up to date in about a second.",
+  },
   stopped: { label: "Stopped", dot: "bg-outline" },
   offline: { label: "Offline", dot: "bg-outline-variant" },
 };
@@ -21,7 +31,7 @@ export function PhaseDot({ phase, label = false }: { phase: string; label?: bool
   return (
     <span
       className="inline-flex items-center gap-1.5 text-xs text-on-surface-variant"
-      title={p.label}
+      title={p.hint ?? p.label}
     >
       <span className="relative flex size-2">
         {p.pulse && (
@@ -132,29 +142,44 @@ export function Segmented<T extends string>({
   options,
   value,
   onChange,
+  unavailable,
+  unavailableHint = "Coming soon",
 }: {
   options: readonly T[];
   value: T;
   onChange: (value: T) => void;
+  /** Options that exist but can't be picked yet. They stay visible on purpose: a
+   *  choice you can see is coming reads as a roadmap, and one that vanishes reads as
+   *  a product that can't do it. */
+  unavailable?: readonly T[];
+  unavailableHint?: string;
 }) {
   return (
     <div className="inline-flex divide-x divide-outline overflow-hidden rounded-full border border-outline">
-      {options.map((option) => (
-        <button
-          key={option}
-          type="button"
-          onClick={() => onChange(option)}
-          aria-pressed={option === value}
-          className={`state inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium ${
-            option === value
-              ? "bg-secondary-container text-on-secondary-container"
-              : "text-on-surface-variant"
-          }`}
-        >
-          {option === value && <Icon name="check" className="text-[16px]" />}
-          {option}
-        </button>
-      ))}
+      {options.map((option) => {
+        const off = unavailable?.includes(option) ?? false;
+        return (
+          <button
+            key={option}
+            type="button"
+            onClick={() => !off && onChange(option)}
+            aria-pressed={option === value}
+            aria-disabled={off}
+            title={off ? unavailableHint : undefined}
+            className={`state inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium ${
+              off
+                ? "cursor-not-allowed text-on-surface-variant/45"
+                : option === value
+                  ? "bg-secondary-container text-on-secondary-container"
+                  : "text-on-surface-variant"
+            }`}
+          >
+            {!off && option === value && <Icon name="check" className="text-[16px]" />}
+            {option}
+            {off && <span className="text-[10px] tracking-wide uppercase">soon</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }

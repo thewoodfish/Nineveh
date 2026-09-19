@@ -50,9 +50,14 @@ function failure(e: unknown): Failure {
 
 /** From a contract address to a live backend: inspect, pick, name, create. */
 export default function NewProject() {
-  const { mode, projects, refresh } = useProject();
+  const { mode, projects, refresh, limits } = useProject();
   const router = useRouter();
   const [network, setNetwork] = useState<Network>("testnet");
+  // The tier says what it allows; this page works out what that leaves out, so the
+  // list of networks and the list of limits never have to agree by hand.
+  const unavailable = limits
+    ? (["mainnet", "testnet", "devnet"] as const).filter((n) => !limits.networks.includes(n))
+    : undefined;
   const [address, setAddress] = useState("");
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [inspecting, setInspecting] = useState(false);
@@ -124,10 +129,21 @@ export default function NewProject() {
     }
   };
 
+  // Said before the work rather than after it: inspecting a contract and picking
+  // sources only to be refused at the last step is the worst possible place to learn
+  // the tier is full.
+  const full = limits != null && projects != null && projects.length >= limits.projects;
+
   return (
     <div>
       <PageHeader title="New project" />
       <div className="mx-auto flex max-w-4xl flex-col gap-8 px-8 pt-10 pb-16">
+        {full && (
+          <Notice tone="warning" title={`The ${limits.name} tier runs ${limits.projects} projects`}>
+            You have {projects.length}. Delete one to make room for another — more projects are
+            coming soon.
+          </Notice>
+        )}
         {/* Until there's an address, it's the only thing on the page. */}
         <section className={catalog ? "" : "pt-6 text-center"}>
           {!catalog && (
@@ -152,6 +168,8 @@ export default function NewProject() {
               options={["mainnet", "testnet", "devnet"] as const}
               value={network}
               onChange={(n) => setNetwork(n)}
+              unavailable={unavailable}
+              unavailableHint={`${limits?.name ?? "This"} tier: mainnet is coming soon`}
             />
             <input
               value={address}

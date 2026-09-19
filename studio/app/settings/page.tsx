@@ -7,9 +7,11 @@ import { ApiKeys } from "@/components/api-keys";
 import { ConfigPanel } from "@/components/config-panel";
 import { ConfirmDialog } from "@/components/dialog";
 import { PageHeader } from "@/components/page-header";
-import { Button, Card, Icon, Offline } from "@/components/ui";
+import { Button, Card, Icon, Offline, PhaseDot } from "@/components/ui";
 import { Webhooks } from "@/components/webhooks";
-import { control } from "@/lib/api";
+import { type Limits, type Usage, control } from "@/lib/api";
+import { formatBytes, formatInteger } from "@/lib/format";
+import { useReaders, useUsage } from "@/lib/hooks";
 import { useProject } from "@/lib/project";
 
 /**
@@ -19,7 +21,8 @@ import { useProject } from "@/lib/project";
  * half administration.
  */
 export default function Settings() {
-  const { mode, current, hosted, error } = useProject();
+  const { mode, current, hosted, error, limits } = useProject();
+  const { data: usage } = useUsage();
   if (mode === "loading") return null;
   if (mode === "offline") return <Offline error={error ?? "Nineveh isn't answering"} />;
   if (!current) {
@@ -54,11 +57,131 @@ export default function Settings() {
           <Webhooks project={current.name} />
         </Section>
 
+        <Section
+          title="Plan"
+          hint="What this project keeps, and what it is allowed. Nothing here is billed — Nineveh has no billing yet."
+        >
+          <Plan limits={limits} usage={usage} />
+        </Section>
+
+        <Section
+          title="Ingest"
+          hint="Nineveh reads each network once and hands the transactions to every project on it, so adding a project costs no new connection to Aptos."
+        >
+          <Readers />
+        </Section>
+
         <Section title="Danger zone" hint="Both of these interrupt everything reading this API.">
           <DangerZone name={current.name} running={current.running} />
         </Section>
       </div>
     </div>
+  );
+}
+
+/**
+ * Limits as facts about the tier rather than a bill: the numbers, what they are
+ * measured in, and — for the two that aren't here yet — that they are coming. There is
+ * nothing to upgrade to, so nothing offers to.
+ */
+function Plan({ limits, usage }: { limits: Limits | null; usage: Usage | null }) {
+  if (!limits) {
+    return (
+      <Card className="px-5 py-4 text-sm text-on-surface-variant">
+        Running locally, on your own machine and your own Aptos key. Nothing is limited.
+      </Card>
+    );
+  }
+  const used = usage && limits.log_bytes > 0 ? usage.bytes / limits.log_bytes : 0;
+  return (
+    <Card className="divide-y divide-outline-variant">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-4">
+        <div>
+          <div className="text-base font-medium text-on-surface">{limits.name}</div>
+          <p className="mt-0.5 text-xs text-on-surface-variant">
+            {limits.projects} projects on {limits.networks.join(" and ")}. Mainnet and deeper
+            history are coming soon.
+          </p>
+        </div>
+        <span className="rounded-full bg-secondary-container px-2.5 py-1 text-xs font-medium text-on-secondary-container">
+          Current plan
+        </span>
+      </div>
+      <div className="px-5 py-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <span className="text-sm text-on-surface">History kept</span>
+          <span className="font-mono text-xs text-on-surface-variant tnum">
+            {formatBytes(usage?.bytes ?? null)} of {formatBytes(limits.log_bytes)}
+          </span>
+        </div>
+        <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-surface-container-highest">
+          <div
+            className={`h-full rounded-full transition-[width] duration-700 ease-out ${
+              used > 0.9 ? "bg-warning" : "bg-primary"
+            }`}
+            style={{ width: `${Math.min(Math.max(used * 100, 0.5), 100)}%` }}
+          />
+        </div>
+        <p className="mt-2 text-xs text-on-surface-variant">
+          {usage ? `${formatInteger(usage.records)} records` : "Reading…"} — what a rebuild replays
+          instead of reading the chain again. Past the limit the oldest go first; state tables are
+          never touched.
+        </p>
+      </div>
+      <dl className="grid grid-cols-2 divide-outline-variant sm:grid-cols-3 sm:divide-x">
+        <Fact label="Projects" value={`${limits.projects}`} />
+        <Fact label="Change feed kept" value={`${limits.history_days} days`} />
+        <Fact label="Start within" value={`${limits.look_back_hours} h of the tip`} />
+      </dl>
+    </Card>
+  );
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="px-5 py-3.5">
+      <dt className="text-xs text-on-surface-variant">{label}</dt>
+      <dd className="mt-1 truncate font-mono text-sm text-on-surface tnum">{value}</dd>
+    </div>
+  );
+}
+
+/**
+ * The shared readers (ADR 0021). Worth showing because it is the one resource a
+ * hosted plane can actually run out of: Aptos caps concurrent streams per
+ * organization, so "free slots" is a real number, not a gauge for its own sake.
+ */
+function Readers() {
+  const { data: readers } = useReaders();
+  if (!readers) return null;
+  if (readers.length === 0) {
+    return (
+      <Card className="px-5 py-4 text-sm text-on-surface-variant">
+        No network is being read yet.
+      </Card>
+    );
+  }
+  return (
+    <Card className="divide-y divide-outline-variant">
+      {readers.map((reader) => (
+        <div key={reader.network} className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-4">
+          <div className="flex min-w-32 items-center gap-2">
+            <PhaseDot phase={reader.position ? "running" : "starting"} />
+            <span className="font-mono text-sm text-on-surface">{reader.network}</span>
+          </div>
+          <div className="text-xs text-on-surface-variant">
+            at version{" "}
+            <span className="font-mono text-on-surface">{formatInteger(reader.position)}</span>
+          </div>
+          <div className="text-xs text-on-surface-variant">
+            {reader.projects} {reader.projects === 1 ? "project" : "projects"} on one stream
+          </div>
+          <div className="ml-auto text-xs text-on-surface-variant">
+            {reader.slots_free} catch-up {reader.slots_free === 1 ? "stream" : "streams"} free
+          </div>
+        </div>
+      ))}
+    </Card>
   );
 }
 

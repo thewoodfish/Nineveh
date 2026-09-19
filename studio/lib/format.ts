@@ -52,3 +52,17 @@ export function behind(cursor: string | null, target: string | null): string | n
     return null;
   }
 }
+
+/** Bytes as a person reads them: `1.4 GB`, `512 MB`, `— ` for nothing known. */
+export function formatBytes(bytes: number | null | undefined): string {
+  if (bytes == null) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let n = bytes;
+  let unit = 0;
+  while (n >= 1024 && unit < units.length - 1) {
+    n /= 1024;
+    unit += 1;
+  }
+  const decimals = unit === 0 || n >= 100 || Number.isInteger(n) ? 0 : n >= 10 ? 1 : 2;
+  return `${n.toFixed(decimals)} ${units[unit]}`;
+}

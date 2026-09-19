@@ -10,7 +10,15 @@
 import { useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { API_URL, ApiError, type Me, type ProjectSummary, control, projectBase } from "./api";
+import {
+  API_URL,
+  ApiError,
+  type Limits,
+  type Me,
+  type ProjectSummary,
+  control,
+  projectBase,
+} from "./api";
 import { clearSession, onSignedOut } from "./session";
 
 /** `signin`: hosted, and nobody's signed in. */
@@ -22,6 +30,12 @@ type ProjectState = {
   account: Me["account"];
   /** Whether projects need sign-in and keys: hosted rather than local. */
   hosted: boolean;
+  /**
+   * What this account's tier allows, straight from the control plane. `null` in local
+   * mode, where there is no account and therefore no tier — so a `null` here means
+   * "nothing is limited", not "limits unknown".
+   */
+  limits: Limits | null;
   signOut: () => Promise<void>;
   /** Every project, under the control plane. */
   projects: ProjectSummary[] | null;
@@ -40,6 +54,7 @@ const Context = createContext<ProjectState>({
   mode: "loading",
   account: null,
   hosted: false,
+  limits: null,
   signOut: async () => {},
   projects: null,
   name: null,
@@ -108,6 +123,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       mode,
       account: me?.account ?? null,
       hosted: me?.mode === "hosted",
+      limits: me?.limits ?? null,
       signOut,
       projects,
       name: mode === "control" ? name : null,

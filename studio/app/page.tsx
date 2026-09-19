@@ -5,9 +5,16 @@ import { PageHeader } from "@/components/page-header";
 import { useState, type ReactNode } from "react";
 
 import { Card, filledButton, Icon, Notice, Offline, PhaseDot } from "@/components/ui";
-import { API_URL, type ProjectSummary, type Status, control } from "@/lib/api";
-import { behind, formatDuration, formatInteger, progress, shortHex } from "@/lib/format";
-import { useStatus, useTables } from "@/lib/hooks";
+import { API_URL, type ProjectSummary, type Status, type Usage, control } from "@/lib/api";
+import {
+  behind,
+  formatBytes,
+  formatDuration,
+  formatInteger,
+  progress,
+  shortHex,
+} from "@/lib/format";
+import { useStatus, useTables, useUsage } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
 
 export default function Home() {
@@ -124,13 +131,17 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
           )}
           <div className="mt-2 flex items-baseline justify-between gap-2 text-[11px] text-on-surface-variant tnum">
             <span className="truncate">
-              {done === null
-                ? "no pipeline"
-                : backfilling
-                  ? `${(done * 100).toFixed(1)}% backfilled`
-                  : "following the chain"}
+              {project.idle
+                ? "keeping records"
+                : done === null
+                  ? "no pipeline"
+                  : backfilling
+                    ? `${(done * 100).toFixed(1)}% backfilled`
+                    : "following the chain"}
             </span>
-            {pipeline?.versions_per_sec != null && (
+            {/* An idle project's throughput is zero by design, and a zero here reads
+                as a stall. */}
+            {!project.idle && pipeline?.versions_per_sec != null && (
               <span className="shrink-0">{formatInteger(pipeline.versions_per_sec)}/s</span>
             )}
           </div>
@@ -143,6 +154,7 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
 function Overview() {
   const { data: status, error } = useStatus();
   const { tables } = useTables();
+  const { data: usage } = useUsage();
   const { current, mode, hosted } = useProject();
   const href = useHref();
 
@@ -245,6 +257,8 @@ function Overview() {
           </Card>
         )}
 
+        {usage && <Storage usage={usage} />}
+
         {status.build && (
           <Card className="grid grid-cols-1 gap-x-8 gap-y-2 px-4 py-3 text-xs text-on-surface-variant sm:grid-cols-3">
             <div>
@@ -259,6 +273,49 @@ function Overview() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * The record log is what makes a rebuild local instead of another backfill (ADR 0022),
+ * so its size is really an answer to "how far back can this project be rebuilt without
+ * paying for history again". That is the sentence, and the bar is the number.
+ */
+function Storage({ usage }: { usage: Usage }) {
+  const used = usage.limit_bytes > 0 ? usage.bytes / usage.limit_bytes : 0;
+  const tight = used > 0.9;
+  return (
+    <Card className="px-5 py-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="text-[11px] font-medium tracking-[0.08em] text-on-surface-variant uppercase">
+          History kept
+        </div>
+        <div className="font-mono text-xs text-on-surface-variant tnum">
+          {formatBytes(usage.bytes)} of {formatBytes(usage.limit_bytes)}
+        </div>
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-container-highest">
+        <div
+          className={`h-full rounded-full transition-[width] duration-700 ease-out ${
+            tight ? "bg-warning" : "bg-primary"
+          }`}
+          style={{ width: `${Math.min(Math.max(used * 100, 0.5), 100)}%` }}
+        />
+      </div>
+      <p className="mt-2.5 text-xs text-on-surface-variant">
+        {formatInteger(usage.records)} records
+        {usage.earliest_version && (
+          <>
+            , back to version{" "}
+            <span className="font-mono text-on-surface">
+              {formatInteger(usage.earliest_version)}
+            </span>
+          </>
+        )}
+        . Editing a rule replays these instead of re-reading the chain. Past the limit the
+        oldest go first; your state tables are never touched.
+      </p>
+    </Card>
   );
 }
 

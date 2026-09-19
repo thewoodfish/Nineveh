@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { type Change, type Status, type Table, getStatus, getTables } from "./api";
+import {
+  type Change,
+  type ReaderInfo,
+  type Status,
+  type Table,
+  type Usage,
+  control,
+  getStatus,
+  getTables,
+} from "./api";
 import { subscribe } from "./feed";
 import { useProject } from "./project";
 
@@ -34,6 +43,23 @@ export function usePoll<T>(load: (() => Promise<T>) | null, ms: number) {
     };
   }, [load, ms]);
   return { data, error };
+}
+
+/**
+ * What the open project is using of its allowance. Polled slowly: it moves in
+ * megabytes over hours, and there is nothing to watch tick.
+ */
+export function useUsage() {
+  const { mode, name } = useProject();
+  const load = useCallback(() => control.usage(name ?? ""), [name]);
+  return usePoll<Usage>(mode === "control" && name ? load : null, 30_000);
+}
+
+/** What each network's shared reader is doing (ADR 0021). */
+export function useReaders() {
+  const { mode } = useProject();
+  const load = useCallback(() => control.readers(), []);
+  return usePoll<ReaderInfo[]>(mode === "control" ? load : null, 5_000);
 }
 
 /** The open project's status. */

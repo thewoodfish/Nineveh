@@ -172,9 +172,16 @@ export type ProjectSummary = {
   network: Network;
   /** Whether it should run. */
   running: boolean;
-  state: "starting" | "running" | "retrying" | "stopped" | "halted" | "failed" | string;
+  state: "starting" | "running" | "retrying" | "stopped" | "halted" | "failed" | "idle" | string;
   error: string | null;
   pipeline: Health | null;
+  /**
+   * Whether it has stopped folding because nothing is reading it (ADR 0023). Not the
+   * same as stopped: it is still running, still following the chain and still keeping
+   * its records — only the computing of rows nobody asked for has paused, and the next
+   * read starts it again.
+   */
+  idle: boolean;
   /** The project's API, relative to the control plane. */
   api: string;
   created_at: string;
@@ -268,6 +275,40 @@ const json = (body: unknown) => ({ body: JSON.stringify(body) });
 export type Me = {
   mode: "local" | "hosted";
   account: { login: string; name: string | null; avatar_url: string | null } | null;
+  /** Absent in local mode: there is no account there, so there is no tier. */
+  limits?: Limits;
+};
+
+/** What an account's tier allows. The numbers live on the server; Studio quotes them. */
+export type Limits = {
+  name: string;
+  projects: number;
+  networks: string[];
+  look_back_hours: number;
+  log_bytes: number;
+  history_days: number;
+};
+
+/** What a project is using of what it is allowed. */
+export type Usage = {
+  records: number;
+  bytes: number;
+  limit_bytes: number;
+  /** The earliest version still logged: how far back a rebuild reaches for free. */
+  earliest_version: string | null;
+  history_days: number;
+};
+
+/**
+ * A network's shared Transaction Stream reader (ADR 0021). One per network, whatever
+ * the number of projects — Geomi caps concurrent streams at 7 on testnet, so this is
+ * the plane's scarcest resource.
+ */
+export type ReaderInfo = {
+  network: string;
+  position: string | null;
+  projects: number;
+  slots_free: number;
 };
 
 export type ApiKey = {
@@ -286,6 +327,11 @@ export const SIGN_IN_URL = `${API_URL}/auth/github`;
 
 export const control = {
   me: () => request<Me>(`${CONTROL}/me`),
+  /** What each network's shared reader is doing. */
+  readers: () => request<ReaderInfo[]>(`${CONTROL}/readers`),
+  /** What one project is using of its allowance. */
+  usage: (name: string) =>
+    request<Usage>(`${CONTROL}/projects/${encodeURIComponent(name)}/usage`),
   logout: () => request<void>(`${CONTROL}/logout`, { method: "POST" }),
   sources: (name: string) =>
     request<SourceInfo[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/sources`),
