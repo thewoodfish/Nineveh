@@ -37,26 +37,6 @@ export function DocsNav({
                 <span className="font-medium">{doc.title}</span>
                 <span className="mt-0.5 block text-xs text-white/35">{doc.blurb}</span>
               </a>
-              {here && headings.length > 0 && (
-                <ul className="mt-1 mb-2 ml-3 flex flex-col border-l border-white/10">
-                  {headings
-                    .filter((h) => h.level === 2)
-                    .map((h) => (
-                      <li key={h.id}>
-                        <a
-                          href={`#${h.id}`}
-                          className={`-ml-px block border-l py-1.5 pl-4 text-[13px] transition-colors ${
-                            active === h.id
-                              ? "border-blue-400 text-blue-200"
-                              : "border-transparent text-white/45 hover:border-white/25 hover:text-white/80"
-                          }`}
-                        >
-                          {h.text}
-                        </a>
-                      </li>
-                    ))}
-                </ul>
-              )}
             </li>
           );
         })}
@@ -72,7 +52,7 @@ export function OnThisPage({ headings }: { headings: Entry[] }) {
   return (
     <nav aria-label="On this page" className="text-sm">
       <p className="pb-3 text-xs font-medium text-white/40">On this page</p>
-      <ul className="flex flex-col border-l border-white/10">
+      <ul class="flex flex-col border-l border-white/10">
         {headings.map((h) => (
           <li key={h.id}>
             <a

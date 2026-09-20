@@ -18,13 +18,16 @@ const INCLUDED = [
   "Backfills, cursors, retries and crash recovery",
 ];
 
-/** The numbers, kept apart from the features so they stay scannable. */
+/**
+ * The numbers, kept apart from the features so they stay scannable. Labels carry the
+ * noun and values carry the unit, so the right-hand column reads straight down.
+ */
 const LIMITS = [
   ["Projects", "2"],
   ["Networks", "testnet, devnet"],
   ["History per project", "1 GB"],
-  ["Change feed kept", "7 days"],
-  ["Start within", "6 hours"],
+  ["Change feed", "7 days"],
+  ["Backfill", "6 hours"],
 ];
 
 /** Deliberately unexplained: each one answers a line in the Free card's limits. */
@@ -99,11 +102,18 @@ export function Pricing() {
                 ))}
               </ul>
 
-              <dl className="mt-8 grid gap-x-6 gap-y-2.5 border-t border-white/10 pt-7 sm:grid-cols-2">
+              {/* Inset, so the spec reads as a different kind of thing from the list
+                  above it without needing a label to say so. */}
+              <dl className="mt-8 rounded-xl bg-black/20 px-5 py-1.5 ring-1 ring-white/[0.07]">
                 {LIMITS.map(([label, value]) => (
-                  <div key={label} className="flex items-baseline justify-between gap-3">
-                    <dt className="text-sm text-white/45">{label}</dt>
-                    <dd className="font-mono text-[13px] text-clay-400">{value}</dd>
+                  <div
+                    key={label}
+                    className="flex items-baseline justify-between gap-6 border-b border-white/[0.07] py-3 last:border-0"
+                  >
+                    <dt className="text-sm text-white/50">{label}</dt>
+                    <dd className="font-mono text-[13px] whitespace-nowrap text-clay-400">
+                      {value}
+                    </dd>
                   </div>
                 ))}
               </dl>

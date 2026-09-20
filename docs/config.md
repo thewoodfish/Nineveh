@@ -231,9 +231,7 @@ signed with the endpoint's own secret, so URLs never carry credentials.
 
 `rows: false` sends only the key — "this row changed, come and look". That keeps
 deliveries small, and it's self-correcting: however they're retried or reordered, a
-fetch always returns current state. With `rows: true` (the default), compare each
-delivery's `version` and `seq` with what you've already applied, because a retry can
-arrive after a newer change.
+fetch always returns current state however the deliveries were retried or reordered.
 
 Changing a project's webhooks never rebuilds its tables: they don't shape what's
 built.
