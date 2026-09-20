@@ -52,7 +52,7 @@ export function OnThisPage({ headings }: { headings: Entry[] }) {
   return (
     <nav aria-label="On this page" className="text-sm">
       <p className="pb-3 text-xs font-medium text-white/40">On this page</p>
-      <ul class="flex flex-col border-l border-white/10">
+      <ul className="flex flex-col border-l border-white/10">
         {headings.map((h) => (
           <li key={h.id}>
             <a

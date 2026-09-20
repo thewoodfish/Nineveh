@@ -11,7 +11,7 @@ This guide assumes you're using the hosted Nineveh service (where we run the inf
 Follow these steps to have live blockchain data flowing to your app:
 
 1. **Sign in to Studio**  
-   → Open <https://studio.nineveh.xyz>  
+   → Open <https://studio.nineveh.dev>  
    → Click “Sign in with GitHub”
 
 2. **Create your project**  
@@ -33,13 +33,13 @@ Follow these steps to have live blockchain data flowing to your app:
    → Open the API playground in Studio to query it  
    → Or curl directly:  
      ```sh
-     curl https://api.nineveh.xyz/projects/blocks/v1/tables/new_block_event?limit=3
+     curl https://api.nineveh.dev/projects/blocks/v1/tables/new_block_event?limit=3
      ```
 
 5. **Subscribe to changes (optional)**  
    → In another terminal:  
      ```sh
-     curl -N https://api.nineveh.xyz/projects/blocks/v1/changes
+     curl -N https://api.nineveh.dev/projects/blocks/v1/changes
      ```
    → You’ll see live Server-Sent Events as blocks are added
 
@@ -118,7 +118,7 @@ Aptos Transaction Stream
 
 This is where 95% of users live: sign in to Studio on the web, create a project from a contract address, and call your project’s HTTPS API from your app.
 
-Open <https://studio.nineveh.xyz> (or your instance’s Studio URL). Sign in with GitHub.
+Open <https://studio.nineveh.dev> (or your instance’s Studio URL). Sign in with GitHub.
 
 ### ✅ A project that works right now
 
@@ -149,13 +149,13 @@ Within seconds, the Overview shows *Following the chain*, `0` versions behind, a
 Everything below targets your project’s base URL in the hosted service:
 
 ```
-https://api.nineveh.xyz/projects/{name}
+https://api.nineveh.dev/projects/{name}
 ```
 
 ### 🔌 REST API
 
 ```sh
-BASE=https://api.nineveh.xyz/projects/blocks
+BASE=https://api.nineveh.dev/projects/blocks
 
 curl $BASE/v1/status          # build health, cursor, ongoing rebuilds
 curl $BASE/v1/tables          # every table’s schema (kind, key, columns)
@@ -386,7 +386,7 @@ Aptos caps concurrent streams per org — **7 on testnet, 22 on mainnet** — so
 
 **Check shared readers:**
 ```sh
-curl https://api.nineveh.xyz/control/v1/readers
+curl https://api.nineveh.dev/control/v1/readers
 # [{"network":"testnet","position":"11292176967","projects":2,"slots_free":4}]
 ```
 → `slots_free` shows available catch-up streams (zero means next backfill waits — intended behavior)
@@ -453,7 +453,7 @@ Stated plainly so you don’t design against missing features:
 Each step produces something you can see, hear, or touch:
 
 1. **Sign in & create**  
-   → Go to <https://studio.nineveh.xyz>, sign in with GitHub  
+   → Go to <https://studio.nineveh.dev>, sign in with GitHub  
    → Create `blocks` from `0x1`, one source `NewBlockEvent`, **From now on**  
    → Overview reaches *Caught up*, rows arrive within seconds
 
