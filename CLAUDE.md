@@ -202,6 +202,12 @@ fast interactions, no clutter. When building UI, read the frontend-design skill 
 
 - `cargo xtask codegen` — regenerate Transaction Stream bindings from vendored protos;
   `--check` fails on drift (CI). Bump protos with `scripts/sync-protos.sh <sha>`.
+- `scripts/check.sh` — everything CI runs, in one pass: fmt, clippy, nextest, doctests,
+  dependency direction, docs, MSRV, codegen drift, `cargo deny`, Studio and site. Keeps
+  going after a failure and names what failed. `--fast` is the inner loop (fmt, clippy,
+  tests, deps); `--strict` sets `RUSTFLAGS` exactly as CI does, which forces a full
+  rebuild. It refuses to start under 5GB free — `target/` regrows to ~20GB and this
+  machine has filled its disk mid-build.
 - `scripts/check-deps.sh` — enforce crate dependency direction (CI).
 - `NINEVEH_TEST_DATABASE_URL=postgres:///nineveh_test cargo test -p nineveh-store -p nineveh-pipeline` —
   the Postgres-backed tests (they skip without it, and fail in CI without it).

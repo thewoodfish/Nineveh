@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(cargo check *)",
+      "Bash(cargo build *)",
+      "Bash(cargo clippy *)",
+      "Bash(cargo fmt *)",
+      "Bash(cargo test *)",
+      "Bash(cargo nextest *)",
+      "Bash(cargo doc *)",
+      "Bash(cargo deny *)",
+      "Bash(cargo tree *)",
+      "Bash(cargo xtask *)",
+      "Bash(cargo +1.89 *)",
+      "Bash(scripts/check.sh *)",
+      "Bash(scripts/check-deps.sh *)",
+      "Bash(./scripts/check.sh *)",
+      "Bash(./scripts/check-deps.sh *)",
+      "Bash(git status *)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "Bash(rustup show *)",
+      "Bash(rustup toolchain list *)",
+      "Bash(ls *)",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(wc *)",
+      "Bash(df *)"
+    ],
+    "deny": [
+      "Bash(git add -A)",
+      "Bash(git add -A *)",
+      "Bash(git add --all)",
+      "Bash(git add --all *)",
+      "Bash(git add .)",
+      "Read(./nineveh-brief.md)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)"
+    ]
+  }
+}

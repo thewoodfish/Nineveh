@@ -29,3 +29,6 @@ target
 
 # Working notes, deliberately not tracked
 nineveh-brief.md
+
+# Claude Code: personal overrides for this project, unlike .claude/settings.json
+.claude/settings.local.json
