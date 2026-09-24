@@ -1846,6 +1846,7 @@ dependencies = [
  "nineveh-config",
  "nineveh-core",
  "nineveh-decode",
+ "nineveh-dsl",
  "nineveh-engine",
  "nineveh-ingest",
  "nineveh-pipeline",

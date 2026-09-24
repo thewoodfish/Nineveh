@@ -115,7 +115,7 @@ async fn keys_reach_their_project_until_revoked() {
         .unwrap();
     let project = format!("keys_{}", std::process::id());
     let _ = registry::delete(&pool, &project).await;
-    registry::insert(&pool, &project, "testnet", "", "", Some(owner.id))
+    registry::insert(&pool, &project, "testnet", "", None, "", Some(owner.id))
         .await
         .unwrap();
     let listed = registry::list(&pool).await.unwrap();

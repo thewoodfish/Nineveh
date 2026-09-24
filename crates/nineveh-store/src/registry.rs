@@ -13,6 +13,9 @@ pub struct Registered {
     pub name: String,
     pub network: String,
     pub config: String,
+    /// Its `.nineveh.ts`, when its reduce tables are written in the DSL (ADR 0025).
+    /// `None` for a project written entirely in YAML.
+    pub reducers: Option<String>,
     pub lock: String,
     pub running: bool,
     /// The account that owns it; `None` for a project made in local mode.
@@ -30,7 +33,7 @@ pub struct Registered {
 pub async fn list(pool: &PgPool) -> Result<Vec<Registered>, StoreError> {
     migrate(pool).await?;
     let rows = sqlx::query!(
-        r#"SELECT name, network, config, lock, running, owner_id,
+        r#"SELECT name, network, config, reducers, lock, running, owner_id,
                   to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "created_at!",
                   to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS "updated_at!"
            FROM nineveh.control_projects ORDER BY name"#
@@ -42,6 +45,7 @@ pub async fn list(pool: &PgPool) -> Result<Vec<Registered>, StoreError> {
         .map(|r| Registered {
             name: r.name,
             network: r.network,
+            reducers: r.reducers,
             config: r.config,
             lock: r.lock,
             running: r.running,
@@ -63,6 +67,7 @@ pub async fn insert(
     name: &str,
     network: &str,
     config: &str,
+    reducers: Option<&str>,
     lock: &str,
     owner: Option<i64>,
 ) -> Result<(), StoreError> {
@@ -84,11 +89,12 @@ pub async fn insert(
         return Err(StoreError::ProjectExists(name.to_owned()));
     }
     sqlx::query!(
-        "INSERT INTO nineveh.control_projects (name, network, config, lock, owner_id)
-         VALUES ($1, $2, $3, $4, $5)",
+        "INSERT INTO nineveh.control_projects (name, network, config, reducers, lock, owner_id)
+         VALUES ($1, $2, $3, $4, $5, $6)",
         name,
         network,
         config,
+        reducers,
         lock,
         owner
     )
@@ -103,12 +109,20 @@ pub async fn insert(
 /// # Errors
 ///
 /// [`StoreError::NoProject`] if it isn't registered, or if the database fails.
-pub async fn update(pool: &PgPool, name: &str, config: &str, lock: &str) -> Result<(), StoreError> {
+pub async fn update(
+    pool: &PgPool,
+    name: &str,
+    config: &str,
+    reducers: Option<&str>,
+    lock: &str,
+) -> Result<(), StoreError> {
     let updated = sqlx::query!(
-        "UPDATE nineveh.control_projects SET config = $2, lock = $3, updated_at = now()
+        "UPDATE nineveh.control_projects
+         SET config = $2, reducers = $3, lock = $4, updated_at = now()
          WHERE name = $1",
         name,
         config,
+        reducers,
         lock
     )
     .execute(pool)

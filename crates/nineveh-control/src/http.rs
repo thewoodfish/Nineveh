@@ -8,7 +8,8 @@
 //! - `GET`, `PUT` (`{"config": yaml}`) and `DELETE /control/v1/projects/{name}`.
 //! - `POST /control/v1/projects/{name}/start` and `/stop`.
 //! - `GET  /control/v1/projects/{name}/sources`: what a rule on each source can read.
-//! - `POST /control/v1/projects/{name}/check` (`{"config": yaml}`): check a config
+//! - `POST /control/v1/projects/{name}/check` (`{"config": yaml, "reducers": ts?}`):
+//!   check a config
 //!   against the project's pinned layouts without saving it.
 //! - `POST /control/v1/projects/{name}/preview` (`{"config": yaml, "table": name}`):
 //!   the rows that table's rules would produce, folded over recent transactions.
@@ -383,6 +384,10 @@ async fn scaffold<C: Chain>(
 #[derive(Debug, Deserialize)]
 struct ConfigBody {
     config: String,
+    /// The project's `.nineveh.ts`, when its config names a `reducers:` file
+    /// (ADR 0025). Absent for a project written entirely in YAML.
+    #[serde(default)]
+    reducers: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -408,7 +413,12 @@ async fn create<C: Chain>(
     let caller = server.caller(&headers).await?;
     Ok((
         StatusCode::CREATED,
-        Json(server.plane.create(caller, &body.config).await?),
+        Json(
+            server
+                .plane
+                .create(caller, &body.config, body.reducers.as_deref())
+                .await?,
+        ),
     ))
 }
 
@@ -429,7 +439,10 @@ async fn update<C: Chain>(
 ) -> Result<impl IntoResponse, ControlError> {
     let caller = server.caller(&headers).await?;
     Ok(Json(
-        server.plane.update(caller, &name, &body.config).await?,
+        server
+            .plane
+            .update(caller, &name, &body.config, body.reducers.as_deref())
+            .await?,
     ))
 }
 
@@ -459,7 +472,10 @@ async fn check<C: Chain>(
     Json(body): Json<ConfigBody>,
 ) -> Result<impl IntoResponse, ControlError> {
     let caller = server.caller(&headers).await?;
-    server.plane.check(caller, &name, &body.config).await?;
+    server
+        .plane
+        .check(caller, &name, &body.config, body.reducers.as_deref())
+        .await?;
     Ok(Json(json!({ "ok": true })))
 }
 

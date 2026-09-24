@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE nineveh.control_projects\n         SET config = $2, reducers = $3, lock = $4, updated_at = now()\n         WHERE name = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "632c51150b5e96b1a2856cea21f119153c6948389b16a289f5a8a83990e6d251"
+}

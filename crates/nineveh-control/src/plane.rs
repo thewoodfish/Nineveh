@@ -87,13 +87,19 @@ impl ControlError {
     }
 
     fn invalid(diagnostics: &Diagnostics, text: &str) -> Self {
+        Self::invalid_in(diagnostics, &[("nineveh.yaml", text)])
+    }
+
+    /// The same, for a project written across more than one file: spans say which
+    /// one they're in, so a problem in the reducers is reported there (ADR 0025).
+    fn invalid_in(diagnostics: &Diagnostics, files: &[(&str, &str)]) -> Self {
         let count = diagnostics.as_slice().len();
         Self::Invalid {
             message: format!(
                 "the config has {count} problem{}",
                 if count == 1 { "" } else { "s" }
             ),
-            details: diagnostics.render("nineveh.yaml", text),
+            details: diagnostics.render_files(files),
         }
     }
 }
@@ -250,6 +256,10 @@ pub struct Detail {
     #[serde(flatten)]
     pub summary: Summary,
     pub config: String,
+    /// The project's reducers, when its config names a `reducers:` file (ADR 0025).
+    /// Studio edits this alongside the config and sends both back.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reducers: Option<String>,
 }
 
 /// What a project is using of what it is allowed.
@@ -344,6 +354,8 @@ struct Entry {
     owner_id: Option<i64>,
     network: String,
     config: String,
+    /// Its reducers, when its config names a `reducers:` file (ADR 0025).
+    reducers: Option<String>,
     running: bool,
     created_at: String,
     updated_at: String,
@@ -515,7 +527,8 @@ impl<C: Chain> ControlPlane<C> {
             readers: tokio::sync::Mutex::new(Vec::new()),
         });
         for record in registry::list(&plane.pool).await? {
-            let loaded = load(&record.config, &record.lock).map(Arc::new);
+            let loaded =
+                load(&record.config, record.reducers.as_deref(), &record.lock).map(Arc::new);
             if let Err(e) = &loaded {
                 warn!(project = %record.name, error = %e, "can't load its stored config");
             }
@@ -655,9 +668,10 @@ impl<C: Chain> ControlPlane<C> {
         self: &Arc<Self>,
         caller: Caller,
         text: &str,
+        reducers: Option<&str>,
     ) -> Result<Detail, ControlError> {
         let _changing = self.changes.lock().await;
-        let config = parse(text).map_err(|d| ControlError::invalid(&d, text))?;
+        let config = compose(text, reducers)?;
         let name = config.name.name.clone();
         shadow_name(&name)?;
         if self.projects.read().await.contains_key(&name) {
@@ -665,7 +679,7 @@ impl<C: Chain> ControlPlane<C> {
                 "a project named `{name}` already exists"
             )));
         }
-        let (loaded, lock_text) = self.prepare(&config, text).await?;
+        let (loaded, lock_text) = self.prepare(&config, text, reducers).await?;
         self.within_tier(caller, config.network, loaded.start)
             .await?;
         registry::insert(
@@ -673,6 +687,7 @@ impl<C: Chain> ControlPlane<C> {
             &name,
             config.network.as_str(),
             text,
+            reducers,
             &lock_text,
             caller.owner(),
         )
@@ -698,9 +713,10 @@ impl<C: Chain> ControlPlane<C> {
         caller: Caller,
         name: &str,
         text: &str,
+        reducers: Option<&str>,
     ) -> Result<Detail, ControlError> {
         let _changing = self.changes.lock().await;
-        let config = parse(text).map_err(|d| ControlError::invalid(&d, text))?;
+        let config = compose(text, reducers)?;
         if config.name.name != name {
             return Err(ControlError::BadRequest(format!(
                 "the config names the project `{}`; renaming isn't supported, so keep `name: {name}`",
@@ -708,13 +724,13 @@ impl<C: Chain> ControlPlane<C> {
             )));
         }
         let running = self.get_entry(caller, name, |e| e.running).await?;
-        let (loaded, lock_text) = self.prepare(&config, text).await?;
+        let (loaded, lock_text) = self.prepare(&config, text, reducers).await?;
         let old = self.take_run(name).await;
         if let Some(run) = old {
             stop(run).await;
         }
         self.stop_deliveries(name).await;
-        registry::update(&self.pool, name, text, &lock_text).await?;
+        registry::update(&self.pool, name, text, reducers, &lock_text).await?;
         let record = self.record(name).await?;
         let mut entry = self.entry(record, Ok(Arc::new(loaded)));
         if running {
@@ -1137,22 +1153,33 @@ impl<C: Chain> ControlPlane<C> {
     /// # Errors
     ///
     /// [`ControlError::Invalid`] with located diagnostics if it doesn't hold up.
-    pub async fn check(&self, caller: Caller, name: &str, text: &str) -> Result<(), ControlError> {
+    pub async fn check(
+        &self,
+        caller: Caller,
+        name: &str,
+        text: &str,
+        reducers: Option<&str>,
+    ) -> Result<(), ControlError> {
         let loaded = self
             .get_entry(caller, name, |e| e.loaded.clone())
             .await?
             .map_err(ControlError::BadRequest)?;
-        let config = parse(text).map_err(|d| ControlError::invalid(&d, text))?;
+        let config = compose(text, reducers)?;
         if config.name.name != name {
             return Err(ControlError::BadRequest(format!(
                 "the config names the project `{}`; keep `name: {name}`",
                 config.name.name
             )));
         }
+        let dsl_name = reducers_name(&config).to_owned();
+        let mut names: Vec<(&str, &str)> = vec![("nineveh.yaml", text)];
+        if let Some(dsl) = reducers {
+            names.push((&dsl_name, dsl));
+        }
         config
             .resolve(&loaded.lock)
             .map(|_| ())
-            .map_err(|d| ControlError::invalid(&d, text))
+            .map_err(|d| ControlError::invalid_in(&d, &names))
     }
 
     /// Fold `text`'s table `table` over recent transactions and return the rows it
@@ -1483,12 +1510,17 @@ impl<C: Chain> ControlPlane<C> {
         Ok(())
     }
 
-    async fn prepare(&self, config: &Config, text: &str) -> Result<(Loaded, String), ControlError> {
+    async fn prepare(
+        &self,
+        config: &Config,
+        text: &str,
+        reducers: Option<&str>,
+    ) -> Result<(Loaded, String), ControlError> {
         let lock = pin(&*self.chain, config).await?;
         let lock_text = lock
             .to_json()
             .map_err(|e| ControlError::BadRequest(e.to_string()))?;
-        let loaded = load(text, &lock_text).map_err(|message| ControlError::Invalid {
+        let loaded = load(text, reducers, &lock_text).map_err(|message| ControlError::Invalid {
             details: message.clone(),
             message: "the config doesn't resolve against the chain's layouts".into(),
         })?;
@@ -1569,6 +1601,7 @@ impl<C: Chain> ControlPlane<C> {
             owner_id: record.owner_id,
             network: record.network,
             config: record.config,
+            reducers: record.reducers,
             running: record.running,
             created_at: record.created_at,
             updated_at: record.updated_at,
@@ -1773,8 +1806,41 @@ fn literal(value: &Value) -> String {
 }
 
 /// Resolve a stored config against its stored lock.
-fn load(text: &str, lock_text: &str) -> Result<Loaded, String> {
-    let config = parse(text).map_err(|d| d.render("nineveh.yaml", text))?;
+/// What a project's reducers file is called in diagnostics: the path the config names,
+/// which is what the developer wrote.
+fn reducers_name(config: &Config) -> &str {
+    config.reducers.as_deref().unwrap_or("reducers.nineveh.ts")
+}
+
+/// Parse a config and join it to its reducers, if it has any.
+///
+/// The CLI reads the reducers from the file the config's `reducers:` key names; here
+/// there is no filesystem, so they arrive alongside the config and the key's value is
+/// only what the file is called in errors. The two must agree: a config that names a
+/// reducers file needs one, and reducers need a config that asks for them.
+fn compose(text: &str, reducers: Option<&str>) -> Result<Config, ControlError> {
+    let config = parse(text).map_err(|d| ControlError::invalid(&d, text))?;
+    match (config.reducers.is_some(), reducers) {
+        (true, None) => Err(ControlError::BadRequest(
+            "this config has a `reducers:` file, but none was sent with it".to_owned(),
+        )),
+        (false, Some(dsl)) if !dsl.trim().is_empty() => Err(ControlError::BadRequest(
+            "reducers were sent, but the config has no `reducers:` key naming them".to_owned(),
+        )),
+        (true, Some(dsl)) => {
+            let name = reducers_name(&config).to_owned();
+            nineveh_dsl::merge(config, dsl)
+                .map_err(|d| ControlError::invalid_in(&d, &[("nineveh.yaml", text), (&name, dsl)]))
+        }
+        _ => Ok(config),
+    }
+}
+
+fn load(text: &str, reducers: Option<&str>, lock_text: &str) -> Result<Loaded, String> {
+    let config = compose(text, reducers).map_err(|e| match e {
+        ControlError::Invalid { details, .. } => details,
+        other => other.to_string(),
+    })?;
     let lock = Lockfile::from_json(lock_text).map_err(|e| e.to_string())?;
     let start = match config.start_version {
         StartVersion::Version(v) => Version::new(v),
@@ -1782,9 +1848,12 @@ fn load(text: &str, lock_text: &str) -> Result<Loaded, String> {
             .start_version()
             .ok_or("`start_version: auto`, but the lock pins no start; save the config again")?,
     };
-    let project = config
-        .resolve(&lock)
-        .map_err(|d| d.render("nineveh.yaml", text))?;
+    let reducers_file = reducers_name(&config).to_owned();
+    let mut names: Vec<(&str, &str)> = vec![("nineveh.yaml", text)];
+    if let Some(dsl) = reducers {
+        names.push((&reducers_file, dsl));
+    }
+    let project = config.resolve(&lock).map_err(|d| d.render_files(&names))?;
     Ok(Loaded {
         project: Arc::new(project),
         lock: Arc::new(lock),
@@ -1839,5 +1908,6 @@ fn detail(name: &str, entry: &Entry) -> Detail {
     Detail {
         summary: summary(name, entry),
         config: entry.config.clone(),
+        reducers: entry.reducers.clone(),
     }
 }

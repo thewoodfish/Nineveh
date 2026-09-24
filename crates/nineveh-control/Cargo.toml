@@ -18,6 +18,7 @@ nineveh-api.workspace = true
 nineveh-config.workspace = true
 nineveh-core.workspace = true
 nineveh-decode.workspace = true
+nineveh-dsl.workspace = true
 nineveh-engine.workspace = true
 nineveh-ingest.workspace = true
 nineveh-pipeline.workspace = true

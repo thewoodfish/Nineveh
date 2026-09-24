@@ -962,3 +962,183 @@ async fn projects_on_one_network_share_one_stream() {
         nineveh_store::registry::delete(&pool, name).await.unwrap();
     }
 }
+
+/// A project whose reduce tables and handlers are written in the DSL (ADR 0025).
+///
+/// The control plane has no filesystem, so the `.nineveh.ts` travels beside the config
+/// and is kept in the registry. What this proves is that it is the same project either
+/// way: created over HTTP, folded by the same engine, served at the same path, and
+/// still there after the plane restarts.
+#[tokio::test(flavor = "multi_thread")]
+#[allow(
+    clippy::too_many_lines,
+    reason = "one DSL project's life, step by step"
+)]
+async fn creates_and_runs_a_project_whose_reducers_are_in_the_dsl() {
+    let Some(pool) = pool("control_dsl").await else {
+        return;
+    };
+    logs();
+    let name = format!("dsl_{}", std::process::id());
+
+    let ops = [
+        Op::Deposit { user: 0, amount: 5 },
+        Op::Deposit { user: 1, amount: 7 },
+        Op::Deposit { user: 0, amount: 3 },
+    ];
+    let (chain, _model) = chain(&ops);
+    let options = options();
+    let plane = ControlPlane::start(Arc::clone(&chain), pool.clone(), options.clone())
+        .await
+        .unwrap();
+    let app = router(Arc::clone(&plane), Access::Local);
+
+    let config = format!(
+        "\
+name: {name}
+network: testnet
+start_version: 1
+reducers: ./vault.nineveh.ts
+sources:
+  deposits: {{ event: {}::vault::DepositEvent }}
+",
+        vault::MODULE
+    );
+    let reducers = r"
+export const balances = table({
+  key:     { user: address },
+  columns: { balance: u128.default(0), deposits: u64.default(0) },
+})
+
+on(deposits, (d) => {
+  const b = balances.row(d.user)
+  b.balance  += u128(d.amount)
+  b.deposits += 1
+})
+";
+
+    // A config naming a reducers file, sent without one, is refused rather than run
+    // as an empty project.
+    let (status, body) = call(
+        &app,
+        Method::POST,
+        "/control/v1/projects",
+        Some(json!({ "config": config })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+
+    // And reducers with nothing asking for them: a config that is otherwise fine on
+    // its own, so the only thing wrong is that it never named a reducers file.
+    let yaml_only = format!(
+        "{}state:\n  deposit_log: {{ log: deposits }}\n",
+        config.replace("reducers: ./vault.nineveh.ts\n", "")
+    );
+    let (status, body) = call(
+        &app,
+        Method::POST,
+        "/control/v1/projects",
+        Some(json!({ "config": yaml_only, "reducers": reducers })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+
+    // A problem in the handlers is reported against the handlers, not the YAML.
+    let (status, body) = call(
+        &app,
+        Method::POST,
+        "/control/v1/projects",
+        Some(json!({
+            "config": config,
+            "reducers": reducers.replace("b.deposits += 1", "b.depsits += 1"),
+        })),
+    )
+    .await;
+    // A problem inside the reducers is the same class as a problem in the config.
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    let details = body["details"].as_str().unwrap_or_default();
+    assert!(details.contains("no column `depsits`"), "{details}");
+    assert!(details.contains("vault.nineveh.ts"), "{details}");
+    assert!(!details.contains("--> nineveh.yaml"), "{details}");
+
+    // The real thing.
+    let (status, created) = call(
+        &app,
+        Method::POST,
+        "/control/v1/projects",
+        Some(json!({ "config": config, "reducers": reducers })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+
+    // Three deposits from two users: two rows, folded by the handler. User 0
+    // deposited 5 then 3, user 1 deposited 7 — so `+=` really accumulated, rather
+    // than the last write winning.
+    wait_for_rows(&app, &name, "balances", 2).await;
+    wait_for_state(&app, &name, "running").await;
+    let (status, table) = call(
+        &app,
+        Method::GET,
+        &format!("/projects/{name}/v1/tables/balances"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{table}");
+    let mut folded: Vec<(String, String)> = table["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| {
+            (
+                r["balance"].as_str().unwrap().to_owned(),
+                r["deposits"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect();
+    folded.sort();
+    assert_eq!(
+        folded,
+        vec![
+            ("7".to_owned(), "1".to_owned()),
+            ("8".to_owned(), "2".to_owned()),
+        ],
+        "{table}"
+    );
+
+    // The reducers come back with the project, so Studio can edit what was saved.
+    let (status, detail) = call(
+        &app,
+        Method::GET,
+        &format!("/control/v1/projects/{name}"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    assert_eq!(detail["reducers"].as_str(), Some(reducers));
+
+    // They survive a restart of the control plane, which reloads from the registry.
+    plane.shutdown().await;
+    let plane = ControlPlane::start(Arc::clone(&chain), pool.clone(), options)
+        .await
+        .unwrap();
+    let app = router(Arc::clone(&plane), Access::Local);
+    let (status, detail) = call(
+        &app,
+        Method::GET,
+        &format!("/control/v1/projects/{name}"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    assert_eq!(detail["reducers"].as_str(), Some(reducers));
+    wait_for_state(&app, &name, "running").await;
+
+    call(
+        &app,
+        Method::DELETE,
+        &format!("/control/v1/projects/{name}"),
+        None,
+    )
+    .await;
+    plane.shutdown().await;
+}

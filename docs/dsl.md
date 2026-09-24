@@ -45,6 +45,11 @@ state:
 `nineveh.yaml` keeps what is configuration — the network, the sources, `mirror` and
 `log` tables, the API and webhooks. The DSL file keeps what is behaviour.
 
+A hosted project works the same way, without the file: Studio and the control plane
+send the reducers alongside the config (`{"config": …, "reducers": …}`), and the
+`reducers:` key is then only what the file is called when something goes wrong in it.
+A config that names a reducers file needs one either way.
+
 No JavaScript runs, here or on the chain's data. The file is parsed and compiled to the
 same rules the YAML produces, and the same deterministic fold applies them.
 

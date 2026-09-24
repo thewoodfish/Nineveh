@@ -47,11 +47,11 @@ async fn registers_updates_and_deletes_projects() {
     let name = format!("reg_{}", std::process::id());
     let _ = registry::delete(&pool, &name).await;
 
-    registry::insert(&pool, &name, "testnet", "config: 1", "lock: 1", None)
+    registry::insert(&pool, &name, "testnet", "config: 1", None, "lock: 1", None)
         .await
         .unwrap();
     assert!(matches!(
-        registry::insert(&pool, &name, "testnet", "config: 2", "lock: 2", None).await,
+        registry::insert(&pool, &name, "testnet", "config: 2", None, "lock: 2", None).await,
         Err(StoreError::ProjectExists(_))
     ));
     let listed = registry::list(&pool).await.unwrap();
@@ -62,7 +62,7 @@ async fn registers_updates_and_deletes_projects() {
     );
     assert!(found.created_at.ends_with('Z'), "{}", found.created_at);
 
-    registry::update(&pool, &name, "config: 2", "lock: 2")
+    registry::update(&pool, &name, "config: 2", None, "lock: 2")
         .await
         .unwrap();
     registry::set_running(&pool, &name, false).await.unwrap();
@@ -98,7 +98,7 @@ async fn registers_updates_and_deletes_projects() {
         Err(StoreError::NoProject(_))
     ));
     assert!(matches!(
-        registry::update(&pool, &name, "", "").await,
+        registry::update(&pool, &name, "", None, "").await,
         Err(StoreError::NoProject(_))
     ));
 }
@@ -114,11 +114,11 @@ async fn refuses_a_name_a_build_already_has() {
         .await
         .unwrap();
     assert!(matches!(
-        registry::insert(&pool, &name, "testnet", "", "", None).await,
+        registry::insert(&pool, &name, "testnet", "", None, "", None).await,
         Err(StoreError::ProjectExists(_))
     ));
     assert!(matches!(
-        registry::insert(&pool, "nineveh", "testnet", "", "", None).await,
+        registry::insert(&pool, "nineveh", "testnet", "", None, "", None).await,
         Err(StoreError::ReservedSchema(_))
     ));
     Store::reset(&pool, &name).await.unwrap();
