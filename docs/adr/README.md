@@ -47,3 +47,4 @@ the old one and set the old one's status to `Superseded by NNNN`.
 | [0022](0022-per-project-record-log.md) | Keep each project's decoded records; let the log lead the fold | Proposed |
 | [0023](0023-idle-projects-fold-on-demand.md) | Fold on demand; idle is invisible, stopped is deliberate | Proposed |
 | [0024](0024-retention.md) | Retain the outbox by time and the record log by size | Proposed |
+| [0025](0025-reducer-dsl.md) | Write reducers in a small JS-shaped DSL that compiles to rules | Proposed |
