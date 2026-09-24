@@ -1,8 +1,12 @@
-// A state table being designed, and the `nineveh.yaml` it becomes.
+// A state table being designed, and the reducers file it becomes.
 //
 // A reduce table is a key, typed columns, and rules that fold records into them
-// (ADR 0011). Studio builds the YAML; the control plane checks it (`control.check`)
-// and is the authority on whether it holds up.
+// (ADR 0011). Studio writes them in the DSL (ADR 0025), so a table built here and one
+// written by hand are the same artifact — you can open either in the other. The
+// control plane checks it (`control.check`) and is the authority on whether it holds.
+//
+// Expressions here are DSL expressions: a record's field is `r.amount`, and the row
+// being written is `b.balance`. Nothing is bare.
 
 import type { ColumnType, FieldInfo, SourceInfo } from "./api";
 
@@ -87,12 +91,17 @@ export function amountFields(source: SourceInfo): FieldInfo[] {
 
 const zero = (type: ColumnType): string => (isInteger(type) ? "0" : "");
 
-/**
- * A record's field, qualified by its source: `deposits.amount`. A bare name is an
- * error when the table has a column of the same name, which templates that mirror a
- * record's fields into columns always do, so they never write one.
- */
-const of = (source: SourceInfo, field: { name: string }): string => `${source.name}.${field.name}`;
+/** The handler's parameter: the record a rule is folding. */
+export const RECORD = "r";
+
+/** The row a rule writes. */
+export const ROW = "b";
+
+/** A record's field: `r.amount`. */
+const of = (_source: SourceInfo, field: { name: string }): string => `${RECORD}.${field.name}`;
+
+/** The row's own column: `b.count`, which is its value before this rule's write. */
+const own = (column: string): string => `${ROW}.${column}`;
 
 /** How many of this source's records there are, per `field`. */
 export function countPer(source: SourceInfo, field: FieldInfo): StateTable {
@@ -110,7 +119,7 @@ export function countPer(source: SourceInfo, field: FieldInfo): StateTable {
         when: "",
         keys: [],
         sets: [
-          { column: "count", expression: "count + 1" },
+          { column: "count", expression: `${own("count")} + 1` },
           { column: "last_seen", expression: "tx.timestamp" },
         ],
         removes: false,
@@ -138,8 +147,11 @@ export function sumPer(source: SourceInfo, field: FieldInfo, amount: FieldInfo):
         when: "",
         keys: [],
         sets: [
-          { column: `total_${amount.name}`, expression: `total_${amount.name} + ${cast}` },
-          { column: "count", expression: "count + 1" },
+          {
+            column: `total_${amount.name}`,
+            expression: `${own(`total_${amount.name}`)} + ${cast}`,
+          },
+          { column: "count", expression: `${own("count")} + 1` },
         ],
         removes: false,
       },
@@ -215,8 +227,15 @@ export function dailyPer(source: SourceInfo, field: FieldInfo, amount?: FieldInf
         when: "",
         keys: [{ column: "day", expression: `tx.timestamp / ${DAY}` }],
         sets: [
-          ...(amount ? [{ column: `total_${amount.name}`, expression: `total_${amount.name} + ${cast}` }] : []),
-          { column: "count", expression: "count + 1" },
+          ...(amount
+            ? [
+                {
+                  column: `total_${amount.name}`,
+                  expression: `${own(`total_${amount.name}`)} + ${cast}`,
+                },
+              ]
+            : []),
+          { column: "count", expression: `${own("count")} + 1` },
         ],
         removes: false,
       },
@@ -288,10 +307,10 @@ export function withLookup(
         when: "",
         keys: [],
         sets: [
-          { column: "count", expression: "count + 1" },
+          { column: "count", expression: `${own("count")} + 1` },
           {
             column: column.name,
-            expression: `${table.name}[${of(source, field)}].${column.name}`,
+            expression: `${table.name}.get(${of(source, field)})?.${column.name}`,
           },
         ],
         removes: false,
@@ -335,89 +354,140 @@ export function problems(table: StateTable): string[] {
   return found;
 }
 
-/** The YAML for this table, indented as part of `state:`. */
-export function toYaml(table: StateTable): string {
-  const quote = (expression: string) => `"${expression.replace(/"/g, "'")}"`;
-  const lines: string[] = [];
-  lines.push(`  ${table.name}:`);
-  lines.push(`    key: [${table.columns.filter((c) => c.key).map((c) => c.name).join(", ")}]`);
-  lines.push("    columns:");
-  for (const column of table.columns) {
-    const extras = [
-      `type: ${column.type}`,
-      column.default !== "" ? `default: ${column.default}` : "",
-      column.nullable ? "nullable: true" : "",
-    ].filter(Boolean);
-    lines.push(
-      extras.length === 1
-        ? `      ${column.name}: ${column.type}`
-        : `      ${column.name}: { ${extras.join(", ")} }`,
-    );
-  }
-  lines.push("    reduce:");
-  for (const rule of table.rules) {
-    lines.push(`      - on: ${rule.on}${rule.deleted ? ".deleted" : ""}`);
-    if (rule.when.trim()) lines.push(`        when: ${quote(rule.when.trim())}`);
-    if (rule.keys.length > 0) {
-      lines.push("        key:");
-      for (const key of rule.keys) lines.push(`          ${key.column}: ${quote(key.expression.trim())}`);
+/** A column's type as the DSL declares it: `u128.default(0)`, `string.nullable()`. */
+function declared(column: Column): string {
+  const parts: string[] = [column.type];
+  if (column.default !== "") parts.push(`default(${column.default})`);
+  if (column.nullable) parts.push("nullable()");
+  return parts.join(".");
+}
+
+/** The widest name in a block, so the declarations line up as a person would write them. */
+function pad(names: string[]): number {
+  return names.reduce((wide, name) => Math.max(wide, name.length), 0);
+}
+
+/** Each key column's expression, in key order: what `row(…)` is called with. */
+function keyArgs(table: StateTable, rule: Rule): string[] {
+  return table.columns
+    .filter((c) => c.key)
+    .map((c) => {
+      const mapped = rule.keys.find((k) => k.column === c.name);
+      // A key column the rule doesn't map reads the record's field of that name.
+      return (mapped ? mapped.expression : `${RECORD}.${c.name}`).trim();
+    });
+}
+
+/** `b.count = b.count + 1` reads better as `b.count += 1`, and means the same. */
+function assignment(column: string, expression: string): string {
+  const self = `${own(column)} `;
+  const trimmed = expression.trim();
+  for (const op of ["+", "-"]) {
+    if (trimmed.startsWith(`${self}${op} `)) {
+      return `  ${own(column)} ${op}= ${trimmed.slice(self.length + 2)}`;
     }
-    if (rule.removes) {
-      lines.push("        delete: true");
-    } else {
-      lines.push("        set:");
-      for (const set of rule.sets) lines.push(`          ${set.column}: ${quote(set.expression.trim())}`);
-    }
   }
-  return lines.join("\n") + "\n";
+  return `  ${own(column)} = ${trimmed}`;
+}
+
+/** One rule as a handler body, indented inside its `on(…)`. */
+function body(table: StateTable, rule: Rule): string[] {
+  const row = `${table.name}.row(${keyArgs(table, rule).join(", ")})`;
+  if (rule.removes) return [`  ${row}.delete()`];
+  const lines = [`  const ${ROW} = ${row}`];
+  for (const set of rule.sets) lines.push(assignment(set.column, set.expression));
+  return lines;
 }
 
 /**
- * `config` with `table` in its `state:` block: replacing the table of that name if
- * it's already there, and added at the end of the block if it isn't. The block ends
- * at the next line that starts a top-level key, so a config with `api:` or
- * `realtime:` after it keeps them below.
+ * This table as DSL: its declaration, then one handler per rule.
+ *
+ * One handler each, rather than one per source, because the editor builds one table
+ * at a time. A person writing by hand would put everything one event changes in a
+ * single handler; both compile to the same rules.
  */
-export function withTable(config: string, table: StateTable): string {
-  const lines = config.split("\n");
-  const start = lines.findIndex((line) => /^state:\s*$/.test(line));
-  if (start < 0) return `${config.trimEnd()}\n\nstate:\n${toYaml(table)}`;
-  let end = lines.length;
-  for (let i = start + 1; i < lines.length; i++) {
-    const line = lines[i] ?? "";
-    if (line.trim() === "" || line.startsWith(" ") || line.startsWith("#")) continue;
-    end = i;
-    break;
+export function toDsl(table: StateTable): string {
+  const keys = table.columns.filter((c) => c.key);
+  const rest = table.columns.filter((c) => !c.key);
+  const keyWidth = pad(keys.map((c) => c.name));
+  const restWidth = pad(rest.map((c) => c.name));
+
+  const lines: string[] = [];
+  lines.push(`export const ${table.name} = table({`);
+  lines.push(
+    `  key:     { ${keys.map((c) => `${c.name}:${" ".repeat(keyWidth - c.name.length)} ${c.type}`).join(", ")} },`,
+  );
+  if (rest.length === 0) {
+    lines.push("  columns: {},");
+  } else {
+    lines.push("  columns: {");
+    for (const column of rest) {
+      const gap = " ".repeat(restWidth - column.name.length);
+      lines.push(`    ${column.name}:${gap} ${declared(column)},`);
+    }
+    lines.push("  },");
   }
-  const block = blockOf(lines, start + 1, end, table.name);
-  if (block) {
-    const before = lines.slice(0, block.from).join("\n");
-    const after = lines.slice(block.to).join("\n");
-    return `${before ? `${before}\n` : ""}${toYaml(table)}${after}`;
+  lines.push("})");
+
+  for (const rule of table.rules) {
+    const on = `${rule.on}${rule.deleted ? ".deleted" : ""}`;
+    lines.push("");
+    lines.push(`on(${on}, (${RECORD}) => {`);
+    const when = rule.when.trim();
+    if (when) {
+      lines.push(`  if (${when}) {`);
+      for (const line of body(table, rule)) lines.push(`  ${line}`);
+      lines.push("  }");
+    } else {
+      lines.push(...body(table, rule));
+    }
+    lines.push("})");
   }
-  const before = lines.slice(0, end).join("\n").replace(/\s*$/, "\n");
-  const after = lines.slice(end).join("\n");
-  return `${before}${toYaml(table)}${after ? `\n${after}` : ""}`;
+  return `${lines.join("\n")}\n`;
 }
 
-/** Where `name`'s block sits within `state:`, if it's there at all. */
-function blockOf(
-  lines: string[],
-  from: number,
-  until: number,
-  name: string,
-): { from: number; to: number } | null {
-  const header = new RegExp(`^ {2}${name.replace(/[^a-z0-9_]/gi, "")}:\\s*$`);
-  const at = lines.findIndex((line, i) => i >= from && i < until && header.test(line));
-  if (at < 0) return null;
-  let to = until;
-  for (let i = at + 1; i < until; i++) {
-    const line = lines[i] ?? "";
-    // The block ends at the next table's name, which is indented by exactly two.
-    if (line.trim() !== "" && !/^ {3}/.test(line)) {
+/**
+ * `reducers` with `table` in it: replacing the block of that name if it's there, and
+ * appended if it isn't.
+ *
+ * A table's block runs from its `export const` line to the next one, which is how
+ * `toDsl` lays it out. Handlers written between two declarations belong to the one
+ * above them.
+ */
+export function withDslTable(reducers: string, table: StateTable): string {
+  const lines = reducers.split("\n");
+  const declaration = new RegExp(`^export const ${table.name}\\b`);
+  const at = lines.findIndex((line) => declaration.test(line));
+  if (at < 0) {
+    const before = reducers.trimEnd();
+    return before ? `${before}\n\n${toDsl(table)}` : toDsl(table);
+  }
+  let to = lines.length;
+  for (let i = at + 1; i < lines.length; i++) {
+    if (/^export const /.test(lines[i] ?? "")) {
       to = i;
       break;
     }
   }
-  return { from: at, to };
+  const before = lines.slice(0, at).join("\n");
+  const after = lines.slice(to).join("\n").replace(/^\n+/, "");
+  return `${before ? `${before.trimEnd()}\n\n` : ""}${toDsl(table)}${after ? `\n${after}` : ""}`;
+}
+
+/**
+ * `config` with a `reducers:` key naming `file`, added above `sources:` where the rest
+ * of the header is. A config that already has one is left alone.
+ */
+export function withReducersKey(config: string, file: string): string {
+  if (/^reducers:/m.test(config)) return config;
+  const line = `reducers: ./${file}\n`;
+  const at = config.search(/^sources:/m);
+  return at === -1
+    ? `${config.trimEnd()}\n${line}`
+    : `${config.slice(0, at)}${line}\n${config.slice(at)}`;
+}
+
+/** The reducers file a project's tables live in. */
+export function reducersFile(project: string): string {
+  return `${project}.nineveh.ts`;
 }

@@ -31,9 +31,11 @@ import {
   liveSet,
   problems,
   sumPer,
-  toYaml,
+  toDsl,
   withLookup,
-  withTable,
+  withDslTable,
+  withReducersKey,
+  reducersFile,
 } from "@/lib/state-table";
 
 /** The functions an expression can call (`docs/expressions.md`). */
@@ -175,18 +177,28 @@ function StateTableEditor() {
       .catch(() => setExisting([]));
   }, [base]);
 
-  const yaml = useMemo(() => (table && config ? withTable(config, table) : null), [table, config]);
+  // The table is written into the reducers file, and the config gains the key naming
+  // it if it doesn't have one yet: those two together are what gets saved.
+  const file = project ? reducersFile(project) : "";
+  const yaml = useMemo(
+    () => (table && config ? withReducersKey(config, file) : null),
+    [table, config, file],
+  );
+  const dsl = useMemo(
+    () => (table ? withDslTable(reducers ?? "", table) : null),
+    [table, reducers],
+  );
   const listed = table ? problems(table) : [];
 
   // Check with the server as it's written, once it's worth checking.
   useEffect(() => {
-    if (!project || !yaml || listed.length > 0) {
+    if (!project || !yaml || !dsl || listed.length > 0) {
       setChecked(null);
       return;
     }
     const timer = setTimeout(() => {
       control
-        .check(project, yaml, reducers)
+        .check(project, yaml, dsl ?? undefined)
         .then(() => setChecked({ ok: true }))
         .catch((e: unknown) =>
           setChecked({
@@ -196,14 +208,14 @@ function StateTableEditor() {
         );
     }, 400);
     return () => clearTimeout(timer);
-  }, [project, yaml, reducers, listed.length]);
+  }, [project, yaml, dsl, listed.length]);
 
   const save = useCallback(async () => {
-    if (!project || !yaml || !table) return;
+    if (!project || !yaml || !dsl || !table) return;
     setSaving(true);
     setError(null);
     try {
-      await control.update(project, yaml, reducers);
+      await control.update(project, yaml, dsl ?? undefined);
       router.push(
         `/tables?project=${encodeURIComponent(project)}&name=${encodeURIComponent(table.name)}`,
       );
@@ -211,7 +223,7 @@ function StateTableEditor() {
       setError(e instanceof ApiError ? (e.details ?? e.message) : String(e));
       setSaving(false);
     }
-  }, [project, yaml, reducers, table, router]);
+  }, [project, yaml, dsl, table, router]);
 
   if (mode === "single" || !base) {
     return (
@@ -275,7 +287,7 @@ function StateTableEditor() {
             <Card className="overflow-hidden">
               <div className="flex items-center justify-between border-b border-outline-variant px-4 py-2">
                 <span className="text-xs text-on-surface-variant">
-                  <span className="font-mono">nineveh.yaml</span>, as this will be saved
+                  <span className="font-mono">{file}</span>, as this will be saved
                 </span>
                 <button
                   type="button"
@@ -286,7 +298,7 @@ function StateTableEditor() {
                 </button>
               </div>
               <pre className="max-h-64 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">
-                {toYaml(table)}
+                {toDsl(table)}
               </pre>
             </Card>
             {listed.length > 0 && (
@@ -309,7 +321,7 @@ function StateTableEditor() {
               <PreviewCard
                 project={project}
                 yaml={yaml}
-                reducers={reducers}
+                reducers={dsl ?? undefined}
                 table={table}
                 ready={checked?.ok === true}
               />

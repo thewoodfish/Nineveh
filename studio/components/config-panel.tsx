@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { ApiError, control } from "@/lib/api";
 import { useProject } from "@/lib/project";
+import { reducersFile, withReducersKey } from "@/lib/state-table";
 
 import { ConfirmDialog } from "./dialog";
 import { Button, Icon, IconButton } from "./ui";
@@ -49,14 +50,6 @@ function starter(name: string) {
 `;
 }
 
-/** Put `reducers:` in the config, above `sources:` where the rest of the header is. */
-function withReducersKey(yaml: string, file: string) {
-  if (/^reducers:/m.test(yaml)) return yaml;
-  const line = `reducers: ./${file}\n`;
-  const at = yaml.search(/^sources:/m);
-  return at === -1 ? `${yaml.trimEnd()}\n${line}` : `${yaml.slice(0, at)}${line}\n${yaml.slice(at)}`;
-}
-
 /**
  * A project's files: its `nineveh.yaml`, and its reducers when they're written in the
  * DSL (ADR 0025). Read them, copy them into your repo, or change them. Saving a change
@@ -90,7 +83,7 @@ export function ConfigPanel({
   // slide can animate, and has to finish sliding out before it leaves.
   const [slid, setSlid] = useState(false);
 
-  const file = `${name}.nineveh.ts`;
+  const file = reducersFile(name);
   const changed = saved !== null && (text !== saved || reducers !== savedReducers);
   const editing = tab === "reducers" && reducers !== null;
 
