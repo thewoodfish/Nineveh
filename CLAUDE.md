@@ -209,6 +209,17 @@ fast interactions, no clutter. When building UI, read the frontend-design skill 
   rebuild. It refuses to start under 5GB free — `target/` regrows to ~20GB and this
   machine has filled its disk mid-build.
 - `scripts/check-deps.sh` — enforce crate dependency direction (CI).
+- `scripts/ask-worker --paths <files> --question "..."` — hand bulk reading to a cheap
+  model and get a summary back. Worth it to answer a question about a long file
+  (`validate.rs`, `resolve.rs`, `check.rs` and `fold.rs` are all over 20KB) or to get
+  the shape of several files at once. Not worth it under ~400 lines, and no use when
+  the next step is an edit — that needs exact lines, so read the file. Never trust it
+  for a decision; it summarises, it doesn't reason about this codebase.
+  It refuses anything outside the repo, anything under `.claude/`, `.git/`, `target/`,
+  any `.env` or transcript, and any file whose contents look like a credential — use
+  `--dry-run` to see what would be sent. Configure with `WORKER_API_KEY`,
+  `WORKER_BASE_URL` and `WORKER_MODEL` in the shell, never in a file; pointing
+  `WORKER_BASE_URL` at a local Ollama sends nothing off the machine.
 - `NINEVEH_TEST_DATABASE_URL=postgres:///nineveh_test cargo test -p nineveh-store -p nineveh-pipeline` —
   the Postgres-backed tests (they skip without it, and fail in CI without it).
   Don't set `DATABASE_URL`: it switches sqlx's macros to checking against a live DB.

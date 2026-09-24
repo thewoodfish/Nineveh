@@ -1,0 +1,167 @@
+#!/usr/bin/env python3
+"""Delegate bulk reading to a cheap model, and get a summary back.
+
+Reading a 900-line file to answer one question about it is work the expensive
+model shouldn't do. This sends the files to an OpenAI-compatible endpoint and
+prints the answer.
+
+    scripts/ask-worker --paths crates/nineveh-config/src/validate.rs \
+        --question "how are column defaults validated? name the functions"
+
+Configure the provider with three environment variables (never a file):
+
+    export WORKER_API_KEY="..."
+    export WORKER_BASE_URL="https://api.moonshot.ai/v1"   # Kimi
+    export WORKER_MODEL="kimi-k2.5"
+
+DeepSeek is https://api.deepseek.com/v1 + deepseek-chat. Ollama is
+http://localhost:11434/v1 + any local model, needs no key, and sends nothing
+off this machine.
+
+WHAT THIS WILL NOT SEND
+  Everything given to it must live inside this repository, and must not be a
+  file that tends to hold secrets. The repo's own notes record unrotated Geomi
+  keys and a GitHub OAuth secret sitting in Claude Code transcripts, so the
+  transcript directory is refused outright rather than trusted to a flag. The
+  contents are scanned too, in case a secret is somewhere unexpected.
+
+  Use --dry-run to see exactly what would leave the machine, and nothing does.
+"""
+
+import argparse
+import json
+import os
+import pathlib
+import re
+import sys
+import urllib.error
+import urllib.request
+
+REPO = pathlib.Path(__file__).resolve().parent.parent
+
+# Files that hold, or have held, things that must not leave this machine.
+REFUSED_NAMES = {"nineveh.lock.tmp", "nineveh-brief.md", ".env"}
+REFUSED_PATTERNS = [
+    re.compile(r"(^|/)\.env(\.|$)"),
+    re.compile(r"(^|/)\.git/"),
+    re.compile(r"(^|/)target/"),
+    re.compile(r"(^|/)node_modules/"),
+    re.compile(r"\.jsonl$"),          # Claude Code transcripts
+    re.compile(r"(^|/)nineveh-brief\.md$"),
+    re.compile(r"(^|/)\.claude/"),
+    re.compile(r"\.(pem|key|p12|pfx)$"),
+]
+
+# Content that looks like a credential, whatever file it turned up in. Kept
+# narrow on purpose: Move addresses are long hex, and flagging those would make
+# the tool useless here.
+SECRET_CONTENT = [
+    (re.compile(r"\bAPTOS_API_KEY[A-Z_]*\s*[:=]\s*\S"), "an Aptos/Geomi API key"),
+    (re.compile(r"\baip-[A-Za-z0-9_-]{8,}"), "a Geomi key"),
+    (re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}"), "a GitHub token"),
+    (re.compile(r"\bsk-[A-Za-z0-9]{20,}"), "an API key"),
+    (re.compile(r"(?i)\b(client_secret|api_key|secret_key|password|token)\s*[:=]\s*['\"]?[A-Za-z0-9_\-]{16,}"),
+     "something that looks like a credential"),
+]
+
+SYSTEM = (
+    "You are a precise code analyst reading Rust, TypeScript and YAML from one "
+    "repository. Answer the question from the files given and nothing else. "
+    "Cite file paths and line numbers. Say plainly when the files do not "
+    "answer the question rather than guessing. Structured bullets, not prose, "
+    "under 800 words."
+)
+
+
+def refuse(message: str) -> None:
+    print(f"ask-worker: {message}", file=sys.stderr)
+    sys.exit(2)
+
+
+def vet(raw: str) -> tuple[pathlib.Path, str]:
+    """Resolve one path and refuse it if it must not be sent."""
+    path = pathlib.Path(raw).resolve()
+    try:
+        relative = path.relative_to(REPO).as_posix()
+    except ValueError:
+        refuse(f"{raw} is outside this repository; only its files can be sent")
+    if not path.is_file():
+        refuse(f"{raw} is not a file")
+    if path.name in REFUSED_NAMES or any(p.search(relative) for p in REFUSED_PATTERNS):
+        refuse(f"{relative} is not something to send to another service")
+    text = path.read_text(errors="replace")
+    for pattern, what in SECRET_CONTENT:
+        if pattern.search(text):
+            refuse(f"{relative} contains {what}; nothing was sent")
+    return path, text
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    p.add_argument("--paths", nargs="+", required=True, help="Files to read")
+    p.add_argument("--question", required=True, help="What to answer")
+    p.add_argument("--max-tokens", type=int, default=8192)
+    p.add_argument("--model", default=os.environ.get("WORKER_MODEL", "kimi-k2.5"))
+    p.add_argument("--dry-run", action="store_true",
+                   help="Print what would be sent, and send nothing")
+    args = p.parse_args()
+
+    docs = []
+    total = 0
+    for raw in args.paths:
+        path, text = vet(raw)
+        relative = path.relative_to(REPO).as_posix()
+        total += len(text)
+        docs.append(f"<file path='{relative}'>\n{text}\n</file>")
+    corpus = "\n\n".join(docs)
+
+    if args.dry_run:
+        print(f"would send {len(args.paths)} file(s), {total} characters, to "
+              f"{os.environ.get('WORKER_BASE_URL', 'https://api.moonshot.ai/v1')}")
+        for raw in args.paths:
+            print(f"  {pathlib.Path(raw).resolve().relative_to(REPO)}")
+        print(f"\nquestion: {args.question}")
+        return 0
+
+    base = os.environ.get("WORKER_BASE_URL", "https://api.moonshot.ai/v1").rstrip("/")
+    key = os.environ.get("WORKER_API_KEY", "")
+    if not key and "localhost" not in base and "127.0.0.1" not in base:
+        refuse("WORKER_API_KEY is not set (see the top of this file)")
+
+    body = json.dumps({
+        "model": args.model,
+        "max_tokens": args.max_tokens,
+        "messages": [
+            {"role": "system", "content": SYSTEM},
+            {"role": "user", "content": f"<corpus>\n{corpus}\n</corpus>"},
+            {"role": "user", "content": args.question},
+        ],
+    }).encode()
+
+    request = urllib.request.Request(
+        f"{base}/chat/completions",
+        data=body,
+        headers={"Content-Type": "application/json",
+                 "Authorization": f"Bearer {key}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=180) as response:
+            result = json.load(response)
+    except urllib.error.HTTPError as e:
+        refuse(f"{e.code} from {base}: {e.read().decode(errors='replace')[:400]}")
+    except urllib.error.URLError as e:
+        refuse(f"could not reach {base}: {e.reason}")
+
+    answer = (result.get("choices") or [{}])[0].get("message", {}).get("content")
+    if not answer:
+        refuse("the worker returned nothing; try a larger --max-tokens")
+    print(answer)
+
+    usage = result.get("usage", {})
+    print(f"\n[{args.model}: {usage.get('prompt_tokens', '?')} in / "
+          f"{usage.get('completion_tokens', '?')} out]", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
