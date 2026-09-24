@@ -1,0 +1,47 @@
+# The control plane. One per database — two would fight at commit time and halt each
+# other's projects, so this unit is deliberately not templated.
+#
+#   install:  cp deploy/nineveh.service /etc/systemd/system/
+#             systemctl daemon-reload && systemctl enable --now nineveh
+#   logs:     journalctl -u nineveh -f
+
+[Unit]
+Description=Nineveh control plane
+Documentation=https://github.com/thewoodfish/Nineveh/blob/main/SELF_HOSTED.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=exec
+User=nineveh
+Group=nineveh
+WorkingDirectory=/opt/nineveh
+EnvironmentFile=/etc/nineveh/nineveh.env
+ExecStart=/opt/nineveh/bin/nineveh up
+
+# Nineveh handles SIGTERM: it stops each project after its current commit. Give it a
+# moment to do that rather than killing it mid-batch. Nothing is lost either way — a
+# restart resumes from the committed cursor — but a clean stop skips the repeated work.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+Restart=always
+RestartSec=5
+# Back off rather than spin if it's failing at startup: a bad key or an unreachable
+# database won't fix itself in five seconds.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# It needs nothing but its own data directory and the network.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/nineveh
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

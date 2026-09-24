@@ -80,8 +80,6 @@ pub(crate) async fn serve(
         .context("connecting to Postgres")?;
     let (_health, receiver) = watch::channel(None);
     start(pool, &schema, &loaded.project, receiver, listen).await?;
-    tokio::signal::ctrl_c()
-        .await
-        .context("waiting for Ctrl-C")?;
+    crate::shutdown::requested().await?;
     Ok(())
 }

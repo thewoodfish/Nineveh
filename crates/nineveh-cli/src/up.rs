@@ -96,9 +96,7 @@ pub(crate) async fn up(options: UpOptions) -> Result<()> {
             error!(error = %e, "the server stopped");
         }
     });
-    tokio::signal::ctrl_c()
-        .await
-        .context("waiting for Ctrl-C")?;
+    crate::shutdown::requested().await?;
     info!("stopping every project after its current commit");
     plane.shutdown().await;
     Ok(())

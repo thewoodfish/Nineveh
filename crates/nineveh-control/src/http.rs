@@ -8,6 +8,7 @@
 //! - `GET`, `PUT` (`{"config": yaml}`) and `DELETE /control/v1/projects/{name}`.
 //! - `POST /control/v1/projects/{name}/start` and `/stop`.
 //! - `GET  /control/v1/projects/{name}/sources`: what a rule on each source can read.
+//! - `GET /health`: liveness and readiness, for a proxy or an uptime check. No auth.
 //! - `POST /control/v1/projects/{name}/check` (`{"config": yaml, "reducers": ts?}`):
 //!   check a config
 //!   against the project's pinned layouts without saving it.
@@ -62,6 +63,7 @@ type Shared<C> = State<Arc<Server<C>>>;
 /// The control API, sign-in, and every project's API, on one router.
 pub fn router<C: Chain>(plane: Arc<ControlPlane<C>>, access: Access) -> Router {
     Router::new()
+        .route("/health", get(health::<C>))
         .route("/control/v1/me", get(me::<C>))
         .route("/control/v1/logout", post(logout::<C>))
         .route("/control/v1/inspect", get(inspect::<C>))
@@ -398,6 +400,32 @@ struct PreviewBody {
     reducers: Option<String>,
     /// The state table to fold and show.
     table: String,
+}
+
+/// Whether this plane can do its job, for a reverse proxy or an uptime check.
+///
+/// Unauthenticated on purpose: a monitor shouldn't need a session, and it reveals
+/// nothing but whether the process is up and can reach Postgres. Postgres is the
+/// answer to "can it serve anything at all", so a plane that can't reach it reports
+/// 503 rather than a cheerful 200 that would keep it in a load balancer.
+async fn health<C: Chain>(State(server): Shared<C>) -> impl IntoResponse {
+    let database = sqlx::query_scalar::<_, i32>("SELECT 1")
+        .fetch_one(server.plane.pool())
+        .await
+        .is_ok();
+    let status = if database {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+    (
+        status,
+        Json(json!({
+            "status": if database { "ok" } else { "degraded" },
+            "database": database,
+            "version": env!("CARGO_PKG_VERSION"),
+        })),
+    )
 }
 
 async fn list<C: Chain>(

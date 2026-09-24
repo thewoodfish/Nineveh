@@ -1,0 +1,12 @@
+[Unit]
+Description=Back up the Nineveh database
+After=postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+User=postgres
+Environment=NINEVEH_BACKUP_DB=nineveh
+Environment=NINEVEH_BACKUP_DIR=/var/backups/nineveh
+Environment=NINEVEH_BACKUP_KEEP_DAYS=7
+ExecStart=/opt/nineveh/deploy/backup.sh

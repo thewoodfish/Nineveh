@@ -1,0 +1,23 @@
+# /etc/caddy/Caddyfile — TLS, and nothing else. Nineveh speaks plain HTTP.
+#
+# Caddy gets certificates from Let's Encrypt on first request and renews them itself,
+# so there is no cron job and no certbot here.
+
+api.nineveh.dev {
+	reverse_proxy 127.0.0.1:4000
+
+	# The change feed is Server-Sent Events: a long-lived response that must not be
+	# buffered or it arrives in lumps, and must not time out or it drops every minute.
+	@feed path_regexp ^/projects/[^/]+/v1/changes
+	reverse_proxy @feed 127.0.0.1:4000 {
+		flush_interval -1
+		transport http {
+			response_header_timeout 24h
+		}
+	}
+
+	encode gzip
+	log {
+		output file /var/log/caddy/api.log
+	}
+}

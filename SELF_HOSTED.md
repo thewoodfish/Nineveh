@@ -190,20 +190,32 @@ network across every project and uses a few more for backfills; `nineveh run` ta
 `--streams` of its own. If you see `ResourceExhausted` or `429`, something is holding
 more than your key allows.
 
+## Putting it on a server
+
+[`deploy/`](deploy/) has what you need: a systemd unit, a Caddyfile, a backup timer,
+and a README that walks the whole thing. The short version is one VPS running Postgres
+and one `nineveh up`, with the two frontends hosted anywhere static.
+
+**Sign-in is not optional once it's reachable.** Without a GitHub OAuth app the plane
+runs in local mode, where every caller owns every project. It refuses to *listen* on
+anything but loopback then — but a reverse proxy in front of loopback satisfies that
+check while exposing it to the internet. `deploy/README.md` says this twice; this is
+the third.
+
 ## What isn't built
 
 Stated plainly, because you'll go looking:
 
 - **No Dockerfile** and no published image.
-- **No health endpoint.** `GET /v1/status` on a project is the closest thing.
 - **No metrics endpoint.** Logs are structured (`tracing`); there's no Prometheus
   surface.
-- **`nineveh up` handles Ctrl-C but not SIGTERM**, which matters for most process
-  supervisors and container runtimes.
 - **No GraphQL.** The config accepts `graphql: true` and ignores it.
-- **No backup or restore tooling.** It's Postgres; use Postgres' own.
+- **No restore tooling.** `deploy/backup.sh` dumps; restoring is `pg_restore` by hand.
 
 ## When something's wrong
+
+`GET /health` on a control plane answers without auth: 200 with
+`{"status":"ok","database":true}`, or 503 when Postgres is unreachable.
 
 | What you see | What it is |
 | --- | --- |

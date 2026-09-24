@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up the Nineveh database daily
+
+[Timer]
+OnCalendar=daily
+# The machine is not always on at 00:00; run it late rather than not at all.
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

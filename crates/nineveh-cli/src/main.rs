@@ -26,6 +26,7 @@ mod init;
 mod project;
 mod run;
 mod serve;
+mod shutdown;
 mod up;
 
 use project::Paths;

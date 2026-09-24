@@ -97,7 +97,7 @@ async fn start(paths: &Paths, options: &RunOptions, replay: bool) -> Result<()> 
 
     let (stop, stopped) = watch::channel(false);
     tokio::spawn(async move {
-        if tokio::signal::ctrl_c().await.is_ok() {
+        if crate::shutdown::requested().await.is_ok() {
             info!("stopping after the current commit");
             let _ = stop.send(true);
         }
