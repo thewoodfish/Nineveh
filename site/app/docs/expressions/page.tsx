@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { DocPage } from "@/components/doc-page";
 import { DOCS, render } from "@/lib/docs";
 
-const doc = DOCS[2]!;
+const doc = DOCS.find((d) => d.slug === "expressions")!;
 const { title, summary } = render(doc);
 
 export const metadata: Metadata = {

@@ -95,6 +95,11 @@ they get real code; the dependency direction between them is enforced by
 - `nineveh-config`   — parse/validate `nineveh.yaml`, then resolve it against the lock
                        (ADR 0011; user reference in `docs/config.md`). Located,
                        rustc-style diagnostics. Product UX for non-Rust teams.
+- `nineveh-dsl`      — the reducer DSL: a `.nineveh.ts` file of tables and handlers,
+                       lexed, parsed and scattered into the same rules a `reduce:` block
+                       produces (ADR 0025; user reference in `docs/reducers.md`). No
+                       JavaScript runs — the file is parsed, never evaluated. Also
+                       generates `nineveh.d.ts` for editors.
 - `nineveh-cli`      — the `nineveh` binary: `init` (pin ABIs, resolve `start_version:
                        auto`, ADR 0015), `validate`, `run [--serve]` (parallel backfill,
                        then the tail; shadow rebuild on config change, ADR 0016),

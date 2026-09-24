@@ -37,7 +37,7 @@ function FileTab({
 /** The reducers file a project gets when it doesn't have one yet. */
 function starter(name: string) {
   return `// Reducers for ${name}. Each handler says what changes when a record arrives.
-// See docs/dsl.md for the whole language — it is six statements.
+// See docs/reducers.md for the whole language — it is six statements.
 //
 // export const balances = table({
 //   key:     { user: address },

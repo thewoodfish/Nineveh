@@ -1,7 +1,7 @@
 # Expressions
 
-Reduce rules compute values with small expressions. This page is the YAML spelling; the
-[`.nineveh.ts`](dsl.md) spelling is the same language with JavaScript's punctuation.
+The small language that computes a column's value. This page is the YAML spelling;
+[reducers](reducers.md) write the same language with JavaScript's punctuation.
 
 ```yaml
 reduce:
@@ -14,7 +14,7 @@ Expressions are **typed**: `nineveh validate` checks them against your record's 
 and your table's columns, and points at the exact spot in `nineveh.yaml` when something
 doesn't fit. They're **exact**: integers are Move's, from `u8` to `u256` and `i8` to
 `i256`, with no floating point and no silent wraparound. And they're **total**: no loops,
-I/O, clock or randomness, so replaying the chain always rebuilds the same state (ADR 0007).
+I/O, clock or randomness, so replaying the chain always rebuilds the same state.
 
 ## Names
 
@@ -109,9 +109,9 @@ that row as it was before its own write. It can't read a `log` table: logs are
 append-only history, not state.
 
 A lookup sees state as of just before the rule runs: every record that came earlier,
-and every table and rule ordered ahead of it for the same record (ADR 0013). That order
+and every table and rule ordered ahead of it for the same record. That order
 comes from your config, so it doesn't depend on how the stream is batched, and a replay
-rebuilds exactly the same state (ADR 0019).
+rebuilds exactly the same state.
 
 ## When an expression fails
 

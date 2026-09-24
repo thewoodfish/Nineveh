@@ -1,9 +1,10 @@
-# `nineveh.yaml` reference
+# Configuration
 
-A Nineveh project is one YAML file. It names the chain data to follow (**sources**),
-the tables built from it (**state**), and how they're served. `nineveh init` reads it
-to pin the Move layouts it needs in `nineveh.lock`, and `nineveh validate` reports
-every problem at the line it's on.
+Every key in `nineveh.yaml`. A project's config names the chain data to follow
+(**sources**), the tables built from it (**state**), and how they're served.
+
+`nineveh init` reads it to pin the Move layouts it needs, and `nineveh validate`
+reports every problem at the line it's on.
 
 ```yaml
 name: vault
@@ -45,7 +46,7 @@ webhooks:
 | `start_version` | no | `auto` (default) or a transaction version. `nineveh init` resolves `auto` to the first transaction that touched any of the sources' contract addresses, which is at or before their modules were published, and pins it in `nineveh.lock`. So nothing relevant is missed, and every build starts at the same place. |
 | `sources` | yes | At least one source. |
 | `state` | yes* | At least one state table. Optional when `reducers` declares them. |
-| `reducers` | no | A [`.nineveh.ts` file](dsl.md) holding the reduce tables and the handlers that write them, named relative to this file. |
+| `reducers` | no | A [reducers file](reducers.md) holding the reduce tables and the handlers that write them, named relative to this file. |
 | `api` | no | `rest` and `graphql`, both `true` by default. |
 | `webhooks` | no | Where state changes are delivered. |
 
@@ -129,7 +130,7 @@ field of the event. An enum event gets its columns as described for
 
 ### `reduce`: your own fold
 
-A reduce table can be written here, or in the [`reducers:` file](dsl.md) — event-first,
+A reduce table can be written here, or in the [reducers file](reducers.md) — event-first,
 with the handler for one event in one place. The two build the same thing; this section
 describes the YAML form.
 

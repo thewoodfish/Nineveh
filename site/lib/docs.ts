@@ -24,9 +24,33 @@ export type Doc = {
 export const DOCS: Doc[] = [
   {
     slug: "",
-    title: "Guide",
-    blurb: "Start here",
+    title: "Start here",
+    blurb: "What Nineveh is, in five minutes",
     file: "guide.md",
+  },
+  {
+    slug: "first-backend",
+    title: "Your first backend",
+    blurb: "A working project, end to end",
+    file: "first-backend.md",
+  },
+  {
+    slug: "reducers",
+    title: "Reducers",
+    blurb: "Saying what your tables hold",
+    file: "reducers.md",
+  },
+  {
+    slug: "reading",
+    title: "Reading your data",
+    blurb: "REST, the change feed, webhooks",
+    file: "reading.md",
+  },
+  {
+    slug: "running",
+    title: "Running a project",
+    blurb: "Changes, limits, and what to check",
+    file: "running.md",
   },
   {
     slug: "configuration",
@@ -37,7 +61,7 @@ export const DOCS: Doc[] = [
   {
     slug: "expressions",
     title: "Expressions",
-    blurb: "The language reducers are written in",
+    blurb: "The language values are written in",
     file: "expressions.md",
   },
 ];
