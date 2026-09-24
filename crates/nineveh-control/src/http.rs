@@ -393,6 +393,9 @@ struct ConfigBody {
 #[derive(Debug, Deserialize)]
 struct PreviewBody {
     config: String,
+    /// The project's `.nineveh.ts`, when its config names one (ADR 0025).
+    #[serde(default)]
+    reducers: Option<String>,
     /// The state table to fold and show.
     table: String,
 }
@@ -489,7 +492,13 @@ async fn preview<C: Chain>(
     Ok(Json(
         server
             .plane
-            .preview(caller, &name, &body.config, &body.table)
+            .preview(
+                caller,
+                &name,
+                &body.config,
+                body.reducers.as_deref(),
+                &body.table,
+            )
             .await?,
     ))
 }

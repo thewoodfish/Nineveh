@@ -129,6 +129,9 @@ function StateTableEditor() {
   const [sources, setSources] = useState<SourceInfo[] | null>(null);
   const [existing, setExisting] = useState<Table[]>([]);
   const [config, setConfig] = useState<string | null>(null);
+  // Carried through untouched: this editor writes YAML, but a project whose reducers
+  // are in the DSL has to be saved with them or it isn't the same project (ADR 0025).
+  const [reducers, setReducers] = useState<string | undefined>(undefined);
   const [table, setTable] = useState<StateTable | null>(null);
   const [checked, setChecked] = useState<{
     ok: boolean;
@@ -144,7 +147,10 @@ function StateTableEditor() {
     control.sources(project).then(setSources).catch(failed);
     control
       .project(project)
-      .then((p) => setConfig(p.config))
+      .then((p) => {
+        setConfig(p.config);
+        setReducers(p.reducers);
+      })
       .catch(failed);
     if (editing) {
       control
@@ -180,7 +186,7 @@ function StateTableEditor() {
     }
     const timer = setTimeout(() => {
       control
-        .check(project, yaml)
+        .check(project, yaml, reducers)
         .then(() => setChecked({ ok: true }))
         .catch((e: unknown) =>
           setChecked({
@@ -190,14 +196,14 @@ function StateTableEditor() {
         );
     }, 400);
     return () => clearTimeout(timer);
-  }, [project, yaml, listed.length]);
+  }, [project, yaml, reducers, listed.length]);
 
   const save = useCallback(async () => {
     if (!project || !yaml || !table) return;
     setSaving(true);
     setError(null);
     try {
-      await control.update(project, yaml);
+      await control.update(project, yaml, reducers);
       router.push(
         `/tables?project=${encodeURIComponent(project)}&name=${encodeURIComponent(table.name)}`,
       );
@@ -205,7 +211,7 @@ function StateTableEditor() {
       setError(e instanceof ApiError ? (e.details ?? e.message) : String(e));
       setSaving(false);
     }
-  }, [project, yaml, table, router]);
+  }, [project, yaml, reducers, table, router]);
 
   if (mode === "single" || !base) {
     return (
@@ -303,6 +309,7 @@ function StateTableEditor() {
               <PreviewCard
                 project={project}
                 yaml={yaml}
+                reducers={reducers}
                 table={table}
                 ready={checked?.ok === true}
               />
@@ -322,11 +329,13 @@ function StateTableEditor() {
 function PreviewCard({
   project,
   yaml,
+  reducers,
   table,
   ready,
 }: {
   project: string;
   yaml: string;
+  reducers: string | undefined;
   table: StateTable;
   ready: boolean;
 }) {
@@ -344,13 +353,13 @@ function PreviewCard({
     setRunning(true);
     setError(null);
     try {
-      setPreview(await control.preview(project, yaml, table.name));
+      setPreview(await control.preview(project, yaml, table.name, reducers));
     } catch (e) {
       setError(e instanceof ApiError ? (e.details ?? e.message) : String(e));
     } finally {
       setRunning(false);
     }
-  }, [project, yaml, table.name]);
+  }, [project, yaml, reducers, table.name]);
 
   const columns = table.columns.map((c) => c.name);
   return (

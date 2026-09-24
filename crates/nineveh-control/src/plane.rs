@@ -1200,22 +1200,28 @@ impl<C: Chain> ControlPlane<C> {
         caller: Caller,
         name: &str,
         text: &str,
+        reducers: Option<&str>,
         table: &str,
     ) -> Result<Preview, ControlError> {
         let loaded = self
             .get_entry(caller, name, |e| e.loaded.clone())
             .await?
             .map_err(ControlError::BadRequest)?;
-        let config = parse(text).map_err(|d| ControlError::invalid(&d, text))?;
+        let config = compose(text, reducers)?;
         if config.name.name != name {
             return Err(ControlError::BadRequest(format!(
                 "the config names the project `{}`; keep `name: {name}`",
                 config.name.name
             )));
         }
+        let dsl_name = reducers_name(&config).to_owned();
+        let mut names: Vec<(&str, &str)> = vec![("nineveh.yaml", text)];
+        if let Some(dsl) = reducers {
+            names.push((&dsl_name, dsl));
+        }
         let candidate = config
             .resolve(&loaded.lock)
-            .map_err(|d| ControlError::invalid(&d, text))?;
+            .map_err(|d| ControlError::invalid_in(&d, &names))?;
         let index = candidate
             .config()
             .state

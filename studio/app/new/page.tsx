@@ -119,8 +119,10 @@ export default function NewProject() {
     setCreating(true);
     setError(null);
     try {
-      const { config } = await control.scaffold(draft);
-      const created = await control.create(config);
+      // A scaffold that comes with reducers is created with them; one that doesn't
+      // is a project written in YAML until someone adds them (ADR 0025).
+      const { config, reducers } = await control.scaffold(draft);
+      const created = await control.create(config, reducers);
       await refresh();
       router.push(`/?project=${encodeURIComponent(created.name)}`);
     } catch (e) {

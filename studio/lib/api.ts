@@ -188,7 +188,14 @@ export type ProjectSummary = {
   updated_at: string;
 };
 
-export type ProjectDetail = ProjectSummary & { config: string };
+export type ProjectDetail = ProjectSummary & {
+  config: string;
+  /**
+   * The project's `.nineveh.ts`, when its config names a `reducers:` file (ADR 0025).
+   * Absent for a project written entirely in YAML.
+   */
+  reducers?: string;
+};
 
 /** What a rule on a source can read (ADR 0011). */
 export type SourceInfo = {
@@ -336,16 +343,16 @@ export const control = {
   sources: (name: string) =>
     request<SourceInfo[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/sources`),
   /** Check a config against the project's pinned layouts, without saving it. */
-  check: (name: string, config: string) =>
+  check: (name: string, config: string, reducers?: string) =>
     request<{ ok: boolean }>(`${CONTROL}/projects/${encodeURIComponent(name)}/check`, {
       method: "POST",
-      ...json({ config }),
+      ...json({ config, reducers }),
     }),
   /** The rows a table's rules would produce, without saving anything. */
-  preview: (name: string, config: string, table: string) =>
+  preview: (name: string, config: string, table: string, reducers?: string) =>
     request<Preview>(`${CONTROL}/projects/${encodeURIComponent(name)}/preview`, {
       method: "POST",
-      ...json({ config, table }),
+      ...json({ config, table, reducers }),
     }),
   /** A saved state table, to open in the editor. */
   stateTable: (name: string, table: string) =>
@@ -373,13 +380,19 @@ export const control = {
   inspect: (network: Network, address: string) =>
     request<Catalog>(`${CONTROL}/inspect?${new URLSearchParams({ network, address })}`),
   scaffold: (draft: { name: string; network: Network; start: Start; picks: string[] }) =>
-    request<{ config: string }>(`${CONTROL}/scaffold`, { method: "POST", ...json(draft) }),
-  create: (config: string) =>
-    request<ProjectDetail>(`${CONTROL}/projects`, { method: "POST", ...json({ config }) }),
-  update: (name: string, config: string) =>
+    request<{ config: string; reducers?: string }>(`${CONTROL}/scaffold`, {
+      method: "POST",
+      ...json(draft),
+    }),
+  create: (config: string, reducers?: string) =>
+    request<ProjectDetail>(`${CONTROL}/projects`, {
+      method: "POST",
+      ...json({ config, reducers }),
+    }),
+  update: (name: string, config: string, reducers?: string) =>
     request<ProjectDetail>(`${CONTROL}/projects/${encodeURIComponent(name)}`, {
       method: "PUT",
-      ...json({ config }),
+      ...json({ config, reducers }),
     }),
   start: (name: string) =>
     request<ProjectSummary>(`${CONTROL}/projects/${encodeURIComponent(name)}/start`, { method: "POST" }),
