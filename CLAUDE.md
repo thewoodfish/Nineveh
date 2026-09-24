@@ -218,8 +218,15 @@ fast interactions, no clutter. When building UI, read the frontend-design skill 
   It refuses anything outside the repo, anything under `.claude/`, `.git/`, `target/`,
   any `.env` or transcript, and any file whose contents look like a credential — use
   `--dry-run` to see what would be sent. Configure with `WORKER_API_KEY`,
-  `WORKER_BASE_URL` and `WORKER_MODEL` in the shell, never in a file; pointing
-  `WORKER_BASE_URL` at a local Ollama sends nothing off the machine.
+  `WORKER_BASE_URL` and `WORKER_MODEL` in the shell, never in a file.
+  Locally (nothing leaves the machine): `OLLAMA_CONTEXT_LENGTH=16384 ollama serve`,
+  then `WORKER_BASE_URL=http://localhost:11434/v1 WORKER_MODEL=llama3.2:3b`. The
+  context length is not optional — Ollama defaults small whatever the model supports,
+  and at the default it reads about half of a 17KB file and answers confidently from
+  the fragment. `ask-worker` checks the tokens the provider says it read and exits 3
+  on a short read, but the server has to be started correctly for answers to be whole.
+  llama3.2:3b is reliable for "find and list" questions and invents structure on
+  open-ended ones; a code-tuned 7B would be the upgrade when there's disk for it.
 - `NINEVEH_TEST_DATABASE_URL=postgres:///nineveh_test cargo test -p nineveh-store -p nineveh-pipeline` —
   the Postgres-backed tests (they skip without it, and fail in CI without it).
   Don't set `DATABASE_URL`: it switches sqlx's macros to checking against a live DB.

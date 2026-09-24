@@ -26,6 +26,14 @@ WHAT THIS WILL NOT SEND
   contents are scanned too, in case a secret is somewhere unexpected.
 
   Use --dry-run to see exactly what would leave the machine, and nothing does.
+
+TRUNCATION
+  A model that is handed more than its context window silently drops the rest
+  and answers confidently from what is left. Every answer here is checked
+  against the tokens the provider says it actually read, and a short read is
+  reported loudly and exits 3 — a wrong answer about code is worse than none.
+  Ollama defaults to a small context whatever the model supports; start it with
+  OLLAMA_CONTEXT_LENGTH=16384 (or higher) or it will read about half a 17KB file.
 """
 
 import argparse
@@ -158,8 +166,20 @@ def main() -> int:
     print(answer)
 
     usage = result.get("usage", {})
-    print(f"\n[{args.model}: {usage.get('prompt_tokens', '?')} in / "
-          f"{usage.get('completion_tokens', '?')} out]", file=sys.stderr)
+    read = usage.get("prompt_tokens")
+    print(f"\n[{args.model}: {read} in / {usage.get('completion_tokens', '?')} out]",
+          file=sys.stderr)
+
+    # Roughly four characters per token for code. A read well under that means
+    # the provider dropped the tail of the corpus and answered from a fragment.
+    expected = total // 4
+    if isinstance(read, int) and expected > 500 and read < expected * 0.8:
+        print(f"\nask-worker: the model read about {read} tokens of roughly "
+              f"{expected} sent — the rest was cut off, so this answer is based "
+              f"on part of the files.\n            Raise the context window "
+              f"(for Ollama: OLLAMA_CONTEXT_LENGTH=16384 ollama serve) or pass "
+              f"fewer files.", file=sys.stderr)
+        return 3
     return 0
 
 
