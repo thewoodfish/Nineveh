@@ -40,7 +40,7 @@ exactly the same state.
 
 ## Documentation
 
-Published at [nineveh.dev/docs](https://nineveh.dev/docs), and written in this repo:
+Written as markdown in this repo, and built into a site by `site/`:
 
 - [`docs/guide.md`](docs/guide.md) — **start here**: what it is and the one idea.
 - [`docs/first-backend.md`](docs/first-backend.md) — a working project, end to end.

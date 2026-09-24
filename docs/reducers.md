@@ -157,9 +157,15 @@ There is no naked `amount` that might mean either — every name says where it c
 
 ## 6. Reading another table
 
-A reducer can read any other table by key:
+A reducer can read any other table by key. Here `markets` is a table the project
+already has, and `sales` is the one being written:
 
 ```ts
+export const sales = table({
+  key:     { id: u64 },
+  columns: { amount: u64, fee: u64.default(0) },
+})
+
 on(sold, (s) => {
   const fee_bps = markets.get(s.market)?.fee_bps ?? 0
 
@@ -201,10 +207,15 @@ on(trades, (t) => {
 **Latest value per key.** No accumulation — each record overwrites.
 
 ```ts
+export const quotes = table({
+  key:     { market: u64 },
+  columns: { price: u64.default(0), updated: u64.default(0) },
+})
+
 on(prices, (p) => {
-  const m = markets.row(p.market)
-  m.price   = p.price
-  m.updated = tx.version
+  const q = quotes.row(p.market)
+  q.price   = p.price
+  q.updated = tx.version
 })
 ```
 
@@ -225,6 +236,11 @@ on(trades, (t) => {
 **Something that appears and disappears.** Two handlers, one table.
 
 ```ts
+export const positions = table({
+  key:     { id: u64 },
+  columns: { owner: address, size: u64.default(0) },
+})
+
 on(opened, (o) => {
   const p = positions.row(o.id)
   p.owner = o.owner
@@ -239,6 +255,11 @@ on(closed, (c) => {
 **Counting only some records.** A condition around the write.
 
 ```ts
+export const whales = table({
+  key:     { taker: address },
+  columns: { trades: u64.default(0) },
+})
+
 on(trades, (t) => {
   if (t.size < 100) return
   whales.row(t.taker).trades += 1

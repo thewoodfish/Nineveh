@@ -7,10 +7,13 @@ keep up.
 This is the short version: what Nineveh does, the one idea everything rests on, and
 where to go next. It takes about five minutes.
 
-These pages describe the hosted service, where Nineveh runs the infrastructure. It is
-also open source — to run it on your own Postgres, see
+**Nineveh is alpha, and the hosted service isn't live yet.** It works end to end —
+that's what the next page walks you through — but today you run it yourself, on your
+own Postgres. It takes about five minutes to get going:
 [Running Nineveh yourself](https://github.com/thewoodfish/Nineveh/blob/main/SELF_HOSTED.md).
-Everything here applies either way; only the operating is different.
+
+Everything on these pages applies either way. When the hosted service opens, the only
+thing that changes is who runs the process.
 
 ## 1. What you get
 
@@ -81,7 +84,7 @@ Two references, for when you need a specific answer:
 - **[Configuration](config.md)** — every key in `nineveh.yaml`.
 - **[Expressions](expressions.md)** — the small language reducer values are written in.
 
-And one for running it yourself:
+And the one you need today:
 [Running Nineveh yourself](https://github.com/thewoodfish/Nineveh/blob/main/SELF_HOSTED.md)
 covers building it, the CLI, the control plane, and what you take on as the operator.
 

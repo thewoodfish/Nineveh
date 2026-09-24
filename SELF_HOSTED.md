@@ -1,11 +1,10 @@
 # Running Nineveh yourself
 
-The [documentation](https://nineveh.dev/docs) describes the hosted service, where the
-infrastructure is someone else's problem. This is the other way: you run it, on your
-own Postgres, against your own Aptos stream key.
+The [documentation](docs/guide.md) describes using Nineveh. This page is about running
+it: on your own Postgres, against your own Aptos stream key.
 
-Everything in the docs still applies — the config format, reducers, the REST API, the
-change feed. This page only covers what changes when you're the one operating it.
+Right now it's the only way — the hosted service isn't live yet. Everything in the docs
+still applies either way; this page covers what's yours to operate.
 
 ## What you're taking on
 
@@ -108,7 +107,7 @@ reducers: ./blocks.nineveh.ts
 
 `nineveh init` also writes `nineveh.d.ts` beside your config, so an editor can complete
 your sources' fields and your tables' columns. Both belong in your repository.
-The language is documented at [nineveh.dev/docs/reducers](https://nineveh.dev/docs/reducers).
+The language is documented in [`docs/reducers.md`](docs/reducers.md).
 
 ## Many projects, with Studio
 
@@ -233,8 +232,7 @@ APTOS_API_KEY=… NINEVEH_TEST_DATABASE_URL=postgres:///nineveh_test \
 ## Where everything else is documented
 
 The config format, the reducer language, the REST API, the change feed and webhooks are
-all at [nineveh.dev/docs](https://nineveh.dev/docs) — they're the same whoever is
-running it.
+all in [`docs/`](docs/guide.md) — they're the same whoever is running it.
 
 If you're changing Nineveh rather than running it, read `CLAUDE.md` for the
 architecture and `docs/adr/` for why each decision was made.

@@ -3,18 +3,43 @@
 Build a working backend against a live contract, from nothing to querying real data.
 Follow it top to bottom — every step produces something you can see.
 
-You need a GitHub account. Nothing to install.
+The hosted service isn't live yet, so this runs Nineveh on your own machine. You need
+Postgres, Rust, and a free Aptos stream key from [geomi.dev](https://geomi.dev).
 
-## 1. Pick something that is definitely busy
+## 1. Get it running
+
+Three commands, once:
+
+```sh
+git clone https://github.com/thewoodfish/Nineveh.git && cd Nineveh
+cargo build --release -p nineveh-cli
+
+createdb nineveh
+export NINEVEH_DATABASE_URL=postgres:///nineveh
+export APTOS_API_KEY_TESTNET=your_geomi_key      # https://geomi.dev
+
+target/release/nineveh up                        # the control plane, on :4000
+```
+
+And in a second terminal, the dashboard:
+
+```sh
+cd studio && npm install && npm run build && npm start    # http://localhost:3000
+```
+
+[Running Nineveh yourself](https://github.com/thewoodfish/Nineveh/blob/main/SELF_HOSTED.md)
+explains what each of those is doing, and covers the version without a dashboard.
+
+## 2. Pick something that is definitely busy
 
 The hardest part of a first project is not knowing whether silence means *you got it
 wrong* or *the contract is quiet*. So start with something that is never quiet: the
 Aptos framework itself, published on every network, emitting a block event every few
 hundred milliseconds.
 
-Open Studio and sign in with GitHub.
+Open Studio at <http://localhost:3000>. On your own machine there's no sign-in.
 
-## 2. Create the project
+## 3. Create the project
 
 **New project** → network **testnet** → address `0x1` → **Inspect**.
 
@@ -34,22 +59,22 @@ starting at the tip means data in seconds instead of a long backfill.
 
 **Create backend with 1 table.**
 
-## 3. Watch it fill
+## 4. Watch it fill
 
 The Overview shows a cursor climbing, the chain head it's chasing, and the gap between
-them. Within a few seconds it reads *following the chain*, and `new_block_event` fills
-at roughly two hundred rows a second.
+them. Within a few seconds it reads *following the chain*, and `new_block_event` gains a row
+every time testnet produces a block — about a dozen a second.
 
 You now have a backend. It has a URL:
 
 ```
-https://api.nineveh.dev/projects/blocks
+http://127.0.0.1:4000/projects/blocks
 ```
 
-## 4. Query it
+## 5. Query it
 
 ```sh
-BASE=https://api.nineveh.dev/projects/blocks
+BASE=http://127.0.0.1:4000/projects/blocks
 
 curl $BASE/v1/tables                       # what tables exist, and their columns
 curl "$BASE/v1/tables/new_block_event?limit=3"
@@ -76,7 +101,7 @@ const height = BigInt(row.height)   // right
 const height = Number(row.height)   // wrong above 9 quadrillion, silently
 ```
 
-## 5. Watch changes arrive
+## 6. Watch changes arrive
 
 In a second terminal:
 
@@ -101,7 +126,7 @@ curl -N "$BASE/v1/changes?after=11292175483.0"
 Nothing is missed. That `id` is how a browser resumes too — `EventSource` sends it
 automatically as `Last-Event-ID`.
 
-## 6. Make a table of your own
+## 7. Make a table of your own
 
 So far the table is a log: one row per event, exactly as it arrived. That is useful,
 but it isn't what an app usually wants. Apps want *totals*, *current state*, *per
@@ -137,7 +162,7 @@ curl "$BASE/v1/tables/blocks_per_proposer?order=count.desc&limit=5"
 That block is the whole of [Reducers](reducers.md), and it is where the rest of your
 time goes.
 
-## 7. What you just learned
+## 8. What you just learned
 
 - A **source** is chain data you follow. A **state table** is what you build from it.
 - A **log** table keeps every record; a **reduce** table folds them into something
