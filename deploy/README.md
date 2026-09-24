@@ -111,7 +111,18 @@ protecting against is not a backup. Restore is
 - **`site/`** is a static export. `npm run build` produces `site/out`, which is plain
   HTML — point Cloudflare Pages or Vercel at it and forget about it.
 - **`studio/`** is a Next app that only talks to the API over HTTP. Deploy it to
-  Vercel with `NEXT_PUBLIC_API_URL=https://api.nineveh.dev`.
+  Vercel with
+
+  ```
+  NEXT_PUBLIC_NINEVEH_API=https://api.nineveh.dev
+  ```
+
+  That name matters: Studio reads `NEXT_PUBLIC_NINEVEH_API` and falls back to
+  `http://127.0.0.1:4000` when it isn't set, so a Studio built without it looks fine
+  and can't reach anything. It's a `NEXT_PUBLIC_` variable, which means it is baked in
+  at build time — setting it in Vercel is not enough on its own, you have to redeploy
+  after. To check a deployed Studio, search its JavaScript for `127.0.0.1:4000`; if
+  it's there, it was built without the variable.
 
 Keeping them off the VPS means the only thing that has to be single-instance is the
 only thing running there.
