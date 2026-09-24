@@ -14,6 +14,8 @@
 //! `nineveh.projects` says how far state is committed, and the first may run ahead of
 //! the second.
 
+use std::collections::BTreeMap;
+
 use sqlx::PgPool;
 
 use nineveh_core::Version;
@@ -96,6 +98,9 @@ pub async fn append(
     // genuine insert counts — `xmax = 0` is how Postgres reports which it was.
     let mut added_count: i64 = 0;
     let mut added_bytes: i64 = 0;
+    // What each source matched in this batch, so a source that never matches anything
+    // can be told apart from one whose contract is merely quiet right now.
+    let mut added_matches: BTreeMap<&str, i64> = BTreeMap::new();
     for logged in records {
         // sqlx is built without its `json` feature, so JSON crosses as text and
         // Postgres does the cast — the same way the outbox writes `new_row`.
@@ -131,22 +136,44 @@ pub async fn append(
         if written.inserted {
             added_count += 1;
             added_bytes += i64::from(written.size);
+            *added_matches
+                .entry(logged.record.source.as_str())
+                .or_default() += 1;
         }
     }
     let through_i64 = i64::try_from(through.get()).map_err(|_| StoreError::Corrupt {
         table: "nineveh.record_cursors".into(),
         reason: "version past i64".into(),
     })?;
+    // Postgres adds the per-source counts, so a re-read after a crash can't double
+    // them: only rows this transaction actually inserted are in `added_matches`.
+    let matches = serde_json::to_string(&added_matches).map_err(|e| StoreError::Corrupt {
+        table: "nineveh.record_cursors".into(),
+        reason: format!("encoding source counts: {e}"),
+    })?;
     sqlx::query!(
         r#"INSERT INTO nineveh.record_cursors
-               (project, cursor, lock_hash, sources, record_count, record_bytes)
-           VALUES ($1, $2, $3, $4, $5, $6)
+               (project, cursor, lock_hash, sources, record_count, record_bytes, matched)
+           VALUES ($1, $2, $3, $4, $5, $6, $7::text::jsonb)
            ON CONFLICT (project) DO UPDATE
                SET cursor = excluded.cursor,
                    lock_hash = excluded.lock_hash,
                    sources = excluded.sources,
                    record_count = nineveh.record_cursors.record_count + excluded.record_count,
                    record_bytes = nineveh.record_cursors.record_bytes + excluded.record_bytes,
+                   matched = (
+                       SELECT coalesce(jsonb_object_agg(source, total), '{}'::jsonb)
+                       FROM (
+                           SELECT key AS source, sum(value::bigint) AS total
+                           FROM (
+                               SELECT key, value
+                               FROM jsonb_each_text(nineveh.record_cursors.matched)
+                               UNION ALL
+                               SELECT key, value FROM jsonb_each_text(excluded.matched)
+                           ) AS pairs
+                           GROUP BY key
+                       ) AS summed
+                   ),
                    updated_at = now()"#,
         project,
         through_i64,
@@ -154,6 +181,7 @@ pub async fn append(
         sources.join(","),
         added_count,
         added_bytes,
+        matches,
     )
     .execute(&mut *tx)
     .await?;
@@ -277,6 +305,31 @@ pub async fn forget(pool: &PgPool, project: &str) -> Result<(), StoreError> {
     .await?;
     tx.commit().await?;
     Ok(())
+}
+
+/// How many records each source has ever matched, by source name.
+///
+/// A source missing from the map has matched nothing — which is not an error, but is
+/// almost always a type name that is subtly wrong rather than a genuinely quiet
+/// contract. Cumulative, so pruning the log doesn't make a busy source look silent.
+///
+/// # Errors
+///
+/// If the database fails, or the stored counts aren't a map of numbers.
+pub async fn matched(pool: &PgPool, project: &str) -> Result<BTreeMap<String, i64>, StoreError> {
+    let row = sqlx::query_scalar!(
+        r#"SELECT matched::text AS "matched!" FROM nineveh.record_cursors WHERE project = $1"#,
+        project
+    )
+    .fetch_optional(pool)
+    .await?;
+    let Some(json) = row else {
+        return Ok(BTreeMap::new());
+    };
+    serde_json::from_str(&json).map_err(|e| StoreError::Corrupt {
+        table: "nineveh.record_cursors".into(),
+        reason: format!("reading source counts: {e}"),
+    })
 }
 
 /// How many records and how many bytes `project` has logged — the number a tier is

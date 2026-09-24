@@ -208,6 +208,8 @@ export type SourceInfo = {
   fields: FieldInfo[];
   /** What a `<name>.deleted` rule reads: only what identifies the row. */
   delete_fields: FieldInfo[];
+  /** How many records this source has ever matched. Zero is worth asking about. */
+  matched: number;
 };
 
 export type FieldInfo = { name: string; type: ColumnType; nullable: boolean };

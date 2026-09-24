@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type Change,
   type ReaderInfo,
+  type SourceInfo,
   type Status,
   type Table,
   type Usage,
@@ -67,6 +68,13 @@ export function useStatus() {
   const { base } = useProject();
   const load = useCallback(() => getStatus(base ?? ""), [base]);
   return usePoll<Status>(base ? load : null, 1000);
+}
+
+/** The project's sources, with how many records each has ever matched. */
+export function useSources() {
+  const { mode, name } = useProject();
+  const load = useCallback(() => control.sources(name ?? ""), [name]);
+  return usePoll<SourceInfo[]>(mode === "control" && name ? load : null, 30_000);
 }
 
 /** The open project's tables, reloaded when the feed resets (a rebuild swapped in). */

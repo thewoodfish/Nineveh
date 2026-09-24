@@ -151,6 +151,13 @@ pub struct SourceInfo {
     /// What a rule on it reads, with `<name>.deleted`'s fields when it deletes.
     pub fields: Vec<FieldInfo>,
     pub delete_fields: Vec<FieldInfo>,
+    /// How many records this source has ever matched.
+    ///
+    /// Zero is not an error — a contract can be quiet — but it is overwhelmingly the
+    /// symptom of a type name that is close but wrong, and nothing else in the product
+    /// says a word about it. Studio turns zero into a question once the project has
+    /// read far enough that silence is worth remarking on.
+    pub matched: i64,
 }
 
 /// How a preview reads the chain: a window of this many versions ending where the
@@ -1103,6 +1110,7 @@ impl<C: Chain> ControlPlane<C> {
             .get_entry(caller, name, |e| e.loaded.clone())
             .await?
             .map_err(ControlError::BadRequest)?;
+        let matched = nineveh_store::records::matched(&self.pool, name).await?;
         let project = &loaded.project;
         let describe = |input: &Input, deleted: bool| {
             record_scope(&loaded.lock, input, deleted)
@@ -1128,6 +1136,7 @@ impl<C: Chain> ControlPlane<C> {
                     .and_then(|id| project.input(id))?;
                 let deletes = source.kind.has_deletes();
                 Some(SourceInfo {
+                    matched: matched.get(source.name.as_str()).copied().unwrap_or(0),
                     name: source.name.name.clone(),
                     kind: source.kind.keyword(),
                     follows: match &source.kind {

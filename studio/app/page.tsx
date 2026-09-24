@@ -5,7 +5,14 @@ import { PageHeader } from "@/components/page-header";
 import { useState, type ReactNode } from "react";
 
 import { Card, filledButton, Icon, Notice, Offline, PhaseDot } from "@/components/ui";
-import { API_URL, type ProjectSummary, type Status, type Usage, control } from "@/lib/api";
+import {
+  API_URL,
+  type ProjectSummary,
+  type SourceInfo,
+  type Status,
+  type Usage,
+  control,
+} from "@/lib/api";
 import {
   behind,
   formatBytes,
@@ -14,7 +21,7 @@ import {
   progress,
   shortHex,
 } from "@/lib/format";
-import { useStatus, useTables, useUsage } from "@/lib/hooks";
+import { useSources, useStatus, useTables, useUsage } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
 
 export default function Home() {
@@ -155,6 +162,7 @@ function Overview() {
   const { data: status, error } = useStatus();
   const { tables } = useTables();
   const { data: usage } = useUsage();
+  const { data: sources } = useSources();
   const { current, mode, hosted } = useProject();
   const href = useHref();
 
@@ -198,6 +206,7 @@ function Overview() {
           </Notice>
         )}
         {status.rebuild && <Rebuild status={status} />}
+        <Silent sources={sources} status={status} />
 
         <Health status={status} />
 
@@ -438,6 +447,64 @@ function Supporting({ label, value }: { label: string; value: ReactNode }) {
       <dt className="text-xs text-on-surface-variant">{label}</dt>
       <dd className="mt-1 truncate font-mono text-sm text-on-surface tnum">{value}</dd>
     </div>
+  );
+}
+
+/**
+ * Sources that have never matched anything.
+ *
+ * Not an error — a contract can be quiet, and a project that follows a silent one is
+ * working correctly. But the usual cause is a type name that is close and wrong, and
+ * nothing else in the product mentions it: the project runs, the cursor climbs, and
+ * the table stays empty. So it is raised only once the project has read far enough
+ * that silence is worth remarking on, and it is phrased as a question rather than a
+ * failure.
+ */
+function Silent({ sources, status }: { sources: SourceInfo[] | null; status: Status }) {
+  if (!sources || sources.length === 0) return null;
+
+  // Far enough to be worth mentioning. Below this, a quiet minute proves nothing.
+  const ENOUGH = 50_000n;
+  const cursor = status.pipeline?.cursor ?? status.build?.cursor;
+  const start = status.pipeline?.start_version;
+  if (!cursor || !start) return null;
+  let read: bigint;
+  try {
+    read = BigInt(cursor) - BigInt(start);
+  } catch {
+    return null;
+  }
+  if (read < ENOUGH) return null;
+
+  const quiet = sources.filter((s) => s.matched === 0);
+  if (quiet.length === 0) return null;
+
+  return (
+    <Notice
+      tone="warning"
+      title={
+        quiet.length === 1
+          ? `${quiet[0]!.name} hasn't matched anything yet`
+          : `${quiet.length} sources haven't matched anything yet`
+      }
+    >
+      <p>
+        The project has read {read.toLocaleString()} versions and found no records for{" "}
+        {quiet.map((s, i) => (
+          <span key={s.name}>
+            {i > 0 && ", "}
+            <span className="font-mono text-xs">{s.follows}</span>
+          </span>
+        ))}
+        .
+      </p>
+      <p className="mt-2">
+        That is what a silent contract looks like, and also what a type name that is
+        subtly wrong looks like — <span className="font-mono text-xs">NewBlock</span> and{" "}
+        <span className="font-mono text-xs">NewBlockEvent</span> are different types.
+        Check the name against the contract on a chain explorer.
+      </p>
+    </Notice>
   );
 }
 
