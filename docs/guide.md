@@ -7,6 +7,11 @@ keep up.
 This is the short version: what Nineveh does, the one idea everything rests on, and
 where to go next. It takes about five minutes.
 
+These pages describe the hosted service, where Nineveh runs the infrastructure. It is
+also open source — to run it on your own Postgres, see
+[Running Nineveh yourself](https://github.com/thewoodfish/Nineveh/blob/main/SELF_HOSTED.md).
+Everything here applies either way; only the operating is different.
+
 ## 1. What you get
 
 Point Nineveh at a contract address. It reads that contract's activity from the chain
@@ -75,6 +80,10 @@ Two references, for when you need a specific answer:
 
 - **[Configuration](config.md)** — every key in `nineveh.yaml`.
 - **[Expressions](expressions.md)** — the small language reducer values are written in.
+
+And one for running it yourself:
+[Running Nineveh yourself](https://github.com/thewoodfish/Nineveh/blob/main/SELF_HOSTED.md)
+covers building it, the CLI, the control plane, and what you take on as the operator.
 
 ## 5. What Nineveh is not
 

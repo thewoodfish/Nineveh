@@ -9,7 +9,7 @@ chain, and no indexing infrastructure to run.
 > **Status: alpha.** It works end to end — a contract address in, live tables, a REST
 > API, a change feed and signed webhooks out, driven from a browser dashboard. It has
 > not been deployed anywhere yet, and GraphQL is not built. See
-> [What isn't built](docs/guide.md#12-what-isnt-built) before you plan around it.
+> [What Nineveh is not](docs/guide.md#5-what-nineveh-is-not) before you plan around it.
 
 ```sh
 createdb nineveh
@@ -21,7 +21,8 @@ cd studio && npm install && npm run dev       # the dashboard, on :3000
 ```
 
 Then point it at `0x1` on testnet and follow one event — you'll have live rows in a
-couple of seconds. **[The guide](docs/guide.md)** walks the whole path.
+couple of seconds. **[Your first backend](docs/first-backend.md)** walks the whole path,
+and **[Running Nineveh yourself](SELF_HOSTED.md)** covers operating it.
 
 ## How it works
 
@@ -39,13 +40,20 @@ exactly the same state.
 
 ## Documentation
 
-- **[The guide](docs/guide.md)** — getting started, reading your data, changing a
-  project, limits and retention, operating it, and a walkthrough to test against.
+Published at [nineveh.dev/docs](https://nineveh.dev/docs), and written in this repo:
+
+- [`docs/guide.md`](docs/guide.md) — **start here**: what it is and the one idea.
+- [`docs/first-backend.md`](docs/first-backend.md) — a working project, end to end.
+- [`docs/reducers.md`](docs/reducers.md) — the language your tables are written in.
+- [`docs/reading.md`](docs/reading.md) — REST, the change feed, webhooks.
+- [`docs/running.md`](docs/running.md) — changes, limits, and what to check.
 - [`docs/config.md`](docs/config.md) — every key in `nineveh.yaml`.
-- [`docs/expressions.md`](docs/expressions.md) — the reducer expression language.
-- [`docs/adr/`](docs/adr/) — architecture decisions and why they were made.
-- [`docs/research/`](docs/research/) — what the Transaction Stream actually costs and
-  how fast it goes.
+- [`docs/expressions.md`](docs/expressions.md) — the expression language.
+
+For running it yourself: [`SELF_HOSTED.md`](SELF_HOSTED.md).
+For changing it: [`CLAUDE.md`](CLAUDE.md), [`docs/adr/`](docs/adr/) for why each
+decision was made, and [`docs/research/`](docs/research/) for what the Transaction
+Stream actually costs.
 
 ## Development
 
