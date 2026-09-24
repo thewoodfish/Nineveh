@@ -1808,6 +1808,7 @@ dependencies = [
  "nineveh-control",
  "nineveh-core",
  "nineveh-decode",
+ "nineveh-dsl",
  "nineveh-realtime",
  "nineveh-store",
  "nineveh-testkit",
@@ -1895,6 +1896,8 @@ version = "0.0.0"
 dependencies = [
  "nineveh-config",
  "nineveh-core",
+ "nineveh-decode",
+ "nineveh-testkit",
 ]
 
 [[package]]

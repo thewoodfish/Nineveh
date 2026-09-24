@@ -131,12 +131,27 @@ impl Validator {
             }
         }
 
-        let state = self.tables(&raw.state, &all_infos);
+        // A `reducers:` file contributes the reduce tables, so `state:` may be absent
+        // or hold only the mirrors and logs.
+        let reducers = raw.reducers.as_ref().map(|r| r.value.clone());
+        let state = if let Some(state) = &raw.state {
+            self.tables(state, &all_infos, reducers.is_some())
+        } else {
+            if reducers.is_none() {
+                self.push(
+                    Diagnostic::new("a project needs `state`", None)
+                        .help("add a table, like `vaults: { mirror: vaults }`"),
+                );
+            }
+            Vec::new()
+        };
+        let empty = Entries::default();
+        let declared = raw.state.as_ref().map_or(&empty, |s| &s.value);
         let webhooks = raw
             .webhooks
             .0
             .iter()
-            .filter_map(|(name, hook)| self.webhook(name, hook, &raw.state.value))
+            .filter_map(|(name, hook)| self.webhook(name, hook, declared))
             .collect();
         let api = raw.api.map_or_else(Api::default, |a| Api {
             rest: a.rest.unwrap_or(true),
@@ -150,6 +165,7 @@ impl Validator {
             start_version,
             sources,
             state,
+            reducers,
             api,
             webhooks,
         }
@@ -253,8 +269,9 @@ impl Validator {
         &mut self,
         raw: &Spanned<Entries<Spanned<RawTable>>>,
         sources: &[SourceInfo<'_>],
+        has_reducers: bool,
     ) -> Vec<StateTable> {
-        if raw.value.0.is_empty() {
+        if raw.value.0.is_empty() && !has_reducers {
             self.push(
                 Diagnostic::new("a project needs at least one state table", span_of(raw))
                     .help("add one, like `vaults: { mirror: vaults }`"),

@@ -383,3 +383,124 @@ fn up_without_sign_in_stays_on_loopback() {
         text(&half.stderr)
     );
 }
+
+/// A project whose reduce tables and handlers live in a `.nineveh.ts` file (ADR 0025).
+const DSL_YAML: &str = "\
+name: vault
+network: testnet
+reducers: ./vault.nineveh.ts
+sources:
+  deposits:    { event: 0xcafe::vault::DepositEvent }
+  withdrawals: { event: 0xcafe::vault::WithdrawEvent }
+state:
+  deposit_log: { log: deposits }
+";
+
+const DSL: &str = r"
+export const balances = table({
+  key:     { user: address },
+  columns: { balance: u128.default(0), deposits: u64.default(0) },
+})
+
+on(deposits, (d) => {
+  const b = balances.row(d.user)
+  b.balance  += u128(d.amount)
+  b.deposits += 1
+})
+
+on(withdrawals, (w) => {
+  if (w.amount == 0) return
+  balances.row(w.user).balance -= u128(w.amount)
+})
+";
+
+/// Write a DSL project: the YAML, the handlers, and a lock for the vault's modules.
+fn dsl_project(dir: &Path, dsl: &str) {
+    vault_project(dir, DSL_YAML, Some(1_000));
+    fs::write(dir.join("vault.nineveh.ts"), dsl).unwrap();
+}
+
+#[test]
+fn validate_accepts_a_project_written_in_the_dsl() {
+    let dir = project_dir("dsl-valid");
+    dsl_project(&dir, DSL);
+    let out = nineveh(&dir, &["validate"]);
+    assert!(out.status.success(), "{}", text(&out.stderr));
+    let stdout = text(&out.stdout);
+    // The log from the YAML, and `balances` from the DSL file.
+    assert!(stdout.contains("2 source(s), 2 state table(s)"), "{stdout}");
+}
+
+/// A problem in the handlers is reported against the handlers, at its line — not
+/// against `nineveh.yaml`, which is where the spans would land without file identity.
+#[test]
+fn a_problem_in_the_handlers_points_at_the_handlers() {
+    let dir = project_dir("dsl-bad-column");
+    dsl_project(&dir, &DSL.replace("b.deposits += 1", "b.depsits += 1"));
+    let out = nineveh(&dir, &["validate"]);
+    assert!(!out.status.success());
+    let stderr = text(&out.stderr);
+    assert!(
+        stderr.contains("`balances` has no column `depsits`"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("--> vault.nineveh.ts:10:5"), "{stderr}");
+    assert!(stderr.contains("did you mean `deposits`?"), "{stderr}");
+}
+
+/// A type error surfaces at resolution, after the lock is read, and still lands in the
+/// DSL file rather than in the YAML.
+#[test]
+fn a_type_error_in_the_handlers_points_at_the_handlers() {
+    let dir = project_dir("dsl-type-error");
+    // `amount` is a u64; the column is u128, and nothing converts implicitly.
+    dsl_project(
+        &dir,
+        &DSL.replace("b.balance  += u128(d.amount)", "b.balance += d.amount"),
+    );
+    let out = nineveh(&dir, &["validate"]);
+    assert!(!out.status.success());
+    let stderr = text(&out.stderr);
+    assert!(stderr.contains("vault.nineveh.ts"), "{stderr}");
+    assert!(!stderr.contains("--> nineveh.yaml"), "{stderr}");
+}
+
+/// A table declared in both files is a mistake worth naming.
+#[test]
+fn a_table_cannot_be_declared_twice() {
+    let dir = project_dir("dsl-clash");
+    dsl_project(
+        &dir,
+        r"
+export const deposit_log = table({
+  key:     { user: address },
+  columns: { n: u64.default(0) },
+})
+
+on(deposits, (d) => {
+  deposit_log.row(d.user).n += 1
+})
+",
+    );
+    let out = nineveh(&dir, &["validate"]);
+    assert!(!out.status.success());
+    let stderr = text(&out.stderr);
+    assert!(
+        stderr.contains("`deposit_log` is already a table in nineveh.yaml"),
+        "{stderr}"
+    );
+}
+
+/// A missing `reducers:` file says which config asked for it.
+#[test]
+fn a_missing_reducers_file_says_who_wanted_it() {
+    let dir = project_dir("dsl-missing");
+    vault_project(&dir, DSL_YAML, Some(1_000));
+    let out = nineveh(&dir, &["validate"]);
+    assert!(!out.status.success());
+    let stderr = text(&out.stderr);
+    assert!(
+        stderr.contains("which nineveh.yaml names as its `reducers`"),
+        "{stderr}"
+    );
+}

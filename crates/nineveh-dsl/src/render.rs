@@ -33,8 +33,9 @@ pub(crate) struct Ctx<'a> {
     pub(crate) source: &'a str,
     /// `const` bindings in scope, innermost last.
     pub(crate) scope: &'a [(String, Binding)],
-    /// Tables a rule may read by key.
-    pub(crate) readable: &'a HashMap<String, usize>,
+    /// Tables a rule may read by key, with the number of key columns where it's known
+    /// before the config is resolved.
+    pub(crate) readable: &'a HashMap<String, Option<usize>>,
     /// Tables that exist but can't be read: a rule can't read a `log` (ADR 0019).
     pub(crate) logs: &'a [String],
     /// The row binding the rule being built writes, if it was named by a `const`.
@@ -214,7 +215,7 @@ fn lookup(base: &Expr, field: &Name, ctx: &Ctx<'_>) -> Result<String, Diagnostic
         )
         .help("it follows a table lookup, like `markets.get(id)?.fee_bps`"));
     };
-    let Some(arity) = ctx.readable.get(&table.text) else {
+    let Some(&arity) = ctx.readable.get(&table.text) else {
         if ctx.logs.contains(&table.text) {
             return Err(Diagnostic::new(
                 format!("`{}` is a log, so a rule can't read it", table.text),
@@ -224,12 +225,14 @@ fn lookup(base: &Expr, field: &Name, ctx: &Ctx<'_>) -> Result<String, Diagnostic
         }
         return Err(unknown(&table.text, table.span, ctx));
     };
-    if keys.len() != *arity {
+    if let Some(arity) = arity
+        && keys.len() != arity
+    {
         return Err(Diagnostic::new(
             format!(
                 "`{}` is keyed by {arity} column{}, but {} {} given",
                 table.text,
-                if *arity == 1 { "" } else { "s" },
+                if arity == 1 { "" } else { "s" },
                 keys.len(),
                 if keys.len() == 1 { "was" } else { "were" }
             ),

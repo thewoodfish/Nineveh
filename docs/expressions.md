@@ -1,6 +1,7 @@
 # Expressions
 
-Reduce rules compute values with small expressions:
+Reduce rules compute values with small expressions. This page is the YAML spelling; the
+[`.nineveh.ts`](dsl.md) spelling is the same language with JavaScript's punctuation.
 
 ```yaml
 reduce:

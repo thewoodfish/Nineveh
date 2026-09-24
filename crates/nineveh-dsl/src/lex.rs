@@ -129,7 +129,7 @@ pub(crate) fn lex(source: &str) -> Result<Lexed, LexError> {
         let ch = source[i..].chars().next().unwrap_or('?');
         return Err(LexError {
             message: format!("`{ch}` doesn't mean anything here"),
-            span: Span::new(start, ch.len_utf8()),
+            span: crate::span(start, ch.len_utf8()),
         });
     }
     push(
@@ -181,7 +181,7 @@ fn scan_string(bytes: &[u8], from: usize) -> Result<usize, LexError> {
 fn push(tokens: &mut Vec<Token>, tok: Tok, start: usize, end: usize, newline: &mut bool) {
     tokens.push(Token {
         tok,
-        span: Span::new(start, end - start),
+        span: crate::span(start, end - start),
         newline_before: *newline,
     });
     *newline = false;

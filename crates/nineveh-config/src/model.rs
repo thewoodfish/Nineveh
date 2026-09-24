@@ -19,7 +19,12 @@ pub struct Config {
     pub network_span: Option<Span>,
     pub start_version: StartVersion,
     pub sources: Vec<Source>,
+    /// Every state table: those `nineveh.yaml` declares, then those a `reducers:` file
+    /// contributes once it's compiled (ADR 0025).
     pub state: Vec<StateTable>,
+    /// The DSL file this config's reduce tables come from, relative to the config.
+    /// `None` when the project is written entirely in YAML.
+    pub reducers: Option<String>,
     pub api: Api,
     pub webhooks: Vec<Webhook>,
 }

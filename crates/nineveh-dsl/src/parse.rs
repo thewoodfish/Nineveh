@@ -475,7 +475,7 @@ impl Parser {
             RowRef::Inline {
                 table: head,
                 keys,
-                span: Span::new(start.offset, end.offset + end.len - start.offset),
+                span: crate::span(start.offset, end.offset + end.len - start.offset),
             }
         } else {
             RowRef::Bound(head)
@@ -486,7 +486,7 @@ impl Parser {
             self.bump();
             let end = self.expect(")")?;
             return Ok(Stmt::Delete {
-                span: Span::new(start.offset, end.offset + end.len - start.offset),
+                span: crate::span(start.offset, end.offset + end.len - start.offset),
                 row,
             });
         }
@@ -743,7 +743,7 @@ impl Parser {
 fn join(a: Span, b: Span) -> Span {
     let start = a.offset.min(b.offset);
     let end = (a.offset + a.len).max(b.offset + b.len);
-    Span::new(start, end - start)
+    crate::span(start, end - start)
 }
 
 fn column_type(name: &str) -> Option<ColumnType> {

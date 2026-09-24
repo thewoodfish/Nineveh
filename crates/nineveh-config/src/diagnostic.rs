@@ -6,17 +6,33 @@
 
 use std::fmt::{self, Write as _};
 
-/// A region of the config source, in bytes.
+/// A region of a config source, in bytes.
+///
+/// A project can be written across two files — `nineveh.yaml` and the `reducers:` file
+/// it names (ADR 0025) — so a span says which one it's in. File 0 is the YAML; a
+/// frontend that reads another file numbers it from 1 and passes the sources to
+/// [`Diagnostics::render_files`] in the same order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Span {
     pub offset: usize,
     pub len: usize,
+    pub file: u16,
 }
 
 impl Span {
     #[must_use]
     pub const fn new(offset: usize, len: usize) -> Self {
-        Self { offset, len }
+        Self {
+            offset,
+            len,
+            file: 0,
+        }
+    }
+
+    /// The same region, in another of the project's files.
+    #[must_use]
+    pub const fn in_file(self, file: u16) -> Self {
+        Self { file, ..self }
     }
 
     pub(crate) fn from_location(location: &serde_saphyr::Location) -> Option<Self> {
@@ -26,7 +42,7 @@ impl Span {
             .byte_len()
             .and_then(|l| usize::try_from(l).ok())
             .unwrap_or(0);
-        Some(Self { offset, len })
+        Some(Self::new(offset, len))
     }
 }
 
@@ -112,12 +128,25 @@ impl Diagnostics {
     /// ```
     #[must_use]
     pub fn render(&self, file_name: &str, source: &str) -> String {
+        self.render_files(&[(file_name, source)])
+    }
+
+    /// Render every diagnostic against the file its span names, for a project written
+    /// across more than one: `nineveh.yaml` first, then each `reducers:` file.
+    #[must_use]
+    pub fn render_files(&self, files: &[(&str, &str)]) -> String {
         let mut out = String::new();
         for (i, d) in self.0.iter().enumerate() {
             if i > 0 {
                 out.push('\n');
             }
-            render_one(&mut out, d, file_name, source);
+            let (name, source) = d
+                .span
+                .and_then(|s| files.get(usize::from(s.file)))
+                .or_else(|| files.first())
+                .copied()
+                .unwrap_or(("nineveh.yaml", ""));
+            render_one(&mut out, d, name, source);
         }
         out
     }

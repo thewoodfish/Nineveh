@@ -30,13 +30,31 @@ pub(crate) async fn init(paths: &Paths, api_key: Option<&SecretString>) -> Resul
     }
 
     // Report config problems now, with the lock in hand, rather than at `run`.
-    if let Err(diagnostics) = source.config.resolve(&lock) {
-        report(&diagnostics.render(&source.name, &source.text));
-        bail!(
-            "{} has {} problem(s); the lock was written",
-            source.name,
-            diagnostics.as_slice().len()
-        );
+    let files = source.files();
+    let has_reducers = source.config.reducers.is_some();
+    let project = match source.config.clone().resolve(&lock) {
+        Ok(project) => project,
+        Err(diagnostics) => {
+            report(&diagnostics.render_files(&files));
+            bail!(
+                "{} has {} problem(s); the lock was written",
+                source.name,
+                diagnostics.as_slice().len()
+            );
+        }
+    };
+
+    // The declarations the editor reads, regenerated from what was just pinned. Only
+    // for a project that has a DSL file to open (ADR 0025).
+    if has_reducers {
+        let path = paths.config.with_file_name("nineveh.d.ts");
+        let text = nineveh_dsl::declarations_for(&project, &lock);
+        if fs::read_to_string(&path).is_ok_and(|old| old == text) {
+            info!(declarations = %path.display(), "up to date");
+        } else {
+            write_atomically(&path, &text)?;
+            info!(declarations = %path.display(), "wrote");
+        }
     }
     Ok(())
 }
@@ -44,7 +62,9 @@ pub(crate) async fn init(paths: &Paths, api_key: Option<&SecretString>) -> Resul
 /// Write `text` to `path` through a temporary file, so a crash never leaves half a
 /// lock.
 fn write_atomically(path: &Path, text: &str) -> Result<()> {
-    let temporary = path.with_extension("lock.tmp");
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(".tmp");
+    let temporary = path.with_file_name(name);
     fs::write(&temporary, text).with_context(|| format!("writing {}", temporary.display()))?;
     fs::rename(&temporary, path).with_context(|| format!("writing {}", path.display()))?;
     Ok(())

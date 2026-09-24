@@ -253,7 +253,7 @@ fn typos_in_keys_are_located() {
     assert_eq!(
         render(&yaml),
         "error: unknown field `stat`, expected one of name, network, start_version, sources, \
-         state, api, webhooks\n \
+         state, reducers, api, webhooks\n \
          --> nineveh.yaml:5:1\n  \
          |\n\
          5 | stat:\n  \

@@ -13,7 +13,8 @@
 
 use std::fmt::Write as _;
 
-use nineveh_config::ColumnType;
+use nineveh_config::{ColumnType, Project, TableKind, record_scope};
+use nineveh_decode::Lockfile;
 
 /// One source, as the DSL sees it.
 #[derive(Debug, Clone)]
@@ -30,8 +31,12 @@ pub struct TableDecl {
     pub name: String,
     pub key: Vec<(String, ColumnType)>,
     pub columns: Vec<(String, ColumnType)>,
-    /// A `log` can't be read by a rule, so it gets no `get`.
+    /// Whether a rule may read a row of it. A `log` can't be (ADR 0019), so it gets
+    /// no `get`.
     pub readable: bool,
+    /// Whether a handler in this file may write it: true for the tables the file
+    /// declares. A `mirror` is written by its source, and a `log` by its events.
+    pub writable: bool,
 }
 
 /// Write the ambient declarations for a project.
@@ -103,7 +108,7 @@ pub fn declarations(sources: &[SourceDecl], tables: &[TableDecl]) -> String {
         } else {
             String::new()
         };
-        let row = if table.readable {
+        let row = if table.writable {
             format!(
                 "    /** The row this rule writes. */\n    row({keys}): Writable<{}>\n",
                 row_name(&table.name)
@@ -194,4 +199,72 @@ fn ts_move(ty: &str) -> &'static str {
         t if t.starts_with('u') && t[1..].chars().all(|c| c.is_ascii_digit()) => "Int",
         _ => "unknown",
     }
+}
+
+/// The declarations for a resolved project: every source with the fields its records
+/// carry, and every table with the columns it stores.
+///
+/// Resolution is what knows these — a record's fields come from the layouts pinned in
+/// `nineveh.lock`, and a `mirror`'s columns come from its source's struct — so this
+/// takes a [`Project`] rather than the config it was built from.
+#[must_use]
+pub fn declarations_for(project: &Project, lock: &Lockfile) -> String {
+    let config = project.config();
+    let sources = config
+        .sources
+        .iter()
+        .enumerate()
+        .map(|(i, source)| {
+            let fields = project
+                .input(nineveh_decode::SourceId(
+                    u32::try_from(i).unwrap_or(u32::MAX),
+                ))
+                .map(|input| record_scope(lock, input, false))
+                .map(|scope| {
+                    scope
+                        .fields
+                        .into_iter()
+                        .map(|(name, ty)| (name.to_string(), ty.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default();
+            SourceDecl {
+                name: source.name.as_str().to_owned(),
+                fields,
+                has_deletes: source.kind.has_deletes(),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let tables = config
+        .state
+        .iter()
+        .zip(project.schemas())
+        .map(|(table, schema)| {
+            let (key, columns) = schema.columns.iter().enumerate().fold(
+                (Vec::new(), Vec::new()),
+                |(mut key, mut columns), (i, column)| {
+                    let entry = (column.name.clone(), column.ty);
+                    if schema.key.contains(&i) {
+                        key.push(entry);
+                    } else {
+                        columns.push(entry);
+                    }
+                    (key, columns)
+                },
+            );
+            TableDecl {
+                name: table.name.as_str().to_owned(),
+                key,
+                columns,
+                // A rule can read state, but not a log (ADR 0019).
+                readable: !matches!(table.kind, TableKind::Log { .. }),
+                // A `reduce` table is the only kind a handler writes. One whose rules
+                // live in the YAML is offered too; the compiler still refuses it.
+                writable: matches!(table.kind, TableKind::Reduce { .. }),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    declarations(&sources, &tables)
 }

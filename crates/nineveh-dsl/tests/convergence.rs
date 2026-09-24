@@ -317,7 +317,7 @@ on(deposits, (d) => {
     let mut ctx = context();
     ctx.tables.push(TableInfo {
         name: "markets".into(),
-        key_arity: 1,
+        key_arity: Some(1),
         is_log: false,
     });
     let compiled = match compile(dsl, &ctx) {

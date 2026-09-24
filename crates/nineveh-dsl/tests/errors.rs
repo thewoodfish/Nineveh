@@ -33,12 +33,12 @@ fn ctx() -> Context {
         tables: vec![
             TableInfo {
                 name: "markets".into(),
-                key_arity: 1,
+                key_arity: Some(1),
                 is_log: false,
             },
             TableInfo {
                 name: "deposit_log".into(),
-                key_arity: 2,
+                key_arity: Some(2),
                 is_log: true,
             },
         ],

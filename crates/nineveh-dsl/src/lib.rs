@@ -38,13 +38,24 @@
 mod ast;
 mod dts;
 mod lex;
+mod merge;
 mod parse;
 mod render;
 mod scatter;
 
-use nineveh_config::{Diagnostics, StateTable};
+use nineveh_config::{Diagnostics, Span, StateTable};
 
-pub use dts::{SourceDecl, TableDecl, declarations};
+/// Which of a project's files the DSL is: `nineveh.yaml` is 0, so spans from here are
+/// file 1, and [`Diagnostics::render_files`] is given the two sources in that order.
+pub const FILE: u16 = 1;
+
+/// A span in the DSL file.
+pub(crate) fn span(offset: usize, len: usize) -> Span {
+    Span::new(offset, len).in_file(FILE)
+}
+
+pub use dts::{SourceDecl, TableDecl, declarations, declarations_for};
+pub use merge::merge;
 pub use scatter::{Context, SourceInfo, TableInfo};
 
 /// Compile a `.nineveh.ts` file into the state tables it declares, each carrying the

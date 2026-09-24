@@ -39,8 +39,11 @@ pub struct SourceInfo {
 #[derive(Debug, Clone)]
 pub struct TableInfo {
     pub name: String,
-    /// How many columns identify a row, for checking `get(…)` arity.
-    pub key_arity: usize,
+    /// How many columns identify a row, for checking `get(…)` arity. `None` for a
+    /// table whose key isn't known until the config is resolved against the lock — a
+    /// `mirror`, whose key columns come from its source's layout. Resolution checks
+    /// those, so the only cost is a later error.
+    pub key_arity: Option<usize>,
     /// A `log` table, which a rule may not read.
     pub is_log: bool,
 }
@@ -72,9 +75,9 @@ pub(crate) fn scatter(program: &Program, ctx: &Context) -> Result<Vec<StateTable
     // What a rule may read by key: every reduce table this file declares, plus the
     // `mirror` tables from the YAML. Logs are excluded, and named separately so the
     // error can say why (ADR 0019).
-    let mut readable: HashMap<String, usize> = declared
+    let mut readable: HashMap<String, Option<usize>> = declared
         .iter()
-        .map(|d| (d.name.name.clone(), d.key.len()))
+        .map(|d| (d.name.name.clone(), Some(d.key.len())))
         .collect();
     for t in &ctx.tables {
         if !t.is_log {
@@ -229,7 +232,7 @@ struct Walker<'a> {
     deleted: bool,
     param: &'a str,
     declared: &'a [Declared],
-    readable: &'a HashMap<String, usize>,
+    readable: &'a HashMap<String, Option<usize>>,
     logs: &'a [String],
     scope: Vec<(String, Binding)>,
     groups: &'a mut Vec<Group>,

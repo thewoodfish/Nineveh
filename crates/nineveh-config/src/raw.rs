@@ -18,7 +18,12 @@ pub(crate) struct RawConfig {
     #[serde(default)]
     pub(crate) start_version: Option<Spanned<RawStart>>,
     pub(crate) sources: Spanned<Entries<Spanned<RawSource>>>,
-    pub(crate) state: Spanned<Entries<Spanned<RawTable>>>,
+    #[serde(default)]
+    pub(crate) state: Option<Spanned<Entries<Spanned<RawTable>>>>,
+    /// `reducers: ./vault.nineveh.ts`: the DSL file holding the reduce tables and the
+    /// handlers that write them (ADR 0025).
+    #[serde(default)]
+    pub(crate) reducers: Option<Spanned<String>>,
     #[serde(default)]
     pub(crate) api: Option<RawApi>,
     #[serde(default)]

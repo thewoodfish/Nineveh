@@ -236,10 +236,13 @@ fn yaml_span(expr: &Expr, inner: nineveh_expr::Span) -> Option<Span> {
     } else {
         return Some(outer);
     };
-    Some(Span::new(
-        start + inner.start.min(text_len),
-        inner.end.saturating_sub(inner.start).max(1),
-    ))
+    Some(
+        Span::new(
+            start + inner.start.min(text_len),
+            inner.end.saturating_sub(inner.start).max(1),
+        )
+        .in_file(outer.file),
+    )
 }
 
 /// The fields of a record, as seen by a rule's expressions.

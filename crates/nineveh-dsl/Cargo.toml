@@ -12,7 +12,11 @@ publish.workspace = true
 
 [dependencies]
 nineveh-config.workspace = true
+nineveh-decode.workspace = true
 nineveh-core.workspace = true
+
+[dev-dependencies]
+nineveh-testkit.workspace = true
 
 [lints]
 workspace = true

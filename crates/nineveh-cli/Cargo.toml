@@ -23,6 +23,7 @@ nineveh-config.workspace = true
 nineveh-control.workspace = true
 nineveh-core.workspace = true
 nineveh-decode.workspace = true
+nineveh-dsl.workspace = true
 nineveh-realtime.workspace = true
 nineveh-store.workspace = true
 secrecy.workspace = true

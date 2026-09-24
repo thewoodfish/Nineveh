@@ -44,7 +44,8 @@ webhooks:
 | `network` | yes | `mainnet`, `testnet` or `devnet`. |
 | `start_version` | no | `auto` (default) or a transaction version. `nineveh init` resolves `auto` to the first transaction that touched any of the sources' contract addresses, which is at or before their modules were published, and pins it in `nineveh.lock`. So nothing relevant is missed, and every build starts at the same place. |
 | `sources` | yes | At least one source. |
-| `state` | yes | At least one state table. |
+| `state` | yes* | At least one state table. Optional when `reducers` declares them. |
+| `reducers` | no | A [`.nineveh.ts` file](dsl.md) holding the reduce tables and the handlers that write them, named relative to this file. |
 | `api` | no | `rest` and `graphql`, both `true` by default. |
 | `webhooks` | no | Where state changes are delivered. |
 
@@ -127,6 +128,11 @@ field of the event. An enum event gets its columns as described for
 [`mirror`](#mirror-the-latest-value).
 
 ### `reduce`: your own fold
+
+A reduce table can be written here, or in the [`reducers:` file](dsl.md) — event-first,
+with the handler for one event in one place. The two build the same thing; this section
+describes the YAML form.
+
 
 ```yaml
 balances:
