@@ -41,23 +41,30 @@ create.
 with filtering, sorting and paging, plus a live change feed. Point your frontend at it,
 or have Nineveh post changes to your backend as signed webhooks.
 
-**4. Then add your own tables** — the part that matters. A few lines of config, or a
-form in Studio:
+**4. Then add your own tables** — the part that matters. A handler, or a form in
+Studio that writes one for you:
 
-```yaml
-sellers:
-  key: [seller]
-  columns:
-    seller:  address
-    revenue: { type: u64, default: 0 }
-  reduce:
-    - on: sold
-      set: { revenue: "revenue + price - fee" }
+```ts
+export const sellers = table({
+  key:     { seller: address },
+  columns: { sold: u64.default(0), revenue: u64.default(0) },
+})
+
+on(sold, (s) => {
+  const row = sellers.row(s.seller)
+  row.sold    += 1
+  row.revenue += s.price - s.fee
+})
 ```
 
-Read it as a sentence: *on each `sold` event, find that seller's row, and set revenue
-to revenue plus price minus fee.* That's per-seller revenue the contract never stored,
-and never had to.
+Read it as a sentence: *when a `sold` event arrives, find that seller's row, count the
+sale and add what they made.* That's per-seller revenue the contract never stored, and
+never had to.
+
+The language is six statements and reads like TypeScript, which is the point: the
+people who need this write TypeScript. Nothing is executed — it compiles to a
+deterministic fold, so changing a rule replays your stored records in seconds rather
+than re-reading the chain.
 
 ## How it works
 

@@ -5,23 +5,19 @@ import { Builds } from "@/components/builds";
 import { Nav } from "@/components/nav";
 import { Stream } from "@/components/stream";
 
-const CONFIG = [
-  "# nineveh.yaml — the whole backend",
-  "sources:",
-  '  sold: { event: "0x…::market::Sold" }',
+// The whole backend, and it is the example from the docs — compiled in CI by
+// nineveh-dsl's tests/landing.rs, so the front page cannot drift from the language.
+const REDUCER = [
+  "export const sellers = table({",
+  "  key:     { seller: address },",
+  "  columns: { sold: u64.default(0), revenue: u64.default(0) },",
+  "})",
   "",
-  "state:",
-  "  sellers:",
-  "    key: [seller]",
-  "    columns:",
-  "      seller:  address",
-  "      sold:    { type: u64, default: 0 }",
-  "      revenue: { type: u64, default: 0 }",
-  "    reduce:",
-  "      - on: sold",
-  "        set:",
-  '          sold:    "sold + 1"',
-  '          revenue: "revenue + price - fee"',
+  "on(sold, (s) => {",
+  "  const row = sellers.row(s.seller)",
+  "  row.sold    += 1",
+  "  row.revenue += s.price - s.fee",
+  "})",
 ];
 
 const RESPONSE = [
@@ -113,10 +109,11 @@ function Hero() {
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/55">
           Point Nineveh at your contract&apos;s address. Get a database and an API that stay in sync
-          with the chain — sorted, filtered, aggregated, live. No indexer to write, nothing to run.
+          with the chain — sorted, filtered, aggregated, live. No indexer to write, no schema to
+          keep in step.
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <Button href="https://github.com/thewoodfish/Nineveh" size="lg">
+          <Button href="/docs" size="lg">
             Get started
           </Button>
           <Button href="#how" tone="quiet" size="lg">
@@ -187,16 +184,35 @@ function Machinery() {
       <div className="mx-auto max-w-6xl px-6 pt-44 pb-40 sm:pt-52 sm:pb-48">
         <Register at="how">
         <div className="mx-auto max-w-3xl text-center">
-          <Heading center>Describe the table. Get the API.</Heading>
+          <Heading center>Say what changes. Get the API.</Heading>
           <Lede center>
-            No processor to write, no migrations, no schema to keep in step. Change a rule and
-            Nineveh rebuilds the table from history in the background, then swaps it in — the old
-            data keeps serving the whole time.
+            A reducer is a handler: when this arrives, this row changes. No processor to write, no
+            migrations, no schema to keep in step. Change a rule and Nineveh rebuilds the table
+            from history in the background, then swaps it in — the old data keeps serving the
+            whole time.
           </Lede>
         </div>
 
         <div className="mt-16 grid items-start gap-6 lg:grid-cols-2">
-          <Code title="nineveh.yaml" lines={CONFIG} />
+          <div className="flex flex-col gap-5">
+            <Code title="market.nineveh.ts" lines={REDUCER} />
+            <p className="text-sm leading-relaxed text-white/50">
+              That is the whole language:{" "}
+              <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                on
+              </code>
+              , a row, an assignment,{" "}
+              <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                if
+              </code>{" "}
+              and{" "}
+              <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                return
+              </code>
+              . It reads like TypeScript and your editor treats it as such, but nothing is
+              executed — it compiles to a fold that replays the same way every time.
+            </p>
+          </div>
           <div className="flex flex-col gap-5">
             <Code title="your API, a second later" lines={RESPONSE} />
             <p className="text-sm leading-relaxed text-white/50">
