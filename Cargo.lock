@@ -1890,6 +1890,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nineveh-dsl"
+version = "0.0.0"
+dependencies = [
+ "nineveh-config",
+ "nineveh-core",
+]
+
+[[package]]
 name = "nineveh-engine"
 version = "0.0.0"
 dependencies = [

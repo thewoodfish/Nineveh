@@ -13,6 +13,7 @@ rules=(
   "nineveh-proto    tokio sqlx tonic"
   "nineveh-config   tokio sqlx tonic"
   "nineveh-expr     tokio sqlx tonic"
+  "nineveh-dsl      tokio sqlx tonic"
   "nineveh-decode   tokio sqlx"
   "nineveh-engine   tokio sqlx tonic"
   "nineveh-ingest   sqlx"

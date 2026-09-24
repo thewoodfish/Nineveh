@@ -41,7 +41,8 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
-    pub(crate) fn new(message: impl Into<String>, span: Option<Span>) -> Self {
+    #[must_use]
+    pub fn new(message: impl Into<String>, span: Option<Span>) -> Self {
         Self {
             message: message.into(),
             span,
@@ -50,14 +51,14 @@ impl Diagnostic {
     }
 
     #[must_use]
-    pub(crate) fn help(mut self, help: impl Into<String>) -> Self {
+    pub fn help(mut self, help: impl Into<String>) -> Self {
         self.help = Some(help.into());
         self
     }
 
     /// Add `help` unless a suggestion was already made.
     #[must_use]
-    pub(crate) fn help_if_none(self, help: impl Into<String>) -> Self {
+    pub fn help_if_none(self, help: impl Into<String>) -> Self {
         if self.help.is_some() {
             self
         } else {
@@ -67,7 +68,7 @@ impl Diagnostic {
 
     /// Suggest the closest of `candidates` to `name`, if one is close enough.
     #[must_use]
-    pub(crate) fn did_you_mean<'a>(
+    pub fn did_you_mean<'a>(
         self,
         name: &str,
         candidates: impl IntoIterator<Item = &'a str>,
@@ -84,11 +85,13 @@ impl Diagnostic {
 pub struct Diagnostics(Vec<Diagnostic>);
 
 impl Diagnostics {
-    pub(crate) fn from_vec(diagnostics: Vec<Diagnostic>) -> Option<Self> {
+    #[must_use]
+    pub fn from_vec(diagnostics: Vec<Diagnostic>) -> Option<Self> {
         (!diagnostics.is_empty()).then_some(Self(diagnostics))
     }
 
-    pub(crate) fn single(diagnostic: Diagnostic) -> Self {
+    #[must_use]
+    pub fn single(diagnostic: Diagnostic) -> Self {
         Self(vec![diagnostic])
     }
 
