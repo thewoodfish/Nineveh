@@ -571,7 +571,7 @@ fn assemble(
     errors: &mut Vec<Diagnostic>,
 ) -> Vec<StateTable> {
     let mut by_table: HashMap<String, Vec<Rule>> = HashMap::new();
-    for group in groups {
+    for (seq, group) in groups.into_iter().enumerate() {
         if let (Some(delete), false) = (group.delete, group.sets.is_empty()) {
             errors.push(
                 Diagnostic::new(
@@ -596,6 +596,9 @@ fn assemble(
             )
         };
         by_table.entry(group.table).or_default().push(Rule {
+            // Groups are created the first time a statement writes their row, so their
+            // order is the order the handler's statements run.
+            seq: u32::try_from(seq).unwrap_or(u32::MAX),
             on: Trigger {
                 source: group.source,
                 deleted: group.deleted,

@@ -76,6 +76,8 @@ fn span_of<T>(spanned: &Spanned<T>) -> Option<Span> {
 #[derive(Default)]
 struct Validator {
     diagnostics: Vec<Diagnostic>,
+    /// The next rule's sequence number, counted across every table.
+    next_seq: u32,
 }
 
 /// The facts about sources that table and rule checks need.
@@ -410,10 +412,16 @@ impl Validator {
                 ),
             );
         }
+        // Rules are numbered as they're read, table by table: the order the fold
+        // already applied them in, so nothing about an existing project changes.
         let rules = reduce
             .value
             .iter()
-            .filter_map(|rule| self.rule(rule, &key, &columns, sources))
+            .filter_map(|rule| {
+                let seq = self.next_seq;
+                self.next_seq += 1;
+                self.rule(seq, rule, &key, &columns, sources)
+            })
             .collect();
         Some(TableKind::Reduce {
             key,
@@ -584,6 +592,7 @@ impl Validator {
 
     fn rule(
         &mut self,
+        seq: u32,
         raw: &Spanned<RawRule>,
         key: &[Named],
         columns: &[Column],
@@ -676,6 +685,7 @@ impl Validator {
 
         let when = raw.when.as_ref().and_then(|w| self.expr(w));
         Some(Rule {
+            seq,
             on,
             when,
             key: key_exprs,

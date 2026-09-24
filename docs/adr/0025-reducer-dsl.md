@@ -220,6 +220,11 @@ Nineveh now maintains a second frontend. Every change to `Rule`, `Column` or the
 expression language has to be spelled in both, and the convergence test is what keeps
 them honest.
 
+A rule's sequence number is part of `Config::canonical()`, because it decides what a
+build produces. Existing YAML projects keep the order they had, but their canonical
+text — and so their fingerprint — changes, which means one shadow rebuild and swap the
+first time they load after this lands (ADR 0016).
+
 Diagnostics inside an expression are coarser at first. `model::Expr` carries source
 text and a span, so a translated expression reports against the whole expression's span
 in the `.ts` file rather than the exact sub-token. Good enough to ship; worth a span map

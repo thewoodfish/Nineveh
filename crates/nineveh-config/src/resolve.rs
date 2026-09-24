@@ -187,6 +187,9 @@ pub enum ResolvedTable {
 /// and the record as one value per field, in `scope.fields` order.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedRule {
+    /// The rule's place in the order rules apply to one record; see
+    /// [`Rule::seq`](crate::Rule::seq).
+    pub seq: u32,
     pub source: SourceId,
     pub deleted: bool,
     /// The names a rule's expressions can read from the record, with their types.
@@ -570,6 +573,7 @@ impl Config {
         };
 
         ResolvedRule {
+            seq: rule.seq,
             source,
             deleted: rule.on.deleted,
             scope,

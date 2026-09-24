@@ -877,3 +877,47 @@ fn the_old_realtime_key_says_what_it_became() {
         "{rendered}"
     );
 }
+
+/// Rules are numbered table by table, in the order they're written: the order the fold
+/// already applied them in, so numbering changes nothing about an existing project.
+/// The DSL numbers by statement order instead (ADR 0025), which is why the engine
+/// sorts by `seq` rather than trusting the order it collects rules in.
+#[test]
+fn yaml_numbers_rules_table_by_table() {
+    let yaml = "\
+name: vault
+network: testnet
+sources:
+  deposits:    { event: 0xabc::vault::DepositEvent }
+  withdrawals: { event: 0xabc::vault::WithdrawEvent }
+state:
+  first:
+    key: [user]
+    columns: { user: address, n: { type: u64, default: 0 } }
+    reduce:
+      - { on: deposits,    set: { n: \"n + 1\" } }
+      - { on: withdrawals, set: { n: \"n + 2\" } }
+  second:
+    key: [user]
+    columns: { user: address, n: { type: u64, default: 0 } }
+    reduce:
+      - { on: deposits, set: { n: \"n + 3\" } }
+";
+    let config = parse(yaml).unwrap();
+    let numbered: Vec<(&str, u32)> = config
+        .state
+        .iter()
+        .flat_map(|t| match &t.kind {
+            TableKind::Reduce { rules, .. } => rules
+                .iter()
+                .map(|r| (t.name.as_str(), r.seq))
+                .collect::<Vec<_>>(),
+            _ => Vec::new(),
+        })
+        .collect();
+    assert_eq!(
+        numbered,
+        vec![("first", 0), ("first", 1), ("second", 2)],
+        "rules are numbered in the order they're read"
+    );
+}

@@ -64,7 +64,10 @@ fn deletes_are_declared_only_where_they_happen() {
         dts.contains("const vaults: Source<VaultsRecord> & { deleted: Source<VaultsRecord> }"),
         "{dts}"
     );
-    assert!(dts.contains("const deposits: Source<DepositsRecord>\n"), "{dts}");
+    assert!(
+        dts.contains("const deposits: Source<DepositsRecord>\n"),
+        "{dts}"
+    );
     assert!(!dts.contains("deposits: Source<DepositsRecord> &"), "{dts}");
 }
 
@@ -86,7 +89,10 @@ fn a_log_offers_neither_row_nor_get() {
 #[test]
 fn a_readable_table_offers_both_keyed_by_its_key() {
     let dts = vault();
-    assert!(dts.contains("row(user: Address): Writable<BalancesRow>"), "{dts}");
+    assert!(
+        dts.contains("row(user: Address): Writable<BalancesRow>"),
+        "{dts}"
+    );
     assert!(
         dts.contains("get(user: Address): BalancesRow | undefined"),
         "{dts}"

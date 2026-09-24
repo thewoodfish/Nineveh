@@ -28,9 +28,9 @@ pub struct Engine<'p> {
 
 #[derive(Debug, Default)]
 struct SourcePlan {
-    /// `(table, rule)` pairs fired by events and writes.
+    /// `(table, rule)` pairs fired by events and writes, in `seq` order.
     write_rules: Vec<(usize, usize)>,
-    /// `(table, rule)` pairs fired by deletes.
+    /// `(table, rule)` pairs fired by deletes, in `seq` order.
     delete_rules: Vec<(usize, usize)>,
     mirrors: Vec<usize>,
     logs: Vec<usize>,
@@ -70,6 +70,17 @@ impl<'p> Engine<'p> {
                     }
                 }
             }
+        }
+        // Rules apply in the order their frontend gave them, which for a handler is
+        // the order its statements run (ADR 0025). Collecting them table by table
+        // above says nothing about that order, so sort it back.
+        let seq = |&(t, r): &(usize, usize)| match &project.tables()[t] {
+            ResolvedTable::Reduce { rules } => rules[r].seq,
+            ResolvedTable::Mirror { .. } | ResolvedTable::Log { .. } => u32::MAX,
+        };
+        for plan in plans.values_mut() {
+            plan.write_rules.sort_by_key(seq);
+            plan.delete_rules.sort_by_key(seq);
         }
         let watchers = project.watchers().iter().map(|w| (w.id, w)).collect();
         Self {

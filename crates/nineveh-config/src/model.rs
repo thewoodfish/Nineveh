@@ -111,8 +111,8 @@ impl Config {
                     for rule in rules {
                         let _ = write!(
                             out,
-                            "  rule on {} deleted={}",
-                            rule.on.source, rule.on.deleted
+                            "  rule {} on {} deleted={}",
+                            rule.seq, rule.on.source, rule.on.deleted
                         );
                         if let Some(when) = &rule.when {
                             let _ = write!(out, " when {}", expr(when));
@@ -401,6 +401,15 @@ impl fmt::Display for ColumnType {
 /// One way records change a reduce table.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rule {
+    /// Where this rule falls in the order rules apply to one record, across every
+    /// table in the project. Lower goes first, and a lookup sees what earlier rules
+    /// wrote (ADR 0019), so this is what a rule reading a table another rule writes
+    /// depends on.
+    ///
+    /// The frontend assigns it: `nineveh.yaml` numbers its rules table by table, in
+    /// the order they're written, and the DSL numbers them in the order the handler's
+    /// statements run (ADR 0025). Sequence numbers are unique within a config.
+    pub seq: u32,
     pub on: Trigger,
     /// Apply only to records for which this is true.
     pub when: Option<Expr>,
