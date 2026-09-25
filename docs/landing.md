@@ -15,11 +15,14 @@ Alternatives, same idea:
 - Your contract's data, queryable. No indexer to write, nothing to run.
 - Firebase for Aptos contracts.
 
-**Don't lead with "backend".** It makes a reader think auth, business logic, servers and
-payments — and the docs then spend a paragraph taking all of that back. The words that
-are both accurate and wanted are *application data*, *application state* and *indexing*.
-Nineveh removes one specific painful layer; saying so plainly is stronger than implying
-it removes all of them.
+**On the word "backend".** Keep it — it is the category developers recognise and search
+for, and Firebase is not a whole backend either without anyone minding. But bound it:
+*a backend for your contract's data*, not *a backend*. Unqualified, it promises auth,
+business logic and payments, and the docs then spend a paragraph taking those back.
+
+So: the badge and the title carry the familiar word, and the hero says the specific
+thing — *turn your Aptos contract into application data*. Category first, promise
+second, and neither one lying.
 
 ## The problem
 

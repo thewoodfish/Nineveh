@@ -102,7 +102,7 @@ function Hero() {
           className="inline-flex items-center gap-2 rounded-full border border-blue-400/25 bg-blue-500/10 px-3.5 py-1.5 text-xs font-medium text-blue-200 backdrop-blur transition-colors hover:border-blue-400/50 hover:bg-blue-500/15"
         >
           <span className="size-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_2px_oklch(0.716_0.152_259_/_0.6)]" />
-          Built for Aptos, on the transaction stream
+          A backend for your Aptos contract&apos;s data
         </a>
         <h1 className="mt-7 font-display text-4xl leading-[1.04] font-semibold tracking-[-0.022em] text-balance text-white sm:text-5xl">
           Turn your Aptos contract into application data
@@ -301,7 +301,7 @@ function Closing() {
           />
           <div className="relative">
             <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-balance text-white sm:text-[2.7rem] sm:leading-[1.08]">
-              You deployed the contract. The data layer is the easy part now.
+              You deployed the contract. The backend is the easy part now.
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-pretty text-blue-50/90">
               Backfills, cursors, retries, crash recovery — Nineveh&apos;s problem, not yours.
@@ -341,7 +341,7 @@ function Closing() {
         <div className="flex items-center gap-2">
           <Logo className="size-4 text-blue-400" />
           <span className="font-medium text-white/80">Nineveh</span>
-          <span>— application data for Aptos apps</span>
+          <span>— a backend for Aptos contract data</span>
         </div>
         <a
           href="https://github.com/thewoodfish/Nineveh"
