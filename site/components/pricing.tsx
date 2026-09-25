@@ -10,6 +10,8 @@
 // imply the free tier expires — a developer choosing where to build reads that as a
 // countdown, and builds somewhere else.
 
+import type { ReactNode } from "react";
+
 import { Heading, Lede, Register, Section } from "./bits";
 
 /** What the Free plan gives you, in the order a developer cares about it. */
@@ -35,8 +37,14 @@ const LIMITS = [
   ["Backfill", "6 hours"],
 ];
 
-/** Deliberately unexplained: each one answers a line in the Free card's limits. */
-const LATER = ["Mainnet", "More than two projects", "History deeper than six hours", "GraphQL"];
+/**
+ * Two kinds of "not yet", kept apart because they read differently. The first three are
+ * pricing: built, working, waiting on a way to charge for them. GraphQL is an
+ * engineering gap — the config accepts `graphql: true` and ignores it. Listed together,
+ * a reader assumes paying would produce GraphQL. It would not.
+ */
+const PAID = ["Mainnet", "More than two projects", "History deeper than six hours"];
+const UNBUILT = ["GraphQL"];
 
 function Check() {
   return (
@@ -50,6 +58,37 @@ function Check() {
         d="M2.5 8.5l3.5 3.5 7.5-8"
       />
     </svg>
+  );
+}
+
+/** A labelled list inside the More card, with an optional note under it. */
+function Group({
+  label,
+  items,
+  className,
+  children,
+}: {
+  label: string;
+  items: readonly string[];
+  className?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className={className}>
+      <h4 className="text-xs font-medium tracking-wide text-white/40">{label}</h4>
+      <ul className="mt-3 flex flex-col gap-3">
+        {items.map((item) => (
+          <li key={item} className="flex gap-3 text-[15px] leading-relaxed text-white/55">
+            <span
+              className="mt-[9px] size-1.5 shrink-0 rounded-full border border-white/30"
+              aria-hidden
+            />
+            {item}
+          </li>
+        ))}
+      </ul>
+      {children && <p className="mt-3 text-sm text-white/35">{children}</p>}
+    </div>
   );
 }
 
@@ -138,20 +177,14 @@ export function Pricing() {
               </span>
             </div>
 
-            <ul className="mt-8 flex flex-col gap-3">
-              {LATER.map((item) => (
-                <li key={item} className="flex gap-3 text-[15px] leading-relaxed text-white/55">
-                  <span
-                    className="mt-[9px] size-1.5 shrink-0 rounded-full border border-white/30"
-                    aria-hidden
-                  />
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <Group label="On paid plans" items={PAID} className="mt-8" />
+            <Group label="Not built yet" items={UNBUILT} className="mt-7 border-t border-white/10 pt-6">
+              Paying wouldn&apos;t produce these. REST and the change feed are what exist.
+            </Group>
 
-            <p className="mt-8 border-t border-white/10 pt-6 text-sm text-white/35">
-              No billing yet, so nothing to buy.
+            <p className="mt-7 border-t border-white/10 pt-6 text-sm text-white/35">
+              Billing isn&apos;t built yet. When it is, everything in the free tier stays free —
+              paid is what you add, not what you move to.
             </p>
           </div>
         </div>
