@@ -3,8 +3,9 @@
 The [documentation](docs/guide.md) describes using Nineveh. This page is about running
 it: on your own Postgres, against your own Aptos stream key.
 
-Right now it's the only way — the hosted service isn't live yet. Everything in the docs
-still applies either way; this page covers what's yours to operate.
+There is a hosted service at [nineveh.dev](https://nineveh.dev) if you'd rather not.
+Everything in the docs applies either way; this page covers what's yours to operate
+when you choose this one.
 
 ## What you're taking on
 

@@ -3,11 +3,14 @@
 Three ways out: a REST API for asking questions, a change feed for being told, and
 webhooks for being told somewhere else. All three serve the same tables.
 
-Everything below uses your project's base URL. Running it yourself, that's:
+Everything below uses your project's base URL:
 
 ```sh
-BASE=http://127.0.0.1:4000/projects/myproject
+BASE=https://api.nineveh.dev/projects/myproject
 ```
+
+Running it yourself, that's `http://127.0.0.1:4000/projects/myproject` instead. Nothing
+else on this page changes.
 
 ## 1. REST
 

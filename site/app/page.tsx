@@ -109,11 +109,11 @@ function Hero() {
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/55">
           Point Nineveh at your contract&apos;s address. Get a database and an API that stay in sync
-          with the chain — sorted, filtered, aggregated, live. No indexer to write, no schema to
-          keep in step.
+          with the chain — sorted, filtered, aggregated, live. No indexer to write, nothing to
+          run.
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <Button href="/docs" size="lg">
+          <Button href="https://studio.nineveh.dev" size="lg">
             Get started
           </Button>
           <Button href="#how" tone="quiet" size="lg">

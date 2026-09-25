@@ -6,9 +6,9 @@ Point Nineveh at your contract and describe the state you want. You get a live,
 queryable database with real-time subscriptions, kept continuously in sync with the
 chain, and no indexing infrastructure to run.
 
-> **Status: alpha.** It works end to end — a contract address in, live tables, a REST
-> API, a change feed and signed webhooks out, driven from a browser dashboard. It has
-> not been deployed anywhere yet, and GraphQL is not built. See
+> **Status: alpha, and live at [nineveh.dev](https://nineveh.dev).** A contract address
+> in; live tables, a REST API, a change feed and signed webhooks out, driven from a
+> browser dashboard. Testnet and devnet for now, and GraphQL is not built. See
 > [What Nineveh is not](docs/guide.md#5-what-nineveh-is-not) before you plan around it.
 
 ```sh
