@@ -37,9 +37,28 @@ The callback must be exactly `<NINEVEH_PUBLIC_URL>/auth/github/callback`.
 
 ## The machine
 
+Caddy isn't in Ubuntu's default repositories — or the version there is old — so it
+comes from its own:
+
+```sh
+apt update
+apt install -y build-essential pkg-config git curl postgresql \
+               debian-keyring debian-archive-keyring apt-transport-https
+
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+  | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
+  | tee /etc/apt/sources.list.d/caddy-stable.list
+apt update && apt install -y caddy
+```
+
+`build-essential` is for the C compiler the TLS crate needs; there is no OpenSSL to
+install, because Nineveh uses rustls.
+
+Then the user and the database:
+
 ```sh
 adduser --system --group --home /opt/nineveh nineveh
-apt install postgresql caddy
 
 sudo -u postgres createuser nineveh
 sudo -u postgres createdb --owner nineveh nineveh
