@@ -3,7 +3,7 @@ import { Pricing } from "@/components/pricing";
 import { Shots } from "@/components/shots";
 import { Builds } from "@/components/builds";
 import { Nav } from "@/components/nav";
-import { Pipeline, Stack } from "@/components/layers";
+import { Pipeline, Rebuild, Stack } from "@/components/layers";
 import { Stream } from "@/components/stream";
 
 // The whole backend, and it is the example from the docs — compiled in CI by
@@ -264,9 +264,7 @@ function Machinery() {
             <Lede center>
               Your contract is the source of truth. A reducer says what to do when something
               arrives: when this event lands, this row changes. No processor to write, no
-              migrations, no schema to keep in step. Change a rule and Nineveh rebuilds the table
-              from history in the background, then swaps it in. The old data keeps serving the
-              whole time.
+              migrations, no schema to keep in step.
             </Lede>
           </div>
 
@@ -361,6 +359,27 @@ function Machinery() {
               </li>
             ))}
           </ol>
+
+          {/* The rule change, which is a process over time and so is drawn rather than
+              described. It was a clause at the end of the section's lede before, which is
+              where a reader loses it. */}
+          <div className="mt-32 grid items-center gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
+            <div>
+              <Heading>Change a rule. Keep serving.</Heading>
+              <Lede>
+                Edit a reducer and the table it writes is wrong by definition: every row was
+                folded by the old rule. Nineveh rebuilds it beside the live one and swaps the two
+                when the new one catches up.
+              </Lede>
+              <p className="mt-5 max-w-[62ch] leading-relaxed text-white/55">
+                The rebuild replays Nineveh&apos;s own record log rather than the chain, so most
+                rule changes don&apos;t mean buying the same history twice. The old table answers
+                reads throughout, frozen at the version it had reached, and starts advancing again
+                once the new one is in.
+              </p>
+            </div>
+            <Rebuild />
+          </div>
 
           {/* What it's made of, then what it promises — the page stops selling here. */}
           <div className="mt-32">
