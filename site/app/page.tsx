@@ -35,6 +35,23 @@ const RESPONSE = [
   '  "count": 4 }',
 ];
 
+/*
+ * The change feed, on the wire. Shaped exactly as `nineveh-realtime` sends it (ADR 0006):
+ * the event id is `version.seq`, which is what makes `Last-Event-ID` enough to resume.
+ */
+const CHANGES = [
+  "GET /v1/changes?tables=sellers",
+  "",
+  "id: 20671008.0",
+  "event: change",
+  'data: { "version": "20671008", "seq": 0,',
+  '        "table": "sellers",',
+  '        "op": "update",',
+  '        "key": { "seller": "0x7a3f…c41d" },',
+  '        "row": { "sold": "129",',
+  '                 "revenue": "94494" } }',
+];
+
 const ASKS = [
   ["Show me all of them, sorted", "Top players. Cheapest listings. Biggest holders."],
   ["What happened?", "A feed. A history. This user's last twenty actions."],
@@ -305,10 +322,48 @@ function Machinery() {
                 <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
                   u128
                 </code>{" "}
-                doesn&apos;t fit a JavaScript number. Every table gets the same treatment, plus a
-                live change feed and signed webhooks.
+                doesn&apos;t fit a JavaScript number. Every table gets the same treatment.
               </p>
             </div>
+          </div>
+
+          {/* Push, not pull — the one axis where Nineveh differs in kind rather than in
+              convenience, so it gets prose and the wire format rather than a bullet. */}
+          <div className="mt-32 grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <Heading>Ask how things are. Get told when they change.</Heading>
+              <Lede>
+                A query answers the first question, and REST over your tables is how you ask it.
+                But a frontend that has to stay current can only keep asking — on a timer, diffing
+                what comes back, guessing at the interval.
+              </Lede>
+              <p className="mt-5 max-w-[62ch] leading-relaxed text-white/55">
+                The change feed turns that around. Every row a reducer writes leaves the same
+                commit as an event, in commit order, down a connection you already have open. Your
+                app finds out because something happened, not because it checked.
+              </p>
+              <ul className="mt-8 flex flex-col gap-4">
+                <li className="text-sm leading-relaxed text-white/55">
+                  <span className="font-semibold text-white/85">One commit.</span> Rows and the
+                  feed are written in a single transaction, so a change can&apos;t be announced
+                  that isn&apos;t in the table, and a row can&apos;t land without saying so.
+                </li>
+                <li className="text-sm leading-relaxed text-white/55">
+                  <span className="font-semibold text-white/85">Resumable.</span> Each event&apos;s
+                  id is its version and sequence. A browser that reconnects sends{" "}
+                  <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                    Last-Event-ID
+                  </code>{" "}
+                  and carries on — nothing missed, nothing twice.
+                </li>
+                <li className="text-sm leading-relaxed text-white/55">
+                  <span className="font-semibold text-white/85">Or pushed to your server.</span>{" "}
+                  The same changes as signed webhooks, each endpoint with its own secret and its
+                  own cursor, retried until they land.
+                </li>
+              </ul>
+            </div>
+            <Code title="your change feed" lines={CHANGES} />
           </div>
 
           <div className="mt-32">
