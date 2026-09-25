@@ -210,7 +210,6 @@ Stated plainly, because you'll go looking:
 - **No Dockerfile** and no published image.
 - **No metrics endpoint.** Logs are structured (`tracing`); there's no Prometheus
   surface.
-- **No GraphQL.** The config accepts `graphql: true` and ignores it.
 - **No restore tooling.** `deploy/backup.sh` dumps; restoring is `pg_restore` by hand.
 
 ## When something's wrong

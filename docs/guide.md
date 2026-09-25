@@ -103,5 +103,3 @@ into a table, and subscribe to that.
 name lookups are already served by the hosted Indexer API. Nineveh is for state that is
 specific to your contract.
 
-**GraphQL isn't built.** The config accepts `graphql: true` and does nothing with it.
-REST and the change feed are real.

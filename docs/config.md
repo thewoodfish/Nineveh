@@ -30,7 +30,7 @@ state:
   positions: { mirror: positions }
   deposit_log: { log: deposits }
 
-api: { rest: true, graphql: true }
+api: { rest: true }
 webhooks:
   my_backend:
     url: https://myapp.example/hooks/nineveh
@@ -47,7 +47,7 @@ webhooks:
 | `sources` | yes | At least one source. |
 | `state` | yes* | At least one state table. Optional when `reducers` declares them. |
 | `reducers` | no | A [reducers file](reducers.md) holding the reduce tables and the handlers that write them, named relative to this file. |
-| `api` | no | `rest` and `graphql`, both `true` by default. |
+| `api` | no | `rest`, `true` by default. |
 | `webhooks` | no | Where state changes are delivered. |
 
 **Names** of the project, sources, tables and columns are lower snake case: `a`–`z`,

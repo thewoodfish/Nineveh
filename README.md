@@ -8,7 +8,7 @@ chain, and no indexing infrastructure to run.
 
 > **Status: beta, and live at [nineveh.dev](https://nineveh.dev).** A contract address
 > in; live tables, a REST API, a change feed and signed webhooks out, driven from a
-> browser dashboard. Testnet and devnet for now, and GraphQL is not built. See
+> browser dashboard. Testnet and devnet for now. See
 > [What Nineveh is not](docs/guide.md#5-what-nineveh-is-not) before you plan around it.
 
 ```sh

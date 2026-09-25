@@ -38,13 +38,11 @@ const LIMITS = [
 ];
 
 /**
- * Two kinds of "not yet", kept apart because they read differently. The first three are
- * pricing: built, working, waiting on a way to charge for them. GraphQL is an
- * engineering gap — the config accepts `graphql: true` and ignores it. Listed together,
- * a reader assumes paying would produce GraphQL. It would not.
+ * Built, working, and waiting on a way to charge for them — nothing here is an
+ * engineering gap. Anything that doesn't exist yet stays off this card: a list of
+ * things you can't buy reads as a roadmap, and a roadmap is a promise.
  */
 const PAID = ["Mainnet", "More than two projects", "History deeper than six hours"];
-const UNBUILT = ["GraphQL"];
 
 function Check() {
   return (
@@ -178,9 +176,6 @@ export function Pricing() {
             </div>
 
             <Group label="On paid plans" items={PAID} className="mt-8" />
-            <Group label="Not built yet" items={UNBUILT} className="mt-7 border-t border-white/10 pt-6">
-              Paying wouldn&apos;t produce these. REST and the change feed are what exist.
-            </Group>
 
             <p className="mt-7 border-t border-white/10 pt-6 text-sm text-white/35">
               Billing isn&apos;t built yet. When it is, everything in the free tier stays free —

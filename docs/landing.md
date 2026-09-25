@@ -149,8 +149,8 @@ wasn't queryable.
 
 Don't put these on the site:
 
-- **GraphQL.** The API is REST (`/v1/tables`, `/v1/tables/{name}`) plus the change feed
-  (`/v1/changes`, Server-Sent Events) and signed webhooks. GraphQL is planned, not
+- **Other query languages.** The API is REST (`/v1/tables`, `/v1/tables/{name}`) plus
+  the change feed (`/v1/changes`, Server-Sent Events) and signed webhooks. Nothing
   shipped.
 - **Quotas and limits.** No usage metering, no plans, no billing.
 - **Hosted deployment.** It runs, it's built to be hosted, and nothing is deployed for
