@@ -41,6 +41,10 @@ pub struct Limits {
 
 /// The tier every project is on.
 ///
+/// Permanent, not a trial: paid plans are meant to add mainnet and production scale on
+/// top of this rather than switch it off. Anything that would make these numbers shrink
+/// for an existing account is a promise broken, not a pricing change.
+///
 /// The numbers: two projects is enough to have a real one and a scratch one. Testnet
 /// and devnet cost stream time nobody else is competing for. A gigabyte is about two
 /// million records at the 503 bytes each measured on the vault workload — months of a

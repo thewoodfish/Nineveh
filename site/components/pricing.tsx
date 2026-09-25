@@ -4,6 +4,11 @@
 // today and a list of things you can't have yet, and making them identical cards would
 // imply a choice you don't get to make. The numbers are the ones the control plane
 // enforces (`nineveh-control/src/tier.rs`), so the page and the product can't drift.
+//
+// The free tier is permanent, in the Supabase sense: paid plans add mainnet and
+// production scale on top rather than switching the free one off. Copy here must never
+// imply the free tier expires — a developer choosing where to build reads that as a
+// countdown, and builds somewhere else.
 
 import { Heading, Lede, Register, Section } from "./bits";
 
@@ -52,10 +57,12 @@ export function Pricing() {
   return (
     <Section id="pricing">
       <Register at="pricing">
-        <Heading>Free while Nineveh is in beta</Heading>
+        <Heading>Free to build on. Always.</Heading>
         <Lede>
-          One plan, no card. The limits are real numbers Nineveh enforces, not a trial
-          that expires — when you reach one, it tells you which and what it means.
+          Not a trial. The free tier doesn&apos;t expire, doesn&apos;t need a card, and stays free
+          when paid plans arrive — testnet and devnet for as long as you want them. The limits
+          are real numbers Nineveh enforces, and when you reach one it tells you which and what
+          it means.
         </Lede>
 
         <div className="mt-12 grid items-start gap-6 lg:grid-cols-[1.25fr_1fr] lg:gap-8">
@@ -75,7 +82,7 @@ export function Pricing() {
                   Free
                 </h3>
                 <span className="rounded-full border border-blue-400/30 bg-blue-500/15 px-3 py-1 text-xs font-medium text-blue-200">
-                  Available now
+                  Always free
                 </span>
               </div>
 
@@ -87,7 +94,7 @@ export function Pricing() {
               </div>
 
               <a
-                href="/docs"
+                href="https://studio.nineveh.dev"
                 className="mt-7 flex w-full items-center justify-center rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-card transition-colors outline-none hover:bg-blue-500 focus-visible:ring-2 focus-visible:ring-blue-300"
               >
                 Start building

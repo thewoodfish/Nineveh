@@ -70,6 +70,10 @@ To spot an idle project, look at the projects list — opening the project would
 
 Studio reads these live, so what it shows is always current.
 
+These are the free tier, and the free tier is permanent — it isn't a trial and it won't
+be switched off. Paid plans, when they exist, add mainnet and production scale on top of
+it rather than replacing it.
+
 ### What gets pruned
 
 **The change feed** is pruned by age, but never past the slowest webhook's position. An
