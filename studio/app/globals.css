@@ -8,8 +8,9 @@
  * and the theme decides what those mean. That is the whole trick behind a Google
  * console switching light to dark without a single component knowing it happened.
  *
- * The roles are sampled from two tonal palettes — the brand blue (hue 261) and a
- * near-neutral tinted with it — at Material's tone stops. `@theme` can only hold
+ * The roles are sampled from two tonal palettes — the brand mint (hue ~150, the same
+ * green the site and the wider Aptos ecosystem use) and a warm near-neutral — at
+ * Material's tone stops. `@theme` can only hold
  * static values, so each role points at a `--md-*` variable, and the light and dark
  * blocks below are the only places an actual colour is ever written.
  */
@@ -83,17 +84,17 @@
 :root {
   color-scheme: light;
 
-  --md-primary: oklch(0.47 0.2 261);
+  --md-primary: oklch(0.48 0.125 150);
   --md-on-primary: oklch(1 0 0);
-  --md-primary-container: oklch(0.895 0.058 259);
-  --md-on-primary-container: oklch(0.26 0.115 261);
+  --md-primary-container: oklch(0.9 0.07 148);
+  --md-on-primary-container: oklch(0.27 0.08 150);
 
-  --md-secondary-container: oklch(0.925 0.032 261);
-  --md-on-secondary-container: oklch(0.28 0.075 261);
+  --md-secondary-container: oklch(0.93 0.035 150);
+  --md-on-secondary-container: oklch(0.3 0.055 150);
 
-  --md-tertiary: oklch(0.52 0.13 162);
-  --md-tertiary-container: oklch(0.9 0.06 162);
-  --md-on-tertiary-container: oklch(0.28 0.08 162);
+  --md-tertiary: oklch(0.52 0.12 245);
+  --md-tertiary-container: oklch(0.9 0.055 240);
+  --md-on-tertiary-container: oklch(0.28 0.08 245);
 
   --md-error: oklch(0.5 0.2 27);
   --md-on-error: oklch(1 0 0);
@@ -108,21 +109,21 @@
      in daylight — and the opposite of Material's own light ramp, where every container
      sits *below* the surface. Followed literally, that ramp put a 0.973 card on a 0.988
      page: a step of one and a half percent, which is no step at all. */
-  --md-surface: oklch(0.953 0.004 261);
+  --md-surface: oklch(0.953 0.004 86);
   --md-surface-bright: oklch(1 0 0);
   --md-surface-container-lowest: oklch(1 0 0);
-  --md-surface-container-low: oklch(0.992 0.001 261);
-  --md-surface-container: oklch(0.973 0.003 261);
-  --md-surface-container-high: oklch(0.941 0.005 261);
-  --md-surface-container-highest: oklch(0.912 0.006 261);
-  --md-on-surface: oklch(0.21 0.009 261);
-  --md-on-surface-variant: oklch(0.42 0.018 261);
+  --md-surface-container-low: oklch(0.992 0.001 86);
+  --md-surface-container: oklch(0.973 0.003 86);
+  --md-surface-container-high: oklch(0.941 0.005 86);
+  --md-surface-container-highest: oklch(0.912 0.006 86);
+  --md-on-surface: oklch(0.21 0.009 86);
+  --md-on-surface-variant: oklch(0.42 0.018 86);
 
-  --md-outline: oklch(0.6 0.016 261);
-  --md-outline-variant: oklch(0.855 0.012 261);
+  --md-outline: oklch(0.6 0.016 86);
+  --md-outline-variant: oklch(0.855 0.012 86);
 
-  --md-inverse-surface: oklch(0.3 0.008 261);
-  --md-on-inverse-surface: oklch(0.96 0.003 261);
+  --md-inverse-surface: oklch(0.3 0.008 86);
+  --md-on-inverse-surface: oklch(0.96 0.003 86);
 
   --md-scrim: oklch(0 0 0 / 0.32);
   --md-syntax-keyword: oklch(0.47 0.2 305);
@@ -141,17 +142,17 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --md-primary: oklch(0.8 0.108 259);
-    --md-on-primary: oklch(0.3 0.13 261);
-    --md-primary-container: oklch(0.38 0.17 261);
-    --md-on-primary-container: oklch(0.895 0.058 259);
+    --md-primary: oklch(0.86 0.105 147);
+    --md-on-primary: oklch(0.28 0.07 150);
+    --md-primary-container: oklch(0.4 0.1 150);
+    --md-on-primary-container: oklch(0.9 0.07 148);
 
-    --md-secondary-container: oklch(0.34 0.055 261);
-    --md-on-secondary-container: oklch(0.895 0.045 259);
+    --md-secondary-container: oklch(0.34 0.045 150);
+    --md-on-secondary-container: oklch(0.9 0.05 148);
 
-    --md-tertiary: oklch(0.82 0.11 162);
-    --md-tertiary-container: oklch(0.38 0.09 162);
-    --md-on-tertiary-container: oklch(0.9 0.06 162);
+    --md-tertiary: oklch(0.82 0.09 240);
+    --md-tertiary-container: oklch(0.38 0.085 245);
+    --md-on-tertiary-container: oklch(0.9 0.055 240);
 
     --md-error: oklch(0.8 0.115 25);
     --md-on-error: oklch(0.28 0.12 27);
@@ -162,21 +163,21 @@
     --md-warning-container: oklch(0.4 0.09 70);
     --md-on-warning-container: oklch(0.93 0.055 80);
 
-    --md-surface: oklch(0.145 0.008 261);
-    --md-surface-bright: oklch(0.34 0.009 261);
-    --md-surface-container-lowest: oklch(0.115 0.008 261);
-    --md-surface-container-low: oklch(0.19 0.009 261);
-    --md-surface-container: oklch(0.213 0.009 261);
-    --md-surface-container-high: oklch(0.26 0.009 261);
-    --md-surface-container-highest: oklch(0.315 0.009 261);
-    --md-on-surface: oklch(0.925 0.004 261);
-    --md-on-surface-variant: oklch(0.845 0.012 261);
+    --md-surface: oklch(0.145 0.008 86);
+    --md-surface-bright: oklch(0.34 0.009 86);
+    --md-surface-container-lowest: oklch(0.115 0.008 86);
+    --md-surface-container-low: oklch(0.19 0.009 86);
+    --md-surface-container: oklch(0.213 0.009 86);
+    --md-surface-container-high: oklch(0.26 0.009 86);
+    --md-surface-container-highest: oklch(0.315 0.009 86);
+    --md-on-surface: oklch(0.925 0.004 86);
+    --md-on-surface-variant: oklch(0.845 0.012 86);
 
-    --md-outline: oklch(0.68 0.016 261);
-    --md-outline-variant: oklch(0.4 0.02 261);
+    --md-outline: oklch(0.68 0.016 86);
+    --md-outline-variant: oklch(0.4 0.02 86);
 
-    --md-inverse-surface: oklch(0.925 0.004 261);
-    --md-on-inverse-surface: oklch(0.26 0.009 261);
+    --md-inverse-surface: oklch(0.925 0.004 86);
+    --md-on-inverse-surface: oklch(0.26 0.009 86);
 
     --md-scrim: oklch(0 0 0 / 0.55);
     --md-syntax-keyword: oklch(0.82 0.11 305);
@@ -190,17 +191,17 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --md-primary: oklch(0.8 0.108 259);
-  --md-on-primary: oklch(0.3 0.13 261);
-  --md-primary-container: oklch(0.38 0.17 261);
-  --md-on-primary-container: oklch(0.895 0.058 259);
+  --md-primary: oklch(0.86 0.105 147);
+  --md-on-primary: oklch(0.28 0.07 150);
+  --md-primary-container: oklch(0.4 0.1 150);
+  --md-on-primary-container: oklch(0.9 0.07 148);
 
-  --md-secondary-container: oklch(0.34 0.055 261);
-  --md-on-secondary-container: oklch(0.895 0.045 259);
+  --md-secondary-container: oklch(0.34 0.045 150);
+  --md-on-secondary-container: oklch(0.9 0.05 148);
 
-  --md-tertiary: oklch(0.82 0.11 162);
-  --md-tertiary-container: oklch(0.38 0.09 162);
-  --md-on-tertiary-container: oklch(0.9 0.06 162);
+  --md-tertiary: oklch(0.82 0.09 240);
+  --md-tertiary-container: oklch(0.38 0.085 245);
+  --md-on-tertiary-container: oklch(0.9 0.055 240);
 
   --md-error: oklch(0.8 0.115 25);
   --md-on-error: oklch(0.28 0.12 27);
@@ -211,21 +212,21 @@
   --md-warning-container: oklch(0.4 0.09 70);
   --md-on-warning-container: oklch(0.93 0.055 80);
 
-  --md-surface: oklch(0.145 0.008 261);
-  --md-surface-bright: oklch(0.34 0.009 261);
-  --md-surface-container-lowest: oklch(0.115 0.008 261);
-  --md-surface-container-low: oklch(0.19 0.009 261);
-  --md-surface-container: oklch(0.213 0.009 261);
-  --md-surface-container-high: oklch(0.26 0.009 261);
-  --md-surface-container-highest: oklch(0.315 0.009 261);
-  --md-on-surface: oklch(0.925 0.004 261);
-  --md-on-surface-variant: oklch(0.845 0.012 261);
+  --md-surface: oklch(0.145 0.008 86);
+  --md-surface-bright: oklch(0.34 0.009 86);
+  --md-surface-container-lowest: oklch(0.115 0.008 86);
+  --md-surface-container-low: oklch(0.19 0.009 86);
+  --md-surface-container: oklch(0.213 0.009 86);
+  --md-surface-container-high: oklch(0.26 0.009 86);
+  --md-surface-container-highest: oklch(0.315 0.009 86);
+  --md-on-surface: oklch(0.925 0.004 86);
+  --md-on-surface-variant: oklch(0.845 0.012 86);
 
-  --md-outline: oklch(0.68 0.016 261);
-  --md-outline-variant: oklch(0.4 0.02 261);
+  --md-outline: oklch(0.68 0.016 86);
+  --md-outline-variant: oklch(0.4 0.02 86);
 
-  --md-inverse-surface: oklch(0.925 0.004 261);
-  --md-on-inverse-surface: oklch(0.26 0.009 261);
+  --md-inverse-surface: oklch(0.925 0.004 86);
+  --md-on-inverse-surface: oklch(0.26 0.009 86);
 
   --md-scrim: oklch(0 0 0 / 0.55);
   --md-syntax-keyword: oklch(0.82 0.11 305);
