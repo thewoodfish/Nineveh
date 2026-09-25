@@ -104,7 +104,7 @@ after it.
 | `is_some(holders[user].user)` | whether the row exists (a key column is never null in one) |
 | `is_none(holders[user].note)` | whether the row is missing *or* its `note` is null |
 
-A rule can read `reduce` and `mirror` tables, including the one it writes — it sees
+A rule can read `reduce` and `mirror` tables, including the one it writes; it sees
 that row as it was before its own write. It can't read a `log` table: logs are
 append-only history, not state.
 

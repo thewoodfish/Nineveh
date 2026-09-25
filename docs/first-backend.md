@@ -1,7 +1,7 @@
 # Your first backend
 
 Build a working backend against a live contract, from nothing to querying real data.
-Follow it top to bottom — every step produces something you can see.
+Follow it top to bottom; every step produces something you can see.
 
 You need a GitHub account. Nothing to install.
 
@@ -18,14 +18,14 @@ Open Studio at <https://studio.nineveh.dev> and sign in with GitHub.
 
 **New project** → network **testnet** → address `0x1` → **Inspect**.
 
-Nineveh reads the contract and lists everything it could follow — for `0x1` that's
+Nineveh reads the contract and lists everything it could follow. For `0x1` that's
 around three hundred things, which is far too many for a first look.
 
 Click **None** in every section, then find **Events** and tick `NewBlockEvent`
 (from the `0x1::block` module).
 
 > Tick `NewBlockEvent`, not `NewBlock`. They are different types, and testnet only
-> emits the first. A source that matches nothing is not an error — you get a project
+> emits the first. A source that matches nothing is not an error; you get a project
 > that runs perfectly and stays empty, which is exactly what a silent contract looks
 > like, so nothing fails and nothing complains.
 >
@@ -33,7 +33,7 @@ Click **None** in every section, then find **Events** and tick `NewBlockEvent`
 > hasn't matched anything yet"*. But it's the commonest way to lose an afternoon, so
 > it's worth checking the name twice now.
 
-Name it `blocks`. Choose **From now on** rather than the contract's whole history —
+Name it `blocks`. Choose **From now on** rather than the contract's whole history:
 starting at the tip means data in seconds instead of a long backfill.
 
 **Create backend with 1 table.**
@@ -42,7 +42,7 @@ starting at the tip means data in seconds instead of a long backfill.
 
 The Overview shows a cursor climbing, the chain head it's chasing, and the gap between
 them. Within a few seconds it reads *following the chain*, and `new_block_event` gains a row
-every time testnet produces a block — about a dozen a second.
+every time testnet produces a block, about a dozen a second.
 
 You now have a backend. It has a URL:
 
@@ -59,7 +59,7 @@ curl $BASE/v1/tables                       # what tables exist, and their column
 curl "$BASE/v1/tables/new_block_event?limit=3"
 ```
 
-Then something more specific — the ten most recent blocks, newest first:
+Then something more specific: the ten most recent blocks, newest first:
 
 ```sh
 curl "$BASE/v1/tables/new_block_event?limit=10&order=height.desc"
@@ -102,7 +102,7 @@ Kill it, wait a moment, then resume from where you stopped:
 curl -N "$BASE/v1/changes?after=11292175483.0"
 ```
 
-Nothing is missed. That `id` is how a browser resumes too — `EventSource` sends it
+Nothing is missed. That `id` is how a browser resumes too: `EventSource` sends it
 automatically as `Last-Event-ID`.
 
 ## 6. Make a table of your own
@@ -113,7 +113,7 @@ something*.
 
 That is what a reducer is for. In Studio, **New state table**, and pick **Count per
 row** over `proposer`. You get a table with one row per proposer and a count that goes
-up — and Studio writes it as a reducer you can read:
+up. Studio writes it as a reducer you can read:
 
 ```ts
 export const blocks_per_proposer = table({
@@ -131,8 +131,10 @@ on(new_block_event, (r) => {
 })
 ```
 
-Save it. Nineveh rebuilds the new table from the records it already has — no re-reading
-the chain — and your old table keeps serving the whole time. Within seconds:
+Save it. Nineveh rebuilds the new table from the records it already has, without
+re-reading the chain, and the old table answers reads throughout, frozen where it had
+reached until the new one swaps in. This project holds minutes of history, so that takes
+seconds:
 
 ```sh
 curl "$BASE/v1/tables/blocks_per_proposer?order=count.desc&limit=5"
@@ -146,8 +148,9 @@ time goes.
 - A **source** is chain data you follow. A **state table** is what you build from it.
 - A **log** table keeps every record; a **reduce** table folds them into something
   smaller and more useful.
-- Changing a reducer replays your stored records in seconds. Adding a *source* is the
-  expensive one, because no history exists for something you never followed.
+- Changing a reducer replays your stored records rather than the chain: minutes for a
+  project with real history, not another backfill. Adding a *source* is the expensive
+  one, because no history exists for something you never followed.
 - Wide integers are strings. Parse them as `BigInt`.
 
 Next: **[Reducers](reducers.md)**, to write the fold yourself rather than picking a

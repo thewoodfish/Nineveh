@@ -37,7 +37,7 @@ Rows come back with the query that produced them:
 | --- | --- |
 | `limit` | how many rows, default 50, max 1000 |
 | `offset` | skip this many |
-| `order` | `?order=balance.desc` — a column and a direction |
+| `order` | `?order=balance.desc`, a column and a direction |
 | `count=exact` | also return the total, at the cost of a second query |
 | `<column>=<value>` | keep rows where the column equals that |
 
@@ -48,7 +48,7 @@ curl "$BASE/v1/tables/balances?balance>1000&order=balance.desc&limit=10"
 ### Two things about every row
 
 **Wide integers are strings.** `u64`, `u128` and `u256` don't fit a JavaScript number,
-so they're returned as decimal strings. Parse them with `BigInt`, never `Number` — the
+so they're returned as decimal strings. Parse them with `BigInt`, never `Number`; the
 loss above 2⁵³ is silent.
 
 **`_version` says when the row last changed.** It's the transaction that last wrote it,
@@ -77,7 +77,7 @@ you can come back to:
 | `?after=beginning` | replay everything still kept |
 | `?tables=balances,volume` | only these tables |
 
-A browser resumes on its own — `EventSource` sends the last id it saw as
+A browser resumes on its own: `EventSource` sends the last id it saw as
 `Last-Event-ID` when it reconnects, so a dropped connection costs nothing.
 
 ```js
@@ -141,7 +141,7 @@ same change twice. Two ways to be safe:
 
 - **`rows: true`** sends the row. Compare `version` and `seq` against what you've
   already applied and ignore anything older.
-- **`rows: false`** sends only the key — *this row changed, come and look*. Then fetch
+- **`rows: false`** sends only the key: *this row changed, come and look*. Then fetch
   it. Duplicates stop mattering, because a fetch always returns what's current.
 
 The second is less code and harder to get wrong. Use it unless you need the row in the

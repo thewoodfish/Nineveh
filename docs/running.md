@@ -8,15 +8,15 @@ are, and how to read it when something looks wrong.
 This is the part that surprises people, in a good way. **Editing a reducer is cheap.
 Adding a source is not.**
 
-A project keeps every record its sources matched. Records are what *arrived* — they
+A project keeps every record its sources matched. Records are what *arrived*; they
 don't know what you did with them. So when you change what you do with them, Nineveh
 replays its own stored records rather than re-reading the chain.
 
 | Change | What it costs |
 | --- | --- |
-| Edit a reducer | seconds — a local replay |
-| Add a state table over sources you already follow | seconds — a local replay |
-| Change a column type, or a key | seconds — a local replay |
+| Edit a reducer | a local replay of your records |
+| Add a state table over sources you already follow | a local replay of your records |
+| Change a column type, or a key | a local replay of your records |
 | **Add a source** | a backfill from the chain |
 | Move `start_version` earlier than your records go | a backfill from the chain |
 
@@ -41,7 +41,7 @@ a partial table.
 A project nobody reads stops folding after 24 hours. Studio shows it as **Idle**, and
 the card says *keeping records* rather than *following the chain*.
 
-It hasn't stopped. It is still collecting records — it just isn't spending CPU turning
+It hasn't stopped. It is still collecting records; it just isn't spending CPU turning
 them into rows that nobody is asking for. Reading the project wakes it: the read waits
 for a short local replay, and by the time the page renders it's caught up.
 
@@ -56,7 +56,8 @@ Records keep accruing while idle on purpose. If they didn't, waking a project af
 week would mean hours of streaming to catch up. Instead it's always a few seconds of
 replay, however long it slept.
 
-To spot an idle project, look at the projects list — opening the project would wake it.
+To spot an idle project, look at the projects list, since opening the project would
+wake it.
 
 ## 3. Limits
 
@@ -65,12 +66,12 @@ To spot an idle project, look at the projects list — opening the project would
 | Projects | 2 | each costs fold CPU and a database schema |
 | Networks | testnet, devnet | mainnet costs real stream time |
 | Start within | 6 hours of the chain tip | deep backfills tie up shared catch-up capacity |
-| Record log | 1 GB per project | about two million records — months of a normal contract |
+| Record log | 1 GB per project | about two million records, months of a normal contract |
 | Change feed kept | 7 days | |
 
 Studio reads these live, so what it shows is always current.
 
-These are the free tier, and the free tier is permanent — it isn't a trial and it won't
+These are the free tier, and the free tier is permanent. It isn't a trial and it won't
 be switched off. Paid plans, when they exist, add mainnet and production scale on top of
 it rather than replacing it.
 
@@ -81,7 +82,7 @@ endpoint that's stuck keeps its own backlog, because those deliveries are still 
 
 **The record log** is pruned oldest-first when it's over size, and only ever gives up
 records the fold has already consumed. A record the fold hasn't reached exists in
-exactly two places — here and the chain — so it's never thrown away. A project that is
+exactly two places, here and the chain, so it's never thrown away. A project that is
 idle, halted or behind keeps everything, however far over its allowance, and tells you
 it's over rather than destroying what it needs.
 
@@ -92,24 +93,24 @@ again". The Overview shows it as a version number: *back to version N*.
 
 From `GET /v1/status`, or the Studio Overview:
 
-- **cursor** — the last committed version. It must keep moving.
-- **lag** — seconds between now and the block time of the last thing committed. This,
+- **cursor**: the last committed version. It must keep moving.
+- **lag**: seconds between now and the block time of the last thing committed. This,
   not the version gap, is what "behind" means.
-- **throughput** — versions a second. Tailing the chain needs roughly 220 on testnet
+- **throughput**: versions a second. Tailing the chain needs roughly 220 on testnet
   and 150 on mainnet; below that on a tailing project means falling behind.
-- **phase** — `starting`, `running`, `retrying`, `halted` or `stopped`.
+- **phase**: `starting`, `running`, `retrying`, `halted` or `stopped`.
 
 ## 5. When a project halts
 
 Two kinds of failure, treated differently on purpose.
 
-**A deterministic failure** — a reducer underflowing, a value that doesn't fit, data
-that doesn't match the pinned types — halts that one project at that version, with an
-error naming the rule. Everything before it is committed. It is never skipped, because
+**A deterministic failure**, such as a reducer underflowing, a value that doesn't fit,
+or data that doesn't match the pinned types, halts that one project at that version,
+with an error naming the rule. Everything before it is committed. It is never skipped, because
 a skipped record would mean silently wrong state forever. Fix the reducer and replay.
 
-**A retryable failure** — a dropped connection, a database restart — retries with
-growing backoff and resumes from the committed cursor. Commits are atomic and the fold
+**A retryable failure**, such as a dropped connection or a database restart, retries
+with growing backoff and resumes from the committed cursor. Commits are atomic and the fold
 is deterministic, so the result is exactly as if nothing had failed.
 
 One message that looks alarming and isn't:
@@ -125,7 +126,7 @@ commonest thing in `last_error` on a perfectly healthy project.
 
 | What you see | What it means |
 | --- | --- |
-| Runs cleanly, stays empty | The source matched nothing. Check the exact type name — `NewBlock` and `NewBlockEvent` are different types, and a contract may emit only one. |
+| Runs cleanly, stays empty | The source matched nothing. Check the exact type name: `NewBlock` and `NewBlockEvent` are different types, and a contract may emit only one. |
 | A number is wrong | A reducer put it there; nothing else can write a table. Read the handler for that column. |
 | `429` / `ResourceExhausted` | The concurrent-stream cap. Something else is holding streams on the same key. |
 | Studio says *Lost the API* | The backend isn't answering. Studio shows the last state it knew rather than blanking the page. |
@@ -140,5 +141,5 @@ connection.
 
 A project that starts behind the tip borrows one of a few catch-up streams, fills its
 history, and then joins the shared one. If all the catch-up streams are busy, a new
-backfill waits its turn — which is why starting **from now on** is instant and starting
+backfill waits its turn, which is why starting **from now on** is instant and starting
 from a contract's whole history sometimes isn't.

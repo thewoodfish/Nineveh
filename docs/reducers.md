@@ -2,7 +2,7 @@
 
 A reducer says what changes when a record arrives. It is the only thing that writes
 your tables, and it is where you'll spend your time. The whole language is six
-statements — you can learn it in one sitting.
+statements, and you can learn it in one sitting.
 
 ## 1. The shape of it
 
@@ -45,7 +45,7 @@ sources:
 
 The config holds *what to follow*. The reducers hold *what to do about it*.
 
-No JavaScript runs — not here, not on your data. The file is parsed and compiled. It
+No JavaScript runs, not here and not on your data. The file is parsed and compiled. It
 looks like TypeScript so your editor can help you, and because the shape is one every
 developer already knows.
 
@@ -88,8 +88,8 @@ later.
 on(deposits, (d) => { … })
 ```
 
-`deposits` is a source name from your config. The parameter — `d` here, call it what
-you like — is the record that arrived. You read its fields with a dot.
+`deposits` is a source name from your config. The parameter, `d` here and call it what
+you like, is the record that arrived. You read its fields with a dot.
 
 What fields it has depends on what kind of source it is:
 
@@ -108,7 +108,7 @@ on(vaults.deleted, (v) => {
 })
 ```
 
-Every expression can also read `tx.version` and `tx.timestamp` — the transaction's
+Every expression can also read `tx.version` and `tx.timestamp`: the transaction's
 number and its block time in microseconds.
 
 ## 4. The six statements
@@ -124,8 +124,8 @@ That is the entire language.
 | `if (<expr>) { … } else { … }` | applies the writes inside only when it holds |
 | `return` | stops the handler; later writes don't apply |
 
-Writing a row creates it if it isn't there. There is no separate "insert" and "update"
-— that distinction doesn't exist here, and not having it removes a whole category of
+Writing a row creates it if it isn't there. There is no separate "insert" and "update".
+That distinction doesn't exist here, and not having it removes a whole category of
 mistake.
 
 `b.balance += x` reads the row's current value and adds to it. That is the ordinary
@@ -148,12 +148,12 @@ b.balance += u128(d.amount)     // balance is u128, amount is u64
 That is deliberate. Silent widening is how money bugs happen.
 
 **Arithmetic that can't be represented stops the project.** Subtracting below zero in
-an unsigned column, dividing by zero, a conversion that doesn't fit — each halts at
+an unsigned column, dividing by zero, a conversion that doesn't fit: each halts at
 that transaction with an error naming the rule, rather than storing a wrong number. Fix
 the reducer and replay.
 
 **Nothing is bare.** A record's field is `d.amount`. A row's column is `b.balance`.
-There is no naked `amount` that might mean either — every name says where it came from.
+There is no naked `amount` that might mean either; every name says where it came from.
 
 ## 6. Reading another table
 
@@ -177,14 +177,14 @@ on(sold, (s) => {
 
 `markets.get(s.market)` is a row that **may not be there**, which is what `?.` means in
 JavaScript and means here too. `?? 0` supplies a value when it isn't. If you leave out
-the `??`, the column you're writing has to be `.nullable()` — one or the other.
+the `??`, the column you're writing has to be `.nullable()`. One or the other.
 
 You can read any `reduce` or `mirror` table, including the one you're writing, where it
 means *the row as it was before this rule*. You cannot read a `log` table: a log is
 history, not state.
 
 Rules apply in the order you wrote them, across every table. That matters only when one
-handler writes a table a later statement reads back — and then it does exactly what
+handler writes a table a later statement reads back, and then it does exactly what
 reading top-to-bottom suggests.
 
 ## 7. Patterns worth stealing
@@ -204,7 +204,7 @@ on(trades, (t) => {
 })
 ```
 
-**Latest value per key.** No accumulation — each record overwrites.
+**Latest value per key.** No accumulation; each record overwrites.
 
 ```ts
 export const quotes = table({
@@ -301,14 +301,14 @@ replayable, which is what makes editing a reducer cheap instead of a re-read of 
 chain.
 
 There are no loops, no functions of your own, no `let`, no imports, and no calls beyond
-the built-ins. `Date.now()` isn't blocked by a list of forbidden names — it fails
+the built-ins. `Date.now()` isn't blocked by a list of forbidden names. It fails
 because `Date` isn't anything. The only names in scope are your sources, your tables,
 the handler's parameter, the `const`s you wrote, `tx`, and:
 
 `u8(…)`–`u256(…)` · `i8(…)`–`i256(…)` · `min` · `max` · `abs` · `address`
 
-There is no `create` or `update` — writing a row creates it. There is no `increment` —
-`+=` already is one.
+There is no `create` or `update`: writing a row creates it. There is no `increment`,
+because `+=` already is one.
 
 ## 10. When you get it wrong
 
@@ -325,16 +325,16 @@ error: `balances` has no column `depsits`
 
 A few you're likely to meet:
 
-**`nothing here is called 'x'`** — a name that isn't a source, a table, the parameter or
+**`nothing here is called 'x'`**: a name that isn't a source, a table, the parameter or
 a `const`. Usually a typo, and it suggests the closest match.
 
-**`'b' isn't the row this rule writes`** — you read a column of a row you named but
+**`'b' isn't the row this rule writes`**: you read a column of a row you named but
 aren't writing. A rule reads its own row directly; for any other, use
 `table.get(key)?.column`.
 
-**`'balance' is set twice for the same row`** — see §8. Combine the two writes.
+**`'balance' is set twice for the same row`**: see §8. Combine the two writes.
 
-**`this row is both written and deleted`** — put the two outcomes in `if` and `else`.
+**`this row is both written and deleted`**: put the two outcomes in `if` and `else`.
 
 **A type error against the whole expression** rather than one token. Expressions are
 checked once the contract's real types are known, and at that point the location is the

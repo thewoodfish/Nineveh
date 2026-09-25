@@ -130,8 +130,8 @@ field of the event. An enum event gets its columns as described for
 
 ### `reduce`: your own fold
 
-A reduce table can be written here, or in the [reducers file](reducers.md) — event-first,
-with the handler for one event in one place. The two build the same thing; this section
+A reduce table can be written here, or in the [reducers file](reducers.md), which is
+event-first, with the handler for one event in one place. The two build the same thing; this section
 describes the YAML form.
 
 
@@ -236,9 +236,9 @@ webhooks:
 URLs must use `https`; plain `http` is accepted only for `localhost`. Deliveries are
 signed with the endpoint's own secret, so URLs never carry credentials.
 
-`rows: false` sends only the key — "this row changed, come and look". That keeps
-deliveries small, and it's self-correcting: however they're retried or reordered, a
-fetch always returns current state however the deliveries were retried or reordered.
+`rows: false` sends only the key: "this row changed, come and look". That keeps
+deliveries small, and it's self-correcting: however the deliveries are retried or
+reordered, a fetch always returns current state.
 
 Changing a project's webhooks never rebuilds its tables: they don't shape what's
 built.
