@@ -28,8 +28,8 @@ function SignIn() {
   return (
     <main className="flex min-w-0 flex-1 items-center justify-center px-6">
       <div className="w-full max-w-sm text-center">
-        <svg viewBox="0 0 20 20" className="mx-auto size-9 text-primary" aria-hidden>
-          <path fill="currentColor" d="M8 3h4v3H8zM5 7h10v4H5zM2 12h16v5H2z" />
+        <svg viewBox="0 0 24 18" className="mx-auto h-9 w-12 text-primary" aria-hidden>
+          <path fill="currentColor" d="M0 18 V7.74 L4.3 4.27 V18 Z M5 18 V7.2 A7 7 0 0 1 19 7.2 V18 H15.75 V7.2 A3.75 3.75 0 0 0 8.25 7.2 V18 Z M19.7 18 V4.27 L24 7.74 V18 Z" />
         </svg>
         <h1 className="mt-5 text-xl font-semibold tracking-tight">Sign in to Nineveh</h1>
         <p className="mt-2 text-sm text-on-surface-variant">
