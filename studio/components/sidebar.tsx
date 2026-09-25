@@ -216,10 +216,11 @@ function NavLink({
 }
 
 function Logo() {
-  // A stepped ziggurat: Nineveh's skyline, and state built up layer on layer.
+  // The gate: two pillars and the arch between them. Same mark as the site and the
+  // favicon, drawn so it still reads at this size.
   return (
-    <svg viewBox="0 0 20 20" className="size-[18px] text-primary" aria-hidden>
-      <path fill="currentColor" d="M8 3h4v3H8zM5 7h10v4H5zM2 12h16v5H2z" />
+    <svg viewBox="0 0 24 18" className="h-[15px] w-5 text-primary" aria-hidden>
+      <path fill="currentColor" d="M0 18 V7.74 L4.3 4.27 V18 Z M5 18 V7.2 A7 7 0 0 1 19 7.2 V18 H15.75 V7.2 A3.75 3.75 0 0 0 8.25 7.2 V18 Z M19.7 18 V4.27 L24 7.74 V18 Z" />
     </svg>
   );
 }

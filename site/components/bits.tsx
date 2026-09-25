@@ -4,10 +4,16 @@
 import type { ReactNode } from "react";
 
 /** A stepped ziggurat: Nineveh's skyline, and state built up layer on layer. */
+/**
+ * The gate: two pillars with chamfered tops and an arch between them, which is what
+ * Nineveh was known for. Drawn rather than traced from the artwork, because the
+ * artwork's glow turns to mush below about 40px and this has to survive a 16px
+ * favicon. `currentColor` so it takes the colour of whatever it sits in.
+ */
 export function Logo({ className = "size-5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" className={className} aria-hidden>
-      <path fill="currentColor" d="M8 3h4v3H8zM5 7h10v4H5zM2 12h16v5H2z" />
+    <svg viewBox="0 0 24 18" className={className} aria-hidden>
+      <path fill="currentColor" d="M0 18 V7.74 L4.3 4.27 V18 Z M5 18 V7.2 A7 7 0 0 1 19 7.2 V18 H15.75 V7.2 A3.75 3.75 0 0 0 8.25 7.2 V18 Z M19.7 18 V4.27 L24 7.74 V18 Z" />
     </svg>
   );
 }
