@@ -54,7 +54,7 @@ export function Pricing() {
       <Register at="pricing">
         <Heading>Free while Nineveh is in alpha</Heading>
         <Lede>
-          One plan, no card. The limits are real numbers the backend enforces, not a trial
+          One plan, no card. The limits are real numbers Nineveh enforces, not a trial
           that expires — when you reach one, it tells you which and what it means.
         </Lede>
 

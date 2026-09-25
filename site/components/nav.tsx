@@ -67,7 +67,7 @@ export function Nav() {
           >
             GitHub
           </a>
-          <Button href="/docs">Start building</Button>
+          <Button href="https://studio.nineveh.dev">Start building</Button>
         </div>
       </div>
       <div

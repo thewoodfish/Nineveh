@@ -34,7 +34,7 @@ const description =
   "Point Nineveh at your Aptos contract and get a live database and API that stay in sync with it. No indexer to write, nothing to run.";
 
 export const metadata: Metadata = {
-  title: "Nineveh — a live backend for your Aptos contract",
+  title: "Nineveh — turn your Aptos contract into application data",
   description,
   openGraph: {
     title: "Nineveh",

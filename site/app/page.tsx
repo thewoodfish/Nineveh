@@ -105,16 +105,15 @@ function Hero() {
           Built for Aptos, on the transaction stream
         </a>
         <h1 className="mt-7 font-display text-4xl leading-[1.04] font-semibold tracking-[-0.022em] text-balance text-white sm:text-5xl">
-          A live backend for your Aptos contract
+          Turn your Aptos contract into application data
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/55">
-          Point Nineveh at your contract&apos;s address. Get a database and an API that stay in sync
-          with the chain — sorted, filtered, aggregated, live. No indexer to write, nothing to
-          run.
+          Events, resources and tables become live state your app can query — sorted, filtered,
+          aggregated, live. No indexer to write, nothing to run.
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <Button href="https://studio.nineveh.dev" size="lg">
-            Get started
+            Start building
           </Button>
           <Button href="#how" tone="quiet" size="lg">
             See how it works
@@ -184,7 +183,7 @@ function Machinery() {
       <div className="mx-auto max-w-6xl px-6 pt-44 pb-40 sm:pt-52 sm:pb-48">
         <Register at="how">
         <div className="mx-auto max-w-3xl text-center">
-          <Heading center>Say what changes. Get the API.</Heading>
+          <Heading center>Describe the data you want. Get the API.</Heading>
           <Lede center>
             A reducer is a handler: when this arrives, this row changes. No processor to write, no
             migrations, no schema to keep in step. Change a rule and Nineveh rebuilds the table
@@ -302,7 +301,7 @@ function Closing() {
           />
           <div className="relative">
             <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-balance text-white sm:text-[2.7rem] sm:leading-[1.08]">
-              You deployed the contract. The backend is the easy part now.
+              You deployed the contract. The data layer is the easy part now.
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-pretty text-blue-50/90">
               Backfills, cursors, retries, crash recovery — Nineveh&apos;s problem, not yours.
@@ -320,12 +319,18 @@ function Closing() {
                 </li>
               ))}
             </ol>
-            <div className="mt-10">
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
               <a
-                href="https://github.com/thewoodfish/Nineveh"
+                href="https://studio.nineveh.dev"
                 className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-blue-700 shadow-card transition-colors hover:bg-blue-50"
               >
-                Get started
+                Start building
+              </a>
+              <a
+                href="https://github.com/thewoodfish/Nineveh"
+                className="inline-flex items-center justify-center rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              >
+                Read the source
               </a>
             </div>
           </div>
@@ -336,7 +341,7 @@ function Closing() {
         <div className="flex items-center gap-2">
           <Logo className="size-4 text-blue-400" />
           <span className="font-medium text-white/80">Nineveh</span>
-          <span>— a live backend for Aptos apps</span>
+          <span>— application data for Aptos apps</span>
         </div>
         <a
           href="https://github.com/thewoodfish/Nineveh"

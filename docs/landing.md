@@ -7,13 +7,19 @@ so nobody writes copy the product can't back.
 
 ## The one-liner
 
-> **A live backend for your Aptos contract, from its address.**
+> **Turn your Aptos contract into application data.**
 
 Alternatives, same idea:
 
 - Point Nineveh at your contract. Get a database and an API that stay in sync with it.
 - Your contract's data, queryable. No indexer to write, nothing to run.
 - Firebase for Aptos contracts.
+
+**Don't lead with "backend".** It makes a reader think auth, business logic, servers and
+payments — and the docs then spend a paragraph taking all of that back. The words that
+are both accurate and wanted are *application data*, *application state* and *indexing*.
+Nineveh removes one specific painful layer; saying so plainly is stronger than implying
+it removes all of them.
 
 ## The problem
 
