@@ -28,8 +28,10 @@ done
 echo "--- packages"
 apt-get update
 apt-get upgrade -y
+# nano, because the minimal images ship no editor at all and the next thing anyone
+# does on this box is edit a config file.
 apt-get install -y --no-install-recommends \
-  build-essential pkg-config git curl ca-certificates gnupg \
+  build-essential pkg-config git curl ca-certificates gnupg nano \
   postgresql debian-keyring debian-archive-keyring apt-transport-https
 
 echo "--- caddy, from its own repository"
