@@ -35,6 +35,20 @@ Create the OAuth app at <https://github.com/settings/developers> with:
 
 The callback must be exactly `<NINEVEH_PUBLIC_URL>/auth/github/callback`.
 
+## The quick way
+
+If your provider takes a script to run after installation — netcup does — paste
+[`provision.sh`](provision.sh) into it. It does everything on this page up to the point
+where secrets are needed: packages, Caddy's repository, the user, the database, Rust,
+the build, the systemd units and the Caddyfile. Then you fill in
+`/etc/nineveh/nineveh.env` and start the service.
+
+It is safe to run twice, logs to `/var/log/nineveh-provision.log`, and deliberately
+holds no secrets — a provisioning script lives in a control panel, which is not where a
+Geomi key or an OAuth secret belongs.
+
+The rest of this page is the same thing by hand.
+
 ## The machine
 
 Caddy isn't in Ubuntu's default repositories — or the version there is old — so it
