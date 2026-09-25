@@ -31,10 +31,10 @@ const mono = IBM_Plex_Mono({
 });
 
 const description =
-  "An application backend for Aptos. Connect your Move contracts to application state, backend logic and APIs — on the Aptos infrastructure you already use.";
+  "An application backend for Aptos. Connect your Move contracts to application state, backend logic and APIs. On the Aptos infrastructure you already use.";
 
 export const metadata: Metadata = {
-  title: "Nineveh — your backend for Aptos",
+  title: "Nineveh: your backend for Aptos",
   description,
   openGraph: {
     title: "Nineveh",

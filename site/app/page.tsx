@@ -66,7 +66,7 @@ const ASKS = [
 const WORKFLOW = [
   {
     title: "Define your application state",
-    body: "Describe the tables your product needs — keys, columns, types — rather than building an indexing pipeline from scratch.",
+    body: "Describe the tables your product needs, with their keys, columns and types, rather than building an indexing pipeline from scratch.",
   },
   {
     title: "React to Aptos activity",
@@ -90,7 +90,7 @@ const WORKFLOW = [
 const UNDERNEATH = [
   {
     label: "INPUT",
-    body: "Aptos' Transaction Stream: every transaction in commit order, with its events and its write set — the exact storage slots it changed. Nothing to poll, nothing to schedule.",
+    body: "Aptos' Transaction Stream: every transaction in commit order, with its events and its write set, the exact storage slots it changed. Nothing to poll, nothing to schedule.",
   },
   {
     label: "PROCESSING",
@@ -149,12 +149,12 @@ function Hero() {
           Your backend for Aptos.
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/60">
-          Build a backend that reacts to on-chain events and state changes — without building
+          Build a backend that reacts to on-chain events and state changes, without building
           the infrastructure around it.
         </p>
         <p className="mx-auto mt-4 max-w-xl leading-relaxed text-pretty text-white/50">
-          Connect your Move contracts to application state, backend logic and APIs — on the Aptos
-          infrastructure you already know.
+          Connect your Move contracts to application state, backend logic and APIs. On the
+          Aptos infrastructure you already know.
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <Button href="https://studio.nineveh.dev" size="lg">
@@ -199,7 +199,7 @@ function Problem() {
             </p>
             <p className="mt-5 max-w-[62ch] text-white/55">
               Turning that into the backend your frontend needs is still application logic, state
-              management, database work and server code — and the data it needs mostly isn&apos;t
+              management, database work and server code. And the data it needs mostly isn&apos;t
               in storage to begin with. It lives in events and write sets, because keeping totals
               on-chain costs gas on every transaction.
             </p>
@@ -269,7 +269,7 @@ function Layers() {
           </h3>
           <p className="mx-auto mt-4 max-w-[58ch] leading-relaxed text-pretty text-white/55">
             Web developers have familiar abstractions for building application backends. Nineveh
-            brings that simplicity to Aptos applications — while keeping Aptos as the source of
+            brings that simplicity to Aptos applications, while keeping Aptos as the source of
             truth.
           </p>
         </div>
@@ -290,7 +290,7 @@ function Machinery() {
               Your contract is the source of truth. A reducer says what to do when something
               arrives: when this event lands, this row changes. No processor to write, no
               migrations, no schema to keep in step. Change a rule and Nineveh rebuilds the table
-              from history in the background, then swaps it in — the old data keeps serving the
+              from history in the background, then swaps it in. The old data keeps serving the
               whole time.
             </Lede>
           </div>
@@ -312,7 +312,7 @@ function Machinery() {
                   return
                 </code>
                 . It reads like TypeScript and your editor treats it as such, but nothing is
-                executed — it compiles to a fold that replays the same way every time.
+                executed: it compiles to a fold that replays the same way every time.
               </p>
             </div>
             <div className="flex flex-col gap-5">
@@ -334,8 +334,8 @@ function Machinery() {
               <Heading>Ask how things are. Get told when they change.</Heading>
               <Lede>
                 A query answers the first question, and REST over your tables is how you ask it.
-                But a frontend that has to stay current can only keep asking — on a timer, diffing
-                what comes back, guessing at the interval.
+                But a frontend that has to stay current can only keep asking: on a timer,
+                diffing what comes back, guessing at the interval.
               </Lede>
               <p className="mt-5 max-w-[62ch] leading-relaxed text-white/55">
                 The change feed turns that around. Every row a reducer writes leaves the same
@@ -354,7 +354,7 @@ function Machinery() {
                   <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
                     Last-Event-ID
                   </code>{" "}
-                  and carries on — nothing missed, nothing twice.
+                  and carries on. Nothing missed, nothing twice.
                 </li>
                 <li className="text-sm leading-relaxed text-white/55">
                   <span className="font-semibold text-white/85">Or pushed to your server.</span>{" "}
@@ -461,7 +461,7 @@ function Closing() {
               Build the backend. Build the app.
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-pretty text-blue-50/90">
-              Start with Aptos. Let Nineveh handle the application layer — backfills, cursors,
+              Start with Aptos. Let Nineveh handle the application layer. Backfills, cursors,
               retries and crash recovery included.
             </p>
             <ol className="mx-auto mt-10 grid max-w-2xl gap-3 text-left sm:grid-cols-3">
@@ -499,7 +499,7 @@ function Closing() {
         <div className="flex items-center gap-2">
           <Logo className="size-4 text-blue-400" />
           <span className="font-medium text-white/80">Nineveh</span>
-          <span>— an application backend for Aptos</span>
+          <span>· an application backend for Aptos</span>
         </div>
         <a
           href="https://github.com/thewoodfish/Nineveh"

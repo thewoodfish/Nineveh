@@ -17,7 +17,7 @@ import { Heading, Lede, Register, Section } from "./bits";
 /** What the Free plan gives you, in the order a developer cares about it. */
 const INCLUDED = [
   "Live tables built from your contract's events, resources and tables",
-  "REST over every table — filters, sorting, paging, exact counts",
+  "REST over every table: filters, sorting, paging, exact counts",
   "A live change feed over SSE, resumable from any position",
   "Signed webhooks, each endpoint with its own secret and cursor",
   "Studio: build a project from an address and watch it fill",
@@ -97,7 +97,7 @@ export function Pricing() {
         <Heading>Free to build on. Always.</Heading>
         <Lede>
           Not a trial. The free tier doesn&apos;t expire, doesn&apos;t need a card, and stays free
-          when paid plans arrive — testnet and devnet for as long as you want them. The limits
+          when paid plans arrive. Testnet and devnet for as long as you want them. The limits
           are real numbers Nineveh enforces, and when you reach one it tells you which and what
           it means.
         </Lede>
@@ -178,8 +178,8 @@ export function Pricing() {
             <Group label="On paid plans" items={PAID} className="mt-8" />
 
             <p className="mt-7 border-t border-white/10 pt-6 text-sm text-white/35">
-              Billing isn&apos;t built yet. When it is, everything in the free tier stays free —
-              paid is what you add, not what you move to.
+              Billing isn&apos;t built yet. When it is, everything in the free tier stays free.
+              Paid is what you add, not what you move to.
             </p>
           </div>
         </div>

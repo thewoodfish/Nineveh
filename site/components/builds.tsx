@@ -42,7 +42,7 @@ export function Builds() {
 
       <Card
         title="Protocol dashboards"
-        line="Volume, fees and exposure — totals the contract never stored."
+        line="Volume, fees and exposure: totals the contract never stored."
         query="daily_volume?order=day.desc"
       >
         <Chart />
