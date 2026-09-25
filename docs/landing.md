@@ -15,14 +15,24 @@ Alternatives, same idea:
 - Your contract's data, queryable. No indexer to write, nothing to run.
 - Firebase for Aptos contracts.
 
-**On the word "backend".** Keep it — it is the category developers recognise and search
-for, and Firebase is not a whole backend either without anyone minding. But bound it:
-*a backend for your contract's data*, not *a backend*. Unqualified, it promises auth,
-business logic and payments, and the docs then spend a paragraph taking those back.
+**On the word "backend".** Own it. It is the category developers recognise and search
+for, and Firebase is not a whole backend either without anyone minding. *Your backend
+for Aptos* is the positioning; the sentence underneath does the work of saying which
+part.
 
-So: the badge and the title carry the familiar word, and the hero says the specific
-thing — *turn your Aptos contract into application data*. Category first, promise
-second, and neither one lying.
+**Three things the copy must not claim**, however natural they sound next to the word:
+
+- **"backend logic"** — a reducer is a deterministic fold. It cannot call an API, send
+  an email, read a clock or run a job; `Date.now()` fails because `Date` is not a name.
+  Logic that does things belongs in *your* backend, which webhooks notify. Say
+  "webhooks into your backend", never "run your backend logic".
+- **"data storage"** — state is a read-only projection of the chain. There are no
+  writable app tables. A developer who reads "storage" will try to write to it.
+- **"write your contract, define your logic, build your frontend — that's it"** — it is
+  not it. Auth, payments and mutable user data still need somewhere to live.
+
+Every one of those would be found out in the first hour, by exactly the developer we
+most want to keep.
 
 ## The problem
 
