@@ -132,7 +132,8 @@ function Hero() {
           Your backend for Aptos.
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/60">
-          Build the backend for your Aptos app without building the infrastructure around it.
+          Build a backend that reacts to on-chain events and state changes — without building
+          the infrastructure around it.
         </p>
         <p className="mx-auto mt-4 max-w-xl leading-relaxed text-pretty text-white/50">
           Connect your Move contracts to application state, backend logic and APIs — on the Aptos
