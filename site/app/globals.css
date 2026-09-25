@@ -16,44 +16,63 @@
   --text-3xl: 2.441rem;
   --text-4xl: 3.052rem;
   --text-5xl: 3.815rem;
+  --text-6xl: 4.768rem;
 
-  /* Blue, the whole way down: the accent, the light behind the page, and the tint in
-     the ground, all one hue, so nothing looks borrowed. On a dark page the scale is
-     read from the light end — 300 and 400 carry text, 600 is for solid fills. */
-  --color-blue-50: oklch(0.975 0.012 259);
-  --color-blue-100: oklch(0.945 0.028 259);
-  --color-blue-200: oklch(0.898 0.055 259);
-  --color-blue-300: oklch(0.822 0.095 259);
-  --color-blue-400: oklch(0.716 0.152 259);
-  --color-blue-500: oklch(0.63 0.196 259);
-  --color-blue-600: oklch(0.552 0.221 261);
-  --color-blue-700: oklch(0.482 0.196 262);
-  --color-blue-800: oklch(0.412 0.158 262);
-  --color-blue-900: oklch(0.36 0.122 263);
+  /* Mint, the whole way down: the accent, the light behind the page, and the tint in
+     the ground, all one hue. This is the green an Aptos developer already has in their
+     eye — the page should look like it belongs to the chain it indexes, not like a
+     generic dark SaaS page wearing a different logo.
 
-  /* There is no grey scale. On a dark ground, white at a low opacity sits *on* whatever
-     is behind it — the blue washes included — where a fixed grey would cut a hole in
-     them. So the page has two colours and a stack of opacities. */
+     On a dark page the scale is read from the light end. 200 is the signature: it
+     carries display accents and fills the one bright panel, and anything filled with
+     it takes *ink* on top, never white. 700 and down are for rules and shadows. */
+  --color-mint-100: oklch(0.972 0.038 145);
+  --color-mint-200: oklch(0.945 0.073 143);
+  --color-mint-300: oklch(0.896 0.106 145);
+  --color-mint-400: oklch(0.83 0.134 147);
+  --color-mint-500: oklch(0.752 0.145 149);
+  --color-mint-600: oklch(0.662 0.138 150);
+  --color-mint-700: oklch(0.552 0.116 151);
+  --color-mint-800: oklch(0.448 0.092 152);
+  --color-mint-900: oklch(0.362 0.07 152);
 
-  /* The page itself, and the deeper ground one act drops to. */
-  --color-page: oklch(0.163 0.022 262);
-  --color-deep: oklch(0.112 0.019 263);
+  /* The second accent, used sparingly and never for an action: strings in code, and
+     the occasional chart. Two cool notes on a warm page is the limit. */
+  --color-sky-200: oklch(0.868 0.043 235);
+  --color-sky-300: oklch(0.793 0.062 235);
 
-  /* Clay: the one warm note, and the only place the page leaves blue. It marks
+  /* There is no grey scale. On a dark ground, cream at a low opacity sits *on* whatever
+     is behind it — the washes included — where a fixed grey would cut a hole in them.
+     So the page has two colours and a stack of opacities. */
+
+  /* The page itself, and the deeper ground one act drops to. Warm, not blue-black:
+     everything above is a warm neutral, and a cool ground under it reads as two
+     different pages bolted together. */
+  --color-page: oklch(0.155 0.008 86);
+  --color-deep: oklch(0.112 0.007 86);
+  --color-raised: oklch(0.244 0.007 86);
+  --color-edge: oklch(0.37 0.009 85);
+
+  /* Ink and cream: what sits on a light panel, and what sits on the dark page. Neither
+     is pure — pure white on a warm ground looks blue, and pure black looks like a hole. */
+  --color-ink: oklch(0.155 0.008 86);
+  --color-cream: oklch(0.976 0.011 106);
+
+  /* Clay: the one earth note, and the only place the page leaves mint. It marks
      *numbers that came off the chain* — version cursors, counts, prices — so warmth
      means "this is data" and never "this is decoration". Nineveh's records were kept
-     on clay; a single tan against all that lapis is also what stops a dark page with
-     one bright accent reading as the stock treatment. */
+     on clay. */
   --color-clay-300: oklch(0.84 0.055 72);
   --color-clay-400: oklch(0.775 0.075 68);
   --color-clay-500: oklch(0.7 0.088 64);
 
-  /* On a dark page a shadow is a hole, not a haze — and the one thing that glows is
-     blue, so the call to action can throw light. */
+  /* On a dark page a shadow is a hole, not a haze. The glow is deliberately weak: this
+     look is matte and flat-blocked, and a soft halo behind every card is the exact
+     thing that makes a dark page read as generic. */
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.4), 0 2px 8px oklch(0 0 0 / 0.28);
   --shadow-card: 0 2px 6px oklch(0 0 0 / 0.42), 0 12px 32px oklch(0 0 0 / 0.32);
   --shadow-hero: 0 8px 24px oklch(0 0 0 / 0.45), 0 32px 80px oklch(0 0 0 / 0.45);
-  --shadow-glow: 0 0 0 1px oklch(0.63 0.196 259 / 0.3), 0 20px 70px oklch(0.552 0.221 261 / 0.35);
+  --shadow-glow: 0 0 0 1px oklch(0.945 0.073 143 / 0.22), 0 18px 60px oklch(0.662 0.138 150 / 0.16);
 }
 
 html {
@@ -67,7 +86,7 @@ section[id] {
 }
 
 body {
-  @apply bg-page text-white;
+  @apply bg-page text-cream;
 }
 
 /*
@@ -86,7 +105,8 @@ body {
 .mark {
   font-family: var(--font-mono);
   font-size: 0.6875rem;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--color-clay-500);
 }
 
@@ -108,16 +128,17 @@ body {
     right: -3.15rem;
     width: 2.6rem;
     height: 1px;
-    background: linear-gradient(to right, oklch(1 0 0 / 0.28), oklch(1 0 0 / 0.06));
+    background: linear-gradient(to right, oklch(0.976 0.011 106 / 0.28), oklch(0.976 0.011 106 / 0.06));
   }
 }
 
 ::selection {
-  background: oklch(0.552 0.221 261 / 0.45);
+  background: oklch(0.945 0.073 143 / 0.3);
+  color: var(--color-ink);
 }
 
 /*
- * One canvas for the whole page: pools of blue light laid down the length of it rather
+ * One canvas for the whole page: pools of low warm light laid down the length of it rather
  * than per section, so nothing reads as a slab stacked on another slab. Fixed, so it
  * behaves like light in a room that the page moves through.
  */
@@ -126,10 +147,9 @@ body {
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(58rem 38rem at 50% -8rem, oklch(0.552 0.221 261 / 0.4), transparent 62%),
-    radial-gradient(42rem 30rem at 92% 16%, oklch(0.63 0.196 259 / 0.18), transparent 62%),
-    radial-gradient(46rem 32rem at 2% 46%, oklch(0.482 0.196 262 / 0.22), transparent 60%),
-    radial-gradient(50rem 34rem at 82% 84%, oklch(0.552 0.221 261 / 0.2), transparent 62%);
+    radial-gradient(56rem 34rem at 50% -10rem, oklch(0.662 0.138 150 / 0.16), transparent 64%),
+    radial-gradient(40rem 28rem at 94% 18%, oklch(0.7 0.088 64 / 0.07), transparent 62%),
+    radial-gradient(46rem 30rem at 0% 52%, oklch(0.552 0.116 151 / 0.09), transparent 62%);
 }
 
 /* The faint rule of the page: structure you feel rather than see. */
@@ -138,21 +158,21 @@ body {
   inset: 0;
   z-index: -1;
   background-image:
-    linear-gradient(to right, oklch(1 0 0 / 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(1 0 0 / 0.04) 1px, transparent 1px);
+    linear-gradient(to right, oklch(0.976 0.011 106 / 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.976 0.011 106 / 0.04) 1px, transparent 1px);
   background-size: 64px 64px;
   mask-image: linear-gradient(to bottom, black, transparent 22%, transparent 78%, black);
 }
 
 /* Dark glass: the ground, thickened, letting the light behind it through. */
 .glass {
-  background: oklch(0.163 0.022 262 / 0.72);
+  background: oklch(0.155 0.008 86 / 0.76);
   backdrop-filter: blur(14px);
 }
 
 /*
  * Deep: the stretch where the page drops a floor. It fades in from the page and fades
- * back out, so there is no line where one act becomes another, and it turns blue at
+ * back out, so there is no line where one act becomes another, and it warms at
  * both edges — a ground that fades straight to black goes flat and grey on the way.
  * `to-end` keeps it deep all the way to the bottom of the page.
  */
@@ -180,10 +200,10 @@ body {
   z-index: -2;
   background-image: linear-gradient(
     to bottom,
-    oklch(0.3 0.1 262),
+    oklch(0.26 0.03 120),
     var(--color-deep) 24rem,
     var(--color-deep) calc(100% - 22rem),
-    oklch(0.28 0.095 262)
+    oklch(0.24 0.028 120)
   );
 }
 
@@ -198,14 +218,14 @@ body {
     transparent
   );
   background:
-    radial-gradient(56rem 36rem at 14% 4%, oklch(0.552 0.221 261 / 0.4), transparent 62%),
-    radial-gradient(46rem 32rem at 88% 46%, oklch(0.63 0.196 259 / 0.24), transparent 62%),
-    radial-gradient(50rem 34rem at 30% 96%, oklch(0.482 0.196 262 / 0.36), transparent 62%);
+    radial-gradient(56rem 36rem at 14% 4%, oklch(0.662 0.138 150 / 0.2), transparent 62%),
+    radial-gradient(46rem 32rem at 88% 46%, oklch(0.7 0.088 64 / 0.1), transparent 62%),
+    radial-gradient(50rem 34rem at 30% 96%, oklch(0.552 0.116 151 / 0.18), transparent 62%);
   animation: breathe 20s ease-in-out infinite alternate;
 }
 
 .deep.to-end::before {
-  background-image: linear-gradient(to bottom, oklch(0.3 0.1 262), var(--color-deep) 24rem);
+  background-image: linear-gradient(to bottom, oklch(0.26 0.03 120), var(--color-deep) 24rem);
 }
 
 .deep.to-end::before,
@@ -241,7 +261,7 @@ body {
 
 @keyframes settle {
   0% {
-    background-color: oklch(0.63 0.196 259 / 0.3);
+    background-color: oklch(0.945 0.073 143 / 0.22);
   }
   100% {
     background-color: transparent;
@@ -317,7 +337,7 @@ body {
   max-width: 68ch;
   font-size: 1rem;
   line-height: 1.72;
-  color: oklch(1 0 0 / 0.68);
+  color: oklch(0.976 0.011 106 / 0.68);
 }
 
 .prose > * + * {
@@ -328,19 +348,19 @@ body {
 .prose h3,
 .prose h4 {
   position: relative;
-  color: white;
+  color: var(--color-cream);
   scroll-margin-top: 6rem;
 }
 
 .prose h2 {
   font-family: var(--font-display);
-  font-size: 1.75rem;
-  line-height: 1.2;
-  font-weight: 600;
-  letter-spacing: -0.012em;
+  font-size: 1.85rem;
+  line-height: 1.12;
+  font-weight: 500;
+  letter-spacing: -0.022em;
   margin-top: 3.25em;
   padding-top: 1.75rem;
-  border-top: 1px solid oklch(1 0 0 / 0.1);
+  border-top: 1px solid oklch(0.976 0.011 106 / 0.1);
 }
 
 .prose h2:first-child {
@@ -374,7 +394,7 @@ body {
   font-size: 1.1875rem;
   font-weight: 600;
   line-height: 1.35;
-  letter-spacing: -0.006em;
+  letter-spacing: -0.012em;
   margin-top: 2.25em;
 }
 
@@ -390,7 +410,7 @@ body {
   left: -1.15rem;
   width: 1rem;
   text-align: center;
-  color: oklch(1 0 0 / 0.22);
+  color: oklch(0.976 0.011 106 / 0.22);
   text-decoration: none;
   opacity: 0;
   transition: opacity 0.15s;
@@ -407,24 +427,24 @@ body {
 }
 
 .prose strong {
-  color: white;
+  color: var(--color-cream);
   font-weight: 600;
 }
 
 .prose em {
-  color: oklch(1 0 0 / 0.82);
+  color: oklch(0.976 0.011 106 / 0.82);
 }
 
 .prose a {
-  color: var(--color-blue-300);
+  color: var(--color-mint-200);
   text-decoration: underline;
-  text-decoration-color: oklch(0.822 0.095 259 / 0.35);
+  text-decoration-color: oklch(0.945 0.073 143 / 0.35);
   text-underline-offset: 3px;
   transition: text-decoration-color 0.15s;
 }
 
 .prose a:hover {
-  text-decoration-color: var(--color-blue-300);
+  text-decoration-color: var(--color-mint-200);
 }
 
 .prose ul,
@@ -449,7 +469,7 @@ body {
   width: 4px;
   height: 4px;
   border-radius: 999px;
-  background: oklch(1 0 0 / 0.3);
+  background: oklch(0.976 0.011 106 / 0.3);
 }
 
 .prose ol > li {
@@ -465,15 +485,15 @@ body {
 .prose code {
   font-family: var(--font-mono);
   font-size: 0.855em;
-  background: oklch(1 0 0 / 0.08);
+  background: oklch(0.976 0.011 106 / 0.08);
   border-radius: 4px;
   padding: 0.12em 0.36em;
-  color: var(--color-blue-200);
+  color: var(--color-mint-200);
 }
 
 .prose pre {
-  background: oklch(0.112 0.019 263 / 0.85);
-  border: 1px solid oklch(1 0 0 / 0.1);
+  background: oklch(0.112 0.007 86 / 0.9);
+  border: 1px solid oklch(0.976 0.011 106 / 0.1);
   border-radius: 0.85rem;
   padding: 1.1rem 1.25rem;
   overflow-x: auto;
@@ -485,7 +505,7 @@ body {
   background: none;
   padding: 0;
   font-size: inherit;
-  color: oklch(1 0 0 / 0.78);
+  color: oklch(0.976 0.011 106 / 0.78);
 }
 
 /* Tables carry a lot of this guide, so they get real attention: a hairline grid, a
@@ -503,15 +523,15 @@ body {
   text-align: left;
   font-weight: 500;
   font-size: 0.8125rem;
-  color: oklch(1 0 0 / 0.45);
+  color: oklch(0.976 0.011 106 / 0.45);
   padding: 0 1rem 0.6rem 0;
-  border-bottom: 1px solid oklch(1 0 0 / 0.16);
+  border-bottom: 1px solid oklch(0.976 0.011 106 / 0.16);
   white-space: nowrap;
 }
 
 .prose tbody td {
   padding: 0.7rem 1rem 0.7rem 0;
-  border-bottom: 1px solid oklch(1 0 0 / 0.07);
+  border-bottom: 1px solid oklch(0.976 0.011 106 / 0.07);
   vertical-align: top;
 }
 
@@ -520,7 +540,7 @@ body {
 }
 
 .prose tbody td:first-child {
-  color: oklch(1 0 0 / 0.88);
+  color: oklch(0.976 0.011 106 / 0.88);
   white-space: nowrap;
 }
 
@@ -530,9 +550,9 @@ body {
 
 /* Notes and warnings in the source are blockquotes; they read as an aside, not a box. */
 .prose blockquote {
-  border-left: 2px solid var(--color-blue-500);
+  border-left: 2px solid var(--color-mint-500);
   padding-left: 1.15rem;
-  color: oklch(1 0 0 / 0.6);
+  color: oklch(0.976 0.011 106 / 0.6);
 }
 
 .prose blockquote p:first-child {
@@ -541,7 +561,7 @@ body {
 
 .prose hr {
   border: 0;
-  border-top: 1px solid oklch(1 0 0 / 0.1);
+  border-top: 1px solid oklch(0.976 0.011 106 / 0.1);
   margin-top: 3em;
 }
 
@@ -554,5 +574,5 @@ body {
 
 .prose img {
   border-radius: 0.75rem;
-  border: 1px solid oklch(1 0 0 / 0.1);
+  border: 1px solid oklch(0.976 0.011 106 / 0.1);
 }

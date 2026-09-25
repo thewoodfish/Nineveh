@@ -66,20 +66,20 @@ function Card({
 }) {
   return (
     <article
-      className={`rise group flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur transition-[transform,border-color,box-shadow] hover:-translate-y-1 hover:border-blue-400/35 hover:shadow-card ${
+      className={`rise group flex flex-col overflow-hidden rounded-2xl border border-cream/10 bg-cream/[0.035] backdrop-blur transition-[transform,border-color,box-shadow] hover:-translate-y-1 hover:border-mint-300/35 hover:shadow-card ${
         wide ? "lg:col-span-2" : ""
       }`}
     >
       <div className="p-6 pb-4">
-        <h3 className="font-semibold text-white">{title}</h3>
-        <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-white/50">{line}</p>
+        <h3 className="font-semibold text-cream">{title}</h3>
+        <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-cream/50">{line}</p>
       </div>
       <div className="mt-auto px-6">{children}</div>
-      <div className="mt-5 flex items-center gap-2 border-t border-white/10 bg-white/[0.02] px-6 py-3">
-        <span className="rounded bg-blue-500/20 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-200">
+      <div className="mt-5 flex items-center gap-2 border-t border-cream/10 bg-cream/[0.02] px-6 py-3">
+        <span className="rounded bg-mint-400/20 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-mint-200">
           GET
         </span>
-        <code className="truncate font-mono text-[11.5px] text-white/45">{query}</code>
+        <code className="truncate font-mono text-[11.5px] text-cream/45">{query}</code>
       </div>
     </article>
   );
@@ -104,14 +104,14 @@ function Row({
   return (
     <div
       className={`flex items-baseline gap-2.5 rounded-lg px-2.5 py-1.5 ${
-        top ? "bg-blue-500/15 text-blue-100" : "bg-white/[0.045] text-white/55"
+        top ? "bg-mint-400/15 text-mint-100" : "bg-cream/[0.045] text-cream/55"
       }`}
     >
       {lead && (
-        <span className={`w-4 shrink-0 ${top ? "text-blue-300" : "text-white/35"}`}>{lead}</span>
+        <span className={`w-4 shrink-0 ${top ? "text-mint-200" : "text-cream/35"}`}>{lead}</span>
       )}
       <span className="min-w-0 flex-1 truncate">{body}</span>
-      <span className={`shrink-0 tabular-nums ${top ? "font-semibold" : "text-white/80"}`}>
+      <span className={`shrink-0 tabular-nums ${top ? "font-semibold" : "text-cream/80"}`}>
         {value}
       </span>
     </div>
@@ -153,10 +153,10 @@ function Holders() {
     <div className="flex flex-col gap-2">
       {holders.map(([who, share]) => (
         <div key={who} className="flex items-center gap-3 font-mono text-[11px]">
-          <span className="w-24 shrink-0 truncate text-white/55">{who}</span>
-          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+          <span className="w-24 shrink-0 truncate text-cream/55">{who}</span>
+          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-cream/10">
             <span
-              className="block h-full rounded-full bg-blue-400"
+              className="block h-full rounded-full bg-mint-300"
               style={{ width: `${share}%` }}
             />
           </span>
@@ -181,15 +181,15 @@ function Feed() {
             <span className="flex items-center gap-2">
               <span
                 className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                  i === 0 ? "bg-blue-500/20 text-blue-200" : "bg-white/10 text-white/50"
+                  i === 0 ? "bg-mint-400/20 text-mint-200" : "bg-cream/10 text-cream/50"
                 }`}
               >
                 {what}
               </span>
-              <span className="truncate text-white/45">0x7a3f…c41d</span>
+              <span className="truncate text-cream/45">0x7a3f…c41d</span>
             </span>
           }
-          value={<span className="text-white/35">{when}</span>}
+          value={<span className="text-cream/35">{when}</span>}
         />
       ))}
     </Rows>
@@ -205,7 +205,7 @@ function Chart() {
         <span
           key={i}
           className={`flex-1 rounded-t-sm ${
-            i === days.length - 2 ? "bg-blue-400" : "bg-blue-400/30"
+            i === days.length - 2 ? "bg-mint-300" : "bg-mint-300/30"
           }`}
           style={{ height: `${height}%` }}
         />

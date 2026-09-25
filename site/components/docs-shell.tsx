@@ -30,12 +30,12 @@ export function DocsNav({
                 aria-current={here ? "page" : undefined}
                 className={`block rounded-lg px-3 py-2 transition-colors ${
                   here
-                    ? "bg-white/[0.07] text-white"
-                    : "text-white/55 hover:bg-white/[0.04] hover:text-white"
+                    ? "bg-cream/[0.07] text-cream"
+                    : "text-cream/55 hover:bg-cream/[0.04] hover:text-cream"
                 }`}
               >
                 <span className="font-medium">{doc.title}</span>
-                <span className="mt-0.5 block text-xs text-white/35">{doc.blurb}</span>
+                <span className="mt-0.5 block text-xs text-cream/35">{doc.blurb}</span>
               </a>
             </li>
           );
@@ -51,8 +51,8 @@ export function OnThisPage({ headings }: { headings: Entry[] }) {
   if (headings.length === 0) return null;
   return (
     <nav aria-label="On this page" className="text-sm">
-      <p className="pb-3 text-xs font-medium text-white/40">On this page</p>
-      <ul className="flex flex-col border-l border-white/10">
+      <p className="pb-3 text-xs font-medium text-cream/40">On this page</p>
+      <ul className="flex flex-col border-l border-cream/10">
         {headings.map((h) => (
           <li key={h.id}>
             <a
@@ -61,8 +61,8 @@ export function OnThisPage({ headings }: { headings: Entry[] }) {
                 h.level === 3 ? "pl-7 text-[12.5px]" : "pl-4 text-[13px]"
               } ${
                 active === h.id
-                  ? "border-blue-400 text-blue-200"
-                  : "border-transparent text-white/45 hover:border-white/25 hover:text-white/80"
+                  ? "border-mint-300 text-mint-200"
+                  : "border-transparent text-cream/45 hover:border-cream/25 hover:text-cream/80"
               }`}
             >
               {h.text}

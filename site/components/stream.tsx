@@ -68,33 +68,33 @@ export function Stream() {
   const newest = sale(count - 1);
 
   return (
-    <div className="grid overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] sm:grid-cols-2">
-      <div className="border-b border-white/10 p-5 sm:border-r sm:border-white/10 sm:border-b-0">
+    <div className="grid overflow-hidden rounded-2xl border border-cream/10 bg-cream/[0.02] sm:grid-cols-2">
+      <div className="border-b border-cream/10 p-5 sm:border-r sm:border-cream/10 sm:border-b-0">
         <Label title="From the chain" hint="events, as they commit" />
         <ul className="mt-4 flex flex-col gap-1.5">
           {sales.map((one) => (
             <li
               key={one.n}
-              className="arrive flex items-baseline gap-2.5 rounded-lg bg-white/[0.05] px-3 py-2 font-mono text-[11px] sm:text-xs"
+              className="arrive flex items-baseline gap-2.5 rounded-lg bg-cream/[0.05] px-3 py-2 font-mono text-[11px] sm:text-xs"
             >
-              <span className="text-white/35 tabular-nums">
+              <span className="text-cream/35 tabular-nums">
                 v{one.version.toLocaleString("en-US")}
               </span>
-              <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-200">
+              <span className="rounded bg-mint-400/20 px-1.5 py-0.5 text-[10px] font-medium text-mint-200">
                 Sold
               </span>
-              <span className="min-w-0 flex-1 truncate text-white/50">{one.item}</span>
-              <span className="text-white/75 tabular-nums">{one.price}</span>
+              <span className="min-w-0 flex-1 truncate text-cream/50">{one.item}</span>
+              <span className="text-cream/75 tabular-nums">{one.price}</span>
             </li>
           ))}
         </ul>
       </div>
 
-      <div className="bg-blue-500/[0.06] p-5">
+      <div className="bg-mint-400/[0.06] p-5">
         <Label title="Your table" hint="sellers · key seller" arrow />
         <table className="mt-4 w-full font-mono text-[11px] sm:text-xs">
           <thead>
-            <tr className="text-left text-white/35">
+            <tr className="text-left text-cream/35">
               <th className="pb-2 font-medium">seller</th>
               <th className="pb-2 text-right font-medium">sold</th>
               <th className="pb-2 text-right font-medium">revenue</th>
@@ -104,18 +104,18 @@ export function Stream() {
             {rows.map((row, i) => (
               <tr
                 key={SELLERS[i]}
-                className={`${i === newest.seller ? "settle" : ""} border-t border-white/[0.07]`}
+                className={`${i === newest.seller ? "settle" : ""} border-t border-cream/[0.07]`}
               >
-                <td className="py-1.5 text-white/55">{SELLERS[i]}</td>
-                <td className="py-1.5 text-right text-white/55 tabular-nums">{row.sold}</td>
-                <td className="py-1.5 text-right font-medium text-white tabular-nums">
+                <td className="py-1.5 text-cream/55">{SELLERS[i]}</td>
+                <td className="py-1.5 text-right text-cream/55 tabular-nums">{row.sold}</td>
+                <td className="py-1.5 text-right font-medium text-cream tabular-nums">
                   {row.revenue.toLocaleString("en-US")}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="mt-4 text-[11px] text-white/35">
+        <p className="mt-4 text-[11px] text-cream/35">
           revenue = price − fee, folded from every sale
         </p>
       </div>
@@ -126,9 +126,9 @@ export function Stream() {
 function Label({ title, hint, arrow = false }: { title: string; hint: string; arrow?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <span className="flex items-center gap-2 text-xs font-semibold text-white/85">
+      <span className="flex items-center gap-2 text-xs font-semibold text-cream/85">
         {arrow && (
-          <span className="text-blue-400" aria-hidden>
+          <span className="text-mint-300" aria-hidden>
             {/* The panes sit side by side on a wide screen and stack on a narrow one,
                 so the arrow points the way the eye actually travels. */}
             <span className="sm:hidden">↓</span>
@@ -137,7 +137,7 @@ function Label({ title, hint, arrow = false }: { title: string; hint: string; ar
         )}
         {title}
       </span>
-      <span className="truncate font-mono text-[11px] text-white/35">{hint}</span>
+      <span className="truncate font-mono text-[11px] text-cream/35">{hint}</span>
     </div>
   );
 }

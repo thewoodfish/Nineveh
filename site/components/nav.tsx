@@ -41,14 +41,14 @@ export function Nav() {
   return (
     <nav
       className={`sticky top-0 z-20 border-b transition-colors duration-500 ${
-        lifted ? "glass border-white/10" : "border-transparent"
+        lifted ? "glass border-cream/10" : "border-transparent"
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-        <a href="/" className="flex items-center gap-2 text-white">
-          <Logo className="size-5 text-blue-400" />
+        <a href="/" className="flex items-center gap-2 text-cream">
+          <Logo className="size-5 text-mint-300" />
           <span className="text-[15px] font-semibold tracking-tight">Nineveh</span>
-          <span className="rounded border border-white/15 px-1.5 py-px text-[10px] font-medium tracking-wide text-white/45">
+          <span className="rounded border border-cream/15 px-1.5 py-px text-[10px] font-medium tracking-wide text-cream/45">
             beta
           </span>
         </a>
@@ -57,7 +57,7 @@ export function Nav() {
             <a
               key={link.href}
               href={link.href}
-              className={`text-white/55 transition-colors hover:text-white ${
+              className={`text-cream/55 transition-colors hover:text-cream ${
                 link.anchor ? "hidden sm:block" : ""
               }`}
             >
@@ -66,7 +66,7 @@ export function Nav() {
           ))}
           <a
             href="https://github.com/thewoodfish/Nineveh"
-            className="hidden text-white/55 transition-colors hover:text-white sm:block"
+            className="hidden text-cream/55 transition-colors hover:text-cream sm:block"
           >
             GitHub
           </a>
@@ -74,7 +74,7 @@ export function Nav() {
         </div>
       </div>
       <div
-        className="h-px origin-left bg-gradient-to-r from-blue-500 to-blue-300 transition-transform duration-150"
+        className="h-px origin-left bg-gradient-to-r from-mint-400 to-mint-200 transition-transform duration-150"
         style={{ transform: `scaleX(${progress})` }}
         aria-hidden
       />

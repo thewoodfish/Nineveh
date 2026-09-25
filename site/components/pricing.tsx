@@ -46,7 +46,7 @@ const PAID = ["Mainnet", "More than two projects", "History deeper than six hour
 
 function Check() {
   return (
-    <svg viewBox="0 0 16 16" className="mt-[5px] size-3.5 shrink-0 text-blue-400" aria-hidden>
+    <svg viewBox="0 0 16 16" className="mt-[5px] size-3.5 shrink-0 text-mint-300" aria-hidden>
       <path
         fill="none"
         stroke="currentColor"
@@ -73,19 +73,19 @@ function Group({
 }) {
   return (
     <div className={className}>
-      <h4 className="text-xs font-medium tracking-wide text-white/40">{label}</h4>
+      <h4 className="text-xs font-medium tracking-wide text-cream/40">{label}</h4>
       <ul className="mt-3 flex flex-col gap-3">
         {items.map((item) => (
-          <li key={item} className="flex gap-3 text-[15px] leading-relaxed text-white/55">
+          <li key={item} className="flex gap-3 text-[15px] leading-relaxed text-cream/55">
             <span
-              className="mt-[9px] size-1.5 shrink-0 rounded-full border border-white/30"
+              className="mt-[9px] size-1.5 shrink-0 rounded-full border border-cream/30"
               aria-hidden
             />
             {item}
           </li>
         ))}
       </ul>
-      {children && <p className="mt-3 text-sm text-white/35">{children}</p>}
+      {children && <p className="mt-3 text-sm text-cream/35">{children}</p>}
     </div>
   );
 }
@@ -104,42 +104,42 @@ export function Pricing() {
 
         <div className="mt-12 grid items-start gap-6 lg:grid-cols-[1.25fr_1fr] lg:gap-8">
           {/* The plan you can actually have: lifted, outlined in blue, its own light. */}
-          <div className="relative overflow-hidden rounded-2xl border border-blue-400/30 bg-white/[0.045] p-8 shadow-glow backdrop-blur sm:p-10">
+          <div className="relative overflow-hidden rounded-2xl border border-mint-300/30 bg-cream/[0.045] p-8 shadow-glow backdrop-blur sm:p-10">
             <div
               className="pointer-events-none absolute inset-x-0 top-0 h-48 opacity-60"
               style={{
                 background:
-                  "radial-gradient(28rem 12rem at 20% 0%, oklch(0.552 0.221 261 / 0.45), transparent 70%)",
+                  "radial-gradient(28rem 12rem at 20% 0%, oklch(0.662 0.138 150 / 0.3), transparent 70%)",
               }}
               aria-hidden
             />
             <div className="relative">
               <div className="flex items-center justify-between gap-4">
-                <h3 className="font-display text-2xl font-semibold tracking-[-0.015em] text-white">
+                <h3 className="font-display text-2xl font-semibold tracking-[-0.015em] text-cream">
                   Free
                 </h3>
-                <span className="rounded-full border border-blue-400/30 bg-blue-500/15 px-3 py-1 text-xs font-medium text-blue-200">
+                <span className="rounded-full border border-mint-300/30 bg-mint-400/15 px-3 py-1 text-xs font-medium text-mint-200">
                   Always free
                 </span>
               </div>
 
               <div className="mt-5 flex items-baseline gap-2">
-                <span className="font-display text-5xl leading-none font-semibold tracking-[-0.03em] text-white">
+                <span className="font-display text-5xl leading-none font-semibold tracking-[-0.03em] text-cream">
                   $0
                 </span>
-                <span className="text-sm text-white/45">per month, every account</span>
+                <span className="text-sm text-cream/45">per month, every account</span>
               </div>
 
               <a
                 href="https://studio.nineveh.dev"
-                className="mt-7 flex w-full items-center justify-center rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-card transition-colors outline-none hover:bg-blue-500 focus-visible:ring-2 focus-visible:ring-blue-300"
+                className="mt-7 flex w-full items-center justify-center rounded-full bg-mint-200 px-6 py-3.5 text-sm font-semibold text-ink shadow-card transition-colors outline-none hover:bg-mint-100 focus-visible:ring-2 focus-visible:ring-mint-300"
               >
                 Start building
               </a>
 
-              <ul className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-7">
+              <ul className="mt-8 flex flex-col gap-3 border-t border-cream/10 pt-7">
                 {INCLUDED.map((item) => (
-                  <li key={item} className="flex gap-3 text-[15px] leading-relaxed text-white/70">
+                  <li key={item} className="flex gap-3 text-[15px] leading-relaxed text-cream/70">
                     <Check />
                     {item}
                   </li>
@@ -148,13 +148,13 @@ export function Pricing() {
 
               {/* Inset, so the spec reads as a different kind of thing from the list
                   above it without needing a label to say so. */}
-              <dl className="mt-8 rounded-xl bg-black/20 px-5 py-1.5 ring-1 ring-white/[0.07]">
+              <dl className="mt-8 rounded-xl bg-black/20 px-5 py-1.5 ring-1 ring-cream/[0.07]">
                 {LIMITS.map(([label, value]) => (
                   <div
                     key={label}
-                    className="flex items-baseline justify-between gap-6 border-b border-white/[0.07] py-3 last:border-0"
+                    className="flex items-baseline justify-between gap-6 border-b border-cream/[0.07] py-3 last:border-0"
                   >
-                    <dt className="text-sm text-white/50">{label}</dt>
+                    <dt className="text-sm text-cream/50">{label}</dt>
                     <dd className="font-mono text-[13px] whitespace-nowrap text-clay-400">
                       {value}
                     </dd>
@@ -165,19 +165,19 @@ export function Pricing() {
           </div>
 
           {/* What isn't on offer yet: flat, quiet, and not pretending to be a choice. */}
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 sm:p-10">
+          <div className="rounded-2xl border border-cream/10 bg-cream/[0.02] p-8 sm:p-10">
             <div className="flex items-center justify-between gap-4">
-              <h3 className="font-display text-2xl font-semibold tracking-[-0.015em] text-white/70">
+              <h3 className="font-display text-2xl font-semibold tracking-[-0.015em] text-cream/70">
                 More
               </h3>
-              <span className="rounded-full border border-white/12 px-3 py-1 text-xs font-medium text-white/40">
+              <span className="rounded-full border border-cream/12 px-3 py-1 text-xs font-medium text-cream/40">
                 Coming soon
               </span>
             </div>
 
             <Group label="On paid plans" items={PAID} className="mt-8" />
 
-            <p className="mt-7 border-t border-white/10 pt-6 text-sm text-white/35">
+            <p className="mt-7 border-t border-cream/10 pt-6 text-sm text-cream/35">
               Billing isn&apos;t built yet. When it is, everything in the free tier stays free —
               paid is what you add, not what you move to.
             </p>
