@@ -31,7 +31,7 @@ const mono = IBM_Plex_Mono({
 });
 
 const description =
-  "Point Nineveh at your Aptos contract and get a live database and API that stay in sync with it. No indexer to write, nothing to run.";
+  "An application backend for Aptos. Connect your Move contracts to application state, backend logic and APIs — on the Aptos infrastructure you already use.";
 
 export const metadata: Metadata = {
   title: "Nineveh — your backend for Aptos",
