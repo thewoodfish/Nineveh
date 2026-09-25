@@ -52,12 +52,6 @@ const CHANGES = [
   '                 "revenue": "94494" } }',
 ];
 
-const ASKS = [
-  ["Show me all of them, sorted", "Top players. Cheapest listings. Biggest holders."],
-  ["What happened?", "A feed. A history. This user's last twenty actions."],
-  ["How much, in total?", "Revenue per seller. Volume per day. Count per account."],
-];
-
 /*
  * The workflow, as the developer does it — four things to describe, in the order you
  * describe them. This is the page's one list of what Nineveh is for, and it stays four
@@ -216,25 +210,6 @@ function Problem() {
             <Pipeline />
           </div>
         </div>
-
-        {/* The three asks, set as an editorial list rather than boxed up as cards. */}
-        <p className="mt-16 text-sm text-white/40">
-          The questions an app asks, that a point read can&apos;t answer:
-        </p>
-        <dl className="mt-5 border-t border-white/10">
-          {ASKS.map(([ask, kinds]) => (
-            <div
-              key={ask}
-              className="group grid gap-1.5 border-b border-white/10 py-7 sm:grid-cols-[1.05fr_1fr] sm:gap-10"
-            >
-              <dt className="flex items-baseline gap-3 text-xl font-medium tracking-tight text-white sm:text-2xl">
-                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-blue-400 transition-transform duration-300 group-hover:scale-150" />
-                {ask}
-              </dt>
-              <dd className="self-center pl-6 text-white/50 sm:pl-0">{kinds}</dd>
-            </div>
-          ))}
-        </dl>
       </Register>
     </Section>
   );
