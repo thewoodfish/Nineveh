@@ -24,12 +24,12 @@ export function DocPage({ doc }: { doc: Doc }) {
         </aside>
 
         <main className="min-w-0 py-12">
-          <header className="mb-12 border-b border-cream/10 pb-8">
-            <h1 className="font-display text-4xl leading-[1.08] font-semibold tracking-[-0.015em] text-cream">
+          <header className="mb-12 border-b border-white/10 pb-8">
+            <h1 className="font-display text-4xl leading-[1.08] font-semibold tracking-[-0.015em] text-white">
               {title}
             </h1>
             {summary && (
-              <p className="mt-4 max-w-[62ch] text-lg leading-relaxed text-pretty text-cream/55">
+              <p className="mt-4 max-w-[62ch] text-lg leading-relaxed text-pretty text-white/55">
                 {summary}
               </p>
             )}
@@ -38,16 +38,16 @@ export function DocPage({ doc }: { doc: Doc }) {
           {/* The docs' own markdown, from the repo. */}
           <article className="prose" dangerouslySetInnerHTML={{ __html: html }} />
 
-          <footer className="mt-20 flex flex-wrap items-center justify-between gap-4 border-t border-cream/10 pt-8 text-sm text-cream/40">
+          <footer className="mt-20 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-8 text-sm text-white/40">
             <span className="flex items-center gap-2">
-              <Logo className="size-4 text-mint-300" />
+              <Logo className="size-4 text-blue-400" />
               This page is{" "}
-              <code className="font-mono text-[12.5px] text-cream/60">docs/{doc.file}</code> in the
+              <code className="font-mono text-[12.5px] text-white/60">docs/{doc.file}</code> in the
               repository.
             </span>
             <a
               href={`https://github.com/thewoodfish/Nineveh/blob/main/docs/${doc.file}`}
-              className="transition-colors hover:text-cream"
+              className="transition-colors hover:text-white"
               target="_blank"
               rel="noreferrer"
             >

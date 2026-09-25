@@ -56,7 +56,7 @@ export function Shots() {
         <div
           role="tablist"
           aria-label="Studio screens"
-          className="mt-10 flex flex-wrap gap-1 border-b border-cream/10"
+          className="mt-10 flex flex-wrap gap-1 border-b border-white/10"
         >
           {SHOTS.map((s) => (
             <button
@@ -65,10 +65,10 @@ export function Shots() {
               type="button"
               aria-selected={s.id === active}
               onClick={() => setActive(s.id)}
-              className={`-mb-px cursor-pointer border-b-2 px-4 py-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-mint-300 ${
+              className={`-mb-px cursor-pointer border-b-2 px-4 py-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                 s.id === active
-                  ? "border-mint-300 text-cream"
-                  : "border-transparent text-cream/45 hover:text-cream/75"
+                  ? "border-blue-400 text-white"
+                  : "border-transparent text-white/45 hover:text-white/75"
               }`}
             >
               {s.tab}
@@ -77,7 +77,7 @@ export function Shots() {
         </div>
 
         <figure className="mt-8">
-          <div className="overflow-hidden rounded-xl border border-cream/10 bg-deep shadow-hero">
+          <div className="overflow-hidden rounded-xl border border-white/10 bg-deep shadow-hero">
             <Image
               key={shot.id}
               src={shot.src}
@@ -88,7 +88,7 @@ export function Shots() {
               className="w-full"
             />
           </div>
-          <figcaption className="mt-4 max-w-[62ch] text-sm leading-relaxed text-cream/45">
+          <figcaption className="mt-4 max-w-[62ch] text-sm leading-relaxed text-white/45">
             {shot.caption}
           </figcaption>
         </figure>
