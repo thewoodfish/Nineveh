@@ -14,7 +14,7 @@
 // the browser agree on the first frame. The handler is the same text `nineveh-dsl`'s
 // tests/landing.rs pins, so the hero can't drift from the language either.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 const SELLERS = ["0x7a3f…c41d", "0x1e87…8d2a", "0x9b02…4f77", "0x6146…e554"];
 const ITEMS = ["brass lamp", "oak chair", "wool rug", "clay mug", "iron kettle"];
@@ -61,6 +61,19 @@ function totals(count: number): { sold: number; revenue: number }[] {
     }
   }
   return rows;
+}
+
+/** One change event: the row as it stood after sale `n` was folded. */
+function change(n: number) {
+  const one = sale(n);
+  const row = totals(n + 1)[one.seller];
+  return {
+    n,
+    version: one.version,
+    seller: SELLERS[one.seller] ?? SELLERS[0]!,
+    sold: row?.sold ?? 0,
+    revenue: row?.revenue ?? 0,
+  };
 }
 
 export function Stream() {
@@ -177,5 +190,109 @@ function Label({ title, hint, arrow = false }: { title: string; hint: string; ar
       </span>
       <span className="truncate font-mono text-[11px] text-white/35">{hint}</span>
     </div>
+  );
+}
+
+/**
+ * The change feed, arriving. The section beside this argues that an app is told rather
+ * than asks, and a still frame of SSE is a poor way to make that argument: the whole
+ * claim is that something happens without the reader doing anything.
+ *
+ * Older events collapse to a line and the newest is shown whole, which is how a log reads
+ * when you're watching one. The frames are the real wire format (`nineveh-realtime`): the
+ * id is `version.seq`, which is what makes `Last-Event-ID` enough to resume. The sequence
+ * is the same one the hero figure folds, so both drawings are the same market.
+ */
+export function Feed() {
+  const [count, setCount] = useState(FIRST);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = setInterval(() => setCount((c) => c + 1), 1900);
+    return () => clearInterval(timer);
+  }, []);
+
+  const past = Array.from({ length: 6 }, (_, i) => count - 7 + i)
+    .filter((n) => n >= 0)
+    .map(change);
+  const now = change(count - 1);
+
+  return (
+    <div className="overflow-hidden rounded-2xl bg-white/[0.045] ring-1 ring-white/10 backdrop-blur">
+      <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
+        <span className="size-2 rounded-full bg-blue-400/70" />
+        <span className="font-mono text-[11px] font-medium text-white/40">
+          GET /v1/changes?tables=sellers
+        </span>
+      </div>
+      <div className="px-4 py-4 font-mono text-[11.5px] leading-[1.8]">
+        {past.map((c) => (
+          <div key={c.n} className="flex gap-3 text-white/25">
+            <span className="tabular-nums">id: {c.version}.0</span>
+            <span>sellers</span>
+            <span>update</span>
+          </div>
+        ))}
+        {/* Keyed on the event, so a new frame animates in rather than mutating in place. */}
+        <div key={now.n} className="arrive mt-2 border-t border-white/[0.07] pt-2">
+          <Field name="id">{`${now.version}.0`}</Field>
+          <Field name="event">change</Field>
+          <div>
+            <span className="text-blue-300">data:</span>
+            <span className="text-white/60">{" { "}</span>
+            <Pair k="version" v={String(now.version)} />
+            <span className="text-white/60">, </span>
+            <Pair k="seq" v="0" bare />
+          </div>
+          <Indented>
+            <Pair k="table" v="sellers" />
+            <span className="text-white/60">, </span>
+            <Pair k="op" v="update" />
+          </Indented>
+          <Indented>
+            <Pair k="key" v={`{ "seller": "${now.seller}" }`} bare />
+          </Indented>
+          <Indented>
+            <Pair k="row" v={`{ "sold": "${now.sold}",`} bare />
+          </Indented>
+          <Indented deep>
+            <span className="text-emerald-300/90">&quot;revenue&quot;</span>
+            <span className="text-white/60">: </span>
+            <span className="text-emerald-300/90">&quot;{now.revenue}&quot;</span>
+            <span className="text-white/60">{" } }"}</span>
+          </Indented>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** An SSE field line: `id:`, `event:`. */
+function Field({ name, children }: { name: string; children: string }) {
+  return (
+    <div>
+      <span className="text-blue-300">{name}:</span>{" "}
+      <span className="text-white/60 tabular-nums">{children}</span>
+    </div>
+  );
+}
+
+/** A continuation line inside the JSON, indented as the wire renders it. */
+function Indented({ children, deep = false }: { children: ReactNode; deep?: boolean }) {
+  return <div className={deep ? "pl-[9.5ch]" : "pl-[7ch]"}>{children}</div>;
+}
+
+/** One JSON pair. `bare` is for a value that is already punctuation, not a string. */
+function Pair({ k, v, bare = false }: { k: string; v: string; bare?: boolean }) {
+  return (
+    <>
+      <span className="text-emerald-300/90">&quot;{k}&quot;</span>
+      <span className="text-white/60">: </span>
+      {bare ? (
+        <span className="text-white/60">{v}</span>
+      ) : (
+        <span className="text-emerald-300/90">&quot;{v}&quot;</span>
+      )}
+    </>
   );
 }

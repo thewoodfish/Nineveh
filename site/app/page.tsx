@@ -3,8 +3,9 @@ import { Pricing } from "@/components/pricing";
 import { Shots } from "@/components/shots";
 import { Builds } from "@/components/builds";
 import { Nav } from "@/components/nav";
-import { Pipeline, Rebuild, Stack } from "@/components/layers";
-import { Stream } from "@/components/stream";
+import { Pipeline, Stack } from "@/components/layers";
+import { Rebuild } from "@/components/rebuild";
+import { Feed, Stream } from "@/components/stream";
 
 // The whole backend, and it is the example from the docs — compiled in CI by
 // nineveh-dsl's tests/landing.rs, so the front page cannot drift from the language.
@@ -33,23 +34,6 @@ const RESPONSE = [
   '      "revenue": "63880" }',
   "  ],",
   '  "count": 4 }',
-];
-
-/*
- * The change feed, on the wire. Shaped exactly as `nineveh-realtime` sends it (ADR 0006):
- * the event id is `version.seq`, which is what makes `Last-Event-ID` enough to resume.
- */
-const CHANGES = [
-  "GET /v1/changes?tables=sellers",
-  "",
-  "id: 20671008.0",
-  "event: change",
-  'data: { "version": "20671008", "seq": 0,',
-  '        "table": "sellers",',
-  '        "op": "update",',
-  '        "key": { "seller": "0x7a3f…c41d" },',
-  '        "row": { "sold": "129",',
-  '                 "revenue": "94494" } }',
 ];
 
 /*
@@ -302,7 +286,7 @@ function Machinery() {
 
           {/* Push, not pull — the one axis where Nineveh differs in kind rather than in
               convenience, so it gets prose and the wire format rather than a bullet. */}
-          <div className="mt-32 grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
+          <div className="mt-32 grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div>
               <Heading>Ask how things are. Get told when they change.</Heading>
               <Lede>
@@ -336,7 +320,7 @@ function Machinery() {
                 </li>
               </ul>
             </div>
-            <Code title="your change feed" lines={CHANGES} />
+            <Feed />
           </div>
 
           <div className="mt-32">

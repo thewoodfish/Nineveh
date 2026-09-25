@@ -269,26 +269,6 @@ body {
   animation-range: entry 0% cover 24%;
 }
 
-/* A shadow table filling while the live one keeps serving. Driven by scroll position,
-   not by a clock: the rebuild happens once, and then the two swap. */
-@keyframes fill {
-  from {
-    width: 0;
-  }
-  to {
-    width: 100%;
-  }
-}
-
-.fill {
-  /* Full by default, so reduced motion (which drops the animation) shows a finished
-     rebuild rather than an empty bar. */
-  width: 100%;
-  animation: fill 1s linear both;
-  animation-timeline: view();
-  animation-range: entry 25% cover 50%;
-}
-
 /* A pulse running the length of the rail: the stream, moving. */
 @keyframes travel {
   0% {
@@ -317,7 +297,6 @@ body {
   }
 
   .arrive,
-  .fill,
   .settle,
   .rise,
   .travel,
