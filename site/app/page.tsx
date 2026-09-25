@@ -153,7 +153,8 @@ function Hero() {
           <Stream />
         </div>
         <figcaption className="mt-4 text-center text-xs text-white/35">
-          Every sale the contract emits, folded into the table your app queries.
+          Every sale the contract emits, the four lines that fold it, and the table your app
+          queries.
         </figcaption>
       </figure>
     </div>
