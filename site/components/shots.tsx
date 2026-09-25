@@ -13,6 +13,10 @@ import { useState } from "react";
 
 import { Heading, Lede, Register, Section } from "./bits";
 
+// TODO: a fourth shot of the create flow — the address pasted, the catalog listed, the
+// events and resources ticked. It's the one screen that would prove the closing panel's
+// first two steps instead of asking to be believed. Drop the jpg in `public/shots/` and
+// add it here as the first entry; the tabs and the figure need no other change.
 const SHOTS = [
   {
     id: "table",
@@ -32,10 +36,10 @@ const SHOTS = [
   },
   {
     id: "health",
-    tab: "Is it keeping up?",
+    tab: "Keeping up",
     src: "/shots/overview.jpg",
     caption:
-      "Where the cursor is, how far behind the chain, how fast it's folding, and how much of its own history it's holding, which is how far back it can be rebuilt without reading the chain again.",
+      "Where the cursor is, how far behind the chain, and how fast it's folding. The history it holds is what sets how far back a rebuild can reach without reading the chain again.",
     alt: "Nineveh Studio's overview, showing a project caught up with the chain and its history usage",
   },
 ];
@@ -47,10 +51,11 @@ export function Shots() {
   return (
     <Section id="studio" rule={false}>
       <Register at="studio">
-        <Heading>You get a dashboard too</Heading>
+        <Heading>Studio builds it. Then shows it running.</Heading>
         <Lede>
-          Studio builds the project, then shows you what it built: the tables, the changes
-          arriving, and whether the whole thing is keeping up with the chain.
+          Studio creates the project, then shows you what it built: the tables, the changes
+          arriving, and whether the whole thing is keeping up with the chain. Every screen below
+          is Studio against a live contract on testnet, not a mockup.
         </Lede>
 
         <div
