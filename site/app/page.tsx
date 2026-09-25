@@ -441,9 +441,15 @@ function Closing() {
             </p>
             <ol className="mx-auto mt-10 grid max-w-2xl gap-3 text-left sm:grid-cols-3">
               {[
-                ["Paste your address", "Nineveh reads the contract's modules off the chain."],
-                ["Tick what to follow", "Events, resources and tables become tables of your own."],
-                ["Query it", "REST, a change feed and webhooks, seconds later."],
+                [
+                  "Point it at your contract",
+                  "Nineveh reads the modules off the chain. Tick the events, resources and tables to follow.",
+                ],
+                [
+                  "Say what each record does",
+                  "A few lines fold them into rows: counters, totals, relationships, whatever your product needs.",
+                ],
+                ["Query it", "REST and a live change feed over tables you designed."],
               ].map(([title, body], i) => (
                 <li key={title} className="rounded-xl border border-white/20 bg-white/10 p-4">
                   <span className="font-mono text-xs text-blue-100">0{i + 1}</span>
