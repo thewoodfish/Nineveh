@@ -12,6 +12,12 @@ After=network-online.target postgresql.service
 Wants=network-online.target
 Requires=postgresql.service
 
+# Give up rather than spin if it fails at startup: a bad key or an unreachable
+# database won't fix itself in five seconds. These are [Unit] keys — systemd ignores
+# them under [Service] and only warns, so the backoff silently wouldn't apply.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
 [Service]
 Type=exec
 User=nineveh
@@ -28,10 +34,6 @@ TimeoutStopSec=30
 
 Restart=always
 RestartSec=5
-# Back off rather than spin if it's failing at startup: a bad key or an unreachable
-# database won't fix itself in five seconds.
-StartLimitIntervalSec=300
-StartLimitBurst=5
 
 # It needs nothing but its own data directory and the network.
 NoNewPrivileges=true
