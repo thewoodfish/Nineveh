@@ -23,6 +23,9 @@ export function Sidebar() {
               Nineveh
             </span>
             <span className="text-[15px] text-on-surface-variant">Studio</span>
+            <span className="rounded border border-outline-variant px-1.5 py-px text-[10px] font-medium tracking-wide text-on-surface-variant">
+              beta
+            </span>
           </Link>
           <ThemeToggle />
         </div>

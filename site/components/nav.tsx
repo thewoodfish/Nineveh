@@ -48,6 +48,9 @@ export function Nav() {
         <a href="/" className="flex items-center gap-2 text-white">
           <Logo className="size-5 text-blue-400" />
           <span className="text-[15px] font-semibold tracking-tight">Nineveh</span>
+          <span className="rounded border border-white/15 px-1.5 py-px text-[10px] font-medium tracking-wide text-white/45">
+            beta
+          </span>
         </a>
         <div className="flex items-center gap-6 text-sm">
           {LINKS.map((link) => (
