@@ -262,14 +262,18 @@ function Machinery() {
                 </code>
                 , a row, an assignment,{" "}
                 <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                  delete
+                </code>
+                ,{" "}
+                <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
                   if
                 </code>{" "}
                 and{" "}
                 <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
                   return
                 </code>
-                . It reads like TypeScript and your editor treats it as such, but nothing is
-                executed: it compiles to a fold that replays the same way every time.
+                . It reads like TypeScript, but nothing is executed: it compiles to a fold that
+                replays the same way every time.
               </p>
             </div>
             <div className="flex flex-col gap-5">
