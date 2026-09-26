@@ -48,6 +48,7 @@
   --color-surface-container: var(--md-surface-container);
   --color-surface-container-high: var(--md-surface-container-high);
   --color-surface-container-highest: var(--md-surface-container-highest);
+  --color-menu: var(--md-menu);
   --color-on-surface: var(--md-on-surface);
   --color-on-surface-variant: var(--md-on-surface-variant);
 
@@ -115,6 +116,12 @@
   --md-surface-container: oklch(0.973 0.003 261);
   --md-surface-container-high: oklch(0.941 0.005 261);
   --md-surface-container-highest: oklch(0.912 0.006 261);
+
+  /* A menu that floats over the page. Light lifts a surface by brightening it, so a
+     menu is white — grey read as part of the page it was covering. Dark can't lift
+     that way, since its brightest surfaces are its most raised, so there a menu keeps
+     the raised container it already had. */
+  --md-menu: oklch(1 0 0);
   --md-on-surface: oklch(0.21 0.009 261);
   --md-on-surface-variant: oklch(0.42 0.018 261);
 
@@ -169,6 +176,7 @@
     --md-surface-container: oklch(0.213 0.009 261);
     --md-surface-container-high: oklch(0.26 0.009 261);
     --md-surface-container-highest: oklch(0.315 0.009 261);
+    --md-menu: oklch(0.26 0.009 261);
     --md-on-surface: oklch(0.925 0.004 261);
     --md-on-surface-variant: oklch(0.845 0.012 261);
 
@@ -218,6 +226,7 @@
   --md-surface-container: oklch(0.213 0.009 261);
   --md-surface-container-high: oklch(0.26 0.009 261);
   --md-surface-container-highest: oklch(0.315 0.009 261);
+  --md-menu: oklch(0.26 0.009 261);
   --md-on-surface: oklch(0.925 0.004 261);
   --md-on-surface-variant: oklch(0.845 0.012 261);
 

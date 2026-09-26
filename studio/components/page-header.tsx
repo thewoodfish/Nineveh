@@ -102,7 +102,7 @@ function ProjectPicker() {
       {open && (
         <div
           role="menu"
-          className="absolute top-full right-0 z-30 mt-1 min-w-72 overflow-hidden rounded-sm bg-surface-container-high py-2 shadow-e2"
+          className="absolute top-full right-0 z-30 mt-1 min-w-72 overflow-hidden rounded-sm bg-menu py-2 shadow-e2"
         >
           {projects?.map((p) => (
             <Link
@@ -230,7 +230,7 @@ function ProjectMenu({ project }: { project: ProjectSummary }) {
       {open && (
         <div
           role="menu"
-          className="absolute top-full right-0 z-30 mt-1 min-w-56 overflow-hidden rounded-sm bg-surface-container-high py-2 shadow-e2"
+          className="absolute top-full right-0 z-30 mt-1 min-w-56 overflow-hidden rounded-sm bg-menu py-2 shadow-e2"
         >
           <Link
             href={`/settings?project=${encodeURIComponent(project.name)}`}
