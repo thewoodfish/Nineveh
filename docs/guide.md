@@ -71,8 +71,9 @@ no "wait for N confirmations". A version cursor is the whole safety story.
 
 In order, if you're new:
 
-1. **[Your first backend](first-backend.md)**: a working project against a live
-   contract, end to end. Start here; everything else makes more sense after it.
+1. **[Your first backend](first-backend.md)**: publish an example contract, point
+   Nineveh at it, and query your own transactions. Start here; everything else makes
+   more sense after it. It needs the Aptos CLI, and nothing else.
 2. **[Reducers](reducers.md)**: how to say what your tables hold. This is the part
    you'll spend your time in.
 3. **[Reading your data](reading.md)**: the REST API, the change feed, webhooks.

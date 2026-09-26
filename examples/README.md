@@ -38,9 +38,10 @@ nothing on chain keeps.
 You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) (`brew install aptos`).
 
 ```sh
-./setup.sh    # two accounts; fund any it can't at the faucet link it prints
-./deploy.sh   # publishes all four, each at its own object address
-./play.sh     # keeps them busy: two accounts count, sign, trade and play, until Ctrl-C
+./setup.sh              # two accounts; fund any it can't at the faucet link it prints
+./deploy.sh             # publishes all four, each at its own object address
+./deploy.sh 03-market   # or just one of them
+./play.sh               # keeps whatever you published busy, until Ctrl-C
 ```
 
 They default to testnet, whose faucet only works through its web page. Devnet funds

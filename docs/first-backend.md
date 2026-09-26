@@ -1,61 +1,118 @@
 # Your first backend
 
-Build a working backend against a live contract, from nothing to querying real data.
-Follow it top to bottom; every step produces something you can see.
+Publish a contract, point Nineveh at it, and watch your own transactions turn into
+tables you can query. Follow it top to bottom; every step produces something you can
+see.
 
-You need a GitHub account. Nothing to install.
+You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) and a GitHub account.
 
-## 1. A contract that is already busy
+## 1. Publish a contract to play with
 
-The hardest part of a first project is not knowing whether an empty table means *you
-got it wrong* or *the contract had nothing to say*. Most contracts on testnet are quiet:
-someone published one and poked it three times by hand. So start with one that never is.
+You could point Nineveh at a contract that is already out there, but then the first
+thing you see is somebody else's data, and you can't tell a mistake of yours from a
+quiet afternoon on chain. It's better to own both ends. So publish a small contract,
+drive it yourself, and watch what happens in between.
 
-`market` is a small marketplace published on testnet, with two accounts trading in it
-around the clock. Sellers list an item for a price, buyers buy it, sellers take down
-what doesn't sell, and the market keeps 2.5% of every sale. It is
-[two hundred lines of Move](https://github.com/thewoodfish/Nineveh/blob/main/examples/03-market/sources/market.move),
-and you don't have to read any of them. You are going to point Nineveh at its address,
-which is what you will do with your own contract in §7.
+`market` is a marketplace, the third of four example contracts in the repo. Sellers list
+an item for a price in the market's own credits, buyers buy it, sellers take down what
+doesn't sell, and the market keeps 2.5% of every sale. Open listings live in a
+`SmartTable` and balances in a `Table`, which matters later. It is
+[two hundred lines of Move](https://github.com/thewoodfish/Nineveh/blob/main/examples/03-market/sources/market.move)
+and you don't have to read any of them yet.
 
-It is published at:
+```sh
+git clone https://github.com/thewoodfish/Nineveh.git
+cd Nineveh/examples
 
+export NETWORK=devnet
+./setup.sh                 # two accounts, funded from the faucet
+./deploy.sh 03-market      # publishes it at an object address of its own
 ```
-0xMARKET
+
+Devnet because its faucet funds accounts over its API, so `setup.sh` finishes without
+stopping to ask you for anything. Testnet works identically if you'd rather, but its
+faucet is a web page, so `setup.sh` prints a link and waits for you. Devnet is wiped
+about once a week; if you come back to a dead address, delete
+`deployed.devnet.env` and run those two commands again.
+
+`deploy.sh` prints the address you need:
+
+```text
+==> 03-market
+    market is at 0x3e57015aed9c93750a3ab5e2f2d447f641a0c997ff52522bc4e3eb7a681a712e
 ```
 
-Open Studio at <https://studio.nineveh.dev> and sign in with GitHub.
+Copy it. Leave the terminal open; you'll want it in §3.
 
 ## 2. Create the project
 
-**New project** → network **testnet** → the address above → **Inspect**.
+Open Studio at <https://studio.nineveh.dev> and sign in with GitHub.
 
-Nineveh reads the contract and lists everything it could follow: the events it emits,
-the resources it stores, and the tables inside them. The market is small enough to see
-all of it at once.
+**New project** → network **devnet** → paste the address → **Inspect**.
 
-Under **Events**, tick three:
+Nineveh reads the contract off the chain and lists everything it could follow: the
+events it emits, the resources it stores, and the tables inside those resources. The
+market is small enough to see all of it at once. Tick four things.
+
+Under **Events**:
 
 - `Listed`: someone put an item up for sale.
 - `Sold`: someone bought one.
 - `Cancelled`: a seller took theirs down.
 
-Leave the rest alone. Name the project `market`, and choose **From now on** rather than
-the contract's whole history: starting at the chain's current version means data in
-seconds instead of a backfill.
+Under **Tables**:
 
-**Create backend with 3 tables.**
+- `Market.listings`: what is for sale right now.
 
-## 3. Watch it fill
+That last one is not an event, and it is the interesting one. Keep reading in §3 to see
+why it behaves differently from the other three.
+
+Name the project `market` and choose **All of its history** rather than **From now on**.
+You published this contract two minutes ago, so its whole history is almost nothing, and
+a table source needs to start early enough to see the write that created its table.
+
+**Create backend with 4 tables.**
+
+## 3. Make something happen
 
 The Overview shows a cursor climbing, the chain head it's chasing, and the gap between
-them. Within a few seconds it reads *following the chain*, and rows start arriving:
-a `listed` row each time something goes up for sale, a `sold` row each time one is
-bought, a few of each a minute.
+them. Within a few seconds it reads *following the chain*.
+
+And every table is empty, which is correct. You published a contract and nobody has used
+it. Nothing has happened yet.
+
+So make something happen. Back in the terminal:
+
+```sh
+./play.sh
+```
+
+Two accounts start trading: listing items, buying each other's, cancelling some. It
+prints a line per transaction and runs until you stop it with Ctrl-C.
+
+Leave Studio open on the project while it runs. Rows arrive in the order the chain
+commits them, a few seconds behind the transaction you just watched go out. Watch two
+tables in particular:
+
+- **`sold`** only grows. It is a log: one row per sale, kept forever, in order.
+- **`market_listings`** grows *and shrinks*. A row appears when something is listed and
+  disappears when it sells or is cancelled.
+
+You could have worked that out from the events alone: fold `Listed`, then take away
+everything `Sold` and `Cancelled` mention. The mirror doesn't have to. The contract
+removed the entry from its own `SmartTable`, and that removal is itself a record Nineveh
+followed, so the table knows what is open without anyone deriving it.
+
+That is why resources and tables are sources in their own right and not a second-class
+thing. Events tell you what happened; resources and tables tell you what is true now.
+Which of the two carries the state you need is the contract author's decision, not yours,
+and because on-chain storage costs gas, plenty of contracts keep their real state in
+resources and barely emit events at all. Following only events would leave you guessing
+at those.
 
 You now have a backend. It has a URL:
 
-```
+```text
 https://api.nineveh.dev/projects/market
 ```
 
@@ -94,15 +151,16 @@ amounts is not, and the type is the same either way.
 
 ## 5. Watch changes arrive
 
-In a second terminal:
+In a third terminal:
 
 ```sh
 curl -N "$BASE/v1/changes"
 ```
 
-Every row change is pushed as it commits:
+Every row change is pushed as it commits, and with `play.sh` still running you are
+watching your own transactions come back to you:
 
-```
+```text
 event: change
 id: 11292175483.0
 data: {"version":"11292175483","table":"sold","op":"insert","key":{…},"row":{…}}
@@ -119,14 +177,15 @@ automatically as `Last-Event-ID`.
 
 ## 6. Build the table the contract doesn't have
 
-So far every table is a log: one row per record, exactly as it arrived. That is useful,
-but it isn't what a marketplace's front page needs. That needs *who sells the most*,
-and no amount of querying a log of sales gives you a row per seller.
+Every table so far is a copy of something the chain already had: a log of records as
+they arrived, or a mirror of what a table holds right now. That is useful, but it isn't
+what a marketplace's front page needs. That needs *who sells the most*, and no amount of
+querying a log of sales gives you a row per seller.
 
-The contract can't tell you either. It knows a sale happened and then forgets: keeping a
-running total per seller would mean a write on every trade, and writes cost gas, so
-almost no contract keeps one. The information is all in the events. Nobody has added it
-up.
+The contract can't tell you either. It knows a sale happened and then forgets. Keeping a
+running total per seller would mean an extra write on every trade, and writes cost gas,
+so almost no contract keeps one. The information is all there in the events you are
+already following. Nobody has added it up.
 
 That is what a reducer is for. In Studio, **New state table**, then:
 
@@ -152,15 +211,15 @@ on(sold, (r) => {
 })
 ```
 
-Read it once before saving it. `sold` is the source you ticked in §2. The handler says
-what one sale does: find that seller's row, add the price to a running total, count the
-sale. `u128` because a `u64` column adding up `u64` prices overflows eventually, and
-overflow halts a project rather than wrapping quietly.
+Read it before saving it. `sold` is the source you ticked in §2. The handler says what
+one sale does: find that seller's row, add the price to a running total, count the sale.
+`u128` because a `u64` column adding up `u64` prices overflows eventually, and overflow
+halts a project rather than wrapping quietly.
 
 It is also not quite right. `total_price` is what buyers paid, and the market keeps 2.5%
-of that, so it isn't what the seller got. Studio had no way to know that; the fee is in
-the event, sitting next to the price, and only you know what it means. Change three
-lines:
+of that, so it isn't what the seller got. Studio had no way to know: the fee is sitting
+right there in the event next to the price, and only you know what it means. Change
+three lines.
 
 ```ts
 export const sellers = table({
@@ -198,39 +257,38 @@ in the repo.
 
 ## 7. Now point it at your own contract
 
-Same three steps: paste the address, tick what to follow, fold it into the tables you
-want. Two things are different about your contract, and both are worth knowing before
-you spend an afternoon on them.
+You have already done every step: paste an address, tick what to follow, fold it into
+the table you want. Two things are different about a contract you didn't publish four
+minutes ago.
 
 **A source that matches nothing is not an error.** If you tick a type that never
 arrives, you get a project that runs perfectly and stays empty. Nothing fails and
-nothing complains, because that is also what a quiet contract looks like. Studio tells
-you once it has read far enough to be sure: *"this source hasn't matched anything
-yet"*. Until then, check the type name twice. Near-identical names in one module are
-the commonest way to lose a morning.
+nothing complains, because that is also what a contract nobody is using looks like.
+Studio tells you once it has read far enough to be sure: *"this source hasn't matched
+anything yet"*. Until then, check the type name twice. Near-identical names in one
+module are the commonest way to lose a morning.
 
-**Events are usually not the whole story.** On-chain storage costs gas, so contracts
-emit events for what happened and keep current state in resources and tables. If the
-state your app needs is a resource, or the items of a `Table` or `SmartTable`, tick
-those: they are sources exactly like events are, and following events alone will
-quietly under-cover your data.
+**History is the expensive axis, not tables.** You chose **All of its history** in §2
+and it cost nothing, because there wasn't any. A contract that has been live for months
+is a real backfill, and Nineveh reads every version of the chain in the range, not just
+yours. If you only need data from today, start **From now on**, and accept that a
+`table:` source will not know which table is yours until the resource holding it is
+written again. Following the whole history is what makes that certain.
 
-One catch if you follow a table. Nineveh works out which table is yours from a write to
-the resource that holds it, so it has to start early enough to see one. Choose **All of
-its history** rather than **From now on** when a table source is in the list. For a
-contract you published recently, that costs very little anyway.
-
-And if your contract is quiet, make it busy before you judge what you built. The market
-is kept moving by a
-[shell script](https://github.com/thewoodfish/Nineveh/blob/main/examples/play.sh)
-doing nothing cleverer than sending transactions in a loop.
+And if your contract is quiet, make it busy before you judge what you built.
+[`play.sh`](https://github.com/thewoodfish/Nineveh/blob/main/examples/play.sh) does
+nothing cleverer than sending transactions in a loop; it is under a hundred lines and
+most of them are picking what to send.
 
 ## 8. What you just learned
 
-- A **source** is chain data you follow. A **state table** is what you build from it.
+- A **source** is chain data you follow: events, resources, and the tables inside them.
+  A **state table** is what you build from it.
+- Events say what happened; resources and tables say what is true now. `market_listings`
+  shrinking is the difference, and most contracts need you to follow both.
 - A **log** table keeps every record; a **reduce** table folds them into something
   smaller and more useful. The useful one is almost always a number the contract itself
-  never stores.
+  never stores, because storing it would have cost gas.
 - Changing a reducer replays your stored records rather than the chain: minutes for a
   project with real history, not another backfill. Adding a *source* is the expensive
   one, because no history exists for something you never followed.
