@@ -7,7 +7,7 @@ import { formatInteger } from "@/lib/format";
 import { useFeed } from "@/lib/hooks";
 import { useProject } from "@/lib/project";
 
-import { Button, Cell, Notice, isNumeric } from "./ui";
+import { Button, Cell, Notice } from "./ui";
 
 const PAGE = 50;
 
@@ -218,11 +218,11 @@ export function DataGrid({
         <table className="w-auto border-separate border-spacing-0 text-sm">
           <thead className="bg-surface-container-low">
             <tr>
-              {columns.map((column) => (
+              {columns.map((column, i) => (
                 <th
                   key={column.name}
-                  className={`border-b border-outline-variant px-3 py-2 font-medium whitespace-nowrap ${
-                    isNumeric(column.type) ? "text-right" : "text-left"
+                  className={`border-b border-outline-variant px-3 py-2 text-left font-medium whitespace-nowrap ${
+                    i > 0 ? "border-l border-outline-variant" : ""
                   }`}
                 >
                   <button
@@ -248,7 +248,7 @@ export function DataGrid({
                   </button>
                 </th>
               ))}
-              <th className="border-b border-outline-variant px-3 py-2 text-right font-medium whitespace-nowrap">
+              <th className="border-l border-b border-outline-variant px-3 py-2 text-left font-medium whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => sortBy("_version")}
@@ -262,10 +262,12 @@ export function DataGrid({
               <th className="border-b border-outline-variant" />
             </tr>
             <tr>
-              {columns.map((column) => (
+              {columns.map((column, i) => (
                 <th
                   key={column.name}
-                  className="border-b border-outline-variant bg-surface-container px-2 py-1"
+                  className={`border-b border-outline-variant bg-surface-container px-2 py-1 ${
+                    i > 0 ? "border-l border-outline-variant" : ""
+                  }`}
                 >
                   {column.type !== "json" && (
                     <input
@@ -279,7 +281,7 @@ export function DataGrid({
                   )}
                 </th>
               ))}
-              <th className="border-b border-outline-variant bg-surface-container" />
+              <th className="border-l border-b border-outline-variant bg-surface-container" />
               <th className="border-b border-outline-variant bg-surface-container" />
             </tr>
           </thead>
@@ -291,17 +293,17 @@ export function DataGrid({
                   key={`${key}:${flashes.get(key) ?? 0}`}
                   className={`transition-colors hover:bg-on-surface/[0.06] ${flashes.has(key) ? "flash" : ""}`}
                 >
-                  {columns.map((column) => (
+                  {columns.map((column, i) => (
                     <td
                       key={column.name}
-                      className={`max-w-xs truncate border-b border-outline-variant px-3 py-1.5 whitespace-nowrap ${
-                        isNumeric(column.type) ? "text-right" : ""
+                      className={`max-w-xs truncate border-b border-outline-variant px-3 py-1.5 text-left whitespace-nowrap ${
+                        i > 0 ? "border-l border-outline-variant" : ""
                       }`}
                     >
                       <Cell type={column.type} value={row[column.name]} />
                     </td>
                   ))}
-                  <td className="border-b border-outline-variant px-3 py-1.5 text-right text-xs whitespace-nowrap">
+                  <td className="border-l border-b border-outline-variant px-3 py-1.5 text-left text-xs whitespace-nowrap">
                     <Cell type="version" value={row._version} />
                   </td>
                   <td className="border-b border-outline-variant" />
