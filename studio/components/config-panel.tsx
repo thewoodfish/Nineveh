@@ -78,6 +78,7 @@ export function ConfigPanel({
   const [error, setError] = useState<{ message: string; details?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [checked, setChecked] = useState<{ ok: boolean; details?: string } | null>(null);
   const [discarding, setDiscarding] = useState(false);
   // Separate from `open`: the element has to be in the top layer for a frame before the
   // slide can animate, and has to finish sliding out before it leaves.
@@ -116,6 +117,29 @@ export function ConfigPanel({
       })
       .catch((e: unknown) => setError({ message: e instanceof Error ? e.message : String(e) }));
   }, [name, open]);
+
+  // Check with the server as it's written, not only when it's saved. A reducers file gets
+  // no help from a textarea — no highlighting, no completion, nothing the `.ts` implies —
+  // so the compiler's own located diagnostics are the only feedback there is, and a save
+  // is far too late to be shown the first one.
+  useEffect(() => {
+    if (!open || !changed) {
+      setChecked(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      control
+        .check(name, text, reducers ?? undefined)
+        .then(() => setChecked({ ok: true }))
+        .catch((e: unknown) =>
+          setChecked({
+            ok: false,
+            details: e instanceof ApiError ? (e.details ?? e.message) : String(e),
+          }),
+        );
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [open, changed, name, text, reducers]);
 
   /** Closing with edits in the box would throw them away silently. */
   const tryClose = () => (changed ? setDiscarding(true) : onClose());
@@ -163,12 +187,20 @@ export function ConfigPanel({
         <div className="flex h-full flex-col">
           <header className="flex items-start justify-between gap-3 px-5 py-4">
             <div className="min-w-0">
-              <h2 className="font-mono text-base text-on-surface">
-                {editing ? file : "nineveh.yaml"}
+              <h2 className="flex items-baseline gap-2 font-mono text-base text-on-surface">
+                <span className="truncate">{editing ? file : "nineveh.yaml"}</span>
+                {/* The extension is the syntax, not the language (ADR 0025). Left to
+                    stand alone it promises TypeScript — an editor, types, a linter — and
+                    a textarea keeps none of that promise. */}
+                {editing && (
+                  <span className="shrink-0 rounded-sm bg-surface-container-high px-1.5 py-0.5 font-sans text-[11px] font-medium tracking-wide text-on-surface-variant uppercase">
+                    TS reducer
+                  </span>
+                )}
               </h2>
               <p className="mt-0.5 text-xs text-on-surface-variant">
                 {editing
-                  ? "What changes when a record arrives. The same file the CLI reads."
+                  ? "What changes when a record arrives. TypeScript syntax, compiled to rules — nothing here is executed, and Nineveh is what checks it, not tsc."
                   : "The same file the CLI reads. Keep a copy in your repo."}
               </p>
             </div>
@@ -214,8 +246,23 @@ export function ConfigPanel({
             </div>
           )}
 
+          {checked && !checked.ok && !error && (
+            <div className="mx-5 mb-3 flex gap-3 rounded-md bg-error-container px-4 py-3 text-sm text-on-error-container">
+              <Icon name="error" className="mt-px shrink-0 text-[20px]" />
+              <div className="min-w-0">
+                <div className="font-medium">Nineveh can&apos;t build that</div>
+                <pre className="mt-2 overflow-x-auto font-mono text-xs whitespace-pre">
+                  {checked.details}
+                </pre>
+              </div>
+            </div>
+          )}
+
           {changed && !error && (
             <p className="mx-5 mb-3 rounded-md bg-surface-container-high px-4 py-3 text-xs leading-relaxed text-on-surface-variant">
+              {checked?.ok && (
+                <span className="font-medium text-on-tertiary-container">Checks out. </span>
+              )}
               Saving pins the layouts again and restarts the project. If the change alters
               what&apos;s built, the tables are rebuilt beside the served ones and swapped in once
               caught up.

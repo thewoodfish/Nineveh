@@ -135,6 +135,10 @@ function StateTableEditor() {
   // are in the DSL has to be saved with them or it isn't the same project (ADR 0025).
   const [reducers, setReducers] = useState<string | undefined>(undefined);
   const [table, setTable] = useState<StateTable | null>(null);
+  // Set once the reducer has been taken over by hand. From then on it is the file, and
+  // the builder above is only what it started from — there is no parser here to read an
+  // edited file back into pickers, and pretending otherwise would silently discard it.
+  const [code, setCode] = useState<string | null>(null);
   const [checked, setChecked] = useState<{
     ok: boolean;
     details?: string;
@@ -185,10 +189,14 @@ function StateTableEditor() {
     [table, config, file],
   );
   const dsl = useMemo(
-    () => (table ? withDslTable(reducers ?? "", table) : null),
-    [table, reducers],
+    () => (code !== null ? code : table ? withDslTable(reducers ?? "", table) : null),
+    [code, table, reducers],
   );
-  const listed = table ? problems(table) : [];
+  // What the builder can tell is unfinished. Hand-written code is checked by the server
+  // instead, which is the only thing that can read it.
+  const listed = table && code === null ? problems(table) : [];
+  // Renaming the table in the file has to move the preview and the redirect with it.
+  const tableName = (code !== null ? declaredName(code) : null) ?? table?.name ?? "";
 
   // Check with the server as it's written, once it's worth checking.
   useEffect(() => {
@@ -211,19 +219,19 @@ function StateTableEditor() {
   }, [project, yaml, dsl, listed.length]);
 
   const save = useCallback(async () => {
-    if (!project || !yaml || !dsl || !table) return;
+    if (!project || !yaml || !dsl || !tableName) return;
     setSaving(true);
     setError(null);
     try {
       await control.update(project, yaml, dsl ?? undefined);
       router.push(
-        `/tables?project=${encodeURIComponent(project)}&name=${encodeURIComponent(table.name)}`,
+        `/tables?project=${encodeURIComponent(project)}&name=${encodeURIComponent(tableName)}`,
       );
     } catch (e) {
       setError(e instanceof ApiError ? (e.details ?? e.message) : String(e));
       setSaving(false);
     }
-  }, [project, yaml, dsl, table, router]);
+  }, [project, yaml, dsl, tableName, router]);
 
   if (mode === "single" || !base) {
     return (
@@ -283,24 +291,79 @@ function StateTableEditor() {
 
         {sources && table && (
           <>
-            <Editor sources={sources} existing={existing} table={table} onChange={setTable} />
+            {code === null && (
+              <Editor sources={sources} existing={existing} table={table} onChange={setTable} />
+            )}
             <Card className="overflow-hidden">
-              <div className="flex items-center justify-between border-b border-outline-variant px-4 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant px-4 py-2">
                 <span className="text-xs text-on-surface-variant">
-                  <span className="font-mono">{file}</span>, as this will be saved
+                  <span className="font-mono">{file}</span>
+                  {code === null ? (
+                    ", as this will be saved"
+                  ) : (
+                    <>
+                      {" — "}
+                      <span className="text-on-surface">yours now</span>. The builder above is
+                      what it started from.
+                    </>
+                  )}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setTable(null)}
-                  className="text-xs text-on-surface-variant hover:text-on-surface"
-                >
-                  {editing ? "Discard changes" : "Start over"}
-                </button>
+                <div className="flex items-center gap-3">
+                  {code === null && (
+                    <button
+                      type="button"
+                      onClick={() => setCode(withDslTable(reducers ?? "", table))}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      Edit it yourself
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCode(null);
+                      setTable(null);
+                    }}
+                    className="text-xs text-on-surface-variant hover:text-on-surface"
+                  >
+                    {code !== null ? "Throw it away" : editing ? "Discard changes" : "Start over"}
+                  </button>
+                </div>
               </div>
-              <pre className="max-h-64 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">
-                {toDsl(table)}
-              </pre>
+              {/* `wrap="off"`: a file that reflows mid-identifier is unreadable, so it
+                  scrolls sideways the way an editor does. */}
+              {code === null ? (
+                <pre className="max-h-64 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">
+                  {toDsl(table)}
+                </pre>
+              ) : (
+                <textarea
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  spellCheck={false}
+                  wrap="off"
+                  autoFocus
+                  aria-label={file}
+                  rows={Math.min(30, Math.max(12, code.split("\n").length + 1))}
+                  className="block w-full resize-y overflow-auto bg-surface-container-low px-4 py-3 font-mono text-[13px] leading-relaxed text-on-surface outline-none focus:ring-1 focus:ring-inset focus:ring-primary"
+                />
+              )}
             </Card>
+            {code !== null && (
+              <p className="text-xs leading-relaxed text-on-surface-variant">
+                This is the whole reducers file, in the{" "}
+                <a
+                  href="https://www.nineveh.dev/docs/reducers"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  reducer language
+                </a>{" "}
+                — TypeScript syntax, parsed and compiled to rules, never run. Nineveh checks it
+                as you type, and saving is held until it passes.
+              </p>
+            )}
             {listed.length > 0 && (
               <Notice tone="warning" title="Not finished yet">
                 <ul className="list-inside list-disc">
@@ -317,12 +380,13 @@ function StateTableEditor() {
                 </pre>
               </Notice>
             )}
-            {project && yaml && (
+            {project && yaml && tableName && (
               <PreviewCard
                 project={project}
                 yaml={yaml}
                 reducers={dsl ?? undefined}
-                table={table}
+                name={tableName}
+                columns={code === null ? table.columns.map((c) => c.name) : null}
                 ready={checked?.ok === true}
               />
             )}
@@ -342,13 +406,19 @@ function PreviewCard({
   project,
   yaml,
   reducers,
-  table,
+  name,
+  columns,
   ready,
 }: {
   project: string;
   yaml: string;
   reducers: string | undefined;
-  table: StateTable;
+  name: string;
+  /**
+   * The columns to show, in the order the builder put them in — or `null` for a reducer
+   * written by hand, whose columns Studio can't know until the rows come back.
+   */
+  columns: string[] | null;
   ready: boolean;
 }) {
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -365,15 +435,16 @@ function PreviewCard({
     setRunning(true);
     setError(null);
     try {
-      setPreview(await control.preview(project, yaml, table.name, reducers));
+      setPreview(await control.preview(project, yaml, name, reducers));
     } catch (e) {
       setError(e instanceof ApiError ? (e.details ?? e.message) : String(e));
     } finally {
       setRunning(false);
     }
-  }, [project, yaml, reducers, table.name]);
+  }, [project, yaml, reducers, name]);
 
-  const columns = table.columns.map((c) => c.name);
+  const shown =
+    columns ?? [...new Set((preview?.rows ?? []).flatMap((row) => Object.keys(row)))];
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-outline-variant px-4 py-2">
@@ -404,9 +475,9 @@ function PreviewCard({
           <table className="w-full text-left text-sm">
             <thead className="border-b border-outline-variant text-xs text-on-surface-variant">
               <tr>
-                {columns.map((name) => (
-                  <th key={name} className="px-4 py-1.5 font-medium">
-                    {name}
+                {shown.map((column) => (
+                  <th key={column} className="px-4 py-1.5 font-medium">
+                    {column}
                   </th>
                 ))}
               </tr>
@@ -414,9 +485,9 @@ function PreviewCard({
             <tbody>
               {preview.rows.map((row, i) => (
                 <tr key={i} className="border-b border-outline-variant last:border-0">
-                  {columns.map((name) => (
-                    <td key={name} className="px-4 py-1.5 font-mono text-xs">
-                      {cell(row[name])}
+                  {shown.map((column) => (
+                    <td key={column} className="px-4 py-1.5 font-mono text-xs">
+                      {cell(row[column])}
                     </td>
                   ))}
                 </tr>
@@ -434,11 +505,93 @@ function PreviewCard({
   );
 }
 
+/**
+ * The table a hand-written reducers file declares first, so the preview and the redirect
+ * follow a rename made in the file. A regex rather than a parse: the real parser is in
+ * Rust, this only needs the name, and getting it wrong costs a preview, not a save — the
+ * server is what rejects a file that doesn't declare it.
+ */
+function declaredName(code: string): string | null {
+  return /^export const ([A-Za-z_][A-Za-z0-9_]*) = table\(/m.exec(code)?.[1] ?? null;
+}
+
 /** One preview value, short enough for a cell. */
 function cell(value: unknown): string {
   if (value === null || value === undefined) return "—";
   const text = typeof value === "object" ? JSON.stringify(value) : String(value);
   return text.length > 40 ? `${text.slice(0, 39)}…` : text;
+}
+
+/**
+ * A source's fields and their types.
+ *
+ * The thing you need in front of you to pick a key or write an expression, and the thing
+ * Studio never showed: the data was here all along, spent only on the completion popup,
+ * which you have to already know a field exists to see. The Move type it follows is above
+ * them because two sources can offer the same field names.
+ *
+ * Given `onInsert`, each field is a button that types itself into whichever expression box
+ * has the focus — so the reference and the palette are one list, rather than two that have
+ * to agree.
+ */
+function SourceSchema({
+  source,
+  deleted = false,
+  onInsert,
+}: {
+  source: SourceInfo;
+  /** Show what a `<name>.deleted` rule can read instead: only the row's identity. */
+  deleted?: boolean;
+  onInsert?: (name: string) => void;
+}) {
+  const fields = deleted ? source.delete_fields : source.fields;
+  return (
+    <div className="rounded-sm border border-outline-variant bg-surface-container-low">
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 border-b border-outline-variant px-3 py-2 text-xs text-on-surface-variant">
+        <span className="font-mono text-on-surface">{source.name}</span>
+        <span>{source.kind}</span>
+        <span className="min-w-0 truncate font-mono">{source.follows}</span>
+        <span className="ml-auto shrink-0">
+          {deleted
+            ? "what a delete still identifies"
+            : `${source.matched.toLocaleString()} record${source.matched === 1 ? "" : "s"} so far`}
+        </span>
+      </div>
+      {fields.length === 0 ? (
+        <p className="px-3 py-2 text-xs text-on-surface-variant">
+          Nothing readable on this one.
+        </p>
+      ) : (
+        <ul className="grid gap-x-6 gap-y-0.5 px-3 py-2 sm:grid-cols-2 lg:grid-cols-3">
+          {fields.map((f) => (
+            <li
+              key={f.name}
+              className="flex items-baseline justify-between gap-3 font-mono text-xs"
+            >
+              {onInsert ? (
+                <button
+                  type="button"
+                  // Keep the focused expression box focused, so it knows where to type.
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onInsert(f.name)}
+                  title="Click to put it in the expression you're editing"
+                  className="-mx-1 truncate rounded px-1 text-on-surface hover:bg-secondary-container"
+                >
+                  {f.name}
+                </button>
+              ) : (
+                <span className="truncate text-on-surface">{f.name}</span>
+              )}
+              <span className="shrink-0 text-on-surface-variant">
+                {f.type}
+                {f.nullable ? "?" : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 /** The shapes most state tables have, filled in from a source's fields. */
@@ -532,6 +685,8 @@ function Templates({
           </label>
         )}
       </div>
+
+      <SourceSchema source={source} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Template
@@ -895,6 +1050,10 @@ function RuleCard({
     (c) => !mapped.has(c.name) && !readable.some((f) => f.name === c.name),
   );
 
+  // Both a field of the record and a column of the row: a bare name would be ambiguous.
+  const ambiguous = (name: string) =>
+    readable.some((f) => f.name === name) && table.columns.some((c) => c.name === name);
+
   const names = namesInScope(rule.on, readable, table.columns, existing);
   // A key picks the row, so it can't read the row's own columns.
   const keyNames = namesInScope(rule.on, readable, [], existing);
@@ -977,9 +1136,22 @@ function RuleCard({
           </button>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-on-surface-variant">
-          Click to use:
-          {readable.map((f) => chip(f.name))}
+        {source && (
+          <div className="mt-3">
+            <SourceSchema
+              source={source}
+              deleted={rule.deleted}
+              // A name that is also a column of this table has to be inserted qualified,
+              // the same way `namesInScope` offers it, or the expression is ambiguous.
+              onInsert={(name) =>
+                active.current?.insert(ambiguous(name) ? `${rule.on}.${name}` : name)
+              }
+            />
+          </div>
+        )}
+
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-on-surface-variant">
+          Also in scope:
           {table.columns.filter((c) => !c.key).map((c) => chip(c.name))}
           {chip("tx.timestamp")}
           {existing.map((t) => chip(`${t.name}[${t.key.join(", ")}]`, `${t.name}[`))}
