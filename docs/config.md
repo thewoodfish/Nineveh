@@ -62,7 +62,7 @@ Each source is one of:
 | --- | --- | --- |
 | `event` | `{ event: 0xabc::vault::DepositEvent }` | each event of that type |
 | `resource` | `{ resource: 0xabc::vault::Vault }` | each write and delete of that resource |
-| `table` | `{ table: 0xabc::vault::Vault.positions }` | each item written to or deleted from the `Table`, `SmartTable` or `BigOrderedMap` in that field |
+| `table` | `{ table: 0xabc::vault::Vault.positions }` | each item written to or deleted from the `Table` or `SmartTable` in that field |
 
 A generic struct named without type arguments (`0x1::coin::CoinStore`) matches every
 instantiation. With arguments (`0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>`), it
@@ -71,8 +71,11 @@ matches exactly that one. A `table:` source on a generic struct needs its type a
 A `table:` source follows exactly the tables held in that field. Nineveh learns each
 table's handle when the struct holding it is written, so two tables with the same key
 and value types, or another contract's table of the same types, never mix. The holding
-struct must be stored as a resource or as a table value. `BigOrderedMap` fields aren't
-supported yet: small maps keep their entries inside the struct itself.
+struct must be stored as a resource or as a table value.
+
+`BigOrderedMap` fields aren't supported yet. A small map keeps its entries inside the
+parent struct rather than in a table of its own, and the engine doesn't read those yet,
+so follow the parent with a `resource:` source meanwhile.
 
 Resources are needed alongside events: many contracts expose their real state only as
 resource writes, and state kept in tables never appears as a resource write at all.
