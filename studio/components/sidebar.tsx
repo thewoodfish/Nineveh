@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { behind, formatDuration, formatInteger } from "@/lib/format";
 import { useStatus, useTables } from "@/lib/hooks";
@@ -148,7 +148,6 @@ function AccountMenu() {
 function ProjectNav() {
   const { tables } = useTables();
   const pathname = usePathname();
-  const selected = useSearchParams().get("name");
   const href = useHref();
   return (
     <>
@@ -177,8 +176,8 @@ function ProjectNav() {
         {tables?.map((table) => (
           <NavLink
             key={table.name}
-            href={href("/tables", { name: table.name })}
-            active={pathname === "/tables" && selected === table.name}
+            href={href(`/tables/${encodeURIComponent(table.name)}`)}
+            active={pathname === `/tables/${encodeURIComponent(table.name)}`}
           >
             <span className="truncate font-mono text-[12.5px]">{table.name}</span>
             <span className="ml-auto shrink-0 text-[11px] text-on-surface-variant">

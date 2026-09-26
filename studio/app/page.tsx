@@ -229,7 +229,7 @@ function Overview() {
             {tables?.map((table) => (
               <li key={table.name}>
                 <Link
-                  href={href("/tables", { name: table.name })}
+                  href={href(`/tables/${encodeURIComponent(table.name)}`)}
                   className="group flex items-center gap-4 px-4 py-2.5 text-sm transition-colors hover:bg-on-surface/[0.06]"
                 >
                   <span className="w-52 truncate font-mono font-medium group-hover:text-primary">

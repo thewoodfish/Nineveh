@@ -21,7 +21,20 @@ type Order = { column: string; desc: boolean } | undefined;
  * in any other view, rows on screen update in place and a count of new changes
  * offers a refresh.
  */
-export function DataGrid({ table }: { table: Table }) {
+export function DataGrid({
+  table,
+  bare = false,
+  onCount,
+}: {
+  table: Table;
+  /**
+   * Drop the grid's own page header: the table page carries one, and two titles for the
+   * same table is one too many.
+   */
+  bare?: boolean;
+  /** The table's row count, which the grid learns by asking and the header wants to show. */
+  onCount?: (count: number | null) => void;
+}) {
   const { name: project, base } = useProject();
   const [rows, setRows] = useState<Row[]>([]);
   const [count, setCount] = useState<number | null>(null);
@@ -153,10 +166,31 @@ export function DataGrid({ table }: { table: Table }) {
   };
 
   const filtered = Object.values(filters).some((v) => v !== "");
+
+  // Unfiltered is the table's size; filtered is the size of a question about it, which
+  // is not what a header saying "1,204 rows" means.
+  const report = useRef(onCount);
+  report.current = onCount;
+  useEffect(() => {
+    report.current?.(filtered ? null : count);
+  }, [count, filtered]);
   const last = count === null ? offset + rows.length : Math.min(offset + PAGE, count);
+
+  const stale = missed > 0 && (
+    <button
+      type="button"
+      onClick={() => void load()}
+      className="rounded-full bg-secondary-container px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-secondary-container"
+    >
+      {missed} new {missed === 1 ? "change" : "changes"} · refresh
+    </button>
+  );
 
   return (
     <div className="flex h-full flex-col">
+      {bare ? (
+        stale && <div className="flex justify-end px-8 pt-3">{stale}</div>
+      ) : (
       <PageHeader
         title={<span className="font-mono">{table.name}</span>}
         hint={
@@ -175,17 +209,10 @@ export function DataGrid({ table }: { table: Table }) {
             Edit rules
           </Link>
         )}
-        {missed > 0 && (
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="rounded-full bg-secondary-container px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-secondary-container"
-          >
-            {missed} new {missed === 1 ? "change" : "changes"} · refresh
-          </button>
-        )}
+        {stale}
         <Live connected={connected} />
       </PageHeader>
+      )}
 
       {error && (
         <div className="px-8 pt-4">
