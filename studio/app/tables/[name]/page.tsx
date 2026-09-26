@@ -22,7 +22,7 @@ import { ApiConsole } from "@/components/api-console";
 import { DataGrid } from "@/components/data-grid";
 import { PageHeader } from "@/components/page-header";
 import { SourceSchema } from "@/components/source-schema";
-import { Button, Card, Live, Notice, Offline } from "@/components/ui";
+import { Button, Card, Icon, Live, Notice, Offline, filledButton } from "@/components/ui";
 import { ApiError, type Change, type Table, control, getRows } from "@/lib/api";
 import { definitionOf } from "@/lib/definition";
 import { formatInteger } from "@/lib/format";
@@ -36,13 +36,14 @@ const PULSE = 4000;
 const TABS = ["data", "definition", "schema", "api", "changes"] as const;
 type Tab = (typeof TABS)[number];
 
-const LABEL: Record<Tab, string> = {
-  data: "Data",
-  definition: "Definition",
-  schema: "Schema",
-  api: "API",
-  changes: "Changes",
-};
+/** The sections of a table, and the icon each reads by. */
+const SECTIONS: { tab: Tab; label: string; icon: string }[] = [
+  { tab: "data", label: "Data", icon: "table_rows" },
+  { tab: "definition", label: "Definition", icon: "code" },
+  { tab: "schema", label: "Schema", icon: "view_column" },
+  { tab: "api", label: "API", icon: "terminal" },
+  { tab: "changes", label: "Changes", icon: "bolt" },
+];
 
 export default function TablePage() {
   return (
@@ -138,49 +139,57 @@ function Inner({ table, tab, go }: { table: Table; tab: Tab; go: (to: Tab) => vo
           </span>
         }
       >
+        <Live connected={connected} />
+        {/* The one action this page offers, so it looks like one. Definition edits these
+            rules as text; this is the same rules in pickers — a different tool, not a
+            second link to the same place. */}
         {table.kind === "reduce" && mode === "control" && project && (
           <Link
             href={`/state?project=${encodeURIComponent(project)}&table=${encodeURIComponent(table.name)}`}
-            className="text-xs font-medium text-primary hover:underline"
+            className={filledButton}
           >
-            Edit rules
+            <Icon name="tune" className="text-[18px]" />
+            Rule builder
           </Link>
         )}
-        <Live connected={connected} />
       </PageHeader>
 
-      {/* The tabs belong to the header above them, so they carry its surface: the band
-          along the top is one thing, and the canvas starts under it. */}
-      <div className="flex gap-1 border-b border-outline-variant bg-surface-container-low px-8">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => go(t)}
-            aria-current={tab === t ? "page" : undefined}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
-              tab === t
-                ? "border-primary font-medium text-on-surface"
-                : "border-transparent text-on-surface-variant hover:text-on-surface"
-            }`}
-          >
-            {LABEL[t]}
-          </button>
-        ))}
-      </div>
+      {/* Sections down the side, not tabs across the top. There are five of them and
+          they are where the work happens, so they get a column of their own, on the same
+          surface as the rest of the frame. */}
+      <div className="flex min-h-0 flex-1">
+        <nav className="flex w-52 shrink-0 flex-col gap-1 overflow-y-auto border-r border-outline-variant bg-surface-container-low p-3">
+          {SECTIONS.map(({ tab: t, label, icon }) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => go(t)}
+              aria-current={tab === t ? "page" : undefined}
+              className={`state flex h-9 items-center gap-3 rounded-lg px-3 text-left text-sm ${
+                tab === t
+                  ? "bg-secondary-container font-medium text-on-secondary-container"
+                  : "text-on-surface-variant"
+              }`}
+            >
+              <Icon name={icon} filled={tab === t} className="shrink-0 text-[18px]" />
+              {label}
+            </button>
+          ))}
+        </nav>
 
-      {/* Keyed so switching tables resets each panel rather than showing the last one's
-          rows under the new name for a frame. */}
-      <div className="min-h-0 flex-1 overflow-auto">
-        {tab === "data" && <DataGrid bare table={table} onCount={onCount} />}
-        {tab === "definition" && <DefinitionPanel table={table} />}
-        {tab === "schema" && <SchemaPanel table={table} />}
-        {tab === "api" && (
-          <div className="flex min-h-0 px-8 py-6">
-            <ApiConsole table={table} />
-          </div>
-        )}
-        {tab === "changes" && <ChangesPanel table={table} />}
+        {/* Keyed so switching tables resets each panel rather than showing the last
+            one's rows under the new name for a frame. */}
+        <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+          {tab === "data" && <DataGrid bare table={table} onCount={onCount} />}
+          {tab === "definition" && <DefinitionPanel table={table} />}
+          {tab === "schema" && <SchemaPanel table={table} />}
+          {tab === "api" && (
+            <div className="flex min-h-0 px-8 py-6">
+              <ApiConsole table={table} />
+            </div>
+          )}
+          {tab === "changes" && <ChangesPanel table={table} />}
+        </div>
       </div>
     </div>
   );
