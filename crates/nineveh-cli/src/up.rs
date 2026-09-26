@@ -8,19 +8,20 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
-use nineveh_control::{Access, ControlPlane, GitHub, Hosted, RunOptions};
+use nineveh_control::{Access, Chain as _, ControlPlane, GitHub, Hosted, RunOptions};
+use nineveh_core::Network;
 use secrecy::{ExposeSecret, SecretString};
 use sqlx::postgres::PgPoolOptions;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 pub(crate) struct UpOptions {
     pub(crate) database_url: SecretString,
     pub(crate) listen: SocketAddr,
     pub(crate) api_key: Option<SecretString>,
     /// Keys for particular networks, over `api_key`.
-    pub(crate) network_keys: Vec<(nineveh_core::Network, SecretString)>,
+    pub(crate) network_keys: Vec<(Network, SecretString)>,
     pub(crate) streams: usize,
     pub(crate) chunk: u64,
     /// A GitHub OAuth app, for hosted mode.
@@ -66,6 +67,36 @@ pub(crate) async fn up(options: UpOptions) -> Result<()> {
         .fold(Hosted::new(options.api_key), |chain, (network, key)| {
             chain.with_key(network, key)
         });
+    // Said at boot rather than left for whoever picks the wrong network first. A Geomi
+    // key is per network, so a plane with a key for one of them can only stream that
+    // one, and the symptom otherwise is an `Unauthenticated` from the Transaction
+    // Stream long after the project was created, naming nothing that would help.
+    let served = chain.networks();
+    if served.is_empty() {
+        warn!(
+            "no Geomi key: set APTOS_API_KEY, or APTOS_API_KEY_TESTNET and friends. \
+             No project will be able to stream"
+        );
+    } else {
+        info!(
+            networks = served
+                .iter()
+                .copied()
+                .map(Network::as_str)
+                .collect::<Vec<_>>()
+                .join(", "),
+            "ready to stream"
+        );
+        for network in Network::ALL {
+            if !served.contains(&network) && nineveh_control::tier::FREE.allows(network.as_str()) {
+                warn!(
+                    "no key for {network}, which the free tier allows: set \
+                     APTOS_API_KEY_{} to offer it in Studio",
+                    network.as_str().to_uppercase()
+                );
+            }
+        }
+    }
     let plane = ControlPlane::start(
         Arc::new(chain),
         pool,

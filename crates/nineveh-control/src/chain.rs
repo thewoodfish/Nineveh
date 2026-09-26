@@ -24,6 +24,15 @@ pub struct ModuleInfo {
 pub trait Chain: Send + Sync + 'static {
     type Source: Source + 'static;
 
+    /// The networks this plane can actually stream, in [`Network::ALL`] order.
+    ///
+    /// A different question from the one a tier answers. A tier is a price list: it
+    /// says which networks an account is *allowed* to follow. This says which ones the
+    /// operator configured a key for. Both have to agree before a project can run, and
+    /// only this one knows why it said no, so asking only the tier is how a project
+    /// gets created on a network that cannot be streamed and fails at the first open.
+    fn networks(&self) -> Vec<Network>;
+
     /// The chain's latest committed version.
     fn tip(&self, network: Network) -> impl Future<Output = Result<Version, ChainError>> + Send;
 
@@ -136,6 +145,31 @@ impl Hosted {
             .or(self.any.as_ref())
     }
 
+    /// The networks this plane holds a key for.
+    ///
+    /// Naming one network means naming them all. `any` is a convenience for a plane
+    /// that runs on a single network, and it is a fair answer while it is the only key
+    /// there is. The moment an operator sets a per-network key they have said which
+    /// networks they mean, and counting `any` for the rest is what offered a testnet
+    /// key to devnet's stream: a Geomi key is issued per network, so there is no such
+    /// thing as one that works everywhere.
+    ///
+    /// [`Hosted::key`] still falls back, because a project that somehow exists on an
+    /// unconfigured network is better off trying than refusing to start.
+    fn configured(&self) -> Vec<Network> {
+        if self.keys.is_empty() {
+            return if self.any.is_some() {
+                Network::ALL.to_vec()
+            } else {
+                Vec::new()
+            };
+        }
+        Network::ALL
+            .into_iter()
+            .filter(|n| self.keys.iter().any(|(k, _)| k == n))
+            .collect()
+    }
+
     fn rest(&self, network: Network) -> Result<RestClient, ChainError> {
         Ok(RestClient::hosted(network, self.key(network))?)
     }
@@ -143,6 +177,10 @@ impl Hosted {
 
 impl Chain for Hosted {
     type Source = StreamSource;
+
+    fn networks(&self) -> Vec<Network> {
+        self.configured()
+    }
 
     async fn tip(&self, network: Network) -> Result<Version, ChainError> {
         let ledger = self.rest(network)?.ledger().await?;
@@ -234,5 +272,28 @@ mod tests {
         assert_eq!(key(Network::Devnet).as_deref(), Some("devnet"));
         assert_eq!(key(Network::Testnet).as_deref(), Some("any"));
         assert_eq!(Hosted::new(None).key(Network::Testnet).map(|_| ()), None);
+    }
+
+    #[test]
+    fn naming_one_network_means_naming_them_all() {
+        // Nothing configured serves nothing, and a lone general key serves everything:
+        // a plane on one network shouldn't have to say which one twice.
+        assert_eq!(Hosted::new(None).configured(), []);
+        assert_eq!(
+            Hosted::new(Some(SecretString::from("any"))).configured(),
+            Network::ALL
+        );
+
+        // But once a network is named, the general key stops standing in for the rest.
+        // This is the case that broke: a testnet key in `APTOS_API_KEY`, a testnet key
+        // named for testnet, and devnet offered in Studio on the strength of the
+        // fallback, until its stream answered `Unauthenticated`.
+        let hosted = Hosted::new(Some(SecretString::from("any")))
+            .with_key(Network::Testnet, SecretString::from("testnet"));
+        assert_eq!(hosted.configured(), [Network::Testnet]);
+
+        // Adding the missing key is all it should take, and order follows `ALL`.
+        let both = hosted.with_key(Network::Devnet, SecretString::from("devnet"));
+        assert_eq!(both.configured(), [Network::Testnet, Network::Devnet]);
     }
 }

@@ -47,6 +47,11 @@ impl Scripted {
 impl Chain for Scripted {
     type Source = Replay;
 
+    /// A scripted chain answers for whatever network a test asks about.
+    fn networks(&self) -> Vec<Network> {
+        Network::ALL.to_vec()
+    }
+
     fn tip(&self, _: Network) -> impl Future<Output = Result<Version, ChainError>> + Send {
         ready(Ok(Version::new(
             self.transactions.last().map_or(0, |t| t.version),

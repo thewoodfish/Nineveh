@@ -582,6 +582,14 @@ impl<C: Chain> ControlPlane<C> {
         &self.pool
     }
 
+    /// What the plane reads Aptos through, for the questions that are about the
+    /// operator's configuration rather than about a project: which networks it can
+    /// stream, above all.
+    #[must_use]
+    pub fn chain(&self) -> &C {
+        &self.chain
+    }
+
     /// Stop every pipeline after its current commit.
     pub async fn shutdown(&self) {
         let (runs, deliveries): (Vec<Option<Run>>, Vec<Option<Deliveries>>) = {

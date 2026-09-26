@@ -36,6 +36,13 @@ type ProjectState = {
    * "nothing is limited", not "limits unknown".
    */
   limits: Limits | null;
+  /**
+   * The networks the plane can stream, because the operator configured a key for them.
+   * Empty until `me` has loaded. A network has to be here *and* allowed by the tier
+   * before it is worth offering: the tier says whether you may, this says whether the
+   * plane can.
+   */
+  networks: string[];
   signOut: () => Promise<void>;
   /** Every project, under the control plane. */
   projects: ProjectSummary[] | null;
@@ -55,6 +62,7 @@ const Context = createContext<ProjectState>({
   account: null,
   hosted: false,
   limits: null,
+  networks: [],
   signOut: async () => {},
   projects: null,
   name: null,
@@ -124,6 +132,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       account: me?.account ?? null,
       hosted: me?.mode === "hosted",
       limits: me?.limits ?? null,
+      networks: me?.networks ?? [],
       signOut,
       projects,
       name: mode === "control" ? name : null,

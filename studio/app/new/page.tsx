@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button, Card, Field, field, Notice, Segmented } from "@/components/ui";
 import {
@@ -50,14 +50,28 @@ function failure(e: unknown): Failure {
 
 /** From a contract address to a live backend: inspect, pick, name, create. */
 export default function NewProject() {
-  const { mode, projects, refresh, limits } = useProject();
+  const { mode, projects, refresh, limits, networks: served } = useProject();
   const router = useRouter();
   const [network, setNetwork] = useState<Network>("testnet");
-  // The tier says what it allows; this page works out what that leaves out, so the
-  // list of networks and the list of limits never have to agree by hand.
-  const unavailable = limits
-    ? (["mainnet", "testnet", "devnet"] as const).filter((n) => !limits.networks.includes(n))
-    : undefined;
+  // Two separate reasons a network might be off, and they need telling apart. The tier
+  // says which ones this account may follow. `served` says which ones the control plane
+  // holds a Geomi key for, which is the operator's business and applies in local mode
+  // too. Asking only the tier is how a project used to get created on a network the
+  // plane couldn't stream, failing later with an `Unauthenticated` that named nothing.
+  const barred = (n: Network) => (limits ? !limits.networks.includes(n) : false);
+  const unkeyed = (n: Network) => served.length > 0 && !served.includes(n);
+  const unavailable = (["mainnet", "testnet", "devnet"] as const).filter(
+    (n) => barred(n) || unkeyed(n),
+  );
+  // `me` arrives after the first render, so the default can turn out to be one of the
+  // ones this plane can't serve. Move off it rather than leave a picker whose selected
+  // option is greyed out.
+  useEffect(() => {
+    if (!unavailable.includes(network)) return;
+    const first = (["testnet", "devnet", "mainnet"] as const).find((n) => !unavailable.includes(n));
+    if (first) setNetwork(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [network, unavailable.join(",")]);
   const [address, setAddress] = useState("");
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [inspecting, setInspecting] = useState(false);
@@ -171,7 +185,12 @@ export default function NewProject() {
               value={network}
               onChange={(n) => setNetwork(n)}
               unavailable={unavailable}
-              unavailableHint={`${limits?.name ?? "This"} tier: mainnet is coming soon`}
+              unavailableHint={(n) =>
+                barred(n)
+                  ? `${limits?.name ?? "This"} tier: ${n} is coming soon`
+                  : `This Nineveh has no Geomi key for ${n}, so it can't stream it`
+              }
+              unavailableBadge={(n) => (barred(n) ? "soon" : "no key")}
             />
             <input
               value={address}

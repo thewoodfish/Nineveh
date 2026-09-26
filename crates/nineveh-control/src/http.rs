@@ -168,6 +168,13 @@ impl<C: Chain> Server<C> {
 struct Me {
     mode: &'static str,
     account: Option<AccountView>,
+    /// The networks this plane holds a Geomi key for, so Studio can offer only those.
+    ///
+    /// Separate from `limits.networks`, which is what the tier allows, and present in
+    /// local mode too, where there is no tier at all. A network has to be in both
+    /// lists to be worth offering: the tier decides whether an account may, this
+    /// decides whether the operator can.
+    networks: Vec<&'static str>,
     /// What this account's tier allows. Studio reads it rather than hard-coding the
     /// numbers, so "2 projects" and "mainnet is coming soon" are said in one place.
     /// Absent in local mode: there is no account, so there is no tier.
@@ -210,10 +217,18 @@ async fn me<C: Chain>(
     State(server): Shared<C>,
     headers: HeaderMap,
 ) -> Result<Json<Me>, ControlError> {
+    let networks: Vec<&'static str> = server
+        .plane
+        .chain()
+        .networks()
+        .into_iter()
+        .map(Network::as_str)
+        .collect();
     Ok(Json(match &server.access {
         Access::Local => Me {
             mode: "local",
             account: None,
+            networks,
             limits: None,
         },
         Access::Hosted { .. } => {
@@ -228,6 +243,7 @@ async fn me<C: Chain>(
                     name: account.name,
                     avatar_url: account.avatar_url,
                 }),
+                networks,
                 limits: Some(tier::FREE.into()),
             }
         }

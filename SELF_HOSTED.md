@@ -136,9 +136,26 @@ npm run build && npm start      # http://localhost:3000
 
 ### Keys are per network
 
-`--api-key` (or `APTOS_API_KEY`) is the fallback for every network.
-`--api-key-testnet`, `--api-key-mainnet` and `--api-key-devnet` override it, and a plane
-running projects on several networks needs one for each.
+Geomi issues a key for one network, so there is no such thing as one that works
+everywhere. `--api-key` (or `APTOS_API_KEY`) is the fallback, and
+`--api-key-testnet`, `--api-key-mainnet` and `--api-key-devnet` name a network each.
+
+**Naming one network means naming them all.** While `APTOS_API_KEY` is the only key
+set, it stands for every network, which is what a plane on a single network wants. The
+moment you set a per-network key you have said which networks you mean, and Studio
+offers only those: it greys out the rest and says there is no key for them, rather than
+letting someone create a project that fails at its first stream with
+`Unauthenticated`.
+
+So a plane meant to run testnet and devnet sets both:
+
+```sh
+export APTOS_API_KEY_TESTNET=your_testnet_key
+export APTOS_API_KEY_DEVNET=your_devnet_key
+```
+
+`nineveh up` says at boot which networks it can stream, and warns about any the tier
+allows that it has no key for.
 
 ### Local mode and hosted mode
 

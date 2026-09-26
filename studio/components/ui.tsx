@@ -144,6 +144,7 @@ export function Segmented<T extends string>({
   onChange,
   unavailable,
   unavailableHint = "Coming soon",
+  unavailableBadge = () => "soon",
 }: {
   options: readonly T[];
   value: T;
@@ -152,12 +153,19 @@ export function Segmented<T extends string>({
    *  choice you can see is coming reads as a roadmap, and one that vanishes reads as
    *  a product that can't do it. */
   unavailable?: readonly T[];
-  unavailableHint?: string;
+  /** Why one can't be picked. A function when the options are off for different
+   *  reasons: "the plan doesn't include it" and "this deployment isn't set up for it"
+   *  are not the same news, and a reader can act on only one of them. */
+  unavailableHint?: string | ((option: T) => string);
+  /** The word next to an option that's off. `undefined` for none. */
+  unavailableBadge?: (option: T) => string | undefined;
 }) {
   return (
     <div className="inline-flex divide-x divide-outline overflow-hidden rounded-full border border-outline">
       {options.map((option) => {
         const off = unavailable?.includes(option) ?? false;
+        const hint = typeof unavailableHint === "function" ? unavailableHint(option) : unavailableHint;
+        const badge = off ? unavailableBadge(option) : undefined;
         return (
           <button
             key={option}
@@ -165,7 +173,7 @@ export function Segmented<T extends string>({
             onClick={() => !off && onChange(option)}
             aria-pressed={option === value}
             aria-disabled={off}
-            title={off ? unavailableHint : undefined}
+            title={off ? hint : undefined}
             className={`state inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium ${
               off
                 ? "cursor-not-allowed text-on-surface-variant/45"
@@ -176,7 +184,7 @@ export function Segmented<T extends string>({
           >
             {!off && option === value && <Icon name="check" className="text-[16px]" />}
             {option}
-            {off && <span className="text-[10px] tracking-wide uppercase">soon</span>}
+            {badge && <span className="text-[10px] tracking-wide uppercase">{badge}</span>}
           </button>
         );
       })}

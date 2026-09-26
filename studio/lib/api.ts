@@ -284,6 +284,12 @@ const json = (body: unknown) => ({ body: JSON.stringify(body) });
 export type Me = {
   mode: "local" | "hosted";
   account: { login: string; name: string | null; avatar_url: string | null } | null;
+  /**
+   * The networks the control plane holds a Geomi key for, so it can actually stream
+   * them. Not the same question as the tier's `networks`, which is what an account is
+   * allowed to follow, and present in local mode where there is no tier at all.
+   */
+  networks: string[];
   /** Absent in local mode: there is no account there, so there is no tier. */
   limits?: Limits;
 };
