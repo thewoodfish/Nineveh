@@ -99,8 +99,12 @@ chown -R nineveh:nineveh /opt/nineveh
 ```sh
 install -d -m 700 /etc/nineveh
 install -m 600 /opt/nineveh/src/deploy/nineveh.env.example /etc/nineveh/nineveh.env
-$EDITOR /etc/nineveh/nineveh.env          # fill in the key and the OAuth pair
+nano /etc/nineveh/nineveh.env             # fill in the keys and the OAuth pair
 ```
+
+`nano` rather than `$EDITOR`, which a fresh server doesn't set: unset, the line becomes
+the path on its own and the shell tries to execute the file, which reports `Permission
+denied` and looks like a problem with the file rather than with the command.
 
 ## Start it
 
