@@ -33,13 +33,13 @@ import { dslTableBlock, foreignWrites, reducersFile } from "@/lib/state-table";
 /** How long the header keeps saying a change just landed. */
 const PULSE = 4000;
 
-const TABS = ["data", "definition", "schema", "api", "changes"] as const;
+const TABS = ["data", "reducers", "schema", "api", "changes"] as const;
 type Tab = (typeof TABS)[number];
 
 /** The sections of a table, and the icon each reads by. */
 const SECTIONS: { tab: Tab; label: string; icon: string }[] = [
   { tab: "data", label: "Data", icon: "table_rows" },
-  { tab: "definition", label: "Definition", icon: "code" },
+  { tab: "reducers", label: "Reducers", icon: "code" },
   { tab: "schema", label: "Schema", icon: "view_column" },
   { tab: "api", label: "API", icon: "terminal" },
   { tab: "changes", label: "Changes", icon: "bolt" },
@@ -172,7 +172,7 @@ function Inner({ table, tab, go }: { table: Table; tab: Tab; go: (to: Tab) => vo
               }`}
             >
               <Icon name={icon} filled={tab === t} className="shrink-0 text-[18px]" />
-              {label}
+              {t === "reducers" && table.kind !== "reduce" ? "Source" : label}
             </button>
           ))}
         </nav>
@@ -181,7 +181,7 @@ function Inner({ table, tab, go }: { table: Table; tab: Tab; go: (to: Tab) => vo
             one's rows under the new name for a frame. */}
         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
           {tab === "data" && <DataGrid bare table={table} onCount={onCount} />}
-          {tab === "definition" && <DefinitionPanel table={table} />}
+          {tab === "reducers" && <DefinitionPanel table={table} />}
           {tab === "schema" && <SchemaPanel table={table} />}
           {tab === "api" && (
             <div className="flex min-h-0 px-8 py-6">
