@@ -297,15 +297,18 @@ function StateTableEditor() {
             )}
             <Card className="overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant px-4 py-2">
+                {/* No filename: there is a file under this, but only the people who run
+                    Nineveh themselves ever see it, and everyone else is just writing
+                    reducers. */}
                 <span className="text-xs text-on-surface-variant">
-                  <span className="font-mono">{file}</span>
                   {code === null ? (
-                    ", as this will be saved"
+                    <>
+                      Your reducers, as this will be saved
+                    </>
                   ) : (
                     <>
-                      {" — "}
-                      <span className="text-on-surface">yours now</span>. The builder above is
-                      what it started from.
+                      Your reducers — <span className="text-on-surface">yours now</span>. The
+                      builder above is what it started from.
                     </>
                   )}
                 </span>
@@ -344,7 +347,7 @@ function StateTableEditor() {
                   spellCheck={false}
                   wrap="off"
                   autoFocus
-                  aria-label={file}
+                  aria-label="Reducers"
                   rows={Math.min(30, Math.max(12, code.split("\n").length + 1))}
                   className="block w-full resize-y overflow-auto bg-surface-container-low px-4 py-3 font-mono text-[13px] leading-relaxed text-on-surface outline-none focus:ring-1 focus:ring-inset focus:ring-primary"
                 />
@@ -352,7 +355,7 @@ function StateTableEditor() {
             </Card>
             {code !== null && (
               <p className="text-xs leading-relaxed text-on-surface-variant">
-                This is the whole reducers file, in the{" "}
+                These are all of this project's reducers, in the{" "}
                 <a
                   href="https://www.nineveh.dev/docs/reducers"
                   target="_blank"
@@ -360,9 +363,8 @@ function StateTableEditor() {
                   className="text-primary hover:underline"
                 >
                   reducer language
-                </a>{" "}
-                — TypeScript syntax, parsed and compiled to rules, never run. Nineveh checks it
-                as you type, and saving is held until it passes.
+                </a>
+                . Nineveh checks them as you type, and saving is held until they pass.
               </p>
             )}
             {listed.length > 0 && (

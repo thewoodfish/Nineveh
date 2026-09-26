@@ -28,7 +28,7 @@ import { definitionOf } from "@/lib/definition";
 import { formatInteger } from "@/lib/format";
 import { useFeed, useSources, useTables } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
-import { dslTableBlock, foreignWrites, reducersFile } from "@/lib/state-table";
+import { dslTableBlock, foreignWrites } from "@/lib/state-table";
 
 /** How long the header keeps saying a change just landed. */
 const PULSE = 4000;
@@ -298,17 +298,50 @@ function DefinitionPanel({ table }: { table: Table }) {
     );
   }
 
+  // The sources whose records reach this table, read off the handlers themselves. It is
+  // for a line of prose, so a regex is the right weight: being wrong costs a chip.
+  const feeds = block
+    ? [...new Set([...block.matchAll(/\bon\(\s*([A-Za-z_]\w*)/g)].map((m) => m[1] ?? ""))].filter(
+        Boolean,
+      )
+    : [];
+
   return (
-    <div className="flex flex-col gap-5 px-8 py-6">
+    <div className="flex max-w-4xl flex-col gap-5 px-8 py-6">
       {block !== null && (
+        <>
+          {/* Said before the box, because a blank editor explains nothing. Nobody running
+              this has a repo or a CLI — a reducer is a thing you write here, not a file
+              you keep — so this says what one does and never names a file. */}
+          <div>
+            <h2 className="text-sm font-semibold text-on-surface">
+              What this table is built from
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-on-surface-variant text-pretty">
+              A reducer says what changes in{" "}
+              <span className="font-mono text-on-surface">{table.name}</span> when a record
+              arrives. Nineveh replays every record your sources match, in order, and folds
+              them into rows — so the table is always what your rules say it should be.
+            </p>
+            {feeds.length > 0 && (
+              <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-on-surface-variant">
+                Fed by
+                {feeds.map((on) => (
+                  <span
+                    key={on}
+                    className="rounded bg-surface-container-high px-1.5 py-0.5 font-mono"
+                  >
+                    {on}
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+
         <Card className="overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-high px-4 py-2">
-            <span className="text-[11px] font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
-              Rules
-            </span>
-            <span className="min-w-0 flex-1 truncate text-xs text-on-surface-variant">
-              <span className="font-mono">{reducersFile(project ?? "")}</span>, the part that
-              builds this table
+            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+              Reducers
             </span>
             {editable && changed && (
               <button
@@ -335,7 +368,7 @@ function DefinitionPanel({ table }: { table: Table }) {
               onChange={(e) => setDraft(e.target.value)}
               spellCheck={false}
               wrap="off"
-              aria-label={`Rules for ${table.name}`}
+              aria-label={`Reducers for ${table.name}`}
               rows={Math.min(28, Math.max(8, text.split("\n").length + 1))}
               className="block w-full resize-y overflow-auto bg-surface-container-low px-4 py-3 font-mono text-[13px] leading-relaxed text-on-surface outline-none focus:ring-1 focus:ring-inset focus:ring-primary"
             />
@@ -345,6 +378,7 @@ function DefinitionPanel({ table }: { table: Table }) {
             </pre>
           )}
         </Card>
+        </>
       )}
 
       {/* The one shape a table can't own. A handler is written event-first, so one `on()`
