@@ -426,3 +426,12 @@ dialog.sheet[open]::backdrop {
     transition: none;
   }
 }
+
+/* The reducer editor's box. CodeMirror brings its own scroller and gutters; this only
+   bounds it so a long file doesn't grow the card without limit. */
+.reducer-editor .cm-editor {
+  max-height: 32rem;
+}
+.reducer-editor .cm-scroller {
+  overflow: auto;
+}

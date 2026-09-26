@@ -21,10 +21,12 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { ApiConsole } from "@/components/api-console";
 import { DataGrid } from "@/components/data-grid";
 import { PageHeader } from "@/components/page-header";
+import { ReducerEditor } from "@/components/reducer-editor";
 import { SourceSchema } from "@/components/source-schema";
 import { Button, Card, Icon, Live, Notice, Offline, filledButton } from "@/components/ui";
-import { ApiError, type Change, type Table, control, getRows } from "@/lib/api";
+import { ApiError, type Change, type Problem, type Table, control, getRows } from "@/lib/api";
 import { definitionOf } from "@/lib/definition";
+import { FUNCTIONS } from "@/lib/language";
 import { formatInteger } from "@/lib/format";
 import { useFeed, useSources, useTables } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
@@ -215,7 +217,11 @@ function DefinitionPanel({ table }: { table: Table }) {
   const [config, setConfig] = useState<string | null>(null);
   const [reducers, setReducers] = useState<string | null>(null);
   const [draft, setDraft] = useState<string | null>(null);
-  const [checked, setChecked] = useState<{ ok: boolean; details?: string } | null>(null);
+  const [checked, setChecked] = useState<{
+    ok: boolean;
+    details?: string;
+    problems: Problem[];
+  } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -252,13 +258,14 @@ function DefinitionPanel({ table }: { table: Table }) {
     const timer = setTimeout(() => {
       control
         .check(project, config, whole)
-        .then(() => setChecked({ ok: true }))
-        .catch((e: unknown) =>
+        .then(() => setChecked({ ok: true, problems: [] }))
+        .catch((e: unknown) => {
           setChecked({
             ok: false,
             details: e instanceof ApiError ? (e.details ?? e.message) : String(e),
-          }),
-        );
+            problems: e instanceof ApiError ? (e.problems ?? []) : [],
+          });
+        });
     }, 400);
     return () => clearTimeout(timer);
   }, [project, config, whole, changed]);
@@ -280,6 +287,10 @@ function DefinitionPanel({ table }: { table: Table }) {
       setSaving(false);
     }
   };
+
+  // Where this table's block begins inside the whole reducers file, so a span the
+  // compiler reported against the file lands on the right character here.
+  const blockOffset = reducers && block ? reducers.indexOf(block) : 0;
 
   const definition = useMemo(
     () => (config ? definitionOf(config, table.name) : null),
@@ -362,21 +373,14 @@ function DefinitionPanel({ table }: { table: Table }) {
               </Button>
             )}
           </div>
-          {editable ? (
-            <textarea
-              value={text}
-              onChange={(e) => setDraft(e.target.value)}
-              spellCheck={false}
-              wrap="off"
-              aria-label={`Reducers for ${table.name}`}
-              rows={Math.min(28, Math.max(8, text.split("\n").length + 1))}
-              className="block w-full resize-y overflow-auto bg-surface-container-low px-4 py-3 font-mono text-[13px] leading-relaxed text-on-surface outline-none focus:ring-1 focus:ring-inset focus:ring-primary"
-            />
-          ) : (
-            <pre className="overflow-x-auto px-4 py-3 font-mono text-xs leading-relaxed">
-              {block}
-            </pre>
-          )}
+          <ReducerEditor
+            value={text}
+            onChange={setDraft}
+            readOnly={!editable}
+            problems={checked?.problems ?? []}
+            offset={blockOffset}
+            scope={{ table, sources: sources ?? [], functions: FUNCTIONS }}
+          />
         </Card>
         </>
       )}

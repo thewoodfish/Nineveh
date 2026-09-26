@@ -94,12 +94,29 @@ export type Change = {
   row: Row | null;
 };
 
+/** One problem with a project, and where in the source it is (ADR 0011). */
+export type Problem = {
+  message: string;
+  /** A suggested fix, when the compiler has one. */
+  help?: string;
+  /** Absent when the problem has no place in a file — a whole-project complaint. */
+  at?: {
+    /** 0 is the config; the reducers it names are 1 (ADR 0025). */
+    file: number;
+    /** Byte offset into that file, and how far the problem runs. */
+    offset: number;
+    len: number;
+  };
+};
+
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
-    /** Located config diagnostics, for a config with problems. */
+    /** Every problem rendered into one block, the way a terminal wants them. */
     readonly details?: string,
+    /** The same problems one by one, for a box that can underline them. */
+    readonly problems?: Problem[],
   ) {
     super(message);
   }
@@ -127,8 +144,17 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   }
   if (response.status === 401 && session()) signedOut();
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: string; details?: string } | null;
-    throw new ApiError(body?.error ?? response.statusText, response.status, body?.details);
+    const body = (await response.json().catch(() => null)) as {
+      error?: string;
+      details?: string;
+      problems?: Problem[];
+    } | null;
+    throw new ApiError(
+      body?.error ?? response.statusText,
+      response.status,
+      body?.details,
+      body?.problems,
+    );
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;

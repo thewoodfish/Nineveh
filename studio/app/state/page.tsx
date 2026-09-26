@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ExpressionInput, type Insert, type Name } from "@/components/expression";
+import { FUNCTIONS } from "@/lib/language";
 import { SourceSchema } from "@/components/source-schema";
 import { Button, Card, Notice, Select } from "@/components/ui";
 import {
@@ -39,27 +40,6 @@ import {
   reducersFile,
 } from "@/lib/state-table";
 
-/** The functions an expression can call (`docs/expressions.md`). */
-const FUNCTIONS = [
-  "min",
-  "max",
-  "abs",
-  "is_some",
-  "is_none",
-  "unwrap_or",
-  "u8",
-  "u16",
-  "u32",
-  "u64",
-  "u128",
-  "u256",
-  "i8",
-  "i16",
-  "i32",
-  "i64",
-  "i128",
-  "i256",
-];
 
 /**
  * Everything a rule's expressions can refer to: the record's fields, the row's own
