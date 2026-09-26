@@ -22,13 +22,13 @@ import { ApiConsole } from "@/components/api-console";
 import { DataGrid } from "@/components/data-grid";
 import { PageHeader } from "@/components/page-header";
 import { SourceSchema } from "@/components/source-schema";
-import { Card, Live, Notice, Offline } from "@/components/ui";
-import { type Change, type SavedTable, type Table, control, getRows } from "@/lib/api";
+import { Button, Card, Live, Notice, Offline } from "@/components/ui";
+import { ApiError, type Change, type Table, control, getRows } from "@/lib/api";
 import { definitionOf } from "@/lib/definition";
 import { formatInteger } from "@/lib/format";
 import { useFeed, useSources, useTables } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
-import { toDsl } from "@/lib/state-table";
+import { dslTableBlock, foreignWrites, reducersFile } from "@/lib/state-table";
 
 /** How long the header keeps saying a change just landed. */
 const PULSE = 4000;
@@ -193,22 +193,73 @@ function DefinitionPanel({ table }: { table: Table }) {
   const { name: project, mode } = useProject();
   const { data: sources } = useSources();
   const [config, setConfig] = useState<string | null>(null);
-  const [saved, setSaved] = useState<SavedTable | null>(null);
+  const [reducers, setReducers] = useState<string | null>(null);
+  const [draft, setDraft] = useState<string | null>(null);
+  const [checked, setChecked] = useState<{ ok: boolean; details?: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (mode !== "control" || !project) return;
     control
       .project(project)
-      .then((p) => setConfig(p.config))
+      .then((p) => {
+        setConfig(p.config);
+        setReducers(p.reducers ?? null);
+      })
       .catch(() => setFailed(true));
-    if (table.kind === "reduce") {
-      control
-        .stateTable(project, table.name)
-        .then(setSaved)
-        .catch(() => setFailed(true));
+  }, [project, mode]);
+  useEffect(load, [load]);
+
+  const block = reducers ? dslTableBlock(reducers, table.name) : null;
+  const shared = block ? foreignWrites(block, table.name) : [];
+  const editable = block !== null && shared.length === 0;
+  const text = draft ?? block ?? "";
+  const changed = draft !== null && draft !== block;
+
+  // The same check the state table editor runs, on the file this save would write.
+  const whole = useMemo(
+    () => (reducers && block && draft !== null ? reducers.replace(block, draft) : null),
+    [reducers, block, draft],
+  );
+  useEffect(() => {
+    if (!project || !config || !whole || !changed) {
+      setChecked(null);
+      return;
     }
-  }, [project, mode, table.kind, table.name]);
+    const timer = setTimeout(() => {
+      control
+        .check(project, config, whole)
+        .then(() => setChecked({ ok: true }))
+        .catch((e: unknown) =>
+          setChecked({
+            ok: false,
+            details: e instanceof ApiError ? (e.details ?? e.message) : String(e),
+          }),
+        );
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [project, config, whole, changed]);
+
+  const save = async () => {
+    if (!project || !config || !whole) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await control.update(project, config, whole);
+      setReducers(updated.reducers ?? null);
+      setDraft(null);
+      setChecked(null);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setError(e instanceof ApiError ? (e.details ?? e.message) : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const definition = useMemo(
     () => (config ? definitionOf(config, table.name) : null),
@@ -229,31 +280,91 @@ function DefinitionPanel({ table }: { table: Table }) {
 
   return (
     <div className="flex flex-col gap-5 px-8 py-6">
-      {saved && saved.rules.length > 0 && (
+      {block !== null && (
         <Card className="overflow-hidden">
-          <PanelHead
-            title="Rules"
-            hint={`${saved.rules.length} rule${saved.rules.length === 1 ? "" : "s"} fold records into this table`}
-          />
-          <pre className="overflow-x-auto px-4 py-3 font-mono text-xs leading-relaxed">
-            {toDsl({
-              name: saved.name,
-              columns: saved.columns,
-              rules: saved.rules,
-            })}
-          </pre>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-high px-4 py-2">
+            <span className="text-[11px] font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
+              Rules
+            </span>
+            <span className="min-w-0 flex-1 truncate text-xs text-on-surface-variant">
+              <span className="font-mono">{reducersFile(project ?? "")}</span>, the part that
+              builds this table
+            </span>
+            {editable && changed && (
+              <button
+                type="button"
+                onClick={() => setDraft(null)}
+                className="text-xs text-on-surface-variant hover:text-on-surface"
+              >
+                Revert
+              </button>
+            )}
+            {editable && (
+              <Button
+                tone="primary"
+                disabled={!changed || saving || checked?.ok !== true}
+                onClick={() => void save()}
+              >
+                {saving ? "Saving…" : saved ? "Saved" : "Save"}
+              </Button>
+            )}
+          </div>
+          {editable ? (
+            <textarea
+              value={text}
+              onChange={(e) => setDraft(e.target.value)}
+              spellCheck={false}
+              wrap="off"
+              aria-label={`Rules for ${table.name}`}
+              rows={Math.min(28, Math.max(8, text.split("\n").length + 1))}
+              className="block w-full resize-y overflow-auto bg-surface-container-low px-4 py-3 font-mono text-[13px] leading-relaxed text-on-surface outline-none focus:ring-1 focus:ring-inset focus:ring-primary"
+            />
+          ) : (
+            <pre className="overflow-x-auto px-4 py-3 font-mono text-xs leading-relaxed">
+              {block}
+            </pre>
+          )}
         </Card>
       )}
 
-      {saved && saved.rules.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-on-surface-variant">
-          Fed by
-          {[...new Set(saved.rules.map((r) => r.on))].map((on) => (
-            <span key={on} className="rounded bg-surface-container-high px-1.5 py-0.5 font-mono">
-              {on}
+      {/* The one shape a table can't own. A handler is written event-first, so one `on()`
+          may write several tables (ADR 0025) — saving it under this table's name would
+          carry the others' rules along with it. */}
+      {block !== null && !editable && (
+        <Notice tone="neutral" title="These rules aren't this table's alone">
+          A handler here also writes{" "}
+          {shared.map((t) => (
+            <span key={t} className="font-mono">
+              {t}{" "}
             </span>
           ))}
-        </div>
+          — so the block belongs to more than one table and can&apos;t be saved under this
+          one. Edit it in the{" "}
+          <Link
+            href={`/state?project=${encodeURIComponent(project ?? "")}&table=${encodeURIComponent(table.name)}`}
+            className="text-primary hover:underline"
+          >
+            state table editor
+          </Link>
+          , which writes the whole file.
+        </Notice>
+      )}
+
+      {checked && !checked.ok && (
+        <Notice tone="error" title="Nineveh can't build that">
+          <pre className="overflow-x-auto font-mono text-xs whitespace-pre">{checked.details}</pre>
+        </Notice>
+      )}
+      {checked?.ok && changed && (
+        <p className="text-xs text-on-tertiary-container">
+          Checks out. Saving rebuilds this table beside the served one and swaps it in once
+          it has caught up.
+        </p>
+      )}
+      {error && (
+        <Notice tone="error" title="That didn't save">
+          <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">{error}</pre>
+        </Notice>
       )}
 
       {definition && (
@@ -267,13 +378,13 @@ function DefinitionPanel({ table }: { table: Table }) {
 
       {follows && <SourceSchema source={follows} />}
 
-      {!definition && !saved && !failed && (
+      {!definition && block === null && !failed && (
         <p className="text-sm text-on-surface-variant">Reading the config…</p>
       )}
       {failed && !definition && (
         <Notice tone="neutral" title="Couldn't read this table's definition">
-          The rows and schema below are served from the build that is running, which is
-          the thing that matters — this panel only quotes the config back.
+          The rows and schema are served from the build that is running, which is the
+          thing that matters — this panel only quotes the config back.
         </Notice>
       )}
     </div>

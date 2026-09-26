@@ -447,6 +447,46 @@ export function toDsl(table: StateTable): string {
 }
 
 /**
+ * The block of `reducers` that declares `table` and the handlers under it — the same
+ * span [`withDslTable`] replaces, read back out.
+ *
+ * Returns null when the file doesn't declare it, which is what a table built from YAML
+ * or one whose file has been reorganised looks like.
+ */
+export function dslTableBlock(reducers: string, table: string): string | null {
+  const lines = reducers.split("\n");
+  const declaration = new RegExp(`^export const ${table}\\b`);
+  const at = lines.findIndex((line) => declaration.test(line));
+  if (at < 0) return null;
+  let to = lines.length;
+  for (let i = at + 1; i < lines.length; i++) {
+    if (/^export const /.test(lines[i] ?? "")) {
+      to = i;
+      break;
+    }
+  }
+  return lines.slice(at, to).join("\n").replace(/\s+$/, "");
+}
+
+/**
+ * The other tables a block writes to.
+ *
+ * A handler is written event-first — "when a sale arrives, here is everything that
+ * changes" — so one `on()` may well write two tables (ADR 0025), and the compiler's
+ * scatter pass is what turns that back into per-table rules. A block like that belongs
+ * to no single table, and splicing it under one name would take the other's rules with
+ * it. So this is the guard: a block that writes elsewhere is edited as a whole file or
+ * not at all.
+ */
+export function foreignWrites(block: string, table: string): string[] {
+  const written = new Set<string>();
+  for (const [, name] of block.matchAll(/\b([A-Za-z_]\w*)\s*\.\s*row\s*\(/g)) {
+    if (name && name !== table) written.add(name);
+  }
+  return [...written];
+}
+
+/**
  * `reducers` with `table` in it: replacing the block of that name if it's there, and
  * appended if it isn't.
  *
