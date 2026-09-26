@@ -169,11 +169,28 @@ only thing running there.
 ## Deploying a new version
 
 ```sh
-cd /opt/nineveh/src && git pull
-cargo build --release -p nineveh-cli
+git config --global --add safe.directory /opt/nineveh/src   # once, see below
+cd /opt/nineveh/src
+git pull --ff-only
+/root/.cargo/bin/cargo build --release -p nineveh-cli -j 2
 install -m 755 target/release/nineveh /opt/nineveh/bin/nineveh
+chown -R nineveh:nineveh /opt/nineveh
 systemctl restart nineveh
 ```
+
+Three things that look like mistakes and aren't:
+
+- **`cargo` by absolute path.** `provision.sh` installs rustup with `--no-modify-path`,
+  so `cargo` is at `/root/.cargo/bin/cargo` and not on any PATH. `cargo: command not
+  found` here means Rust is installed and unexported, not missing.
+- **`safe.directory`.** The install chowns the tree to `nineveh`, and git refuses to run
+  in a repository owned by another user: `detected dubious ownership`. Adding the
+  exception is the fix, once per machine.
+- **`-j 2`.** rustc's parallel codegen is memory-hungry. On a 4–8GB box the default job
+  count gets the build OOM-killed partway through; two jobs is slower and finishes.
+
+The `chown` after `install` matters as much as the install: the unit runs as `nineveh`,
+and a binary left owned by root after a build as root can't be executed by it.
 
 `restart` stops before starting, which is what keeps you on the right side of the
 one-plane rule. Migrations run at startup. A build whose fingerprint changed rebuilds
