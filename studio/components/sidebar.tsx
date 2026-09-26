@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { behind, formatDuration, formatInteger } from "@/lib/format";
-import { useStatus, useTables } from "@/lib/hooks";
+import { useStatus } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
 
 import { ThemeToggle } from "./theme";
@@ -145,51 +145,33 @@ function AccountMenu() {
   );
 }
 
+/**
+ * The project's pages. Its tables are not among them: they have a page each now, reached
+ * from the overview's grid, and a second copy of the list down the side was one more
+ * thing to keep in step and forty more rows to scroll past on a project that follows
+ * forty sources.
+ */
 function ProjectNav() {
-  const { tables } = useTables();
   const pathname = usePathname();
   const href = useHref();
   return (
-    <>
-      <nav className="flex flex-col gap-1 px-3 text-sm">
-        <NavLink href={href("/")} active={pathname === "/"} icon="dashboard">
-          Overview
-        </NavLink>
-        <NavLink href={href("/changes")} active={pathname === "/changes"} icon="bolt">
-          Change feed
-        </NavLink>
-        <NavLink href={href("/playground")} active={pathname === "/playground"} icon="terminal">
-          API playground
-        </NavLink>
-        <NavLink href={href("/state")} active={pathname === "/state"} icon="add_circle">
-          New state table
-        </NavLink>
-        <NavLink href={href("/settings")} active={pathname === "/settings"} icon="settings">
-          Settings
-        </NavLink>
-      </nav>
-
-      <div className="mt-6 px-3 text-[11px] font-medium tracking-[0.08em] text-on-surface-variant uppercase">
-        Tables
-      </div>
-      <nav className="mt-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-4 text-sm">
-        {tables?.map((table) => (
-          <NavLink
-            key={table.name}
-            href={href(`/tables/${encodeURIComponent(table.name)}`)}
-            active={pathname === `/tables/${encodeURIComponent(table.name)}`}
-          >
-            <span className="truncate font-mono text-[12.5px]">{table.name}</span>
-            <span className="ml-auto shrink-0 text-[11px] text-on-surface-variant">
-              {table.kind}
-            </span>
-          </NavLink>
-        ))}
-        {tables?.length === 0 && (
-          <p className="px-4 text-xs text-on-surface-variant">No state tables.</p>
-        )}
-      </nav>
-    </>
+    <nav className="flex flex-col gap-1 px-3 pb-4 text-sm">
+      <NavLink href={href("/")} active={pathname === "/"} icon="dashboard">
+        Overview
+      </NavLink>
+      <NavLink href={href("/changes")} active={pathname === "/changes"} icon="bolt">
+        Change feed
+      </NavLink>
+      <NavLink href={href("/playground")} active={pathname === "/playground"} icon="terminal">
+        API playground
+      </NavLink>
+      <NavLink href={href("/state")} active={pathname === "/state"} icon="add_circle">
+        New state table
+      </NavLink>
+      <NavLink href={href("/settings")} active={pathname === "/settings"} icon="settings">
+        Settings
+      </NavLink>
+    </nav>
   );
 }
 
