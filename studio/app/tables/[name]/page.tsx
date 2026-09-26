@@ -140,18 +140,6 @@ function Inner({ table, tab, go }: { table: Table; tab: Tab; go: (to: Tab) => vo
         }
       >
         <Live connected={connected} />
-        {/* The one action this page offers, so it looks like one. Definition edits these
-            rules as text; this is the same rules in pickers — a different tool, not a
-            second link to the same place. */}
-        {table.kind === "reduce" && mode === "control" && project && (
-          <Link
-            href={`/state?project=${encodeURIComponent(project)}&table=${encodeURIComponent(table.name)}`}
-            className={filledButton}
-          >
-            <Icon name="tune" className="text-[18px]" />
-            Rule builder
-          </Link>
-        )}
       </PageHeader>
 
       {/* Sections down the side, not tabs across the top. There are five of them and
@@ -175,6 +163,19 @@ function Inner({ table, tab, go }: { table: Table; tab: Tab; go: (to: Tab) => vo
               {t === "reducers" && table.kind !== "reduce" ? "Source" : label}
             </button>
           ))}
+
+          {/* Under the sections rather than up in the header: it acts on this table, the
+              same as everything above it, and the header is the project's row. Only a
+              `reduce` table has rules to open in the builder. */}
+          {table.kind === "reduce" && mode === "control" && project && (
+            <Link
+              href={`/state?project=${encodeURIComponent(project)}&table=${encodeURIComponent(table.name)}`}
+              className={`${filledButton} mt-3 w-full`}
+            >
+              <Icon name="edit" className="text-[18px]" />
+              Edit Table
+            </Link>
+          )}
         </nav>
 
         {/* Keyed so switching tables resets each panel rather than showing the last
