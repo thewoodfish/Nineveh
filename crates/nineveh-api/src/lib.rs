@@ -4,7 +4,8 @@
 //!
 //! - `GET /v1/status`: the project, its build (cursor, fingerprint, times), a rebuild
 //!   in progress, and the pipeline's health when the pipeline runs in this process.
-//! - `GET /v1/tables`: every state table's kind, key and columns.
+//! - `GET /v1/tables`: every state table's kind, key and columns. `counts=true` also
+//!   reports each one's rows, counted when that is cheap and estimated when it isn't.
 //! - `GET /v1/tables/{name}`: rows. `limit` (default 50, at most 1000) and `offset`
 //!   page; `order=column` or `order=column.desc` sorts (default: most recently changed
 //!   first); any other parameter `column=value` filters on equality; `count=exact`
@@ -29,7 +30,7 @@ use tracing::error;
 
 mod tables;
 
-pub use tables::{ColumnInfo, TableInfo};
+pub use tables::{ColumnInfo, Rows, TableInfo};
 
 use tables::{DEFAULT_LIMIT, MAX_LIMIT, Query};
 
@@ -200,8 +201,48 @@ async fn status(State(api): State<Arc<Api>>) -> Result<Json<Json_>, ApiError> {
     })))
 }
 
-async fn tables(State(api): State<Arc<Api>>) -> Json<Vec<TableInfo>> {
-    Json(api.tables.clone())
+/// Every state table's kind, key and columns, and with `?counts=true` how many rows
+/// each holds.
+///
+/// The counts are asked for rather than always given. Without them this is a clone of
+/// what the config already said, which is why anything that lists tables can call it
+/// freely; with them it is a query per table, and only a view that shows the numbers
+/// should be paying for them.
+///
+/// A table that can't be read is served without a count rather than failing the list. A
+/// rebuild swaps tables in under a new schema (ADR 0016), so "the shape, minus a number"
+/// is the right answer while that is happening — the shapes are still true.
+async fn tables(
+    State(api): State<Arc<Api>>,
+    QueryParams(params): QueryParams<Vec<(String, String)>>,
+) -> Result<Json<Vec<TableInfo>>, ApiError> {
+    let mut counts = false;
+    for (key, value) in params {
+        match key.as_str() {
+            "counts" if value == "true" => counts = true,
+            "counts" => return Err(ApiError::BadRequest("`counts` must be `true`".into())),
+            _ => return Err(ApiError::BadRequest(format!("unknown parameter `{key}`"))),
+        }
+    }
+    let mut tables = api.tables.clone();
+    if counts {
+        // One read of the planner's statistics for the whole schema, then at most a
+        // bounded count each.
+        let estimates = tables::estimates(&api.pool, &api.schema)
+            .await
+            .unwrap_or_default();
+        for table in &mut tables {
+            table.rows = tables::count_rows(
+                &api.pool,
+                &api.schema,
+                &table.name,
+                estimates.get(&table.name).copied(),
+            )
+            .await
+            .ok();
+        }
+    }
+    Ok(Json(tables))
 }
 
 async fn rows(

@@ -8,9 +8,12 @@
 //! Identifiers come only from the validated config and are always quoted; every value
 //! is bound.
 
+use std::collections::HashMap;
+
 use nineveh_config::{ColumnType, Project, TableKind};
 use nineveh_core::Address;
 use serde::Serialize;
+use sqlx::PgPool;
 
 /// `jsonb_build_object` takes at most 100 arguments: 50 columns a call.
 const COLUMNS_PER_OBJECT: usize = 50;
@@ -24,7 +27,27 @@ pub struct TableInfo {
     /// The key columns, in key order.
     pub key: Vec<String>,
     pub columns: Vec<ColumnInfo>,
+    /// How many rows it holds, only when `?counts=true` asked and the table could be
+    /// read. Absent otherwise, because a shape is what this endpoint is for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rows: Option<Rows>,
 }
+
+/// How many rows a table holds, and whether that is a count or an estimate.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct Rows {
+    pub count: i64,
+    /// True when the rows were counted, false when the planner's estimate was taken.
+    pub exact: bool,
+}
+
+/// The most rows [`count_rows`] will read before giving up and estimating.
+///
+/// Counting is a sequential scan, so an unbounded `count(*)` over every table is a way
+/// to make a dashboard take a minute on a busy project. Reading this many is quick, and
+/// past it a reader wants a magnitude anyway — nobody reads "8,412,905" as anything but
+/// "about eight million".
+const COUNT_LIMIT: i64 = 50_000;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ColumnInfo {
@@ -67,12 +90,90 @@ impl TableInfo {
                         column_type: c.ty,
                     })
                     .collect(),
+                rows: None,
             })
             .collect()
     }
 
     fn column(&self, name: &str) -> Option<&ColumnInfo> {
         self.columns.iter().find(|c| c.name == name)
+    }
+}
+
+/// The planner's row estimate for every table in `schema`, by table name.
+///
+/// Free: it reads what `ANALYZE` already recorded rather than the tables themselves. It
+/// is also allowed to be absent or stale — `-1` until a table has ever been analyzed,
+/// which is exactly the state a project is in just after its first build — so it decides
+/// only whether a table is small enough to count, never what gets reported on its own.
+pub(crate) async fn estimates(
+    pool: &PgPool,
+    schema: &str,
+) -> Result<HashMap<String, i64>, sqlx::Error> {
+    let rows: Vec<(String, i64)> = sqlx::query_as(
+        "SELECT c.relname, c.reltuples::bigint \
+         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace \
+         WHERE n.nspname = $1 AND c.relkind = 'r'",
+    )
+    .bind(schema)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.into_iter().collect())
+}
+
+/// How many rows `table` holds, counted when that is cheap and estimated when it isn't.
+///
+/// The count is capped by reading at most [`COUNT_LIMIT`] rows, so the work this does is
+/// bounded whatever the table's size and whatever the planner believes. Hitting the cap
+/// means the table is at least that big, and then the estimate is the better answer —
+/// unless it is missing too, in which case the cap is reported as an approximation,
+/// which understates a huge table until the next `ANALYZE` and says so by being
+/// approximate.
+pub(crate) async fn count_rows(
+    pool: &PgPool,
+    schema: &str,
+    table: &str,
+    estimate: Option<i64>,
+) -> Result<Rows, sqlx::Error> {
+    if let Some(rows) = without_counting(estimate) {
+        return Ok(rows);
+    }
+    let counted: i64 = sqlx::query_scalar(&format!(
+        "SELECT count(*) FROM (SELECT 1 FROM {}.{} LIMIT $1::bigint) t",
+        ident(schema),
+        ident(table)
+    ))
+    .bind(COUNT_LIMIT)
+    .fetch_one(pool)
+    .await?;
+    Ok(counted_rows(estimate, counted))
+}
+
+/// The answer when the estimate alone settles it: the table is known to be past the cap,
+/// so counting could only confirm what reading it would cost.
+fn without_counting(estimate: Option<i64>) -> Option<Rows> {
+    estimate.filter(|&e| e >= COUNT_LIMIT).map(|count| Rows {
+        count,
+        exact: false,
+    })
+}
+
+/// The answer once a count capped at [`COUNT_LIMIT`] has come back.
+///
+/// Under the cap the count read the whole table, so it is the truth. At the cap the
+/// table is bigger than the count says and the only question is by how much: the
+/// estimate if there is one, and the cap itself if there isn't — understating the table
+/// until the next `ANALYZE`, which is why that answer is marked inexact.
+fn counted_rows(estimate: Option<i64>, counted: i64) -> Rows {
+    if counted < COUNT_LIMIT {
+        return Rows {
+            count: counted,
+            exact: true,
+        };
+    }
+    Rows {
+        count: estimate.unwrap_or(counted).max(counted),
+        exact: false,
     }
 }
 
@@ -246,6 +347,42 @@ fn literal(text: &str) -> String {
 mod tests {
     use super::*;
 
+    #[test]
+    fn a_table_is_counted_until_counting_would_mean_reading_it() {
+        // Nothing analyzed yet — which is where a project sits right after its first
+        // build — so the table gets counted however big the planner thinks it is.
+        assert!(without_counting(None).is_none());
+        assert!(without_counting(Some(-1)).is_none());
+        assert!(without_counting(Some(COUNT_LIMIT - 1)).is_none());
+
+        // Known to be past the cap: reading it could only confirm that.
+        let big = without_counting(Some(4_000_000)).expect("estimate settles it");
+        assert_eq!(big.count, 4_000_000);
+        assert!(!big.exact);
+    }
+
+    #[test]
+    fn a_count_under_the_cap_is_the_truth_and_one_at_it_is_not() {
+        // The whole table fitted inside the cap, so this is not an estimate.
+        let small = counted_rows(None, 1_204);
+        assert_eq!(small.count, 1_204);
+        assert!(small.exact);
+
+        // Nothing is exact once the count stopped early. A stale estimate that knows
+        // better wins; with none, the cap is all there is, and it understates.
+        let stale = counted_rows(Some(8_000_000), COUNT_LIMIT);
+        assert_eq!(stale.count, 8_000_000);
+        assert!(!stale.exact);
+
+        let blind = counted_rows(None, COUNT_LIMIT);
+        assert_eq!(blind.count, COUNT_LIMIT);
+        assert!(!blind.exact);
+
+        // An estimate that is somehow smaller than what was actually read is not the
+        // better answer just because it exists.
+        assert_eq!(counted_rows(Some(12), COUNT_LIMIT).count, COUNT_LIMIT);
+    }
+
     fn balances() -> TableInfo {
         let column = |name: &str, ty| ColumnInfo {
             name: name.into(),
@@ -262,6 +399,7 @@ mod tests {
                 column("balance", ColumnType::U128),
                 column("memo", ColumnType::Bytes),
             ],
+            rows: None,
         }
     }
 
