@@ -352,7 +352,18 @@ async fn local_mode_needs_no_sign_in() {
     let app = router(Arc::clone(&plane), Access::Local);
     let (status, me) = call(&app, Method::GET, "/control/v1/me", None).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(me, json!({ "mode": "local", "account": null }));
+    // `networks` is the plane's, not the account's: which ones it holds a Geomi key for
+    // (ADR 0021's lesson — a testnet key offered to devnet is `Unauthenticated` at the
+    // first stream). Local mode has no account and still has to say, and the scripted
+    // chain answers for all of them.
+    assert_eq!(
+        me,
+        json!({
+            "mode": "local",
+            "account": null,
+            "networks": ["mainnet", "testnet", "devnet"],
+        })
+    );
     let (status, _) = call(&app, Method::GET, "/control/v1/projects", None).await;
     assert_eq!(status, StatusCode::OK);
     let (status, _) = call(&app, Method::GET, "/auth/github", None).await;
