@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ExpressionInput, type Insert, type Name } from "@/components/expression";
+import { SourceSchema } from "@/components/source-schema";
 import { Button, Card, Notice, Select } from "@/components/ui";
 import {
   ApiError,
@@ -522,78 +523,6 @@ function cell(value: unknown): string {
   return text.length > 40 ? `${text.slice(0, 39)}…` : text;
 }
 
-/**
- * A source's fields and their types.
- *
- * The thing you need in front of you to pick a key or write an expression, and the thing
- * Studio never showed: the data was here all along, spent only on the completion popup,
- * which you have to already know a field exists to see. The Move type it follows is above
- * them because two sources can offer the same field names.
- *
- * Given `onInsert`, each field is a button that types itself into whichever expression box
- * has the focus — so the reference and the palette are one list, rather than two that have
- * to agree.
- */
-function SourceSchema({
-  source,
-  deleted = false,
-  onInsert,
-}: {
-  source: SourceInfo;
-  /** Show what a `<name>.deleted` rule can read instead: only the row's identity. */
-  deleted?: boolean;
-  onInsert?: (name: string) => void;
-}) {
-  const fields = deleted ? source.delete_fields : source.fields;
-  return (
-    <div className="rounded-sm border border-outline-variant bg-surface-container-low">
-      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 border-b border-outline-variant px-3 py-2 text-xs text-on-surface-variant">
-        <span className="font-mono text-on-surface">{source.name}</span>
-        <span>{source.kind}</span>
-        <span className="min-w-0 truncate font-mono">{source.follows}</span>
-        <span className="ml-auto shrink-0">
-          {deleted
-            ? "what a delete still identifies"
-            : `${source.matched.toLocaleString()} record${source.matched === 1 ? "" : "s"} so far`}
-        </span>
-      </div>
-      {fields.length === 0 ? (
-        <p className="px-3 py-2 text-xs text-on-surface-variant">
-          Nothing readable on this one.
-        </p>
-      ) : (
-        <ul className="grid gap-x-6 gap-y-0.5 px-3 py-2 sm:grid-cols-2 lg:grid-cols-3">
-          {fields.map((f) => (
-            <li
-              key={f.name}
-              className="flex items-baseline justify-between gap-3 font-mono text-xs"
-            >
-              {onInsert ? (
-                <button
-                  type="button"
-                  // Keep the focused expression box focused, so it knows where to type.
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => onInsert(f.name)}
-                  title="Click to put it in the expression you're editing"
-                  className="-mx-1 truncate rounded px-1 text-on-surface hover:bg-secondary-container"
-                >
-                  {f.name}
-                </button>
-              ) : (
-                <span className="truncate text-on-surface">{f.name}</span>
-              )}
-              <span className="shrink-0 text-on-surface-variant">
-                {f.type}
-                {f.nullable ? "?" : ""}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 /** The shapes most state tables have, filled in from a source's fields. */
 function Templates({
   sources,
@@ -1050,6 +979,15 @@ function RuleCard({
     (c) => !mapped.has(c.name) && !readable.some((f) => f.name === c.name),
   );
 
+  // A placeholder naming a field of the chosen source, rather than an `amount` that may
+  // well not exist on it: the example is only useful if it could be typed as it stands.
+  // Numeric and readable here: a `.deleted` rule sees only the key fields, so the whole
+  // source's amounts are the wrong list to draw from.
+  const counted = source
+    ? amountFields(source).filter((f) => readable.some((r) => r.name === f.name))
+    : [];
+  const example = `${counted[0]?.name ?? readable[0]?.name ?? "amount"} > 0`;
+
   // Both a field of the record and a column of the row: a bare name would be ambiguous.
   const ambiguous = (name: string) =>
     readable.some((f) => f.name === name) && table.columns.some((c) => c.name === name);
@@ -1117,15 +1055,31 @@ function RuleCard({
               when it&apos;s deleted
             </label>
           )}
-          <label className="flex flex-1 flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
+          <label className="flex flex-1 basis-64 flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
             Only when (optional)
             <ExpressionInput
               value={rule.when}
               onChange={(when) => onChange({ when })}
               names={names}
-              placeholder="amount > 0"
+              placeholder={example}
               onActive={(handle) => (active.current = handle)}
             />
+            {/* A labelled box with a placeholder says nothing about what is legal in it.
+                What it needs said is that blank is the common answer and that the thing
+                must be true or false: a bare `price` is a type error, not a truth test. */}
+            <span className="text-[11px] font-normal text-on-surface-variant">
+              True or false, not a value — blank runs on every record. Compare with{" "}
+              <span className="font-mono text-on-surface">{"== != < <= > >="}</span>, join with{" "}
+              <span className="font-mono text-on-surface">{"&& || !"}</span>.{" "}
+              <a
+                href="https://www.nineveh.dev/docs/expressions"
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline"
+              >
+                The language
+              </a>
+            </span>
           </label>
           <button
             type="button"
