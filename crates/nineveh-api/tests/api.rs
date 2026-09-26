@@ -190,6 +190,78 @@ async fn serves_state_tables_in_the_feeds_shape() {
 }
 
 #[tokio::test]
+async fn counts_are_asked_for_and_are_of_the_rows_that_are_there() {
+    let Some(pool) = pool().await else { return };
+    // Three users deposit, so `balances` holds a row each; one vault is created. The
+    // deposit log holds a row per event, which is one more than `balances` has.
+    let (app, _) = serve(
+        &pool,
+        &[
+            Op::Deposit {
+                user: 1,
+                amount: 700,
+            },
+            Op::Deposit { user: 2, amount: 5 },
+            Op::Deposit {
+                user: 3,
+                amount: 11,
+            },
+            Op::Deposit {
+                user: 1,
+                amount: 50,
+            },
+            Op::CreateVault { vault: 0 },
+        ],
+    )
+    .await;
+
+    // Not asked for, not served: the shape is what this endpoint is by default, and a
+    // caller that only wants the list pays nothing for the numbers.
+    let (status, plain) = get(&app, "/v1/tables").await;
+    assert_eq!(status, StatusCode::OK);
+    for table in plain.as_array().unwrap() {
+        assert!(table.get("rows").is_none(), "{table} carried a count unasked");
+    }
+
+    let (status, counted) = get(&app, "/v1/tables?counts=true").await;
+    assert_eq!(status, StatusCode::OK);
+    let rows = |name: &str| -> Value {
+        counted
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["name"] == name)
+            .unwrap_or_else(|| panic!("no table `{name}` in {counted}"))["rows"]
+            .clone()
+    };
+
+    // Four deposits by three users: the log counts events, the balances count users.
+    // Both are far under the cap, so both are counted rather than estimated.
+    assert_eq!(rows("balances")["count"], json!(3));
+    assert_eq!(rows("balances")["exact"], json!(true));
+    assert_eq!(rows("deposit_log")["count"], json!(4));
+    assert_eq!(rows("deposit_log")["exact"], json!(true));
+
+    // A table nothing has written to is zero, not absent: it was read, and it is empty.
+    let (status, _) = get(&app, "/v1/tables?counts=true").await;
+    assert_eq!(status, StatusCode::OK);
+
+    // `counts` takes one value, and an unknown parameter is a typo worth reporting
+    // rather than ignoring.
+    for (uri, expected) in [
+        ("/v1/tables?counts=yes", "`counts` must be `true`"),
+        ("/v1/tables?count=true", "unknown parameter `count`"),
+    ] {
+        let (status, body) = get(&app, uri).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{uri}");
+        assert!(
+            body["error"].as_str().unwrap().contains(expected),
+            "{uri}: {body}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn bad_requests_say_what_is_wrong() {
     let Some(pool) = pool().await else { return };
     let (app, schema) = serve(&pool, &[Op::Deposit { user: 1, amount: 7 }]).await;
