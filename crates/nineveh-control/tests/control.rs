@@ -1061,6 +1061,26 @@ on(deposits, (d) => {
     assert!(details.contains("vault.nineveh.ts"), "{details}");
     assert!(!details.contains("--> nineveh.yaml"), "{details}");
 
+    // The same problems unflattened. `details` renders them into a block, which is all a
+    // terminal wants and all an editor can do with it — print it underneath. A client
+    // holding the source wants to underline the span each one is about, so the location
+    // comes through too, and it had better be the span of the name that is wrong.
+    let broken = reducers.replace("b.deposits += 1", "b.depsits += 1");
+    let problems = body["problems"].as_array().expect("problems");
+    let located = problems
+        .iter()
+        .find(|p| {
+            p["message"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("depsits")
+        })
+        .unwrap_or_else(|| panic!("no located problem in {body}"));
+    assert_eq!(located["at"]["file"], json!(1), "{body}");
+    let offset = usize::try_from(located["at"]["offset"].as_u64().unwrap()).unwrap();
+    let len = usize::try_from(located["at"]["len"].as_u64().unwrap()).unwrap();
+    assert_eq!(&broken[offset..offset + len], "depsits", "{body}");
+
     // The real thing.
     let (status, created) = call(
         &app,

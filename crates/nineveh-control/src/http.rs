@@ -124,7 +124,11 @@ impl IntoResponse for ControlError {
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
         let body = match &self {
-            Self::Invalid { message, details } => json!({ "error": message, "details": details }),
+            Self::Invalid {
+                message,
+                details,
+                problems,
+            } => json!({ "error": message, "details": details, "problems": problems }),
             Self::Unauthorized(message) => json!({ "error": message, "sign_in": "/auth/github" }),
             other => json!({ "error": other.to_string() }),
         };

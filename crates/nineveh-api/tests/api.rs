@@ -220,7 +220,10 @@ async fn counts_are_asked_for_and_are_of_the_rows_that_are_there() {
     let (status, plain) = get(&app, "/v1/tables").await;
     assert_eq!(status, StatusCode::OK);
     for table in plain.as_array().unwrap() {
-        assert!(table.get("rows").is_none(), "{table} carried a count unasked");
+        assert!(
+            table.get("rows").is_none(),
+            "{table} carried a count unasked"
+        );
     }
 
     let (status, counted) = get(&app, "/v1/tables?counts=true").await;

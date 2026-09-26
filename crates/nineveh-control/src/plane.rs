@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 use axum::Router;
 use nineveh_api::{Api, Health};
 use nineveh_config::{
-    Action, Config, Diagnostics, Input, Project, SourceKind, StartVersion, TableKind, column_for,
-    parse, record_scope,
+    Action, Config, Diagnostic, Diagnostics, Input, Project, SourceKind, StartVersion, TableKind,
+    column_for, parse, record_scope,
 };
 use nineveh_core::{Address, Network, Value, Version};
 use nineveh_decode::{Lockfile, TransactionDecoder};
@@ -39,9 +39,14 @@ use crate::tier::{self, Limit, Limits};
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum ControlError {
-    /// The config has problems, rendered at their lines in `details`.
+    /// The config has problems: rendered at their lines in `details`, and one by one
+    /// with their locations in `problems`.
     #[error("{message}")]
-    Invalid { message: String, details: String },
+    Invalid {
+        message: String,
+        details: String,
+        problems: Vec<Problem>,
+    },
 
     #[error("{0}")]
     BadRequest(String),
@@ -100,6 +105,47 @@ impl ControlError {
                 if count == 1 { "" } else { "s" }
             ),
             details: diagnostics.render_files(files),
+            problems: diagnostics.as_slice().iter().map(Problem::from).collect(),
+        }
+    }
+}
+
+/// One problem with a project, as a client that is showing the source can use it.
+///
+/// `details` renders every problem into one block of text, which is right for a terminal
+/// and is all an editor can do with it: print it underneath. This is the same problems
+/// unflattened, so a box holding the source can underline the span each one is about and
+/// put the message on it. The compiler has always known this much — it was the HTTP
+/// boundary that forgot.
+#[derive(Debug, Clone, Serialize)]
+pub struct Problem {
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    /// Where it is, when it has a place in a file at all.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub at: Option<At>,
+}
+
+/// A region of one of a project's sources, in bytes.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct At {
+    /// Which file: 0 is the config, and the reducers it names are 1 (ADR 0025).
+    pub file: u16,
+    pub offset: usize,
+    pub len: usize,
+}
+
+impl From<&Diagnostic> for Problem {
+    fn from(diagnostic: &Diagnostic) -> Self {
+        Self {
+            message: diagnostic.message.clone(),
+            help: diagnostic.help.clone(),
+            at: diagnostic.span.map(|span| At {
+                file: span.file,
+                offset: span.offset,
+                len: span.len,
+            }),
         }
     }
 }
@@ -1551,6 +1597,8 @@ impl<C: Chain> ControlPlane<C> {
         let loaded = load(text, reducers, &lock_text).map_err(|message| ControlError::Invalid {
             details: message.clone(),
             message: "the config doesn't resolve against the chain's layouts".into(),
+            // This one comes back as prose, not as located diagnostics.
+            problems: Vec::new(),
         })?;
         Ok((loaded, lock_text))
     }
