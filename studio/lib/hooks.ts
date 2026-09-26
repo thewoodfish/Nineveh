@@ -77,8 +77,13 @@ export function useSources() {
   return usePoll<SourceInfo[]>(mode === "control" && name ? load : null, 30_000);
 }
 
-/** The open project's tables, reloaded when the feed resets (a rebuild swapped in). */
-export function useTables() {
+/**
+ * The open project's tables, reloaded when the feed resets (a rebuild swapped in).
+ *
+ * `withCounts` costs a query per table, so it is off unless the caller is going to put
+ * the numbers on screen.
+ */
+export function useTables(withCounts = false) {
   const { base } = useProject();
   const [tables, setTables] = useState<Table[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,13 +92,13 @@ export function useTables() {
       setTables(null);
       return;
     }
-    getTables(base)
+    getTables(base, withCounts)
       .then((t) => {
         setTables(t);
         setError(null);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
-  }, [base]);
+  }, [base, withCounts]);
   useEffect(reload, [reload]);
   useFeed({ onReset: reload });
   return { tables, error, reload };

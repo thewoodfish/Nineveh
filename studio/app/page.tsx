@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
+import { TableList } from "@/components/table-list";
 import { useState, type ReactNode } from "react";
 
 import { Card, filledButton, Icon, Notice, Offline, PhaseDot } from "@/components/ui";
@@ -160,7 +161,7 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
 
 function Overview() {
   const { data: status, error } = useStatus();
-  const { tables } = useTables();
+  const { tables } = useTables(true);
   const { data: usage } = useUsage();
   const { data: sources } = useSources();
   const { current, mode, hosted } = useProject();
@@ -210,40 +211,17 @@ function Overview() {
 
         <Health status={status} />
 
-        <Card>
-          <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
-            <h2 className="text-sm font-semibold text-on-surface">State tables</h2>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-on-surface-variant">{tables?.length ?? 0} tables</span>
-              {mode === "control" && (
-                <Link
-                  href={href("/state")}
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  + New state table
-                </Link>
-              )}
-            </div>
-          </div>
-          <ul className="divide-y divide-outline-variant">
-            {tables?.map((table) => (
-              <li key={table.name}>
-                <Link
-                  href={href(`/tables/${encodeURIComponent(table.name)}`)}
-                  className="group flex items-center gap-4 px-4 py-2.5 text-sm transition-colors hover:bg-on-surface/[0.06]"
-                >
-                  <span className="w-52 truncate font-mono font-medium group-hover:text-primary">
-                    {table.name}
-                  </span>
-                  <Kind kind={table.kind} />
-                  <span className="truncate text-xs text-on-surface-variant">
-                    key {table.key.join(", ")} · {table.columns.length} columns
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <div>
+          {tables && <TableList tables={tables} />}
+          {mode === "control" && (
+            <Link
+              href={href("/state")}
+              className="mt-3 inline-block text-xs font-medium text-primary hover:underline"
+            >
+              + New state table
+            </Link>
+          )}
+        </div>
 
         {current && (
           <Card className="px-5 py-4 text-sm">
@@ -329,21 +307,6 @@ function Storage({ usage }: { usage: Usage }) {
 }
 
 /** What builds a table: the three kinds read differently, so they look different. */
-function Kind({ kind }: { kind: string }) {
-  const tones: Record<string, string> = {
-    reduce: "bg-secondary-container text-primary",
-    mirror: "bg-tertiary-container text-on-tertiary-container",
-    log: "bg-surface-container-high text-on-surface-variant",
-  };
-  return (
-    <span
-      className={`w-16 shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-medium ${tones[kind] ?? ""}`}
-    >
-      {kind}
-    </span>
-  );
-}
-
 /**
  * The one question this page exists to answer — *is my backend keeping up?* — as one
  * number, with the sentence that makes it mean something. Four equally loud stats

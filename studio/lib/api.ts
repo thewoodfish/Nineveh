@@ -68,6 +68,12 @@ export type Table = {
   kind: "reduce" | "mirror" | "log";
   key: string[];
   columns: Column[];
+  /**
+   * How many rows it holds, only when the table list was asked for `withCounts`.
+   * `exact` is false when the number is the planner's estimate, which is what a table
+   * too big to count cheaply reports.
+   */
+  rows?: { count: number; exact: boolean };
 };
 
 export type Row = Record<string, unknown> & { _version?: string };
@@ -131,7 +137,15 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 // --- one project's API, under `base` --------------------------------------------------
 
 export const getStatus = (base: string) => request<Status>(`${base}/v1/status`);
-export const getTables = (base: string) => request<Table[]>(`${base}/v1/tables`);
+/**
+ * Every state table's shape, and with `withCounts` how many rows each holds.
+ *
+ * The counts are a query per table, so only a view that shows them asks. Anything that
+ * just needs the list — the sidebar, the playground's picker — leaves them off and gets
+ * the config's own answer with no database work at all.
+ */
+export const getTables = (base: string, withCounts = false) =>
+  request<Table[]>(`${base}/v1/tables${withCounts ? "?counts=true" : ""}`);
 
 export type RowsQuery = {
   limit: number;
