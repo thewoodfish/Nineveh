@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
-import { TableList } from "@/components/table-list";
 import { useState, type ReactNode } from "react";
 
 import { Card, filledButton, Icon, Notice, Offline, PhaseDot } from "@/components/ui";
@@ -161,7 +160,7 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
 
 function Overview() {
   const { data: status, error } = useStatus();
-  const { tables } = useTables(true);
+  const { tables } = useTables();
   const { data: usage } = useUsage();
   const { data: sources } = useSources();
   const { current, mode, hosted } = useProject();
@@ -210,18 +209,6 @@ function Overview() {
         <Silent sources={sources} status={status} />
 
         <Health status={status} />
-
-        <div>
-          {tables && <TableList tables={tables} />}
-          {mode === "control" && (
-            <Link
-              href={href("/state")}
-              className="mt-3 inline-block text-xs font-medium text-primary hover:underline"
-            >
-              + New state table
-            </Link>
-          )}
-        </div>
 
         {current && (
           <Card className="px-5 py-4 text-sm">

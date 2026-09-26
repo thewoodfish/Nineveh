@@ -146,11 +146,10 @@ function AccountMenu() {
 }
 
 /**
- * The project's pages. Neither its tables nor the playground are among them: a table has
- * a page each now, reached from the overview's grid, and the playground is the console
- * from that page's API tab with the table still to choose. Both were a second way to
- * reach the same thing, and on a project following forty sources the table list was
- * forty rows to scroll past before anything else.
+ * The project's pages. Tables are one entry, not forty: the list is a page of its own,
+ * and each table has one under it. The playground isn't here at all — it is the console
+ * from a table's API tab with the table still to choose, so it lives where someone is
+ * already looking at a table.
  */
 function ProjectNav() {
   const pathname = usePathname();
@@ -159,6 +158,10 @@ function ProjectNav() {
     <nav className="flex flex-col gap-1 px-3 pb-4 text-sm">
       <NavLink href={href("/")} active={pathname === "/"} icon="dashboard">
         Overview
+      </NavLink>
+      {/* Active on a table's own page too: that is where this entry leads. */}
+      <NavLink href={href("/tables")} active={pathname.startsWith("/tables")} icon="table">
+        Tables
       </NavLink>
       <NavLink href={href("/changes")} active={pathname === "/changes"} icon="bolt">
         Change feed

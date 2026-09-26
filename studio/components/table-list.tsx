@@ -81,8 +81,9 @@ export function TableList({ tables }: { tables: Table[] }) {
 
   return (
     <section>
-      <div className="flex items-center justify-between gap-3 pb-3">
-        <h2 className="text-sm font-semibold text-on-surface">State tables</h2>
+      {/* No heading: this list is the Tables page's content, and the page is already
+          titled. The count and the view switch are the only chrome it needs. */}
+      <div className="flex items-center justify-end gap-3 pb-3">
         <div className="flex items-center gap-3">
           <span className="text-xs text-on-surface-variant">
             {tables.length} table{tables.length === 1 ? "" : "s"}
