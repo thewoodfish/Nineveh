@@ -13,10 +13,11 @@ pasting one into Studio's **New project** shows just that contract.
 
 ## Try them in Studio
 
-The addresses they're published at are in `deployed.<network>.env`. For each one:
+Publish them first (below). `./deploy.sh` writes the address of each one to
+`deployed.<network>.env`, which is yours and isn't in git: these contracts live wherever
+*you* put them. Then, for each one:
 
-1. **New project**, the network you published to (**devnet** for the addresses in
-   `deployed.devnet.env`), paste the address, **Inspect**.
+1. **New project**, the network you published to, paste the address, **Inspect**.
 2. Tick what to follow:
    - **counter**: `Incremented`, `Reset`, and the `Counter` resource.
    - **guestbook**: the events, and the `Guestbook.entries` table.

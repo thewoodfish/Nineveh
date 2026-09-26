@@ -2,3 +2,6 @@
 .aptos/
 # Move build output.
 build/
+# Where the last ./deploy.sh put each contract. Per-machine, and per-devnet-epoch:
+# committing it makes a fresh clone skip publishing and hand out a dead address.
+deployed.*.env

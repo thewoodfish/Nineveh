@@ -31,18 +31,22 @@ export NETWORK=devnet
 
 Devnet because its faucet funds accounts over its API, so `setup.sh` finishes without
 stopping to ask you for anything. Testnet works identically if you'd rather, but its
-faucet is a web page, so `setup.sh` prints a link and waits for you. Devnet is wiped
-about once a week; if you come back to a dead address, delete
-`deployed.devnet.env` and run those two commands again.
+faucet is a web page, so `setup.sh` prints a link and waits for you.
 
 `deploy.sh` prints the address you need:
 
 ```text
 ==> 03-market
-    market is at 0x3e57015aed9c93750a3ab5e2f2d447f641a0c997ff52522bc4e3eb7a681a712e
+    market is at 0x35c1f01bf1f6187df158d342b4e41f66d7747fb393b9841ded0457d0fb44adfa
 ```
 
-Copy it. Leave the terminal open; you'll want it in §3.
+Yours will be a different one: the contract goes to an address of its own, derived from
+the account that published it. Copy what your terminal prints, not what is printed here.
+Leave it open; you'll want that window again in §3.
+
+Devnet is wiped about once a week, and everything published there goes with it. Run
+`./deploy.sh 03-market` again and it notices the address has nothing at it any more and
+republishes; you then point a new project at the new address.
 
 ## 2. Create the project
 
