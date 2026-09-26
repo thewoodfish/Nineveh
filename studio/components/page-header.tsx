@@ -30,7 +30,13 @@ export function PageHeader({
   const { mode, current } = useProject();
   const showPicker = (mode === "control" && current !== null) || mode === "single";
   return (
-    <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-outline-variant bg-surface px-6 py-3">
+    /* Chrome, not canvas. `bg-surface` put the header on exactly the tone the page
+       content sits on, so the bar read as the top of the page rather than as part of the
+       frame, and the sidebar was the only thing that looked like furniture. Sharing the
+       sidebar's surface makes the two one band along the top and down the left, with the
+       content recessed below it — one step in both themes, 0.992 over 0.953 in light and
+       0.19 over 0.145 in dark. */
+    <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-outline-variant bg-surface-container-low px-6 py-3">
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-[22px] leading-7 text-on-surface">{title}</h1>
         {hint && <p className="mt-0.5 truncate text-sm text-on-surface-variant">{hint}</p>}

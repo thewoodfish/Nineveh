@@ -149,7 +149,9 @@ function Inner({ table, tab, go }: { table: Table; tab: Tab; go: (to: Tab) => vo
         <Live connected={connected} />
       </PageHeader>
 
-      <div className="flex gap-1 border-b border-outline-variant px-8">
+      {/* The tabs belong to the header above them, so they carry its surface: the band
+          along the top is one thing, and the canvas starts under it. */}
+      <div className="flex gap-1 border-b border-outline-variant bg-surface-container-low px-8">
         {TABS.map((t) => (
           <button
             key={t}
