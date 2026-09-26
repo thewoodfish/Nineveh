@@ -1,236 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
+import { ApiConsole } from "@/components/api-console";
 import { PageHeader } from "@/components/page-header";
-
-import { Button, Card, field, Select } from "@/components/ui";
-import { getPath, rowsPath } from "@/lib/api";
 import { useTables } from "@/lib/hooks";
-import { useProject } from "@/lib/project";
 
-/** Build a request against your own state, see it as a URL and curl, and run it. */
+/**
+ * Build a request against your own state, see it as a URL and curl, and run it.
+ *
+ * The same console a table's API tab carries, with the table still to choose — which is
+ * the only thing that makes this a page of its own rather than a tab.
+ */
 export default function Playground() {
-  const { base, hosted } = useProject();
   const { tables } = useTables();
-  const [table, setTable] = useState("");
-  const [filters, setFilters] = useState<{ column: string; value: string }[]>([]);
-  const [order, setOrder] = useState("");
-  const [desc, setDesc] = useState(true);
-  const [limit, setLimit] = useState(10);
-  const [result, setResult] = useState<{
-    status: "ok" | "error";
-    body: string;
-    ms: number;
-  } | null>(null);
-  const [running, setRunning] = useState(false);
+  const [name, setName] = useState("");
 
   useEffect(() => {
-    if (!table && tables?.[0]) setTable(tables[0].name);
-  }, [tables, table]);
+    if (!name && tables?.[0]) setName(tables[0].name);
+  }, [tables, name]);
 
-  const current = tables?.find((t) => t.name === table);
-  const path = current
-    ? rowsPath(current.name, {
-        limit,
-        offset: 0,
-        order: order ? { column: order, desc } : undefined,
-        filters: Object.fromEntries(
-          filters.filter((f) => f.column).map((f) => [f.column, f.value]),
-        ),
-        count: true,
-      })
-    : "/v1/tables";
-  const url = `${base ?? ""}${path}`;
-
-  const run = async () => {
-    setRunning(true);
-    const started = performance.now();
-    try {
-      if (!base) throw new Error("Open a project first");
-      const body = await getPath(base, path);
-      setResult({
-        status: "ok",
-        body: JSON.stringify(body, null, 2),
-        ms: performance.now() - started,
-      });
-    } catch (e) {
-      setResult({
-        status: "error",
-        body: e instanceof Error ? e.message : String(e),
-        ms: performance.now() - started,
-      });
-    } finally {
-      setRunning(false);
-    }
-  };
+  const table = tables?.find((t) => t.name === name) ?? tables?.[0];
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader title="API playground" />
-      <div className="grid min-h-0 flex-1 max-w-7xl gap-6 overflow-y-auto px-8 py-6 lg:grid-cols-[22rem_1fr] lg:overflow-hidden">
-        <Card className="flex h-fit flex-col gap-4 p-4">
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
-            Table
-            <Select
-              value={table}
-              onChange={(e) => {
-                setTable(e.target.value);
-                setFilters([]);
-                setOrder("");
-              }}
-              className="font-mono"
-            >
-              {tables?.map((t) => (
-                <option key={t.name} value={t.name}>
-                  {t.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <div className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
-            Filters
-            {filters.map((f, i) => (
-              <div key={i} className="flex gap-1.5">
-                <Select
-                  value={f.column}
-                  onChange={(e) =>
-                    setFilters(
-                      filters.map((g, j) => (j === i ? { ...g, column: e.target.value } : g)),
-                    )
-                  }
-                  className={`${field} w-32 font-mono`}
-                >
-                  {current?.columns
-                    .filter((c) => c.type !== "json")
-                    .map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                </Select>
-                <input
-                  value={f.value}
-                  onChange={(e) =>
-                    setFilters(
-                      filters.map((g, j) => (j === i ? { ...g, value: e.target.value } : g)),
-                    )
-                  }
-                  placeholder="equals"
-                  className={`${field} min-w-0 flex-1 font-mono`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setFilters(filters.filter((_, j) => j !== i))}
-                  className="px-1 text-on-surface-variant hover:text-on-error-container"
-                  aria-label="Remove filter"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() =>
-                setFilters([...filters, { column: current?.columns[0]?.name ?? "", value: "" }])
-              }
-              className="self-start text-xs font-medium text-primary hover:underline"
-            >
-              + Add filter
-            </button>
-          </div>
-
-          <div className="flex gap-3">
-            <label className="flex flex-1 flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
-              Order by
-              <Select
-                value={order}
-                onChange={(e) => setOrder(e.target.value)}
-                className="font-mono"
-              >
-                <option value="">newest change</option>
-                <option value="_version">_version</option>
-                {current?.columns.map((c) => (
-                  <option key={c.name} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
-              Limit
-              <input
-                type="number"
-                min={1}
-                max={1000}
-                value={limit}
-                onChange={(e) => setLimit(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))}
-                className={`${field} w-20`}
-              />
-            </label>
-          </div>
-          {order && (
-            <label className="flex items-center gap-2 text-xs text-on-surface-variant">
-              <input type="checkbox" checked={desc} onChange={(e) => setDesc(e.target.checked)} />
-              Descending
-            </label>
-          )}
-
-          <Button
-            tone="primary"
-            size="lg"
-            className="mt-1"
-            onClick={() => void run()}
-            disabled={running}
-          >
-            {running ? "Running…" : "Run request"}
-          </Button>
-        </Card>
-
-        <div className="flex min-h-0 min-w-0 flex-col gap-4">
-          <Card className="shrink-0 p-4">
-            <div className="flex items-center gap-2">
-              <span className="rounded bg-tertiary-container px-1.5 py-0.5 font-mono text-[11px] font-medium text-on-tertiary-container">
-                GET
-              </span>
-              <span className="min-w-0 flex-1 truncate font-mono text-sm" title={url}>
-                {url}
-              </span>
-              <Button onClick={() => void navigator.clipboard?.writeText(url)}>Copy</Button>
-            </div>
-            <div className="mt-3 text-[11px] font-medium tracking-[0.08em] text-on-surface-variant uppercase">
-              curl
-            </div>
-            <pre className="mt-1.5 overflow-x-auto rounded-sm bg-surface-container-high px-3 py-2.5 font-mono text-xs text-on-surface">
-              {hosted
-                ? `curl -H 'Authorization: Bearer YOUR_API_KEY' \\\n  '${url}'`
-                : `curl '${url}'`}
-            </pre>
-          </Card>
-          <Card className="flex min-h-96 flex-1 flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-outline-variant bg-surface-container-high px-4 py-2 text-xs">
-              <span className="font-semibold tracking-wide text-on-surface-variant uppercase">
-                Response
-              </span>
-              {result && (
-                <span
-                  className={`font-mono ${result.status === "ok" ? "text-on-tertiary-container" : "text-error"}`}
-                >
-                  {result.status === "ok" ? "200 OK" : "error"} · {result.ms.toFixed(0)} ms
-                </span>
-              )}
-            </div>
-            {result ? (
-              <pre className="min-h-0 flex-1 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">
-                {result.body}
-              </pre>
-            ) : (
-              <p className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-on-surface-variant">
-                Run the request to see your state.
-              </p>
-            )}
-          </Card>
-        </div>
+      <div className="flex min-h-0 flex-1 overflow-y-auto px-8 py-6 lg:overflow-hidden">
+        {tables && tables.length === 0 ? (
+          <p className="text-sm text-on-surface-variant">
+            This project has no state tables to query yet.
+          </p>
+        ) : (
+          table && <ApiConsole table={table} pick={{ tables: tables ?? [], onPick: setName }} />
+        )}
       </div>
     </div>
   );

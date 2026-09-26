@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
+import { ApiConsole } from "@/components/api-console";
 import { DataGrid } from "@/components/data-grid";
 import { PageHeader } from "@/components/page-header";
 import { SourceSchema } from "@/components/source-schema";
@@ -32,13 +33,14 @@ import { toDsl } from "@/lib/state-table";
 /** How long the header keeps saying a change just landed. */
 const PULSE = 4000;
 
-const TABS = ["data", "definition", "schema", "changes"] as const;
+const TABS = ["data", "definition", "schema", "api", "changes"] as const;
 type Tab = (typeof TABS)[number];
 
 const LABEL: Record<Tab, string> = {
   data: "Data",
   definition: "Definition",
   schema: "Schema",
+  api: "API",
   changes: "Changes",
 };
 
@@ -171,6 +173,11 @@ function Inner({ table, tab, go }: { table: Table; tab: Tab; go: (to: Tab) => vo
         {tab === "data" && <DataGrid bare table={table} onCount={onCount} />}
         {tab === "definition" && <DefinitionPanel table={table} />}
         {tab === "schema" && <SchemaPanel table={table} />}
+        {tab === "api" && (
+          <div className="flex min-h-0 px-8 py-6">
+            <ApiConsole table={table} />
+          </div>
+        )}
         {tab === "changes" && <ChangesPanel table={table} />}
       </div>
     </div>
