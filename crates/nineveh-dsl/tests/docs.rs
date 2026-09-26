@@ -1,9 +1,13 @@
-//! The examples in `docs/reducers.md` compile.
+//! The reducers in the published docs compile.
 //!
 //! Documentation that doesn't work is worse than none: a reader trusts it, spends an
-//! afternoon, and concludes the tool is broken. Every complete example on that page is
+//! afternoon, and concludes the tool is broken. Every complete example on these pages is
 //! extracted from the markdown and put through the real compiler, so an example can't
 //! rot while the page still claims it works.
+//!
+//! `first-backend.md` is here as well as `reducers.md` because a reader types its two
+//! blocks into Studio and expects them to save, and one of them is what Studio itself
+//! generates: if that stops compiling, the template that writes it is broken too.
 //!
 //! Fragments — a few lines showing one idea — are skipped: they aren't meant to stand
 //! alone. An example counts as complete when it declares a table or handles a source.
@@ -65,38 +69,46 @@ fn examples(markdown: &str) -> Vec<String> {
     out
 }
 
+/// Every page whose `ts` blocks are reducers, and how many of them to expect.
+const PAGES: &[(&str, usize)] = &[("docs/reducers.md", 6), ("docs/first-backend.md", 2)];
+
 #[test]
 fn every_complete_example_compiles() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/reducers.md");
-    let markdown = fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    for (page, least) in PAGES {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(page);
+        let markdown =
+            fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
 
-    let mut checked = 0;
-    for (i, example) in examples(&markdown).into_iter().enumerate() {
-        // A fragment shows one line of a larger thing; only whole ones are compiled.
-        let complete = example.contains("table({") || example.contains("on(");
-        // The one with `…` in it is deliberately a sketch of the shape.
-        if !complete || example.contains('…') {
-            continue;
+        let mut checked = 0;
+        for (i, example) in examples(&markdown).into_iter().enumerate() {
+            // A fragment shows one line of a larger thing; only whole ones are compiled.
+            let complete = example.contains("table({") || example.contains("on(");
+            // The one with `…` in it is deliberately a sketch of the shape.
+            if !complete || example.contains('…') {
+                continue;
+            }
+            // An example that only handles records leans on tables the reader declared
+            // earlier on the page; give it the ones the page declares.
+            let source = if example.contains("table({") {
+                example.clone()
+            } else {
+                format!("{}\n{example}", preamble(&markdown))
+            };
+            if let Err(d) = compile(&source, &ctx()) {
+                panic!(
+                    "{page} example {i} doesn't compile:\n\n{example}\n{}",
+                    d.render(page, &source)
+                );
+            }
+            checked += 1;
         }
-        // An example that only handles records leans on tables the reader declared
-        // earlier on the page; give it the ones the page declares.
-        let source = if example.contains("table({") {
-            example.clone()
-        } else {
-            format!("{}\n{example}", preamble(&markdown))
-        };
-        if let Err(d) = compile(&source, &ctx()) {
-            panic!(
-                "docs/reducers.md example {i} doesn't compile:\n\n{example}\n{}",
-                d.render("docs/reducers.md", &source)
-            );
-        }
-        checked += 1;
+        assert!(
+            checked >= *least,
+            "expected at least {least} examples from {page} to be compiled, got {checked}"
+        );
     }
-    assert!(
-        checked >= 6,
-        "expected most examples to be compiled, got {checked}"
-    );
 }
 
 /// Every table the page declares, so a handler-only example has something to write.

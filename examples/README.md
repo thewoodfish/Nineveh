@@ -8,7 +8,7 @@ pasting one into Studio's **New project** shows just that contract.
 |---|---|---|
 | 1 | [`counter`](01-counter/sources/counter.move) | The basics: an event becomes a log table, a resource at each account becomes a mirror table. |
 | 2 | [`guestbook`](02-guestbook/sources/guestbook.move) | Strings and optional fields, and a `Table` whose items come and go: erased entries disappear from the mirror. |
-| 3 | [`market`](03-market/sources/market.move) | A `SmartTable` of listings and a `Table` of balances, plus [`nineveh.yaml`](03-market/nineveh.yaml) with `reduce` rules for totals the contract never stores. |
+| 3 | [`market`](03-market/sources/market.move) | A `SmartTable` of listings and a `Table` of balances, plus [`market.nineveh.ts`](03-market/market.nineveh.ts): reducers for the per-seller and per-buyer totals the contract never stores. It is the contract the [tutorial](../docs/first-backend.md) walks through. |
 | 4 | [`arena`](04-arena/sources/arena.move) | Move 2 enums: a versioned event (`V1`, then `V2`), a resource that upgrades from `V1` to `V2` in place, and label enums inside them. |
 
 ## Try them in Studio
@@ -26,9 +26,12 @@ The addresses they're published at are in `deployed.<network>.env`. For each one
    a table source needs to see the write that created its table.
 4. **Create**. Then run `./play.sh` (below) and watch rows arrive.
 
-For the market, try the reduce tables too: open the project's **Config**, replace it
-with [`03-market/nineveh.yaml`](03-market/nineveh.yaml) (with `MARKET` replaced by the
-address), and save. You get `sellers` and `buyers` tables with counts and totals.
+For the market, try the reducers too. Its project is written across two files, which is
+the shape the docs teach: [`nineveh.yaml`](03-market/nineveh.yaml) says what to follow,
+and [`market.nineveh.ts`](03-market/market.nineveh.ts) says what to do about it. Replace
+`0xMARKET` in the YAML with the address, paste the two into the project's **Config** and
+**Reducers**, and save. You get `sellers` and `buyers` tables with counts and totals that
+nothing on chain keeps.
 
 ## Publish them yourself
 
