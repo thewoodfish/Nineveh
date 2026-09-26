@@ -13,7 +13,9 @@ deploys — new instance up, then old one down — which would hit that on every
 - A VPS. Testnet-only, a handful of projects: 3 vCPU / 4 GB / 80 GB is plenty. Watch
   disk rather than CPU — a busy project can write a gigabyte an hour.
 - DNS for `api.nineveh.dev` pointing at it.
-- A testnet key from [geomi.dev](https://geomi.dev).
+- A Geomi key per network you mean to serve, from [geomi.dev](https://geomi.dev). Keys
+  are issued per network and Studio offers only the networks you have one for, so a
+  plane serving both testnet and devnet needs both.
 - A GitHub OAuth app. **Not optional** — see the warning below.
 
 ## Sign-in is not optional
@@ -189,9 +191,19 @@ answers 503 rather than 200 when Postgres is unreachable, so it's safe to act on
 `Stream-duration-limit-reached-please-reconnect` in the logs is normal: Aptos closes
 stream connections at a maximum duration and expects a new one.
 
-## Testnet only, for now
+## Which networks a project can use
 
-The free tier allows testnet and devnet and refuses mainnet, in code. You don't have to
-configure that, and a user who asks for mainnet is told it's coming. Testnet's cap is
-seven concurrent streams per account; a plane uses one shared reader plus four backfill
-slots, whatever the number of projects, so five of seven with headroom left.
+Two independent gates, and Studio shows which one said no.
+
+- **The tier**, in code: the free tier allows testnet and devnet and refuses mainnet.
+  Nothing to configure, and a user who asks for mainnet is told it's coming.
+- **Your keys**, from the environment file: a network with no key can't be streamed
+  whatever the tier says, so Studio greys it out rather than accepting a project it
+  would fail to start.
+
+`journalctl -u nineveh` reports both at startup — `ready to stream` names the networks
+it holds a key for, and a warning names any the tier allows that you haven't keyed.
+
+No mainnet means no mainnet stream caps to think about. Testnet's cap is seven
+concurrent streams per account; a plane uses one shared reader plus four backfill slots,
+whatever the number of projects, so five of seven with headroom left.
