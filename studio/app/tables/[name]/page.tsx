@@ -164,24 +164,32 @@ function Inner({ table, tab, go }: { table: Table; tab: Tab; go: (to: Tab) => vo
             </button>
           ))}
 
-          {/* Under the sections rather than up in the header: it acts on this table, the
-              same as everything above it, and the header is the project's row. Only a
-              `reduce` table has rules to open in the builder. */}
-          {table.kind === "reduce" && mode === "control" && project && (
-            <Link
-              href={`/state?project=${encodeURIComponent(project)}&table=${encodeURIComponent(table.name)}`}
-              className={`${filledButton} mt-3 w-full`}
-            >
-              <Icon name="edit" className="text-[18px]" />
-              Edit Table
-            </Link>
-          )}
         </nav>
 
         {/* Keyed so switching tables resets each panel rather than showing the last
             one's rows under the new name for a frame. */}
         <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-          {tab === "data" && <DataGrid bare table={table} onCount={onCount} />}
+          {tab === "data" && (
+            <DataGrid
+              table={table}
+              onCount={onCount}
+              // Above the rows rather than in the frame: you look at the table, then
+              // decide to change it. Only a `reduce` table has rules to open.
+              action={
+                table.kind === "reduce" &&
+                mode === "control" &&
+                project && (
+                  <Link
+                    href={`/state?project=${encodeURIComponent(project)}&table=${encodeURIComponent(table.name)}`}
+                    className={filledButton}
+                  >
+                    <Icon name="edit" className="text-[18px]" />
+                    Edit Table
+                  </Link>
+                )
+              }
+            />
+          )}
           {tab === "reducers" && <DefinitionPanel table={table} />}
           {tab === "schema" && <SchemaPanel table={table} />}
           {tab === "api" && (

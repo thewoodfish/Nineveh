@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type Change, type Row, type RowsQuery, type Table, getRows, rowKey } from "@/lib/api";
@@ -8,8 +7,7 @@ import { formatInteger } from "@/lib/format";
 import { useFeed } from "@/lib/hooks";
 import { useProject } from "@/lib/project";
 
-import { PageHeader } from "./page-header";
-import { Button, Cell, Live, Notice, isNumeric } from "./ui";
+import { Button, Cell, Notice, isNumeric } from "./ui";
 
 const PAGE = 50;
 
@@ -23,19 +21,16 @@ type Order = { column: string; desc: boolean } | undefined;
  */
 export function DataGrid({
   table,
-  bare = false,
   onCount,
+  action,
 }: {
   table: Table;
-  /**
-   * Drop the grid's own page header: the table page carries one, and two titles for the
-   * same table is one too many.
-   */
-  bare?: boolean;
   /** The table's row count, which the grid learns by asking and the header wants to show. */
   onCount?: (count: number | null) => void;
+  /** What sits above the table on the right, such as the button that edits it. */
+  action?: React.ReactNode;
 }) {
-  const { name: project, base } = useProject();
+  const { base } = useProject();
   const [rows, setRows] = useState<Row[]>([]);
   const [count, setCount] = useState<number | null>(null);
   const [offset, setOffset] = useState(0);
@@ -187,35 +182,17 @@ export function DataGrid({
   );
 
   return (
-    <div className="flex h-full flex-col">
-      {bare ? (
-        stale && <div className="flex justify-end px-8 pt-3">{stale}</div>
-      ) : (
-      <PageHeader
-        title={<span className="font-mono">{table.name}</span>}
-        hint={
-          <span className="text-xs">
-            {table.kind} · key{" "}
-            <span className="font-mono text-on-surface-variant">{table.key.join(", ")}</span>
-            {count !== null && ` · ${formatInteger(count)} rows`}
-          </span>
-        }
-      >
-        {table.kind === "reduce" && project && (
-          <Link
-            href={`/state?project=${encodeURIComponent(project)}&table=${encodeURIComponent(table.name)}`}
-            className="text-xs text-on-surface-variant hover:text-on-surface"
-          >
-            Edit rules
-          </Link>
-        )}
+    /* A table on a page, not a grid stretched to the window. It is bounded, so on a wide
+       screen the rows stop rather than running to the edge, and it is as tall as it is
+       rather than pinning a footer to the bottom of the viewport. */
+    <div className="max-w-6xl px-8 py-6">
+      <div className="mb-3 flex min-h-9 items-center justify-end gap-3">
         {stale}
-        <Live connected={connected} />
-      </PageHeader>
-      )}
+        {action}
+      </div>
 
       {error && (
-        <div className="px-8 pt-4">
+        <div className="mb-3">
           {/* A config change rebuilds the tables beside the served ones (ADR 0016):
               that's work in progress, not a failure. */}
           {error.includes("being rebuilt") ? (
@@ -231,9 +208,12 @@ export function DataGrid({
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-auto bg-surface-container-low">
+      <div className="overflow-hidden rounded-md border border-outline-variant bg-surface-container-low">
+        {/* Only this scrolls sideways, so the footer under it stays put. The head isn't
+            sticky any more: there is no tall scroller for it to stick inside. */}
+        <div className="overflow-x-auto">
         <table className="w-full border-separate border-spacing-0 text-sm">
-          <thead className="sticky top-0 z-10 bg-surface-container-low/95 backdrop-blur">
+          <thead className="bg-surface-container-low">
             <tr>
               {columns.map((column) => (
                 <th
@@ -353,9 +333,9 @@ export function DataGrid({
             )}
           </div>
         )}
-      </div>
+        </div>
 
-      <footer className="flex items-center justify-between border-t border-outline-variant px-8 py-2.5 text-xs text-on-surface-variant">
+      <footer className="flex items-center justify-between border-t border-outline-variant px-4 py-2.5 text-xs text-on-surface-variant">
         <span className="tabular-nums">
           {rows.length === 0 ? "0 rows" : `${formatInteger(offset + 1)}–${formatInteger(last)}`}
           {count !== null && ` of ${formatInteger(count)}`}
@@ -372,6 +352,7 @@ export function DataGrid({
           </PageButton>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
