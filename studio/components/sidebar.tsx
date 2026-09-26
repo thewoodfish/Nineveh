@@ -15,7 +15,11 @@ export function Sidebar() {
   const { mode, base } = useProject();
   const pathname = usePathname();
   return (
-    <aside className="flex w-60 shrink-0 flex-col bg-surface-container-low">
+    /* The line down the sidebar's edge. It used to be unnecessary — the sidebar was the
+       only thing on its surface — but the top bar took that surface too, so without a
+       border the two run together into one unbroken block and nothing says where the
+       navigation stops and the page begins. */
+    <aside className="flex w-60 shrink-0 flex-col border-r border-outline-variant bg-surface-container-low">
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-center gap-2">
           <Link href="/" className="flex min-w-0 flex-1 items-center gap-2 px-1">
