@@ -106,6 +106,33 @@ function slugify(text: string): string {
     .replace(/\s+/g, "-");
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * The copy button that sits on every snippet.
+ *
+ * Written here rather than assembled in the browser so it is in the HTML the server
+ * sends: no button popping in after hydration, and it still looks right with scripting
+ * off, where pressing it does nothing but selecting the text by hand always worked.
+ * `components/copy.tsx` supplies the click.
+ *
+ * Two glyphs, one shown at a time: the sheets, and the tick after a copy lands.
+ */
+const COPY_BUTTON = `<button type="button" class="copy" aria-label="Copy">\
+<svg class="sheets" viewBox="0 0 16 16" aria-hidden><g fill="none" stroke="currentColor" \
+stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">\
+<path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/>\
+<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/></g></svg>\
+<svg class="tick" viewBox="0 0 16 16" aria-hidden><path fill="none" stroke="currentColor" \
+stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M2.5 8.5l3.5 3.5 7.5-8"/>\
+</svg></button>`;
+
 /** Strip inline markdown so a heading's text can be used as a label. */
 function plain(markdown: string): string {
   return markdown
@@ -150,6 +177,15 @@ export function render(doc: Doc): Rendered {
     const inline = marked.parseInline(rest) as string;
     const attr = number ? ` data-number="${number}"` : "";
     return `<h${depth} id="${id}"${attr}><a class="anchor" href="#${id}" aria-label="Link to this section"></a>${inline}</h${depth}>\n`;
+  };
+
+  // Snippets are wrapped so the copy button has something to be positioned against.
+  // It cannot go inside `pre`: `pre` scrolls sideways, and an absolutely positioned
+  // child of a scrolling box travels with the content instead of holding its corner.
+  renderer.code = ({ text, lang }) => {
+    const language = lang?.split(/\s+/)[0] ?? "";
+    const attr = language ? ` class="language-${escapeHtml(language)}"` : "";
+    return `<div class="snippet"><pre><code${attr}>${escapeHtml(text)}\n</code></pre>${COPY_BUTTON}</div>\n`;
   };
 
   // Links out of the repo's docs point at sibling markdown files; on the site they

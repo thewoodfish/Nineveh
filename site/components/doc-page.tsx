@@ -4,6 +4,7 @@
 import { DOCS, docHref, render, type Doc } from "@/lib/docs";
 import { DocsNav, OnThisPage } from "./docs-shell";
 import { Logo } from "./bits";
+import { SnippetCopy } from "./copy";
 
 export function DocPage({ doc }: { doc: Doc }) {
   const { html, headings, title, summary } = render(doc);
@@ -35,8 +36,10 @@ export function DocPage({ doc }: { doc: Doc }) {
             )}
           </header>
 
-          {/* The docs' own markdown, from the repo. */}
+          {/* The docs' own markdown, from the repo. Its snippets are rendered with a
+              copy button already on them; this is the one listener behind all of them. */}
           <article className="prose" dangerouslySetInnerHTML={{ __html: html }} />
+          <SnippetCopy />
 
           <footer className="mt-20 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-8 text-sm text-white/40">
             <span className="flex items-center gap-2">
