@@ -395,6 +395,10 @@ pub struct ReaderInfo {
     pub projects: usize,
     /// Catch-up streams still available.
     pub slots_free: usize,
+    /// Set, to the error it gave up on, when this reader has stopped for good. Every
+    /// project on the network is halted when it is, and a restart is what revives it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stopped: Option<String>,
 }
 
 /// The shared readers a plane holds, one per network it serves.
@@ -1015,6 +1019,7 @@ impl<C: Chain> ControlPlane<C> {
                 position: reader.position().map(|v| v.to_string()),
                 projects: reader.subscribers(),
                 slots_free: reader.slots_free(),
+                stopped: reader.failure(),
             })
             .collect()
     }
@@ -1653,6 +1658,12 @@ impl<C: Chain> ControlPlane<C> {
     /// Started at the tip rather than at any project's start version: the reader's job
     /// is the live chain, and history is the backfill pool's job. A project starting
     /// behind takes a slot, catches up to the reader, and joins without a seam.
+    ///
+    /// A reader that has given up stays cached, on purpose. It only stops on an error
+    /// retrying cannot fix — a key the network refuses, the wrong chain — so handing
+    /// the next project the same reader means it is told the real reason at once
+    /// instead of opening a stream that will be refused identically. Reviving it takes
+    /// a restart, which the cause needs anyway: keys are read once, at startup.
     async fn reader(&self, network: Network) -> Result<Arc<SharedTip<C::Source>>, ChainError> {
         let mut readers = self.readers.lock().await;
         if let Some((_, reader)) = readers.iter().find(|(n, _)| *n == network) {

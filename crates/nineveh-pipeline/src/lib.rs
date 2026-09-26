@@ -24,6 +24,10 @@
 //!   from another config): everything before the failing version is committed and the
 //!   project halts there with a located error.
 //!
+//! A shared reader ([`SharedTip`]) splits them the same way, one level up: a retryable
+//! failure reopens the stream, and a fatal one stops the reader for good and is handed
+//! to every project on that network so each halts carrying the cause.
+//!
 //! [`Pipeline::status`] publishes the cursor, the last block time (for lag), counters
 //! and the last error, for the CLI and the control plane.
 

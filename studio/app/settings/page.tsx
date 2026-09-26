@@ -166,7 +166,7 @@ function Readers() {
       {readers.map((reader) => (
         <div key={reader.network} className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-4">
           <div className="flex min-w-32 items-center gap-2">
-            <PhaseDot phase={reader.position ? "running" : "starting"} />
+            <PhaseDot phase={reader.stopped ? "failed" : reader.position ? "running" : "starting"} />
             <span className="font-mono text-sm text-on-surface">{reader.network}</span>
           </div>
           <div className="text-xs text-on-surface-variant">
@@ -179,6 +179,14 @@ function Readers() {
           <div className="ml-auto text-xs text-on-surface-variant">
             {reader.slots_free} catch-up {reader.slots_free === 1 ? "stream" : "streams"} free
           </div>
+          {/* A stopped reader halts every project on its network at once, so the cause
+              belongs here rather than only in each project's own error. */}
+          {reader.stopped && (
+            <p className="w-full text-xs text-error">
+              Stopped: {reader.stopped}. Every project on {reader.network} is halted until the
+              plane restarts.
+            </p>
+          )}
         </div>
       ))}
     </Card>

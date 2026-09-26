@@ -14,7 +14,7 @@
 
 use std::future::{Future, ready};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use nineveh_core::{ChainId, Version};
@@ -254,6 +254,164 @@ async fn a_bounded_range_takes_a_slot_of_its_own() {
     assert!(
         matches!(range.next().await, Ok(None)),
         "a bounded range ends at its last version rather than joining the tip"
+    );
+}
+
+/// A chain whose key stops working, the way Geomi refuses one issued for another
+/// network. `Unauthenticated` is not retryable, so a reopen can only be refused again.
+struct Revocable {
+    height: watch::Sender<u64>,
+    revoked: Arc<AtomicBool>,
+    opens: AtomicUsize,
+}
+
+impl Revocable {
+    fn new(revoked: bool) -> Arc<Self> {
+        Arc::new(Self {
+            height: watch::channel(0).0,
+            revoked: Arc::new(AtomicBool::new(revoked)),
+            opens: AtomicUsize::new(0),
+        })
+    }
+
+    fn revoke(&self) {
+        self.revoked.store(true, Ordering::Relaxed);
+        // Wake a stream parked at the tip so it notices.
+        self.height.send_modify(|height| *height += 1);
+    }
+
+    fn grow_to(&self, height: u64) {
+        self.height.send_replace(height);
+    }
+
+    fn opens(&self) -> usize {
+        self.opens.load(Ordering::Relaxed)
+    }
+}
+
+impl Source for Revocable {
+    type Stream = RevocableStream;
+
+    fn open(
+        &self,
+        from: Version,
+        _until: Option<Version>,
+    ) -> impl Future<Output = Result<RevocableStream, IngestError>> + Send {
+        self.opens.fetch_add(1, Ordering::Relaxed);
+        ready(Ok(RevocableStream {
+            height: self.height.subscribe(),
+            revoked: Arc::clone(&self.revoked),
+            next: from.get(),
+        }))
+    }
+}
+
+struct RevocableStream {
+    height: watch::Receiver<u64>,
+    revoked: Arc<AtomicBool>,
+    next: u64,
+}
+
+impl BatchStream for RevocableStream {
+    async fn next(&mut self) -> Result<Option<Arc<Batch>>, IngestError> {
+        loop {
+            if self.revoked.load(Ordering::Relaxed) {
+                return Err(IngestError::from(tonic::Status::unauthenticated(
+                    "no API key found",
+                )));
+            }
+            let tip = *self.height.borrow();
+            if self.next > tip {
+                if self.height.changed().await.is_err() {
+                    return Ok(None);
+                }
+                continue;
+            }
+            let last = (self.next + BATCH_SIZE - 1).min(tip);
+            let transactions: Vec<Transaction> = (self.next..=last)
+                .map(|version| Transaction {
+                    version,
+                    ..Transaction::default()
+                })
+                .collect();
+            self.next = last + 1;
+            return Ok(Some(Arc::new(Batch {
+                chain_id: ChainId::try_from(2u64).unwrap(),
+                transactions,
+                processed_range: None,
+            })));
+        }
+    }
+}
+
+/// A fatal error stops the reader instead of being retried forever.
+///
+/// This is the bug a missing devnet key exposed: the reader reopened every two
+/// seconds, logging an identical warning each time, for as long as the plane ran. The
+/// cause never appeared in the journal because the only line in it was the symptom.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_reader_refused_for_good_stops_instead_of_reopening_forever() {
+    let chain = Revocable::new(true);
+    let tip = SharedTip::start(Arc::clone(&chain), Version::new(1), 4);
+
+    wait_until(|| tip.failure().is_some()).await;
+    let reason = tip.failure().unwrap();
+    assert!(
+        reason.contains("Unauthenticated"),
+        "the reader must keep the error it gave up on, not merely the fact that it \
+         did: `{reason}`"
+    );
+
+    // The reopen delay is two seconds, so a second open means the loop is still
+    // running. Wait past it rather than trusting that it stopped.
+    let opens = chain.opens();
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert_eq!(
+        chain.opens(),
+        opens,
+        "the reader kept reopening a stream that is refused every time"
+    );
+
+    // A project asking for the network is told why, fatally, rather than waiting on a
+    // reader that will never deliver.
+    let error = tip
+        .source()
+        .open(Version::new(1), None)
+        .await
+        .expect_err("attaching to a stopped reader has to fail");
+    assert!(
+        !error.is_retryable(),
+        "a project told the reader is gone must halt, not retry: `{error}`"
+    );
+    assert!(
+        error.to_string().contains("Unauthenticated"),
+        "the project's error must name the cause, not just the symptom: `{error}`"
+    );
+}
+
+/// A project already reading when the key is revoked learns why, rather than hanging
+/// on a queue nothing will ever fill again.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_project_already_reading_is_told_when_the_reader_gives_up() {
+    let chain = Revocable::new(false);
+    let tip = SharedTip::start(Arc::clone(&chain), Version::new(1), 4);
+    let mut stream = tip.source().open(Version::new(1), None).await.unwrap();
+
+    chain.grow_to(8);
+    read_through(&mut stream, 1, 8, "before the key was revoked").await;
+    chain.revoke();
+
+    let error = tokio::time::timeout(Duration::from_secs(10), stream.next())
+        .await
+        .expect("a project must not hang once the reader has stopped")
+        .expect_err("it has to be an error, not a clean end of stream");
+    assert!(
+        !error.is_retryable(),
+        "the project must halt rather than retry: `{error}`"
+    );
+    assert!(
+        error.to_string().contains("Unauthenticated"),
+        "the project's error must name the cause: `{error}`"
     );
 }
 

@@ -56,11 +56,16 @@ pub enum IngestError {
     #[error("the version counter overflowed u64")]
     VersionOverflow,
 
-    /// The shared reader for this network has stopped, so there is nothing to join
-    /// (ADR 0021). Retryable: the plane restarts readers, and the project's own
-    /// cursor means resuming loses nothing.
-    #[error("the shared reader for this network has stopped")]
-    ReaderStopped,
+    /// The shared reader for this network gave up, and the error it gave up on
+    /// (ADR 0021).
+    ///
+    /// Not retryable, and what the reader stopped on is what makes it so: the reader
+    /// only stops on an error retrying cannot fix, so it says so once and every
+    /// project on the network halts carrying the same reason. The alternative is each
+    /// project reopening a stream that will be refused again, which is how a missing
+    /// devnet key presented itself as a warning every two seconds and no diagnosis.
+    #[error("the shared reader for this network stopped: {reason}")]
+    ReaderStopped { reason: String },
 }
 
 impl IngestError {
@@ -72,7 +77,7 @@ impl IngestError {
     pub fn is_retryable(&self) -> bool {
         use tonic::Code;
         match self {
-            Self::Connect { .. } | Self::ReaderStopped => true,
+            Self::Connect { .. } => true,
             Self::Status(status) => matches!(
                 status.code(),
                 Code::Unavailable
@@ -91,7 +96,8 @@ impl IngestError {
             | Self::OutOfOrder { .. }
             | Self::RangeMismatch { .. }
             | Self::OutsideRange { .. }
-            | Self::VersionOverflow => false,
+            | Self::VersionOverflow
+            | Self::ReaderStopped { .. } => false,
         }
     }
 }

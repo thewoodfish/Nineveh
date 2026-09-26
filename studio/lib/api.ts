@@ -324,6 +324,12 @@ export type ReaderInfo = {
   position: string | null;
   projects: number;
   slots_free: number;
+  /**
+   * Set, to the error it gave up on, when this reader has stopped for good. Only a
+   * failure retrying cannot fix stops one, so every project on the network is halted
+   * whenever this is present, and the plane has to be restarted to revive it.
+   */
+  stopped?: string | null;
 };
 
 export type ApiKey = {

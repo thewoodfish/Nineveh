@@ -103,6 +103,21 @@ the same transactions; a project that halts stops consuming and is detached. Thi
 property to test rather than assume: the shared reader makes it possible to take the
 plane down with one bad project, which a stream per project prevented by construction.
 
+**The reader's own fatal failure halts every project on the network, once.** The other
+direction of the same coupling, and unavoidable: a network whose stream is refused has
+no transactions for anybody. What the reader owes in return is to fail *once* — it stops
+rather than reopening, keeps the error it stopped on, and hands that error to every
+project that is attached or attaches later, so each of them halts naming the cause. A
+reader that instead retried a fatal error would reconnect every few seconds forever,
+which is exactly as broken and far harder to diagnose, because the only thing in the
+journal is the symptom repeating. Retryable failures are still reopened without
+bothering anyone: only `is_retryable() == false` stops a reader.
+
+A stopped reader stays in the plane's cache deliberately, so a project created on that
+network is refused immediately with the real reason instead of waiting on a reader that
+will never deliver. Reviving it takes a restart of the plane — which whatever caused it
+generally needs anyway, since API keys are read once at startup.
+
 ## Alternatives considered
 
 **Keep a stream per project.** Simplest, and what exists. Rejected because the

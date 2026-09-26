@@ -32,7 +32,7 @@ use std::time::Duration;
 use nineveh_core::Version;
 use nineveh_ingest::{Batch, IngestError};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 use crate::source::{BatchStream, Source};
 
@@ -71,8 +71,8 @@ struct State {
     /// The last version the reader has delivered to everyone. Always a batch
     /// boundary, which is what makes the handover exact.
     position: Option<Version>,
-    /// Set when the reader task has stopped for good.
-    stopped: bool,
+    /// Set, to the error it stopped on, when the reader has given up for good.
+    failed: Option<String>,
     next_id: u64,
 }
 
@@ -93,7 +93,7 @@ impl<S: Source + 'static> SharedTip<S> {
             state: Mutex::new(State {
                 subscribers: Vec::new(),
                 position: None,
-                stopped: false,
+                failed: None,
                 next_id: 0,
             }),
         });
@@ -104,6 +104,18 @@ impl<S: Source + 'static> SharedTip<S> {
                 let Some(tip) = reader.upgrade() else { return };
                 match tip.read_from(next).await {
                     Ok(reached) => next = reached,
+                    // Reopening is only worth it for something that might pass. A
+                    // rejected API key or the wrong chain is refused identically two
+                    // seconds later, and forever, so the loop becomes a warning every
+                    // two seconds that buries the journal and never names a cause.
+                    Err(error) if !error.is_retryable() => {
+                        error!(
+                            %error,
+                            "the shared reader gave up; every project on this network halts"
+                        );
+                        tip.stop(error.to_string());
+                        return;
+                    }
                     Err(error) => {
                         warn!(%error, "the shared reader's stream failed; reopening");
                     }
@@ -184,18 +196,32 @@ impl<S: Source + 'static> SharedTip<S> {
 
     /// Register for everything the reader delivers from now on.
     ///
-    /// Returns the queue and the position it begins after, or `None` if the reader has
-    /// stopped for good.
-    fn attach(&self) -> Option<(mpsc::Receiver<Arc<Batch>>, Option<Version>)> {
+    /// Returns the queue and the position it begins after, or the error the reader
+    /// stopped on if it has given up.
+    fn attach(&self) -> Result<(mpsc::Receiver<Arc<Batch>>, Option<Version>), IngestError> {
         let mut state = self.state();
-        if state.stopped {
-            return None;
+        if let Some(reason) = &state.failed {
+            return Err(IngestError::ReaderStopped {
+                reason: reason.clone(),
+            });
         }
         let (sender, receiver) = mpsc::channel(QUEUE_DEPTH);
         let id = state.next_id;
         state.next_id += 1;
         state.subscribers.push(Subscriber { id, queue: sender });
-        Some((receiver, state.position))
+        Ok((receiver, state.position))
+    }
+
+    /// Give up on this network for good, remembering why.
+    ///
+    /// Clearing the subscribers closes their queues, which each attached stream reads
+    /// as a detach and answers by trying to rejoin — and `attach` hands it the reason
+    /// there. So one fatal error reaches every project already running without the
+    /// reader having to know anything about them.
+    fn stop(&self, reason: String) {
+        let mut state = self.state();
+        state.failed = Some(reason);
+        state.subscribers.clear();
     }
 }
 
@@ -210,6 +236,16 @@ impl<S> SharedTip<S> {
     #[must_use]
     pub fn subscribers(&self) -> usize {
         self.state().subscribers.len()
+    }
+
+    /// The error this reader gave up on, if it has. `None` while it is working.
+    ///
+    /// A stopped reader is the one failure that is invisible from any single project:
+    /// each of them halts with its own copy of the reason, so the network-wide cause
+    /// reads as several unrelated project failures unless something reports it here.
+    #[must_use]
+    pub fn failure(&self) -> Option<String> {
+        self.state().failed.clone()
     }
 
     /// Catch-up streams still available. Zero means the next project to fall behind
@@ -350,9 +386,7 @@ impl<S: Source + 'static> SharedStream<S> {
     /// Registering *before* reading the position is the whole trick: the queue starts
     /// collecting at the boundary the catch-up will finish on, so the two meet exactly.
     async fn rejoin(&mut self, from: Version) -> Result<(), IngestError> {
-        let Some((queue, position)) = self.tip.attach() else {
-            return Err(IngestError::ReaderStopped);
-        };
+        let (queue, position) = self.tip.attach()?;
         let behind = position.is_some_and(|position| from <= position);
         if !behind {
             // Already at or ahead of the reader: nothing to catch up on.
