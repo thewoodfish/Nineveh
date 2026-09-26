@@ -78,7 +78,18 @@ export function useSources() {
 }
 
 /**
+ * What a table is worth showing first. A `reduce` table is the one its author designed —
+ * the state their app actually reads — while a `mirror` or a `log` is raw contract
+ * output that Nineveh made because a source was followed. Config order is kept inside
+ * each group, because that order is the author's too.
+ */
+const PRECEDENCE: Record<Table["kind"], number> = { reduce: 0, mirror: 1, log: 2 };
+
+/**
  * The open project's tables, reloaded when the feed resets (a rebuild swapped in).
+ *
+ * Sorted here rather than at each call site, so the sidebar, the Tables page and the
+ * playground's picker can't disagree about what comes first.
  *
  * `withCounts` costs a query per table, so it is off unless the caller is going to put
  * the numbers on screen.
@@ -94,7 +105,8 @@ export function useTables(withCounts = false) {
     }
     getTables(base, withCounts)
       .then((t) => {
-        setTables(t);
+        // Stable: `toSorted` keeps equal ranks in the order the config listed them.
+        setTables(t.toSorted((a, b) => PRECEDENCE[a.kind] - PRECEDENCE[b.kind]));
         setError(null);
       })
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));

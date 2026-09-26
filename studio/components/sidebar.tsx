@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { behind, formatDuration, formatInteger } from "@/lib/format";
-import { useStatus } from "@/lib/hooks";
+import { useStatus, useTables } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
 
 import { ThemeToggle } from "./theme";
@@ -146,23 +147,81 @@ function AccountMenu() {
 }
 
 /**
- * The project's pages. Tables are one entry, not forty: the list is a page of its own,
- * and each table has one under it. The playground isn't here at all — it is the console
- * from a table's API tab with the table still to choose, so it lives where someone is
- * already looking at a table.
+ * The project's pages, with its tables folded under Tables.
+ *
+ * Folded rather than flat: a project following forty sources has forty of them, and a
+ * list that long pushed everything else off the screen when it sat at the top level. It
+ * opens itself when you are inside a table, so the one you are reading is on screen and
+ * lit while you read it.
+ *
+ * The playground isn't here — it is the console from a table's API tab with the table
+ * still to choose, so it lives where someone is already looking at one.
  */
 function ProjectNav() {
   const pathname = usePathname();
   const href = useHref();
+  const { tables } = useTables();
+  const inside = pathname.startsWith("/tables");
+  const [open, setOpen] = useState(inside);
+
+  // Arriving at a table from anywhere else — the overview's grid, a link — opens the
+  // group, so the sidebar always shows where you are.
+  useEffect(() => {
+    if (inside) setOpen(true);
+  }, [inside]);
+
+  const path = (table: string) => `/tables/${encodeURIComponent(table)}`;
+
   return (
-    <nav className="flex flex-col gap-1 px-3 pb-4 text-sm">
+    <nav className="flex min-h-0 flex-col gap-1 overflow-y-auto px-3 pb-4 text-sm">
       <NavLink href={href("/")} active={pathname === "/"} icon="dashboard">
         Overview
       </NavLink>
-      {/* Active on a table's own page too: that is where this entry leads. */}
-      <NavLink href={href("/tables")} active={pathname.startsWith("/tables")} icon="table">
-        Tables
-      </NavLink>
+
+      <div className="flex items-center gap-1">
+        {/* Lit only on the list itself. Inside a table it is that table's row that
+            lights, and two lit rows in one group say less than one does. */}
+        <NavLink
+          href={href("/tables")}
+          active={pathname === "/tables"}
+          icon="table"
+          className="min-w-0 flex-1"
+        >
+          Tables
+        </NavLink>
+        {tables && tables.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            aria-expanded={open}
+            aria-label={open ? "Hide the tables" : "Show the tables"}
+            className="state grid size-8 shrink-0 place-items-center rounded-lg text-on-surface-variant"
+          >
+            <Icon
+              name="expand_more"
+              className={`text-[20px] transition-transform ${open ? "" : "-rotate-90"}`}
+            />
+          </button>
+        )}
+      </div>
+
+      {open &&
+        tables?.map((table) => (
+          <Link
+            key={table.name}
+            href={href(path(table.name))}
+            className={`state ml-4 flex h-8 items-center gap-2 rounded-lg px-3 text-[13px] ${
+              pathname === path(table.name)
+                ? "bg-secondary-container font-medium text-on-secondary-container"
+                : "text-on-surface-variant"
+            }`}
+          >
+            <span className="truncate font-mono">{table.name}</span>
+            <span className="ml-auto shrink-0 text-[11px] text-on-surface-variant">
+              {table.kind}
+            </span>
+          </Link>
+        ))}
       <NavLink href={href("/changes")} active={pathname === "/changes"} icon="bolt">
         Change feed
       </NavLink>
@@ -180,17 +239,19 @@ function NavLink({
   href,
   active,
   icon,
+  className = "",
   children,
 }: {
   href: string;
   active: boolean;
   icon?: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
-      className={`state flex h-10 items-center gap-3 rounded-xl px-4 text-sm font-medium ${
+      className={`state flex h-10 items-center gap-3 rounded-xl px-4 text-sm font-medium ${className} ${
         active ? "bg-secondary-container text-on-secondary-container" : "text-on-surface-variant"
       }`}
     >
