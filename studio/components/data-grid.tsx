@@ -186,6 +186,9 @@ export function DataGrid({
        screen the rows stop rather than running to the edge, and it is as tall as it is
        rather than pinning a footer to the bottom of the viewport. */
     <div className="max-w-6xl px-8 py-6">
+      {/* Toolbar and table share a shrink-to-fit column, so the button lands flush with
+          the table's right edge instead of out at the bound the table never reaches. */}
+      <div className="w-fit max-w-full">
       <div className="mb-3 flex min-h-9 items-center justify-end gap-3">
         {stale}
         {action}
@@ -212,7 +215,7 @@ export function DataGrid({
         {/* Only this scrolls sideways, so the footer under it stays put. The head isn't
             sticky any more: there is no tall scroller for it to stick inside. */}
         <div className="overflow-x-auto">
-        <table className="w-full border-separate border-spacing-0 text-sm">
+        <table className="w-auto border-separate border-spacing-0 text-sm">
           <thead className="bg-surface-container-low">
             <tr>
               {columns.map((column) => (
@@ -256,7 +259,7 @@ export function DataGrid({
                   {order?.column === "_version" ? (order.desc ? "↓" : "↑") : order ? "" : "↓"}
                 </button>
               </th>
-              <th className="w-full border-b border-outline-variant" />
+              <th className="border-b border-outline-variant" />
             </tr>
             <tr>
               {columns.map((column) => (
@@ -352,6 +355,7 @@ export function DataGrid({
           </PageButton>
         </div>
       </footer>
+      </div>
       </div>
     </div>
   );
