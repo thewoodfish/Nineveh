@@ -15,7 +15,8 @@
 //! - `POST /control/v1/projects/{name}/preview` (`{"config": yaml, "table": name}`):
 //!   the rows that table's rules would produce, folded over recent transactions.
 //! - `GET  /control/v1/projects/{name}/webhooks`: each endpoint, its signing secret
-//!   and how its deliveries are going; `POST .../webhooks/{endpoint}/rotate` gives
+//!   and how its deliveries are going; `POST .../webhooks/{endpoint}/test` sends one
+//!   delivery now and reports what came back; `POST .../webhooks/{endpoint}/rotate` gives
 //!   one a new secret (ADR 0020).
 //! - `GET  /control/v1/projects/{name}/state/{table}`: a saved state table in the
 //!   shape the editor edits.
@@ -82,6 +83,10 @@ pub fn router<C: Chain>(plane: Arc<ControlPlane<C>>, access: Access) -> Router {
         .route(
             "/control/v1/projects/{name}/webhooks/{endpoint}/rotate",
             post(rotate_webhook::<C>),
+        )
+        .route(
+            "/control/v1/projects/{name}/webhooks/{endpoint}/test",
+            post(test_webhook::<C>),
         )
         .route(
             "/control/v1/projects/{name}/state/{table}",
@@ -567,6 +572,17 @@ async fn webhooks<C: Chain>(
 ) -> Result<impl IntoResponse, ControlError> {
     let caller = server.caller(&headers).await?;
     Ok(Json(server.plane.webhooks(caller, &name).await?))
+}
+
+async fn test_webhook<C: Chain>(
+    State(server): Shared<C>,
+    headers: HeaderMap,
+    Path((name, endpoint)): Path<(String, String)>,
+) -> Result<impl IntoResponse, ControlError> {
+    let caller = server.caller(&headers).await?;
+    Ok(Json(
+        server.plane.test_webhook(caller, &name, &endpoint).await?,
+    ))
 }
 
 async fn rotate_webhook<C: Chain>(

@@ -268,6 +268,67 @@ async fn changes_are_delivered_signed_batched_and_retried() {
     sender.stop().await;
 }
 
+/// The button that makes the page worth having: send one delivery now, and say what
+/// came back — without letting the test itself become part of the endpoint's health.
+#[tokio::test]
+async fn a_test_delivery_reports_what_the_receiver_said() {
+    logs();
+    let Some(pool) = pool("deliver_test").await else {
+        return;
+    };
+    let schema = "tested";
+    project(&pool, schema).await;
+    let (url, received) = receiver(0).await;
+    let config = parse(&config(&url)).unwrap();
+    let hook = &config.webhooks[0];
+
+    // Nothing has happened in this project yet, which is when someone configures an
+    // endpoint and presses the button.
+    let attempt = nineveh_control::test_delivery(&pool, schema, &config, hook).await;
+    assert_eq!(attempt.status, Some(200), "{:?}", attempt.error);
+    assert!(attempt.error.is_none(), "{attempt:?}");
+
+    let (_, body, _) = held(&received).deliveries[0].clone();
+    assert_eq!(
+        body["test"], true,
+        "marked, so a receiver can act on it or not"
+    );
+    assert_eq!(body["changes"][0]["table"], "balances");
+    // Built from the table's own columns, and a u64 is a string like any other.
+    assert_eq!(body["changes"][0]["row"]["balance"], "1");
+    assert!(body["changes"][0]["key"]["user"].is_string());
+
+    // The endpoint is untouched: a test is not a delivery, and not a failure either.
+    let endpoint = webhooks::list(&pool, schema).await.unwrap().remove(0);
+    assert!(endpoint.last_delivered.is_none(), "{endpoint:?}");
+    assert_eq!(endpoint.failures, 0);
+
+    // A real change is preferred over the example once there is one.
+    change(&pool, schema, 1001, 0, "balances", "update").await;
+    let attempt = nineveh_control::test_delivery(&pool, schema, &config, hook).await;
+    assert_eq!(attempt.status, Some(200), "{:?}", attempt.error);
+    let (_, body, _) = held(&received).deliveries.last().cloned().unwrap();
+    assert_eq!(body["changes"][0]["version"], "1001");
+    assert_eq!(body["changes"][0]["op"], "update");
+}
+
+/// A receiver that isn't there is different news from one that refused, so the two
+/// don't come back looking the same.
+#[tokio::test]
+async fn a_test_delivery_that_reaches_nobody_says_so() {
+    logs();
+    let Some(pool) = pool("deliver_test_gone").await else {
+        return;
+    };
+    let schema = "unreachable";
+    project(&pool, schema).await;
+    // A port nothing is listening on.
+    let config = parse(&config("http://127.0.0.1:1/hook")).unwrap();
+    let attempt = nineveh_control::test_delivery(&pool, schema, &config, &config.webhooks[0]).await;
+    assert_eq!(attempt.status, None, "{attempt:?}");
+    assert!(attempt.error.is_some(), "{attempt:?}");
+}
+
 /// A new endpoint is placed at the end of the feed so that configuring one doesn't
 /// replay the project's history. That gives it a cursor immediately — which Studio used
 /// to read as "delivered to 1002.0" for an endpoint nothing had ever reached.

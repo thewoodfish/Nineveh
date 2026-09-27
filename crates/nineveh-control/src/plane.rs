@@ -256,6 +256,21 @@ pub struct WebhookInfo {
     pub last_error: Option<String>,
 }
 
+/// What one test delivery came back with (ADR 0020).
+#[derive(Debug, Clone, Serialize)]
+pub struct WebhookAttempt {
+    /// Where it went, so a card can name it without the caller holding on to it.
+    pub url: String,
+    /// What the receiver answered, or `null` if nothing did.
+    pub status: Option<u16>,
+    /// What it wrote back, truncated.
+    pub body: String,
+    /// How long it took, including connecting.
+    pub ms: u64,
+    /// Why nothing arrived at all. A status and this are never both set.
+    pub error: Option<String>,
+}
+
 /// A saved state table in the shape the editor edits it: its columns and, for a
 /// `reduce` table, its rules with their expressions as written.
 #[derive(Debug, Clone, Serialize)]
@@ -1507,6 +1522,43 @@ impl<C: Chain> ControlPlane<C> {
                 }
             })
             .collect())
+    }
+
+    /// Send one delivery to an endpoint now, and say what came back.
+    ///
+    /// The endpoint has to be saved first, because a delivery is signed with a secret
+    /// that the config alone doesn't hold. That's a cheap thing to ask: `webhooks` is
+    /// not part of a build's fingerprint, so saving one never rebuilds anything.
+    ///
+    /// # Errors
+    ///
+    /// If the project or the endpoint isn't there.
+    pub async fn test_webhook(
+        &self,
+        caller: Caller,
+        name: &str,
+        endpoint: &str,
+    ) -> Result<WebhookAttempt, ControlError> {
+        let loaded = self
+            .get_entry(caller, name, |e| e.loaded.clone())
+            .await?
+            .map_err(ControlError::BadRequest)?;
+        let config = loaded.project.config();
+        let hook = config
+            .webhooks
+            .iter()
+            .find(|h| h.name.name == endpoint)
+            .ok_or_else(|| {
+                ControlError::NotFound(format!("`{name}` has no webhook `{endpoint}`"))
+            })?;
+        let attempt = crate::deliver::test_delivery(&self.pool, name, config, hook).await;
+        Ok(WebhookAttempt {
+            url: hook.url.clone(),
+            status: attempt.status,
+            body: attempt.body,
+            ms: attempt.ms,
+            error: attempt.error,
+        })
     }
 
     /// Give a webhook endpoint a new secret. Deliveries signed with the old one stop

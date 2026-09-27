@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { ApiError, type Table, type WebhookInfo, control } from "@/lib/api";
+import { ApiError, type Table, type WebhookAttempt, type WebhookInfo, control } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 import { useTables } from "@/lib/hooks";
 import {
@@ -41,6 +41,8 @@ export function Webhooks({ project }: { project: string }) {
   const [removing, setRemoving] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ draft: Draft; existing: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState<{ endpoint: string; result: WebhookAttempt } | null>(null);
   const [error, setError] = useState<{ title: string; body: string } | null>(null);
 
   const load = useCallback(() => {
@@ -66,6 +68,28 @@ export function Webhooks({ project }: { project: string }) {
     await navigator.clipboard.writeText(text);
     setCopied(name);
     setTimeout(() => setCopied((c) => (c === name ? null : c)), 1500);
+  };
+
+  /**
+   * Send one delivery now and keep what came back.
+   *
+   * A failure here isn't an error in Studio — a 500 from the receiver is the answer the
+   * button was pressed for — so it goes in a card of its own rather than in the page's
+   * error slot.
+   */
+  const check = async (name: string) => {
+    setTesting(name);
+    setAttempt(null);
+    try {
+      setAttempt({ endpoint: name, result: await control.testWebhook(project, name) });
+    } catch (e) {
+      setError({
+        title: `Couldn't send a test to ${name}`,
+        body: e instanceof ApiError ? (e.details ?? e.message) : String(e),
+      });
+    } finally {
+      setTesting(null);
+    }
   };
 
   const rotate = async (name: string) => {
@@ -224,7 +248,17 @@ export function Webhooks({ project }: { project: string }) {
                       <Button tone="danger" size="sm" onClick={() => setRotating(hook.name)}>
                         Rotate
                       </Button>
+                      <Button
+                        tone="tonal"
+                        size="sm"
+                        disabled={testing !== null}
+                        onClick={() => void check(hook.name)}
+                      >
+                        {testing === hook.name ? "Sending…" : "Send a test"}
+                      </Button>
                     </div>
+
+                    {attempt?.endpoint === hook.name && <Answer result={attempt.result} />}
                   </li>
                 ))}
               </ul>
@@ -294,8 +328,10 @@ function Health({ hook }: { hook: WebhookInfo }) {
       </span>
     );
   }
+  // "No changes", not "nothing": a test sent from this page is not a change, and a
+  // green "Delivered" card next to the words "nothing sent yet" reads as a contradiction.
   if (!hook.last_delivered)
-    return <span className="text-xs text-on-surface-variant">nothing sent yet</span>;
+    return <span className="text-xs text-on-surface-variant">no changes sent yet</span>;
   return (
     <span className="text-xs text-on-tertiary-container" title={hook.last_delivered}>
       delivered {since(hook.last_delivered)}
@@ -307,6 +343,44 @@ function Health({ hook }: { hook: WebhookInfo }) {
 function since(at: string): string {
   const seconds = Math.round((Date.now() - Date.parse(at)) / 1000);
   return Number.isNaN(seconds) ? "just now" : `${formatDuration(Math.max(seconds, 0))} ago`;
+}
+
+/**
+ * What the receiver said, which is the whole reason for the button.
+ *
+ * A status on its own is the difference between "it's broken" and nothing at all; the
+ * body is the difference between that and "line 12 of my handler threw". So the body is
+ * shown whenever there is one, including on a success.
+ */
+function Answer({ result }: { result: WebhookAttempt }) {
+  const ok = result.status !== null && result.status >= 200 && result.status < 300;
+  return (
+    <div
+      className={`mt-2 rounded-md px-3 py-2 text-xs ${
+        ok ? "bg-tertiary-container text-on-tertiary-container" : "bg-error-container text-on-error-container"
+      }`}
+    >
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="font-medium">
+          {result.error !== null
+            ? "Nothing answered"
+            : ok
+              ? `Delivered · ${result.status}`
+              : `Refused · ${result.status}`}
+        </span>
+        <span className="font-mono opacity-80 tnum">{result.ms} ms</span>
+        <code className="min-w-0 flex-1 truncate font-mono opacity-80">{result.url}</code>
+      </div>
+      {(result.error ?? result.body) && (
+        <pre className="mt-1.5 max-h-40 overflow-auto font-mono text-[11px] whitespace-pre-wrap opacity-90">
+          {result.error ?? result.body}
+        </pre>
+      )}
+      {result.error === null && !result.body && (
+        <p className="mt-1.5 opacity-80">Your server answered with an empty body.</p>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -349,7 +423,10 @@ function DeliveryShape() {
             <span className="font-mono">seq</span> order every change a project ever makes, so
             they&apos;re also how a receiver spots one it has already handled.{" "}
             <span className="font-mono">row</span> is absent when the endpoint asks for keys only,
-            and on a delete, where there is no row left to send.
+            and on a delete, where there is no row left to send. A delivery sent by{" "}
+            <span className="font-mono">Send a test</span> carries{" "}
+            <span className="font-mono">&quot;test&quot;: true</span> alongside them — worth
+            checking if acting on a change costs money.
           </p>
         </div>
         <div className="px-4 py-3">

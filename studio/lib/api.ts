@@ -290,6 +290,18 @@ export type WebhookInfo = {
   last_error: string | null;
 };
 
+/** What one test delivery came back with. */
+export type WebhookAttempt = {
+  url: string;
+  /** What the receiver answered, or `null` if nothing did. */
+  status: number | null;
+  /** What it wrote back, truncated. */
+  body: string;
+  ms: number;
+  /** Why nothing arrived at all. Never set alongside a status. */
+  error: string | null;
+};
+
 /** A saved state table in the shape the editor edits. */
 export type SavedTable = {
   name: string;
@@ -422,6 +434,12 @@ export const control = {
   /** This project's webhook endpoints, with their secrets and delivery health. */
   webhooks: (name: string) =>
     request<WebhookInfo[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/webhooks`),
+  /** Send one delivery to an endpoint now, without moving its place in the feed. */
+  testWebhook: (name: string, endpoint: string) =>
+    request<WebhookAttempt>(
+      `${CONTROL}/projects/${encodeURIComponent(name)}/webhooks/${encodeURIComponent(endpoint)}/test`,
+      { method: "POST" },
+    ),
   rotateWebhook: (name: string, endpoint: string) =>
     request<{ secret: string }>(
       `${CONTROL}/projects/${encodeURIComponent(name)}/webhooks/${encodeURIComponent(endpoint)}/rotate`,

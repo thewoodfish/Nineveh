@@ -18,7 +18,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use hmac::{Hmac, Mac};
-use nineveh_config::{Change, Webhook};
+use nineveh_config::{Change, Column, ColumnType, Config, TableKind, Webhook};
 use nineveh_store::webhooks;
 use serde_json::{Value, json};
 use sha2::Sha256;
@@ -230,7 +230,171 @@ async fn start(
     }
 }
 
+/// What one delivery attempt came back with, for someone watching it happen.
+#[derive(Debug, Clone)]
+pub struct Attempt {
+    /// The status the receiver answered with, or `None` if nothing answered.
+    pub status: Option<u16>,
+    /// What it wrote back, truncated. A handler that threw usually says why here, and
+    /// that is the difference between "it's broken" and "line 12 of my handler".
+    pub body: String,
+    pub ms: u64,
+    /// Why nothing arrived at all: a name that doesn't resolve, a refused connection,
+    /// a timeout. Separate from a status, because no status is different news.
+    pub error: Option<String>,
+}
+
+/// Send one delivery to `hook` now and report what happened.
+///
+/// Nothing about the endpoint moves: not its position in the feed, not its failure
+/// count, not `last_delivered`. A test that marked an endpoint as failing would make
+/// the health on the page a record of the tests rather than of the deliveries.
+///
+/// It carries the newest change the endpoint would actually have been sent, so a
+/// receiver is handed its own data in its own shape. A project that has not produced
+/// one yet — which is most projects at the moment someone first configures an endpoint —
+/// gets an example instead, built from the table's own columns.
+///
+/// Every payload says `"test": true`, because a receiver that credits an account on a
+/// delivery should have a way to not do that twice.
+pub async fn test_delivery(
+    pool: &PgPool,
+    schema: &str,
+    config: &Config,
+    hook: &Webhook,
+) -> Attempt {
+    let name = hook.name.name.clone();
+    let secret = match webhooks::ensure(pool, schema, &name).await {
+        Ok(endpoint) => endpoint.secret,
+        Err(error) => {
+            return Attempt {
+                status: None,
+                body: String::new(),
+                ms: 0,
+                error: Some(format!("couldn't read this endpoint's secret: {error}")),
+            };
+        }
+    };
+    let change = match newest_wanted(pool, schema, hook).await {
+        Some(change) => change,
+        None => example(config, hook),
+    };
+    let mut body = payload(schema, &name, std::slice::from_ref(&change), hook.rows);
+    if let Some(map) = body.as_object_mut() {
+        map.insert("test".into(), Value::Bool(true));
+    }
+    Target::new(&hook.url)
+        .attempt(&body.to_string(), &secret, (change.version, change.seq))
+        .await
+}
+
+/// The newest change this endpoint asked for, wherever its own position has got to.
+///
+/// Read backwards rather than forwards from the cursor: a test is about whether the
+/// receiver works, so the most recent change is the most recognisable one to send.
+async fn newest_wanted(pool: &PgPool, schema: &str, hook: &Webhook) -> Option<Delivery> {
+    let tables: Vec<String> = hook
+        .on
+        .iter()
+        .map(|s| s.table.name.clone())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    let rows: Vec<(i64, i32, String, String, Value, Option<Value>)> = sqlx::query_as(
+        "SELECT version, seq, table_name, op, key, new_row FROM nineveh.changes
+         WHERE schema_name = $1 AND table_name = ANY($2)
+         ORDER BY version DESC, seq DESC LIMIT $3",
+    )
+    .bind(schema)
+    .bind(&tables)
+    .bind(BATCH)
+    .fetch_all(pool)
+    .await
+    .ok()?;
+    rows.into_iter()
+        .find(|(_, _, table, op, _, _)| asked_for(hook, table, op))
+        .map(|(version, seq, table, op, key, row)| Delivery {
+            version,
+            seq,
+            table,
+            op,
+            key,
+            row,
+        })
+}
+
+/// A change that hasn't happened, shaped like the ones that will.
+///
+/// The table and the op are the endpoint's own; the row is built from the table's
+/// declared columns, so the types a receiver has to parse are the real ones — a `u128`
+/// arrives as a string here exactly as it would in earnest. A `mirror` or `log` table
+/// takes its columns from the chain rather than the config, so those get the key alone.
+///
+/// Its position is `0.0`, which a real change never has — Aptos version 0 is genesis and
+/// no project indexes it — so a receiver deduplicating on the position can record this
+/// one without shadowing anything it is later sent in earnest.
+fn example(config: &Config, hook: &Webhook) -> Delivery {
+    let wanted = hook.on.first();
+    let table = wanted.map_or("example", |s| s.table.name.as_str());
+    let op = match wanted.map(|s| s.change) {
+        Some(Change::Deleted) => "delete",
+        Some(Change::Updated) => "update",
+        _ => "insert",
+    };
+    let columns = config.table(table).and_then(|t| match &t.kind {
+        TableKind::Reduce { key, columns, .. } => Some((key, columns)),
+        TableKind::Mirror { .. } | TableKind::Log { .. } => None,
+    });
+    let (key, row) = match columns {
+        Some((key, columns)) => {
+            let value = |column: &Column| (column.name.name.clone(), sample(column.ty));
+            let keyed: serde_json::Map<String, Value> = columns
+                .iter()
+                .filter(|c| key.iter().any(|k| k.name == c.name.name))
+                .map(value)
+                .collect();
+            let whole: serde_json::Map<String, Value> = columns.iter().map(value).collect();
+            (Value::Object(keyed), Some(Value::Object(whole)))
+        }
+        None => (json!({}), None),
+    };
+    Delivery {
+        version: 0,
+        seq: 0,
+        table: table.to_owned(),
+        op: op.to_owned(),
+        key,
+        row,
+    }
+}
+
+/// One value of `ty`, written the way the API writes that type — wide integers as
+/// strings, because they don't fit a double (and a receiver that parses them as numbers
+/// should find that out from a test rather than from a balance).
+fn sample(ty: ColumnType) -> Value {
+    match ty {
+        ColumnType::Bool => Value::Bool(true),
+        ColumnType::U8
+        | ColumnType::U16
+        | ColumnType::U32
+        | ColumnType::I8
+        | ColumnType::I16
+        | ColumnType::I32 => json!(1),
+        ColumnType::U64
+        | ColumnType::U128
+        | ColumnType::U256
+        | ColumnType::I64
+        | ColumnType::I128
+        | ColumnType::I256 => json!("1"),
+        ColumnType::Address => json!("0x1"),
+        ColumnType::String => json!("example"),
+        ColumnType::Bytes => json!("0x00"),
+        ColumnType::Json => json!({}),
+    }
+}
+
 /// One change, as a delivery carries it.
+#[derive(Clone)]
 struct Delivery {
     version: i64,
     seq: i32,
@@ -365,9 +529,29 @@ impl Target {
         }
     }
 
-    /// Post `body`, signed with `secret`.
+    /// Post `body`, signed with `secret`, reporting only whether it landed.
     async fn post(&mut self, body: &str, secret: &str, last: (i64, i32)) -> Result<(), String> {
-        let client = self.client().await?.clone();
+        let attempt = self.attempt(body, secret, last).await;
+        match (attempt.error, attempt.status) {
+            (Some(error), _) => Err(error),
+            (None, Some(status)) if (200..300).contains(&status) => Ok(()),
+            (None, status) => Err(format!("{}: {}", status.unwrap_or_default(), attempt.body)),
+        }
+    }
+
+    /// Post `body`, signed with `secret`, and report everything that came back.
+    async fn attempt(&mut self, body: &str, secret: &str, last: (i64, i32)) -> Attempt {
+        let started = Instant::now();
+        let failed = |started: Instant, error: String| Attempt {
+            status: None,
+            body: String::new(),
+            ms: elapsed(started),
+            error: Some(error),
+        };
+        let client = match self.client().await {
+            Ok(client) => client.clone(),
+            Err(error) => return failed(started, error),
+        };
         let url = self.url.clone();
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -382,15 +566,21 @@ impl Target {
             )
             .body(body.to_owned())
             .send()
-            .await
-            .map_err(|e| e.to_string())?;
-        let status = response.status();
-        if status.is_success() {
-            return Ok(());
-        }
+            .await;
+        let response = match response {
+            Ok(response) => response,
+            Err(error) => return failed(started, error.to_string()),
+        };
+        let status = response.status().as_u16();
         let said = response.text().await.unwrap_or_default();
-        let said: String = said.chars().take(200).collect();
-        Err(format!("{status}: {said}"))
+        Attempt {
+            status: Some(status),
+            // However much of an answer a person can read; a stack trace is usually
+            // over in the first line or two, and this is going into a card.
+            body: said.chars().take(2000).collect(),
+            ms: elapsed(started),
+            error: None,
+        }
     }
 
     /// A client pinned to an address that has been checked, resolved again from time
@@ -423,6 +613,11 @@ impl Target {
             .map(|(client, _)| client)
             .ok_or_else(|| "no client".to_owned())
     }
+}
+
+/// Milliseconds since `started`, for reporting how long an endpoint took.
+fn elapsed(started: Instant) -> u64 {
+    u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)
 }
 
 /// rustls with ring and the webpki roots, as the rest of Nineveh's clients use.
