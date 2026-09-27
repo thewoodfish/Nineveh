@@ -195,7 +195,7 @@ function Inner({ table, tab, go }: { table: Table; tab: Tab; go: (to: Tab) => vo
           {tab === "reducers" && <DefinitionPanel table={table} />}
           {tab === "schema" && <SchemaPanel table={table} />}
           {tab === "api" && (
-            <div className="flex min-h-0 px-8 py-6">
+            <div className="flex min-h-0 flex-1 px-8 py-6">
               <ApiConsole table={table} />
             </div>
           )}

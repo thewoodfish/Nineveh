@@ -158,8 +158,9 @@ function AccountMenu() {
  * opens itself when you are inside a table, so the one you are reading is on screen and
  * lit while you read it.
  *
- * The playground isn't here — it is the console from a table's API tab with the table
- * still to choose, so it lives where someone is already looking at one.
+ * API and Webhooks are the two directions data moves: the app asking Nineveh for state,
+ * and Nineveh calling the app when it changes. Both are top level, because a developer
+ * arrives wanting one of them and not a particular table.
  */
 function ProjectNav() {
   const pathname = usePathname();
@@ -226,6 +227,9 @@ function ProjectNav() {
             </span>
           </Link>
         ))}
+      <NavLink href={href("/playground")} active={pathname === "/playground"} icon="api">
+        API
+      </NavLink>
       <NavLink href={href("/changes")} active={pathname === "/changes"} icon="bolt">
         Change feed
       </NavLink>

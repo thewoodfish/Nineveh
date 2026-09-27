@@ -224,8 +224,9 @@ function Overview() {
               {hosted && <> Send one of this project&apos;s API keys with each request.</>} Try it
               in the{" "}
               <Link href={href("/playground")} className="text-primary hover:underline">
-                API playground
-              </Link>
+                API
+              </Link>{" "}
+              page
               .
             </p>
           </Card>

@@ -7,10 +7,10 @@ import { PageHeader } from "@/components/page-header";
 import { useTables } from "@/lib/hooks";
 
 /**
- * Build a request against your own state, see it as a URL and curl, and run it.
+ * The requests an app makes against this project, ready to run and copy.
  *
- * The same console a table's API tab carries, with the table still to choose — which is
- * the only thing that makes this a page of its own rather than a tab.
+ * The same catalogue a table's API tab carries, with the table still to choose — which
+ * is the only thing that makes this a page of its own rather than a tab.
  */
 export default function Playground() {
   const { tables } = useTables();
@@ -24,8 +24,8 @@ export default function Playground() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PageHeader title="API playground" />
-      <div className="flex min-h-0 flex-1 overflow-y-auto px-8 py-6 lg:overflow-hidden">
+      <PageHeader title="API" hint="Your app asking Nineveh for state" />
+      <div className="flex min-h-0 flex-1 px-8 py-6">
         {tables && tables.length === 0 ? (
           <p className="text-sm text-on-surface-variant">
             This project has no state tables to query yet.
