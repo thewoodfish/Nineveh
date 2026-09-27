@@ -58,6 +58,11 @@ export const balances = table({
 })
 ```
 
+**A declared table needs a handler.** Declaring one says what its rows look like, not
+where they come from, and a table nothing writes can only ever be empty. Nineveh
+refuses that rather than building it, so every table you declare is one you go on to
+write in [section 3](#3-handlers).
+
 **Key columns identify a row.** One deposit from `0xabc` and another from `0xdef` are
 two rows; two deposits from `0xabc` are one row, folded together. A key can be more
 than one column:

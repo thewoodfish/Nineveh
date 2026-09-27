@@ -242,3 +242,24 @@ fn a_parse_error_says_what_was_expected() {
         d.render("vault.nineveh.ts", &source)
     );
 }
+
+/// A table with no handler is a table that will always be empty. The YAML form has
+/// always said so for `reduce: []`; the reducers file says it too, so no route to a
+/// state table can leave one unwritten — including typing it in Studio's editor, which
+/// edits the text rather than building rules.
+#[test]
+fn a_table_nothing_writes_is_rejected() {
+    assert_eq!(
+        errors(""),
+        "nothing writes table `balances`\n  \
+         help: write a handler for it, like `on(deposits, (d) => { … })`"
+    );
+}
+
+/// It isn't said twice about the same mistake: a handler rejected for its own reason
+/// wrote nothing, and the tables it meant to write aren't a second problem.
+#[test]
+fn an_unwritten_table_is_not_reported_after_another_error() {
+    let only = errors("on(nope, (d) => { balances.row(d.user).balance += u128(d.amount) })");
+    assert!(!only.contains("nothing writes"), "{only}");
+}

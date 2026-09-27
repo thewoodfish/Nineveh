@@ -135,7 +135,7 @@ pub(crate) fn scatter(program: &Program, ctx: &Context) -> Result<Vec<StateTable
         walker.block(&handler.body, &[]);
     }
 
-    let tables = assemble(declared, groups, &mut errors);
+    let tables = assemble(declared, groups, ctx, &mut errors);
     match Diagnostics::from_vec(errors) {
         Some(d) => Err(d),
         None => Ok(tables),
@@ -571,6 +571,7 @@ impl Walker<'_> {
 fn assemble(
     declared: Vec<Declared>,
     groups: Vec<Group>,
+    ctx: &Context,
     errors: &mut Vec<Diagnostic>,
 ) -> Vec<StateTable> {
     let mut by_table: HashMap<String, Vec<Rule>> = HashMap::new();
@@ -618,10 +619,34 @@ fn assemble(
             action,
         });
     }
+    // Only worth saying when nothing else went wrong. A handler rejected for its own
+    // reason wrote nothing, so every table it meant to write looks unwritten too — and
+    // "nothing writes `balances`" under "`deposits` has no deletes" is a second error
+    // about the first one's consequence.
+    let quiet = errors.is_empty();
     declared
         .into_iter()
         .map(|d| {
             let rules = by_table.remove(&d.name.name).unwrap_or_default();
+            // A table nothing writes can only ever be empty. `nineveh.yaml` has always
+            // said so for `reduce: []`; said here too, so it's the table that's wrong
+            // and not the file it was written in.
+            if quiet && rules.is_empty() {
+                errors.push(
+                    Diagnostic::new(
+                        format!("nothing writes table `{}`", d.name.name),
+                        d.name.span,
+                    )
+                    .help(format!(
+                        // One of their own sources, so the suggestion is something they
+                        // can write rather than something to translate first.
+                        "write a handler for it, like `on({}, (d) => {{ … }})`",
+                        ctx.sources
+                            .first()
+                            .map_or("<source>", |source| source.name.as_str())
+                    )),
+                );
+            }
             StateTable {
                 name: d.name,
                 kind: TableKind::Reduce {

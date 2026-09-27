@@ -26,7 +26,13 @@ import {
 } from "@codemirror/language";
 import { type Diagnostic, lintGutter, setDiagnostics } from "@codemirror/lint";
 import { Compartment, EditorState } from "@codemirror/state";
-import { EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
+import {
+  EditorView,
+  highlightActiveLine,
+  hoverTooltip,
+  keymap,
+  lineNumbers,
+} from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -82,7 +88,27 @@ const theme = EditorView.theme({
     backgroundColor: "var(--color-secondary-container)",
     color: "var(--color-on-secondary-container)",
   },
-  ".cm-diagnostic": { fontFamily: "inherit", padding: "6px 8px" },
+  // Sized with the editor, not the page: left to inherit, a message is set in body text
+  // and towers over the line it is about.
+  ".cm-diagnostic": {
+    fontFamily: "inherit",
+    fontSize: "11.5px",
+    lineHeight: "1.5",
+    padding: "7px 9px",
+    maxWidth: "22rem",
+  },
+  ".cm-nv-hover": { maxWidth: "22rem", padding: "7px 9px" },
+  ".cm-nv-hover-signature": {
+    fontFamily: "var(--font-mono, ui-monospace, monospace)",
+    fontSize: "12px",
+    color: "var(--color-on-surface)",
+  },
+  ".cm-nv-hover-detail": {
+    marginTop: "3px",
+    fontSize: "11.5px",
+    lineHeight: "1.5",
+    color: "var(--color-on-surface-variant)",
+  },
 });
 
 /** What names mean something at the cursor. */
@@ -119,6 +145,192 @@ function handlerAt(doc: string, pos: number): { source: string; param: string } 
     found = { source: m[1] ?? "", param: m[2] ?? "" };
   }
   return found;
+}
+
+/** What the word at `from` is a member of, or null when it stands on its own. */
+function ownerAt(doc: string, from: number): string | null {
+  const before = doc.slice(0, from);
+  if (!/\.\s*$/.test(before)) return null;
+  const head = before.replace(/\s*\.\s*$/, "");
+  // `balances.row(d.user).balance` — what owns `balance` is a row, not a name.
+  const call = /([A-Za-z_]\w*)\s*\.\s*row\s*\([^()]*\)$/.exec(head);
+  if (call) return `${call[1]}.row`;
+  return /([A-Za-z_]\w*)$/.exec(head)?.[1] ?? null;
+}
+
+/** The word under `pos`, or null if the pointer is on punctuation or space. */
+function wordAround(doc: string, pos: number): { from: number; to: number } | null {
+  let from = pos;
+  let to = pos;
+  while (from > 0 && /\w/.test(doc[from - 1] ?? "")) from -= 1;
+  while (to < doc.length && /\w/.test(doc[to] ?? "")) to += 1;
+  return to > from ? { from, to } : null;
+}
+
+/**
+ * The names bound to a row of `table`: `const b = balances.row(d.user)` makes `b` one.
+ *
+ * Table names are validated identifiers, so there is nothing in one to escape.
+ */
+function rowLocals(doc: string, table: string): Set<string> {
+  const bound = new Set<string>();
+  const pattern = new RegExp(`\\bconst\\s+([A-Za-z_]\\w*)\\s*=\\s*${table}\\s*\\.\\s*row\\s*\\(`, "g");
+  for (const [, name] of doc.matchAll(pattern)) if (name) bound.add(name);
+  return bound;
+}
+
+/** A column or field's type as the hover states it. */
+function stated(type: string, nullable: boolean): string {
+  return nullable ? `${type} | null` : type;
+}
+
+/**
+ * What a name means here: its type on the first line, what it is on the second.
+ *
+ * Nothing is invented. Every answer comes from the project — the source's fields and the
+ * table's columns, the same two things completion offers — so a name this can't account
+ * for gets no tooltip rather than a guess. A misspelling is the linter's to report, and
+ * saying it twice in two ways would only be noise.
+ */
+function explain(
+  doc: string,
+  from: number,
+  to: number,
+  scope: Scope,
+): { signature: string; detail: string } | null {
+  const word = doc.slice(from, to);
+  if (!word) return null;
+  const owner = ownerAt(doc, from);
+  // From the word's end, not its start, so `r` in `on(sold, (r) => …)` is inside the
+  // handler that names it: the place someone is most likely to ask what it is.
+  const handler = handlerAt(doc, to);
+  const key = (name: string) => scope.table.key.includes(name);
+  const column = (name: string) => scope.table.columns.find((c) => c.name === name) ?? null;
+
+  if (owner) {
+    if (owner === "tx") {
+      if (word === "version") {
+        return {
+          signature: "tx.version: u64",
+          detail: "The transaction this record arrived in.",
+        };
+      }
+      if (word === "timestamp") {
+        return {
+          signature: "tx.timestamp: u64",
+          detail: "When that transaction committed, in microseconds.",
+        };
+      }
+      return null;
+    }
+
+    // A field of the record this handler was handed.
+    if (handler && owner === handler.param) {
+      const source = scope.sources.find((s) => s.name === handler.source);
+      const field = source?.fields.find((f) => f.name === word);
+      if (!source || !field) return null;
+      return {
+        signature: `${word}: ${stated(field.type, field.nullable)}`,
+        detail: `A field of ${source.name}, the ${source.kind} source this handler fires on.`,
+      };
+    }
+
+    // A column of a row of this table, named or reached straight through `.row(…)`.
+    if (rowLocals(doc, scope.table.name).has(owner) || owner === `${scope.table.name}.row`) {
+      const found = column(word);
+      if (!found) return null;
+      return {
+        signature: `${word}: ${stated(found.type, found.nullable)}`,
+        detail: key(word)
+          ? `A key column of ${scope.table.name}: it identifies the row, so a rule doesn't set it.`
+          : `A column of ${scope.table.name}.`,
+      };
+    }
+
+    if (owner === scope.table.name && word === "row") {
+      return {
+        signature: `row(${scope.table.key.join(", ")})`,
+        detail: `The row of ${scope.table.name} with that key, created with its defaults if it isn't there yet.`,
+      };
+    }
+    return null;
+  }
+
+  if (word === scope.table.name) {
+    const columns = scope.table.columns.length;
+    return {
+      signature: `${scope.table.name} — key ${scope.table.key.join(", ")}`,
+      detail: `This table: ${columns} column${columns === 1 ? "" : "s"}, written only by the handlers here.`,
+    };
+  }
+
+  const source = scope.sources.find((s) => s.name === word);
+  if (source) {
+    return {
+      signature: `${word}: ${source.kind} source`,
+      // Plain text in a plain-text card: backticks around a name would be shown, not read.
+      detail: `Follows ${source.follows}${source.deletes ? `, and ${word}.deleted fires on its deletes` : ""}.`,
+    };
+  }
+
+  if (handler && word === handler.param) {
+    const from_ = scope.sources.find((s) => s.name === handler.source);
+    if (!from_) return null;
+    return {
+      signature: `${word}: ${handler.source} record`,
+      detail: `The ${from_.kind} record that arrived, with ${from_.fields.length} field${from_.fields.length === 1 ? "" : "s"} to read.`,
+    };
+  }
+
+  if (rowLocals(doc, scope.table.name).has(word)) {
+    return {
+      signature: `${word}: row of ${scope.table.name}`,
+      detail: "Set its columns and the row is written when the handler returns.",
+    };
+  }
+
+  const found = column(word);
+  if (found) {
+    return {
+      signature: `${word}: ${stated(found.type, found.nullable)}`,
+      detail: key(word)
+        ? `A key column of ${scope.table.name}.`
+        : `A column of ${scope.table.name}.`,
+    };
+  }
+
+  if (scope.functions.includes(word)) {
+    return { signature: `${word}(…)`, detail: "An expression function." };
+  }
+  return null;
+}
+
+/** The hover card, built from whatever `explain` can account for. */
+function hovers(scope: () => Scope) {
+  return hoverTooltip((view, pos) => {
+    const doc = view.state.doc.toString();
+    const word = wordAround(doc, pos);
+    if (!word) return null;
+    const found = explain(doc, word.from, word.to, scope());
+    if (!found) return null;
+    return {
+      pos: word.from,
+      end: word.to,
+      above: true,
+      create: () => {
+        const dom = document.createElement("div");
+        dom.className = "cm-nv-hover";
+        const signature = document.createElement("div");
+        signature.className = "cm-nv-hover-signature";
+        signature.textContent = found.signature;
+        const detail = document.createElement("div");
+        detail.className = "cm-nv-hover-detail";
+        detail.textContent = found.detail;
+        dom.append(signature, detail);
+        return { dom };
+      },
+    };
+  });
 }
 
 function completions(scope: Scope) {
@@ -247,6 +459,7 @@ export function ReducerEditor({
           javascript({ typescript: true }),
           syntaxHighlighting(highlight),
           autocompletion({ override: [(c) => completions(latest.current.scope)(c)] }),
+          hovers(() => latest.current.scope),
           lintGutter(),
           keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, indentWithTab]),
           theme,

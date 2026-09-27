@@ -84,7 +84,9 @@ fn every_complete_example_compiles() {
         let mut checked = 0;
         for (i, example) in examples(&markdown).into_iter().enumerate() {
             // A fragment shows one line of a larger thing; only whole ones are compiled.
-            let complete = example.contains("table({") || example.contains("on(");
+            // `on(` is the test of a whole one: a `table({ … })` by itself is a fragment
+            // about the declaration's shape, and a table nothing writes doesn't compile.
+            let complete = example.contains("on(");
             // The one with `…` in it is deliberately a sketch of the shape.
             if !complete || example.contains('…') {
                 continue;
@@ -94,7 +96,7 @@ fn every_complete_example_compiles() {
             let source = if example.contains("table({") {
                 example.clone()
             } else {
-                format!("{}\n{example}", preamble(&markdown))
+                format!("{}\n{example}", preamble(&markdown, &example))
             };
             if let Err(d) = compile(&source, &ctx()) {
                 panic!(
@@ -111,11 +113,16 @@ fn every_complete_example_compiles() {
     }
 }
 
-/// Every table the page declares, so a handler-only example has something to write.
+/// The tables `wanted` names and the page declares, so a handler-only example has
+/// something to write.
+///
+/// Only the ones it names: a table nothing writes doesn't compile, so handing an example
+/// every declaration on the page would fail it for the pages' other tables rather than
+/// its own text.
 ///
 /// A page teaches by showing the same table more than once, so declarations are kept
 /// by name: the first one wins, and the rest would only be a duplicate.
-fn preamble(markdown: &str) -> String {
+fn preamble(markdown: &str, wanted: &str) -> String {
     let mut seen: Vec<String> = Vec::new();
     let mut out = String::new();
     for example in examples(markdown) {
@@ -130,7 +137,7 @@ fn preamble(markdown: &str) -> String {
         else {
             continue;
         };
-        if seen.iter().any(|s| s == name) {
+        if seen.iter().any(|s| s == name) || !wanted.contains(name) {
             continue;
         }
         seen.push(name.to_owned());

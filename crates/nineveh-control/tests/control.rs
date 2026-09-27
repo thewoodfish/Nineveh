@@ -1081,6 +1081,36 @@ on(deposits, (d) => {
     let len = usize::try_from(located["at"]["len"].as_u64().unwrap()).unwrap();
     assert_eq!(&broken[offset..offset + len], "depsits", "{body}");
 
+    // A table with its handler taken away. Studio's editor edits text, so deleting the
+    // `on(…)` is one keystroke away at any time, and a table nothing writes would be
+    // saved as one that can only ever be empty. It is refused, located on the name of
+    // the table that has nothing writing it.
+    let unwritten = reducers
+        .split_once("\non(deposits")
+        .map_or_else(String::new, |(declaration, _)| declaration.to_owned());
+    let (status, body) = call(
+        &app,
+        Method::POST,
+        "/control/v1/projects",
+        Some(json!({ "config": config, "reducers": unwritten })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    let problems = body["problems"].as_array().expect("problems");
+    let located = problems
+        .iter()
+        .find(|p| {
+            p["message"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("nothing writes")
+        })
+        .unwrap_or_else(|| panic!("no unwritten-table problem in {body}"));
+    assert_eq!(located["at"]["file"], json!(1), "{body}");
+    let offset = usize::try_from(located["at"]["offset"].as_u64().unwrap()).unwrap();
+    let len = usize::try_from(located["at"]["len"].as_u64().unwrap()).unwrap();
+    assert_eq!(&unwritten[offset..offset + len], "balances", "{body}");
+
     // The real thing.
     let (status, created) = call(
         &app,
