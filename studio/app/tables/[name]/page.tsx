@@ -489,7 +489,8 @@ function SchemaPanel({ table }: { table: Table }) {
       </Card>
       <p className="mt-3 text-xs leading-relaxed text-on-surface-variant">
         Wide integers — <span className="font-mono">u64</span> and up — are JSON strings in
-        the API, because they don&apos;t fit a double (ADR 0008).
+        the API. A JavaScript number can&apos;t hold one exactly, so sending it as a string
+        is what keeps it whole.
       </p>
     </div>
   );

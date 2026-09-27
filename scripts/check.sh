@@ -94,8 +94,32 @@ npm_checks() {
     if [ ! -d node_modules ]; then
       npm ci --no-audit --no-fund || return 1
     fi
-    npm run typecheck && npm run build
+    npm run typecheck && npm run build && no_adrs .
   )
+}
+
+# Nobody reading Studio or the site can open an ADR: they are this repo's internal
+# record, and the product is used by people who will never see the repo. So an ADR
+# number in the copy points at a document that isn't theirs.
+#
+# The built output is the honest place to look. Comments are stripped from it, so an
+# ADR that survives the build is one a page actually renders — which is the difference
+# between a note to whoever maintains the file and a citation shown to a customer.
+no_adrs() {
+  local hits
+  # Nothing to search is a broken check, not a passing one: if the build stops putting
+  # its output here, this would wave every ADR through in silence.
+  [ -d "$1/.next/static" ] || {
+    echo "no built output in $1/.next/static to check for ADR references"
+    return 1
+  }
+  hits=$(grep -rho ".\{0,60\}ADR [0-9]\{4\}" "$1/.next/static" "$1/.next/server/app" \
+    --exclude='*.map' 2>/dev/null | head -5)
+  [ -z "$hits" ] || {
+    echo "this renders an ADR number, and its readers can't open one:"
+    echo "$hits"
+    return 1
+  }
 }
 
 if [ "$LIST" = 1 ]; then
