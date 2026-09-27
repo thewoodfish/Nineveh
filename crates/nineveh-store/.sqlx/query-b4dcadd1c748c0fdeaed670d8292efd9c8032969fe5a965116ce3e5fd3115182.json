@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO nineveh.webhooks (schema_name, name, secret)\n           VALUES ($1, $2, $3)\n           ON CONFLICT (schema_name, name) DO UPDATE SET name = excluded.name\n           RETURNING secret, version, seq, failures, last_error",
+  "query": "SELECT secret, version, seq, failures, last_error,\n                  to_char(last_delivered_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')\n                      AS last_delivered\n           FROM nineveh.webhooks WHERE schema_name = $1 AND name = $2",
   "describe": {
     "columns": [
       {
@@ -27,11 +27,15 @@
         "ordinal": 4,
         "name": "last_error",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_delivered",
+        "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
-        "Text",
         "Text",
         "Text"
       ]
@@ -41,8 +45,9 @@
       true,
       true,
       false,
-      true
+      true,
+      null
     ]
   },
-  "hash": "df5c1ff37ed894817269e117dbf2b96b1b03d7e8c0a4a4320a85ed943b8f25ea"
+  "hash": "b4dcadd1c748c0fdeaed670d8292efd9c8032969fe5a965116ce3e5fd3115182"
 }

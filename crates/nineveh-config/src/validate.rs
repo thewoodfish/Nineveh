@@ -991,23 +991,28 @@ fn hex_bytes(s: &str) -> Option<Vec<u8>> {
 
 /// Webhooks must be HTTPS, except to the local machine during development.
 fn check_webhook(url: &str) -> Result<(), &'static str> {
-    let rest = if let Some(rest) = url.strip_prefix("https://") {
-        rest
+    let (https, rest) = if let Some(rest) = url.strip_prefix("https://") {
+        (true, rest)
     } else if let Some(rest) = url.strip_prefix("http://") {
-        let host = rest.split(['/', ':', '?', '#']).next().unwrap_or_default();
-        if !matches!(host, "localhost" | "127.0.0.1" | "[::1]") {
-            return Err("use https (plain http is only allowed for localhost)");
-        }
-        rest
+        (false, rest)
     } else {
         return Err("expected an https:// URL");
     };
-    let host = rest.split(['/', '?', '#']).next().unwrap_or_default();
-    if host.is_empty() {
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or_default();
+    if authority.is_empty() {
         return Err("the URL has no host");
     }
-    if host.contains('@') {
+    if authority.contains('@') {
         return Err("don't put credentials in the URL; webhooks are signed instead");
+    }
+    // `[::1]:3000` — the colons inside the brackets are the address's, not the port's,
+    // so the host can't be found by splitting on the first one.
+    let host = match authority.strip_prefix('[') {
+        Some(inside) => inside.split(']').next().unwrap_or_default(),
+        None => authority.split(':').next().unwrap_or_default(),
+    };
+    if !https && !matches!(host, "localhost" | "127.0.0.1" | "::1") {
+        return Err("use https (plain http is only allowed for localhost)");
     }
     if url.chars().any(char::is_whitespace) {
         return Err("the URL contains whitespace");

@@ -8,7 +8,6 @@ import { ConfigPanel } from "@/components/config-panel";
 import { ConfirmDialog } from "@/components/dialog";
 import { PageHeader } from "@/components/page-header";
 import { Button, Card, Icon, Offline, PhaseDot } from "@/components/ui";
-import { Webhooks } from "@/components/webhooks";
 import { type Limits, type Usage, control } from "@/lib/api";
 import { formatBytes, formatInteger } from "@/lib/format";
 import { useReaders, useUsage } from "@/lib/hooks";
@@ -49,13 +48,6 @@ export default function Settings() {
             <ApiKeys project={current.name} api={current.api} />
           </Section>
         )}
-
-        <Section
-          title="Webhooks"
-          hint="Signed deliveries of every change, to the endpoints declared in the config."
-        >
-          <Webhooks project={current.name} />
-        </Section>
 
         <Section
           title="Plan"

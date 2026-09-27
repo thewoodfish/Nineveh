@@ -20,6 +20,10 @@ pub struct Endpoint {
     pub secret: String,
     /// The last change delivered, as `(version, seq)`; `None` before the first.
     pub cursor: Option<(i64, i32)>,
+    /// When a delivery last succeeded. `None` for an endpoint nothing has reached —
+    /// which is not the same as `cursor` being `None`, because a new endpoint is placed
+    /// at the end of the feed rather than replaying the project's history.
+    pub last_delivered: Option<String>,
     /// Failed attempts since the last delivery.
     pub failures: i32,
     pub last_error: Option<String>,
@@ -36,7 +40,9 @@ pub async fn ensure(pool: &PgPool, schema: &str, name: &str) -> Result<Endpoint,
         r#"INSERT INTO nineveh.webhooks (schema_name, name, secret)
            VALUES ($1, $2, $3)
            ON CONFLICT (schema_name, name) DO UPDATE SET name = excluded.name
-           RETURNING secret, version, seq, failures, last_error"#,
+           RETURNING secret, version, seq, failures, last_error,
+                     to_char(last_delivered_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+                         AS last_delivered"#,
         schema,
         name,
         secret,
@@ -47,6 +53,7 @@ pub async fn ensure(pool: &PgPool, schema: &str, name: &str) -> Result<Endpoint,
         name: name.to_owned(),
         secret: row.secret,
         cursor: row.version.zip(row.seq),
+        last_delivered: row.last_delivered,
         failures: row.failures,
         last_error: row.last_error,
     })
@@ -59,8 +66,10 @@ pub async fn ensure(pool: &PgPool, schema: &str, name: &str) -> Result<Endpoint,
 /// If the database fails.
 pub async fn list(pool: &PgPool, schema: &str) -> Result<Vec<Endpoint>, StoreError> {
     let rows = sqlx::query!(
-        r#"SELECT name, secret, version, seq, failures, last_error FROM nineveh.webhooks
-           WHERE schema_name = $1 ORDER BY name"#,
+        r#"SELECT name, secret, version, seq, failures, last_error,
+                  to_char(last_delivered_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+                      AS last_delivered
+           FROM nineveh.webhooks WHERE schema_name = $1 ORDER BY name"#,
         schema,
     )
     .fetch_all(pool)
@@ -71,6 +80,7 @@ pub async fn list(pool: &PgPool, schema: &str) -> Result<Vec<Endpoint>, StoreErr
             name: r.name,
             secret: r.secret,
             cursor: r.version.zip(r.seq),
+            last_delivered: r.last_delivered,
             failures: r.failures,
             last_error: r.last_error,
         })
@@ -84,8 +94,10 @@ pub async fn list(pool: &PgPool, schema: &str) -> Result<Vec<Endpoint>, StoreErr
 /// If the database fails.
 pub async fn get(pool: &PgPool, schema: &str, name: &str) -> Result<Option<Endpoint>, StoreError> {
     let row = sqlx::query!(
-        r#"SELECT secret, version, seq, failures, last_error FROM nineveh.webhooks
-           WHERE schema_name = $1 AND name = $2"#,
+        r#"SELECT secret, version, seq, failures, last_error,
+                  to_char(last_delivered_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+                      AS last_delivered
+           FROM nineveh.webhooks WHERE schema_name = $1 AND name = $2"#,
         schema,
         name,
     )
@@ -95,6 +107,7 @@ pub async fn get(pool: &PgPool, schema: &str, name: &str) -> Result<Option<Endpo
         name: name.to_owned(),
         secret: r.secret,
         cursor: r.version.zip(r.seq),
+        last_delivered: r.last_delivered,
         failures: r.failures,
         last_error: r.last_error,
     }))

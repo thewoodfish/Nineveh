@@ -259,6 +259,56 @@ async fn changes_are_delivered_signed_batched_and_retried() {
         Some((1002, 0)),
         "delivered up to the newest change"
     );
+    assert!(
+        webhooks::list(&pool, schema).await.unwrap()[0]
+            .last_delivered
+            .is_some(),
+        "and says when"
+    );
+    sender.stop().await;
+}
+
+/// A new endpoint is placed at the end of the feed so that configuring one doesn't
+/// replay the project's history. That gives it a cursor immediately — which Studio used
+/// to read as "delivered to 1002.0" for an endpoint nothing had ever reached.
+#[tokio::test]
+async fn an_endpoint_that_has_never_been_reached_says_so() {
+    logs();
+    let Some(pool) = pool("deliver_placed").await else {
+        return;
+    };
+    let schema = "placed";
+    project(&pool, schema).await;
+    change(&pool, schema, 1000, 0, "balances", "insert").await;
+
+    // A receiver that refuses everything, so the cursor can only ever be the placement.
+    let (url, received) = receiver(usize::MAX).await;
+    let config = parse(&config(&url)).unwrap();
+    let hooks = config.webhooks.clone();
+    let sender = Deliveries::start(&pool, schema, &hooks, None);
+
+    // Wait until it has taken its place, then give it something to fail at.
+    for _ in 0..100 {
+        if webhooks::list(&pool, schema)
+            .await
+            .unwrap()
+            .first()
+            .and_then(|e| e.cursor)
+            .is_some()
+        {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    change(&pool, schema, 1001, 0, "balances", "insert").await;
+    until(&received, "an attempt", |r| !r.deliveries.is_empty()).await;
+
+    let endpoint = webhooks::list(&pool, schema).await.unwrap().remove(0);
+    assert!(endpoint.cursor.is_some(), "placed at the end of the feed");
+    assert!(
+        endpoint.last_delivered.is_none(),
+        "but nothing has ever been delivered"
+    );
     sender.stop().await;
 }
 

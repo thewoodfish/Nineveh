@@ -11,8 +11,10 @@
 
 import { useState } from "react";
 
+import Link from "next/link";
+
 import { type Table, getPath, rowsPath } from "@/lib/api";
-import { useProject } from "@/lib/project";
+import { useHref, useProject } from "@/lib/project";
 
 import { Button, Card, Select, field } from "./ui";
 
@@ -27,6 +29,7 @@ export function ApiConsole({
   pick?: { tables: Table[]; onPick: (name: string) => void };
 }) {
   const { base, hosted } = useProject();
+  const href = useHref();
   const [filters, setFilters] = useState<{ column: string; value: string }[]>([]);
   const [order, setOrder] = useState("");
   const [desc, setDesc] = useState(true);
@@ -237,6 +240,18 @@ export function ApiConsole({
                 project&apos;s API keys on every request.
               </>
             )}
+          </p>
+          {/* Everything above is this app asking Nineveh for something. The other
+              direction has its own page, and someone deciding between them is standing
+              here — so the choice is answered here, in a line, and made there. */}
+          <p className="mt-3 border-t border-outline-variant pt-3 text-[11px] leading-relaxed text-on-surface-variant">
+            A feed is for a screen someone is looking at: it lives as long as the page does. For
+            your backend, where a change has to land whether anyone is watching or not, Nineveh
+            calls you instead —{" "}
+            <Link href={href("/webhooks")} className="text-primary underline-offset-2 hover:underline">
+              webhooks
+            </Link>{" "}
+            are retried until your server answers.
           </p>
         </Card>
 

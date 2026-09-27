@@ -244,8 +244,13 @@ pub struct WebhookInfo {
     pub rows: bool,
     /// The secret every delivery is signed with.
     pub secret: String,
-    /// The last change delivered, as `version.seq`, or `null` before the first.
+    /// Where in the change feed this endpoint has got to, as `version.seq`. A new
+    /// endpoint is placed at the end of the feed rather than replaying history, so this
+    /// has a value before anything has been sent — `last_delivered` is what says whether
+    /// a delivery has ever succeeded.
     pub delivered: Option<String>,
+    /// When one last did, as an ISO instant, or `null` if none ever has.
+    pub last_delivered: Option<String>,
     /// Failed attempts since the last delivery, and what the last one said.
     pub failures: i32,
     pub last_error: Option<String>,
@@ -1496,6 +1501,7 @@ impl<C: Chain> ControlPlane<C> {
                     delivered: known
                         .and_then(|e| e.cursor)
                         .map(|(version, seq)| format!("{version}.{seq}")),
+                    last_delivered: known.and_then(|e| e.last_delivered.clone()),
                     failures: known.map_or(0, |e| e.failures),
                     last_error: known.and_then(|e| e.last_error.clone()),
                 }

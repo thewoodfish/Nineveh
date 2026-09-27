@@ -278,8 +278,14 @@ export type WebhookInfo = {
   rows: boolean;
   /** The secret every delivery is signed with. */
   secret: string;
-  /** The last change delivered, as `version.seq`. */
+  /**
+   * Where in the change feed this endpoint has got to, as `version.seq`. A new endpoint
+   * is placed at the end of the feed rather than replaying history, so this has a value
+   * before anything has been sent.
+   */
   delivered: string | null;
+  /** When a delivery last succeeded, as an ISO instant. `null` if none ever has. */
+  last_delivered: string | null;
   failures: number;
   last_error: string | null;
 };

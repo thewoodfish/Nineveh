@@ -216,6 +216,7 @@ async fn start(
                         warn!(%error, schema, endpoint = name, "couldn't place a new endpoint");
                     } else {
                         return Some(webhooks::Endpoint {
+                            // Placed, not delivered: `last_delivered` stays as it was.
                             cursor: Some((version, seq)),
                             ..endpoint
                         });

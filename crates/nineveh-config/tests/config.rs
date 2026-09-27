@@ -248,6 +248,34 @@ fn the_minimal_config_parses_with_defaults() {
 }
 
 #[test]
+fn a_webhook_may_reach_the_local_machine_over_plain_http() {
+    // Every spelling of the loopback host, because a developer testing an endpoint from
+    // their laptop has no certificate to offer and their server answers on one of them.
+    for host in [
+        "localhost:4000",
+        "127.0.0.1:4000",
+        "[::1]:4000",
+        "localhost",
+    ] {
+        // Quoted, because a bracketed address would otherwise open a flow sequence.
+        let yaml = format!(
+            "{MINIMAL}webhooks:\n  dev: {{ url: \"http://{host}/hook\", on: [log.changed] }}\n"
+        );
+        let config = parse(&yaml).unwrap_or_else(|d| panic!("{}", d.render("nineveh.yaml", &yaml)));
+        assert_eq!(config.webhooks.len(), 1, "{host}");
+    }
+    // The bracketed form isn't a licence for any address inside the brackets.
+    let yaml =
+        format!("{MINIMAL}webhooks:\n  dev: {{ url: \"http://[::2]/hook\", on: [log.changed] }}\n");
+    assert!(
+        messages(&yaml)
+            .iter()
+            .any(|m| m.contains("use https (plain http is only allowed for localhost)")),
+        "{yaml}"
+    );
+}
+
+#[test]
 fn typos_in_keys_are_located() {
     let yaml = MINIMAL.replace("state:", "stat:");
     assert_eq!(
