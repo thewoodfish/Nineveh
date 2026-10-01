@@ -202,7 +202,7 @@ function NameIt({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !busy) void submit();
           }}
-          placeholder="web app"
+          placeholder="web_app"
           maxLength={100}
           className={field}
         />
