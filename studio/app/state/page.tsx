@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { ExpressionInput, type Insert, type Name } from "@/components/expression";
 import { FUNCTIONS } from "@/lib/language";
@@ -27,6 +27,7 @@ import {
   amountFields,
   blank,
   countPer,
+  isInteger,
   dailyPer,
   keyFields,
   latestPer,
@@ -92,6 +93,78 @@ const field =
   "rounded-sm border border-outline-variant bg-surface-container-low px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none";
 
 /**
+ * One stage of the page.
+ *
+ * The page is a sequence because the data model is one: a rule folds records from a
+ * source, so there is nothing to ask about a key until the source is known, and no
+ * meaning to a column until a row has one. Each step is numbered and carries the
+ * question it answers in words, not jargon — and a step that is settled says what it was
+ * answered with, so the page reads back as a sentence once it's finished.
+ */
+function Step({
+  n,
+  title,
+  hint,
+  answer,
+  action,
+  children,
+}: {
+  n: number;
+  title: string;
+  hint?: ReactNode;
+  /** What this step was answered with, shown once it has been. */
+  answer?: ReactNode;
+  /** A way to undo the answer, beside it. */
+  action?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <section className="flex gap-4">
+      <span
+        aria-hidden
+        className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-container-high text-xs font-medium text-on-surface-variant"
+      >
+        {n}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2 className="text-sm font-medium text-on-surface">{title}</h2>
+          {answer && <span className="min-w-0 text-xs text-on-surface-variant">{answer}</span>}
+          {action && <span className="ml-auto">{action}</span>}
+        </div>
+        {hint && <p className="mt-1 max-w-2xl text-xs leading-relaxed text-on-surface-variant">{hint}</p>}
+        {children && <div className="mt-3">{children}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** A quiet link that undoes a step, so a wrong turn costs one click. */
+function Undo({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-xs text-on-surface-variant hover:text-on-surface"
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * What a column of `type` should hold before any rule has written it.
+ *
+ * Zero for the integers, which is what makes a fold total: `count = count + 1` on a row
+ * that doesn't exist yet is only legal because the column it writes starts somewhere.
+ * Nothing for the rest — there is no obvious empty address or id, and a rule that creates
+ * a row has to say what goes there.
+ */
+function defaultFor(type: ColumnType): string {
+  return isInteger(type) ? "0" : "";
+}
+
+/**
  * Design a state table: a key, typed columns, and rules that fold records into them.
  * The control plane checks the config as it's written, and saving it rebuilds the
  * project's tables (ADR 0016).
@@ -116,6 +189,13 @@ function StateTableEditor() {
   // are in the DSL has to be saved with them or it isn't the same project (ADR 0025).
   const [reducers, setReducers] = useState<string | undefined>(undefined);
   const [table, setTable] = useState<StateTable | null>(null);
+  // The first two answers, which every shape below is built from. Held here rather than
+  // inside the shapes, because they are steps of the page in their own right.
+  const [sourceName, setSourceName] = useState<string | null>(null);
+  const [keyName, setKeyName] = useState<string | null>(null);
+  const [amountName, setAmountName] = useState<string | null>(null);
+  /** Which shape this table started as, so step three can read back what it answered. */
+  const [started, setStarted] = useState<string | null>(null);
   // Set once the reducer has been taken over by hand. From then on it is the file, and
   // the builder above is only what it started from — there is no parser here to read an
   // edited file back into pickers, and pretending otherwise would silently discard it.
@@ -199,6 +279,28 @@ function StateTableEditor() {
     return () => clearTimeout(timer);
   }, [project, yaml, dsl, listed.length]);
 
+  // The source is whichever is chosen, or the first one as soon as there are any: a
+  // picker with nothing selected has no question to ask.
+  const source = sources?.find((s) => s.name === sourceName) ?? sources?.[0];
+  const keys = source ? keyFields(source) : [];
+  const amounts = source ? amountFields(source) : [];
+  const keyField = keys.find((f) => f.name === keyName) ?? keys[0];
+  const amountField = amounts.find((f) => f.name === amountName) ?? amounts[0];
+
+  const pickSource = (next: SourceInfo) => {
+    setSourceName(next.name);
+    // Its fields are different, so the key and the amount chosen for the last one mean
+    // nothing here.
+    setKeyName(null);
+    setAmountName(null);
+  };
+
+  const startOver = () => {
+    setStarted(null);
+    setCode(null);
+    setTable(null);
+  };
+
   const save = useCallback(async () => {
     if (!project || !yaml || !dsl || !tableName) return;
     setSaving(true);
@@ -236,8 +338,8 @@ function StateTableEditor() {
           <div>
             <h2 className="text-xl font-semibold tracking-tight">What should this table hold?</h2>
             <p className="mt-1.5 max-w-2xl text-sm text-on-surface-variant text-pretty">
-              You say what a row is and how each record changes it. Nineveh folds every record into
-              it in order, and serves it over REST with a change feed, like any other table.
+              A row, and what each record does to it. Nineveh folds every record in order and
+              serves the result over REST with a change feed, like any other table.
             </p>
           </div>
         )}
@@ -266,15 +368,161 @@ function StateTableEditor() {
           </Notice>
         )}
 
-        {sources && isFilled(sources) && !table && !editing && (
-          <Templates sources={sources} existing={existing} onPick={setTable} />
+        {/* The sequence. A saved table skips the first three: it already has a source and
+            a key, and there is no parser here to read its rules back into those pickers. */}
+        {sources && isFilled(sources) && source && !editing && (
+          <>
+            <Step
+              n={1}
+              title="What are you folding?"
+              hint="A reducer folds one source's records. Until that's chosen there are no field names to offer, which is why it comes first."
+              answer={
+                table && (
+                  <>
+                    <span className="font-mono text-on-surface">{source.name}</span> ({source.kind})
+                  </>
+                )
+              }
+            >
+              {!table && (
+                <div className="flex flex-col gap-4">
+                  <Select
+                    value={source.name}
+                    onChange={(e) =>
+                      pickSource(sources.find((s) => s.name === e.target.value) ?? sources[0])
+                    }
+                    className="w-full max-w-sm font-mono"
+                  >
+                    {sources.map((s) => (
+                      <option key={s.name} value={s.name}>
+                        {s.name} ({s.kind})
+                      </option>
+                    ))}
+                  </Select>
+                  <SourceSchema source={source} />
+                </div>
+              )}
+            </Step>
+
+            <Step
+              n={2}
+              title="What is one row?"
+              hint="The key, and the table's whole meaning: one row per seller counts sellers, one row per day draws a chart. Everything else is derived from this."
+              answer={
+                table &&
+                keyField && (
+                  <>
+                    one row per{" "}
+                    <span className="font-mono text-on-surface">{keyField.name}</span>
+                  </>
+                )
+              }
+            >
+              {!table && (
+                <div className="flex flex-wrap items-end gap-3">
+                  {keys.length > 0 ? (
+                    <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
+                      One row per
+                      <Select
+                        value={keyField?.name ?? ""}
+                        onChange={(e) => setKeyName(e.target.value)}
+                        className="font-mono"
+                      >
+                        {keys.map((f) => (
+                          <option key={f.name} value={f.name}>
+                            {f.name} ({f.type})
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  ) : (
+                    <p className="text-xs text-on-surface-variant">
+                      Nothing on <span className="font-mono">{source.name}</span> can identify a
+                      row. Start from an empty table below and write the key yourself.
+                    </p>
+                  )}
+                  {amounts.length > 0 && (
+                    <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
+                      Adding up
+                      <Select
+                        value={amountField?.name ?? ""}
+                        onChange={(e) => setAmountName(e.target.value)}
+                        className="font-mono"
+                      >
+                        {amounts.map((f) => (
+                          <option key={f.name} value={f.name}>
+                            {f.name} ({f.type})
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                  )}
+                </div>
+              )}
+            </Step>
+
+            <Step
+              n={3}
+              title="Start from a shape"
+              hint={
+                table
+                  ? undefined
+                  : "Each one arrives with its columns typed, its defaults set and its widths wide enough to hold the totals. Change anything about it afterwards."
+              }
+              answer={table && started && <span className="text-on-surface">{started}</span>}
+              action={table && <Undo onClick={startOver}>Start over</Undo>}
+            >
+              {!table && (
+                <Shapes
+                  source={source}
+                  sources={sources}
+                  keyField={keyField}
+                  amountField={amountField}
+                  existing={existing}
+                  onPick={(name, picked) => {
+                    setStarted(name);
+                    setTable(picked);
+                  }}
+                />
+              )}
+            </Step>
+          </>
         )}
 
         {sources && table && (
           <>
             {code === null && (
-              <Editor sources={sources} existing={existing} table={table} onChange={setTable} />
+              <>
+                <Step
+                  n={editing ? 1 : 4}
+                  title="What does it keep?"
+                  hint="One column per thing a row remembers, and the key ticked. An integer starts at zero so a rule can add to a row that doesn't exist yet; a column with no default has to be set by any rule that creates one."
+                >
+                  <Columns table={table} onChange={setTable} />
+                </Step>
+                <Step
+                  n={editing ? 2 : 5}
+                  title="How does each record change it?"
+                  hint="One rule per way a row moves. Several sources can write the same column — deposits add, withdrawals subtract — and the rules apply in this order, once per record, in version order."
+                >
+                  <Rules
+                    sources={sources}
+                    existing={existing}
+                    table={table}
+                    onChange={setTable}
+                  />
+                </Step>
+              </>
             )}
+            <Step
+              n={editing ? 3 : 6}
+              title={code === null ? "What gets saved" : "Your reducers"}
+              hint={
+                code === null
+                  ? "The builder writes this. Take it over and the builder stops being the source of truth — there is no parser here to read an edited file back into pickers."
+                  : undefined
+              }
+            >
             <Card className="overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant px-4 py-2">
                 {/* No filename: there is a file under this, but only the people who run
@@ -302,16 +550,9 @@ function StateTableEditor() {
                       Edit it yourself
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCode(null);
-                      setTable(null);
-                    }}
-                    className="text-xs text-on-surface-variant hover:text-on-surface"
-                  >
+                  <Undo onClick={startOver}>
                     {code !== null ? "Throw it away" : editing ? "Discard changes" : "Start over"}
-                  </button>
+                  </Undo>
                 </div>
               </div>
               {/* `wrap="off"`: a file that reflows mid-identifier is unreadable, so it
@@ -347,6 +588,7 @@ function StateTableEditor() {
                 . Nineveh checks them as you type, and saving is held until they pass.
               </p>
             )}
+            </Step>
             {listed.length > 0 && (
               <Notice tone="warning" title="Not finished yet">
                 <ul className="list-inside list-disc">
@@ -364,14 +606,20 @@ function StateTableEditor() {
               </Notice>
             )}
             {project && yaml && tableName && (
-              <PreviewCard
-                project={project}
-                yaml={yaml}
-                reducers={dsl ?? undefined}
-                name={tableName}
-                columns={code === null ? table.columns.map((c) => c.name) : null}
-                ready={checked?.ok === true}
-              />
+              <Step
+                n={editing ? 4 : 7}
+                title="Try it on real data"
+                hint="Folded over a window of the chain without saving anything. It is the only step that can tell you the rules are right rather than merely legal."
+              >
+                <PreviewCard
+                  project={project}
+                  yaml={yaml}
+                  reducers={dsl ?? undefined}
+                  name={tableName}
+                  columns={code === null ? table.columns.map((c) => c.name) : null}
+                  ready={checked?.ok === true}
+                />
+              </Step>
             )}
           </>
         )}
@@ -505,24 +753,30 @@ function cell(value: unknown): string {
   return text.length > 40 ? `${text.slice(0, 39)}…` : text;
 }
 
-/** The shapes most state tables have, filled in from a source's fields. */
-function Templates({
+/**
+ * The shapes most state tables have, filled in from the chosen source and key.
+ *
+ * These are the front door, not a shortcut: `count per`, `total per`, `latest per` and
+ * `per day` are most of what an app actually wants, and each arrives with its columns
+ * typed, its defaults set and its width already widened — `sumPer` sums `u64`s into a
+ * `u128` because a `u64` would overflow. Starting from an empty table is the escape
+ * hatch underneath.
+ */
+function Shapes({
+  source,
   sources,
+  keyField,
+  amountField,
   existing,
   onPick,
 }: {
+  source: SourceInfo;
   sources: [SourceInfo, ...SourceInfo[]];
+  keyField: FieldInfo | undefined;
+  amountField: FieldInfo | undefined;
   existing: Table[];
-  onPick: (table: StateTable) => void;
+  onPick: (started: string, table: StateTable) => void;
 }) {
-  const [source, setSource] = useState<SourceInfo>(sources[0]);
-  const keys = keyFields(source);
-  const amounts = amountFields(source);
-  const [key, setKey] = useState(keys[0]?.name ?? "");
-  const [amount, setAmount] = useState(amounts[0]?.name ?? "");
-  const keyField = keys.find((f) => f.name === key) ?? keys[0];
-  const amountField = amounts.find((f) => f.name === amount) ?? amounts[0];
-
   // What makes a row disappear again: this source's own deletes, or another source
   // that names the same key.
   const gone = source.deletes
@@ -544,61 +798,8 @@ function Templates({
       return column ? [{ table: t, column }] : [];
     })[0];
 
-  const pick = (source: SourceInfo) => {
-    setSource(source);
-    const keys = keyFields(source);
-    const amounts = amountFields(source);
-    setKey(keys[0]?.name ?? "");
-    setAmount(amounts[0]?.name ?? "");
-  };
-
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end gap-3 rounded-sm border border-outline-variant bg-surface-container-high px-4 py-3">
-        <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
-          Fold records from
-          <Select
-            value={source.name}
-            onChange={(e) => pick(sources.find((s) => s.name === e.target.value) ?? sources[0])}
-            className="font-mono"
-          >
-            {sources.map((s) => (
-              <option key={s.name} value={s.name}>
-                {s.name} ({s.kind})
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
-          One row per
-          <Select value={key} onChange={(e) => setKey(e.target.value)} className="font-mono">
-            {keys.map((f) => (
-              <option key={f.name} value={f.name}>
-                {f.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-        {amounts.length > 0 && (
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
-            Adding up
-            <Select
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="font-mono"
-            >
-              {amounts.map((f) => (
-                <option key={f.name} value={f.name}>
-                  {f.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-        )}
-      </div>
-
-      <SourceSchema source={source} />
-
       <div className="grid gap-3 sm:grid-cols-2">
         <Template
           title="Count per row"
@@ -609,7 +810,7 @@ function Templates({
           }
           disabled={!keyField}
           shape={keyField && countPer(source, keyField)}
-          onClick={() => keyField && onPick(countPer(source, keyField))}
+          onClick={() => keyField && onPick("Count per row", countPer(source, keyField))}
         />
         <Template
           title="Total per row"
@@ -620,7 +821,9 @@ function Templates({
           }
           disabled={!keyField || !amountField}
           shape={keyField && amountField && sumPer(source, keyField, amountField)}
-          onClick={() => keyField && amountField && onPick(sumPer(source, keyField, amountField))}
+          onClick={() =>
+            keyField && amountField && onPick("Total per row", sumPer(source, keyField, amountField))
+          }
         />
         <Template
           title="Latest per row"
@@ -629,7 +832,7 @@ function Templates({
           }
           disabled={!keyField}
           shape={keyField && latestPer(source, keyField)}
-          onClick={() => keyField && onPick(latestPer(source, keyField))}
+          onClick={() => keyField && onPick("Latest per row", latestPer(source, keyField))}
         />
         <Template
           title="Per day"
@@ -640,7 +843,7 @@ function Templates({
           }
           disabled={!keyField}
           shape={keyField && dailyPer(source, keyField, amountField)}
-          onClick={() => keyField && onPick(dailyPer(source, keyField, amountField))}
+          onClick={() => keyField && onPick("Per day", dailyPer(source, keyField, amountField))}
         />
         <Template
           title="Appears and disappears"
@@ -651,7 +854,9 @@ function Templates({
           }
           disabled={!keyField || !gone}
           shape={keyField && gone && liveSet(source, keyField, gone)}
-          onClick={() => keyField && gone && onPick(liveSet(source, keyField, gone))}
+          onClick={() =>
+            keyField && gone && onPick("Appears and disappears", liveSet(source, keyField, gone))
+          }
         />
         <Template
           title="With a value from another table"
@@ -667,14 +872,17 @@ function Templates({
           onClick={() =>
             keyField &&
             joinable &&
-            onPick(withLookup(source, keyField, joinable.table, joinable.column))
+            onPick(
+              "With a value from another table",
+              withLookup(source, keyField, joinable.table, joinable.column),
+            )
           }
         />
       </div>
 
       <button
         type="button"
-        onClick={() => onPick(blank(source))}
+        onClick={() => onPick("An empty table", blank(source))}
         className="rounded-sm border border-dashed border-outline px-4 py-3 text-sm text-on-surface-variant transition-colors hover:border-primary hover:text-on-surface"
       >
         Or start from an empty table and write the columns and rules yourself.
@@ -750,15 +958,11 @@ function Template({
   );
 }
 
-/** The table's columns and rules, all editable. */
-function Editor({
-  sources,
-  existing,
+/** The name, and the typed columns a row is made of. */
+function Columns({
   table,
   onChange,
 }: {
-  sources: SourceInfo[];
-  existing: Table[];
   table: StateTable;
   onChange: (table: StateTable) => void;
 }) {
@@ -766,10 +970,6 @@ function Editor({
   const setColumn = (index: number, changes: Partial<Column>) =>
     set({
       columns: table.columns.map((c, i) => (i === index ? { ...c, ...changes } : c)),
-    });
-  const setRule = (index: number, changes: Partial<Rule>) =>
-    set({
-      rules: table.rules.map((r, i) => (i === index ? { ...r, ...changes } : r)),
     });
 
   const keyColumns = table.columns.filter((c) => c.key).map((c) => c.name);
@@ -826,7 +1026,16 @@ function Editor({
                   <td className="py-1 pr-2">
                     <Select
                       value={column.type}
-                      onChange={(e) => setColumn(index, { type: e.target.value as ColumnType })}
+                      onChange={(e) => {
+                        const type = e.target.value as ColumnType;
+                        // Carry the default with the type: an integer column wants its
+                        // zero, and keeping `0` on an address column would be a lie.
+                        const kept = column.default === defaultFor(column.type);
+                        setColumn(index, {
+                          type,
+                          default: kept ? defaultFor(type) : column.default,
+                        });
+                      }}
                       className="font-mono"
                     >
                       {COLUMN_TYPES.map((type) => (
@@ -887,7 +1096,7 @@ function Editor({
                   {
                     name: "",
                     type: "u64",
-                    default: "0",
+                    default: defaultFor("u64"),
                     nullable: false,
                     key: false,
                   },
@@ -899,7 +1108,30 @@ function Editor({
           </Button>
         </div>
       </Card>
+    </>
+  );
+}
 
+/** One rule per way a record changes a row. */
+function Rules({
+  sources,
+  existing,
+  table,
+  onChange,
+}: {
+  sources: SourceInfo[];
+  existing: Table[];
+  table: StateTable;
+  onChange: (table: StateTable) => void;
+}) {
+  const set = (changes: Partial<StateTable>) => onChange({ ...table, ...changes });
+  const setRule = (index: number, changes: Partial<Rule>) =>
+    set({
+      rules: table.rules.map((r, i) => (i === index ? { ...r, ...changes } : r)),
+    });
+
+  return (
+    <div className="flex flex-col gap-4">
       {table.rules.map((rule, index) => (
         <RuleCard
           key={index}
@@ -931,7 +1163,7 @@ function Editor({
       >
         Add rule
       </Button>
-    </>
+    </div>
   );
 }
 
