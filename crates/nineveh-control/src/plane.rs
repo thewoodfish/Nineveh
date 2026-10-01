@@ -13,6 +13,7 @@ use nineveh_config::{
 };
 use nineveh_core::{Address, Network, Value, Version};
 use nineveh_decode::{Lockfile, TransactionDecoder};
+use nineveh_expr::NamePosition;
 use nineveh_engine::{ChangeSet, Engine, MemoryState, TableId};
 use nineveh_pipeline::{BatchStream, SharedTip, Source};
 use nineveh_realtime::Hub;
@@ -1440,6 +1441,7 @@ impl<C: Chain> ControlPlane<C> {
             .get_entry(caller, name, |e| e.loaded.clone())
             .await?
             .map_err(ControlError::BadRequest)?;
+        let project = &loaded.project;
         let state =
             loaded.project.config().table(table).ok_or_else(|| {
                 ControlError::NotFound(format!("`{name}` has no table `{table}`"))
@@ -1474,7 +1476,27 @@ impl<C: Chain> ControlPlane<C> {
                     key: key.iter().any(|k| k.name == c.name.name),
                 })
                 .collect(),
-            rules: rules.iter().map(rule_info).collect(),
+            rules: rules
+                .iter()
+                .map(|rule| {
+                    // What a bare name in this rule means, so it can be written the way
+                    // the DSL writes it. The checker makes a name a column or a field and
+                    // never both — being both is an error there — so this is exact.
+                    let fields: Vec<String> = project
+                        .source_id(rule.on.source.as_str())
+                        .and_then(|id| project.input(id))
+                        .map(|input| {
+                            record_scope(&loaded.lock, input, rule.on.deleted)
+                                .fields
+                                .iter()
+                                .map(|(field, _)| field.as_str().to_owned())
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let owned: Vec<&str> = columns.iter().map(|c| c.name.name.as_str()).collect();
+                    rule_info(rule, &owned, &fields, rule.on.source.as_str())
+                })
+                .collect(),
         })
     }
 
@@ -1894,14 +1916,57 @@ async fn stop(run: Run) {
     }
 }
 
-/// A rule as the editor holds it: expressions as their config text.
-fn rule_info(rule: &nineveh_config::Rule) -> RuleInfo {
+/// The bindings Studio's generated reducers use: `on(src, (r) => { const b = t.row(…) })`.
+/// They are that generator's convention rather than the language's — a hand-written file
+/// names its own — so they have to stay in step with `toDsl` in
+/// `studio/lib/state-table.ts`, which is what turns these rules back into a file.
+const RECORD: &str = "r";
+const ROW: &str = "b";
+
+/// A rule as the editor holds it, with every expression written the way the DSL writes
+/// it: `b.balance + r.amount` rather than the config's `balance + amount`.
+///
+/// The editor's own output is a `.nineveh.ts` file, so handing it config text would hand
+/// it names that file has no meaning for — which is what used to happen, and left a
+/// table that couldn't be saved after being opened. `columns` are this table's, `fields`
+/// the record's, and `source` what a record-qualified name is called in the config.
+///
+/// An expression that doesn't parse is passed through untouched. It came from a config
+/// that resolved, so that shouldn't happen; if it somehow does, showing it as written
+/// beats dropping the rule.
+fn rule_info(
+    rule: &nineveh_config::Rule,
+    columns: &[&str],
+    fields: &[String],
+    source: &str,
+) -> RuleInfo {
+    let rename = |name: &str, position: NamePosition| -> Option<String> {
+        // `row.x` and `<source>.x` are the config's own way of saying which one it meant,
+        // and the DSL says the same thing with its two bindings. Only where the name owns
+        // the field that follows it: a table whose source is `orders` can have a column
+        // called `orders` too, and a bare one of those is the column.
+        if position == NamePosition::Owner {
+            match name {
+                "row" => return Some(ROW.to_owned()),
+                _ if name == source => return Some(RECORD.to_owned()),
+                _ => {}
+            }
+        }
+        if columns.contains(&name) {
+            Some(format!("{ROW}.{name}"))
+        } else if fields.iter().any(|f| f == name) {
+            Some(format!("{RECORD}.{name}"))
+        } else {
+            None
+        }
+    };
+    let qualify = |text: &str| nineveh_expr::rename_names(text, &rename).unwrap_or(text.to_owned());
     let assignments = |pairs: &[(nineveh_config::Named, nineveh_config::Expr)]| {
         pairs
             .iter()
             .map(|(name, expr)| AssignmentInfo {
                 column: name.name.clone(),
-                expression: expr.text.clone(),
+                expression: qualify(&expr.text),
             })
             .collect()
     };
@@ -1911,7 +1976,7 @@ fn rule_info(rule: &nineveh_config::Rule) -> RuleInfo {
         when: rule
             .when
             .as_ref()
-            .map(|w| w.text.clone())
+            .map(|w| qualify(&w.text))
             .unwrap_or_default(),
         keys: assignments(&rule.key),
         sets: match &rule.action {

@@ -581,6 +581,57 @@ impl Parser {
     }
 }
 
+/// Every bare name in `e`, with its span and whether it owns a `.field` that follows it.
+///
+/// The two positions are different questions: `balance` on its own is a value, while the
+/// `row` in `row.balance` is only saying which `balance` was meant. A caller that rewrites
+/// names has to tell them apart, because the same word can be both.
+///
+/// The base of an `Index` is left out: `holders[owner].balance` names a table there, not
+/// a value, and a caller would otherwise rename a table that happens to share a name with
+/// a column.
+pub(crate) fn bare_names(e: &Expr, out: &mut Vec<(Span, String, bool)>) {
+    match &e.kind {
+        ExprKind::Name(name) => out.push((e.span, name.clone(), false)),
+        ExprKind::Field(base, _, _) => {
+            if let ExprKind::Name(name) = &base.kind {
+                out.push((base.span, name.clone(), true));
+            } else {
+                bare_names(base, out);
+            }
+        }
+        ExprKind::Index(base, keys, _) => {
+            // The table itself is not a value; its keys are.
+            if !matches!(base.kind, ExprKind::Name(_)) {
+                bare_names(base, out);
+            }
+            for key in keys {
+                bare_names(key, out);
+            }
+        }
+        ExprKind::Unary(_, operand) => bare_names(operand, out),
+        ExprKind::Binary(_, lhs, rhs) => {
+            bare_names(lhs, out);
+            bare_names(rhs, out);
+        }
+        ExprKind::If(cond, then, otherwise) => {
+            bare_names(cond, out);
+            bare_names(then, out);
+            bare_names(otherwise, out);
+        }
+        ExprKind::Call(_, _, args) => {
+            for arg in args {
+                bare_names(arg, out);
+            }
+        }
+        ExprKind::Int { .. }
+        | ExprKind::Bool(_)
+        | ExprKind::Str(_)
+        | ExprKind::Address(_)
+        | ExprKind::Null => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
