@@ -12,17 +12,23 @@ const PHASES: Record<string, { label: string; dot: string; pulse?: boolean; hint
   retrying: { label: "Retrying", dot: "bg-warning", pulse: true },
   halted: { label: "Halted", dot: "bg-error" },
   failed: { label: "Failed", dot: "bg-error" },
-  // Idle is not stopped, and must not look like it: the project is still following
-  // the chain and still keeping records, it has just paused computing rows nobody has
-  // asked for (ADR 0023). The explanation lives here rather than in a banner on the
-  // project's own page, because opening that page wakes it — a notice there would
+  // Idle is neither paused nor broken, and must not look like either: the project is
+  // still following the chain and still keeping records, it just isn't computing rows
+  // nobody has asked for (ADR 0023). The explanation lives here rather than in a banner
+  // on the project's own page, because opening that page wakes it — a notice there would
   // appear and vanish in the same second.
   idle: {
     label: "Idle",
     dot: "bg-on-secondary-container",
-    hint: "Idle — nothing is reading it, so it has paused computing rows. It is still following the chain and keeping its records; opening it brings it up to date in about a second.",
+    hint: "Idle — nothing is reading it, so it isn't computing rows. It is still following the chain and keeping its records; opening it brings it up to date in about a second.",
   },
-  stopped: { label: "Stopped", dot: "bg-outline" },
+  // `stopped` on the wire, Paused to a person: someone turned it off and nothing was
+  // lost. Keeping the word distinct from Halted and Failed, which nobody chose.
+  stopped: {
+    label: "Paused",
+    dot: "bg-outline",
+    hint: "Paused — it isn't following the chain. The API still answers with the rows it had when it paused.",
+  },
   offline: { label: "Offline", dot: "bg-outline-variant" },
 };
 

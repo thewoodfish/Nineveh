@@ -221,6 +221,7 @@ function DangerZone({ name, running }: { name: string; running: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [pausing, setPausing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const act = async (action: () => Promise<unknown>) => {
@@ -238,20 +239,25 @@ function DangerZone({ name, running }: { name: string; running: boolean }) {
 
   return (
     <Card className="divide-y divide-outline-variant">
+      {/* Pause, not stop: nothing is dropped and it carries on from where it was. The
+          word also keeps this apart from deleting, which the control plane's own name
+          for it — "stop a project, drop its state, and forget it" — does not. */}
       <Row
-        title={running ? "Stop the project" : "Start the project"}
+        title={running ? "Pause the project" : "Resume the project"}
         body={
           running
-            ? "The API keeps serving what it already folded; nothing new arrives until it starts again."
-            : "It resumes from its cursor, so nothing is counted twice."
+            ? "The API keeps serving what it already folded; nothing new arrives until it resumes."
+            : "It carries on from its cursor, so nothing is counted twice."
         }
       >
         <Button
           tone="secondary"
           disabled={busy}
-          onClick={() => void act(() => (running ? control.stop(name) : control.start(name)))}
+          onClick={() =>
+            running ? setPausing(true) : void act(() => control.start(name))
+          }
         >
-          {running ? "Stop" : "Start"}
+          {running ? "Pause" : "Resume"}
         </Button>
       </Row>
       <Row
@@ -263,6 +269,23 @@ function DangerZone({ name, running }: { name: string; running: boolean }) {
         </Button>
       </Row>
       {error && <p className="px-5 py-3 text-sm text-error">{error}</p>}
+      <ConfirmDialog
+        open={pausing}
+        busy={busy}
+        onClose={() => setPausing(false)}
+        onConfirm={() => {
+          setPausing(false);
+          void act(() => control.stop(name));
+        }}
+        title={`Pause ${name}?`}
+        confirmLabel="Pause project"
+      >
+        It stops following the chain after the version it is on. Nothing is lost and it
+        carries on from there when you resume — but{" "}
+        <span className="text-on-surface">the API keeps answering</span> in the meantime,
+        with rows that have stopped advancing, so anything reading it sees data going
+        quietly out of date rather than an error.
+      </ConfirmDialog>
       <ConfirmDialog
         danger
         open={confirming}
