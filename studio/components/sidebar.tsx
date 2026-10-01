@@ -226,16 +226,16 @@ function ProjectNav() {
             </span>
           </Link>
         ))}
-      <NavLink href={href("/changes")} active={pathname === "/changes"} icon="bolt">
-        Change feed
+      <NavLink href={href("/state")} active={pathname === "/state"} icon="add_circle">
+        New state table
       </NavLink>
-      {/* Next to the feed, not under Settings: both are this project reaching outward,
-          and one is the durable version of the other. */}
+      {/* Webhooks ahead of the feed: both are this project reaching outward, and the
+          durable one is the one a developer comes looking for. */}
       <NavLink href={href("/webhooks")} active={pathname === "/webhooks"} icon="webhook">
         Webhooks
       </NavLink>
-      <NavLink href={href("/state")} active={pathname === "/state"} icon="add_circle">
-        New state table
+      <NavLink href={href("/changes")} active={pathname === "/changes"} icon="bolt">
+        Change feed
       </NavLink>
       <NavLink href={href("/settings")} active={pathname === "/settings"} icon="settings">
         Settings
