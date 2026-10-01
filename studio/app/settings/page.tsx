@@ -205,7 +205,7 @@ function ConfigRow({ name }: { name: string }) {
           <span className="font-mono text-sm text-on-surface">nineveh.yaml</span>
         </span>
         <Button tone="tonal" onClick={() => setOpen(true)}>
-          Open editor
+          View
         </Button>
       </Card>
       <ConfigPanel name={name} open={open} onClose={() => setOpen(false)} />
