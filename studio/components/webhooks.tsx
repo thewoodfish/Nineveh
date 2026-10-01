@@ -11,6 +11,7 @@ import {
   OP_IN_PAYLOAD,
   type Op,
   blank,
+  possibleOps,
   problems,
   subscriptions,
   toDraft,
@@ -484,6 +485,14 @@ function Editor({
     const listed = (tables ?? []).map((t) => t.name);
     return [...listed, ...subscribed.filter((t) => !listed.includes(t))];
   }, [tables, subscribed]);
+  // What kind each table is, so the grid offers only the changes it can report. A name
+  // the project didn't list isn't in here, and `possibleOps` leaves those alone.
+  const kinds = useMemo(() => {
+    const map = new Map<string, Table["kind"]>();
+    for (const t of tables ?? []) map.set(t.name, t.kind);
+    return map;
+  }, [tables]);
+  const anyLogs = names.some((t) => kinds.get(t) === "log");
   const wrong = problems(draft, taken);
 
   return (
@@ -566,21 +575,35 @@ function Editor({
                 {names.map((table) => (
                   <tr key={table}>
                     <td className="py-1 font-mono text-xs text-on-surface">{table}</td>
-                    {OPS.map((op) => (
-                      <td key={op} className="py-1 text-center">
-                        <input
-                          type="checkbox"
-                          className="size-4 accent-primary"
-                          aria-label={`${table} ${op}`}
-                          checked={draft.on[table]?.includes(op) ?? false}
-                          onChange={() => setDraft(toggled(draft, table, op))}
-                        />
-                      </td>
-                    ))}
+                    {OPS.map((op) => {
+                      const checked = draft.on[table]?.includes(op) ?? false;
+                      const offered = possibleOps(kinds.get(table)).includes(op);
+                      return (
+                        <td key={op} className="py-1 text-center">
+                          <input
+                            type="checkbox"
+                            className={`size-4 accent-primary ${offered ? "" : "opacity-40"}`}
+                            aria-label={`${table} ${op}`}
+                            title={offered ? undefined : `${table} is a log, so its rows are only ever inserted`}
+                            checked={checked}
+                            // A change a table can't report is nothing to offer — unless it's
+                            // already asked for, which stays tickable so it can be removed on
+                            // purpose rather than vanish on the next save of another field.
+                            disabled={!offered && !checked}
+                            onChange={() => setDraft(toggled(draft, table, op))}
+                          />
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
             </table>
+          )}
+          {anyLogs && (
+            <p className="mt-2 text-xs text-on-surface-variant">
+              A log is only ever appended to, so it has nothing to report on update or delete.
+            </p>
           )}
           {/* All three of a table's changes is what the config calls `.changed`, so show
               the endpoint the words it will be saved in rather than the grid's. */}

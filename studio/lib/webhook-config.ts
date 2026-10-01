@@ -33,6 +33,25 @@ export const OP_IN_PAYLOAD: Record<Op, string> = {
   deleted: "delete",
 };
 
+/**
+ * Which of the three changes a table can ever report.
+ *
+ * A log is append-only: the engine writes its rows with no previous row to compare
+ * against, so every change to one is an insert, and its key — the version and the
+ * record's index within it — is never written twice. Mirrors and reduce tables can do
+ * all three; a mirror deletes when the resource it follows is deleted, and a reduce
+ * table when a rule removes a row.
+ *
+ * A table whose kind isn't known keeps all three. That's one only an existing endpoint
+ * names, from a project too stopped to list its own tables, and guessing there would
+ * hide a subscription that works.
+ */
+export function possibleOps(kind: "reduce" | "mirror" | "log" | undefined): readonly Op[] {
+  return kind === "log" ? LOG_OPS : OPS;
+}
+
+const LOG_OPS = ["inserted"] as const;
+
 /** An endpoint as the form edits it. */
 export type Draft = {
   name: string;
