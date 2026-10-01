@@ -1437,10 +1437,10 @@ impl<C: Chain> ControlPlane<C> {
         name: &str,
         table: &str,
     ) -> Result<StateTableInfo, ControlError> {
-        let loaded = self
-            .get_entry(caller, name, |e| e.loaded.clone())
-            .await?
-            .map_err(ControlError::BadRequest)?;
+        let (loaded, yaml) = self
+            .get_entry(caller, name, |e| (e.loaded.clone(), e.config.clone()))
+            .await?;
+        let loaded = loaded.map_err(ControlError::BadRequest)?;
         let project = &loaded.project;
         let state =
             loaded.project.config().table(table).ok_or_else(|| {
@@ -1463,6 +1463,21 @@ impl<C: Chain> ControlPlane<C> {
                 )));
             }
         };
+        // A table nineveh.yaml declares is built there. The editor writes the reducers
+        // file, and `merge` refuses a table declared in both — so handing this one over
+        // would produce a project that no longer loads. Parsed rather than searched: the
+        // YAML half on its own is exactly the set of tables it declares.
+        if parse(&yaml).is_ok_and(|c| {
+            c.state
+                .iter()
+                .any(|t| t.name.as_str() == table && matches!(t.kind, TableKind::Reduce { .. }))
+        }) {
+            return Err(ControlError::BadRequest(format!(
+                "`{table}` is declared in nineveh.yaml, so its rules are edited there, \
+                 not here: a table is built one way, and a table declared in both files \
+                 is refused"
+            )));
+        }
         Ok(StateTableInfo {
             name: state.name.name.clone(),
             kind,

@@ -310,13 +310,18 @@ function StateTableEditor() {
           </div>
         )}
 
-        {/* Some of these aren't failures: a mirror or a log has no rules to edit, and
-            saying "couldn't read this project" over that explains nothing. */}
+        {/* Some of these aren't failures: a mirror or a log has no rules to edit, and a
+            table declared in nineveh.yaml is edited there. Saying "couldn't read this
+            project" over either explains nothing. */}
         {loadError &&
           (loadError.includes("no rules to edit") ? (
             <Notice tone="neutral" title="Nothing to edit here">
               {loadError}. Only tables built by reducers have rules; use New state table to fold
               these records into one of your own.
+            </Notice>
+          ) : loadError.includes("declared in nineveh.yaml") ? (
+            <Notice tone="neutral" title="This one lives in the config">
+              {loadError}.
             </Notice>
           ) : (
             <Notice tone="error" title="Couldn't read this project">

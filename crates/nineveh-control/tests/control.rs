@@ -471,41 +471,25 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
         "an endpoint outranks even an idle window of zero: {demand:?}"
     );
 
-    // A saved table comes back in the shape the editor edits, so opening one to
-    // change it isn't a one-way trip into YAML.
-    let (status, editing) = call(
+    // A table `nineveh.yaml` declares is edited there. The editor writes the reducers
+    // file, and `merge` refuses a table declared in both, so opening this one would hand
+    // back a project that no longer loads. It says where the rules are instead.
+    let (status, refused) = call(
         &app,
         Method::GET,
         &format!("/control/v1/projects/{name}/state/depositors"),
         None,
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "{editing}");
-    assert_eq!(editing["kind"], json!("reduce"));
-    assert_eq!(
-        editing["columns"],
-        json!([
-            { "name": "user", "type": "address", "default": "", "nullable": false, "key": true },
-            { "name": "deposits", "type": "u64", "default": "0", "nullable": false, "key": false },
-            { "name": "total", "type": "u128", "default": "0", "nullable": false, "key": false },
-        ]),
-        "{editing}"
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    assert!(
+        refused["error"]
+            .as_str()
+            .unwrap()
+            .contains("declared in nineveh.yaml"),
+        "{refused}"
     );
-    assert_eq!(
-        editing["rules"],
-        json!([{
-            "on": "deposit_event",
-            "deleted": false,
-            "when": "",
-            "keys": [],
-            "sets": [
-                { "column": "deposits", "expression": "deposits + 1" },
-                { "column": "total", "expression": "total + u128(amount)" },
-            ],
-            "removes": false,
-        }]),
-        "{editing}"
-    );
+
     // Its webhook endpoints, with the secret a receiver checks signatures with.
     let (status, hooks) = call(
         &app,
@@ -1120,6 +1104,28 @@ on(deposits, (d) => {
     )
     .await;
     assert_eq!(status, StatusCode::CREATED, "{created}");
+
+    // A table the reducers file declares opens in the editor, with its expressions
+    // spelled the way that file spells them. The config keeps them with bare names —
+    // `render` writes `balance + u128(amount)` on the way in — and handing those back
+    // would make a file naming things it has no binding for.
+    let (status, editing) = call(
+        &app,
+        Method::GET,
+        &format!("/control/v1/projects/{name}/state/balances"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{editing}");
+    assert_eq!(editing["kind"], json!("reduce"), "{editing}");
+    assert_eq!(
+        editing["rules"][0]["sets"],
+        json!([
+            { "column": "balance", "expression": "b.balance + u128(r.amount)" },
+            { "column": "deposits", "expression": "b.deposits + 1" },
+        ]),
+        "{editing}"
+    );
 
     // Three deposits from two users: two rows, folded by the handler. User 0
     // deposited 5 then 3, user 1 deposited 7 — so `+=` really accumulated, rather
