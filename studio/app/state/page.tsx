@@ -2,10 +2,19 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { SourceSchema } from "@/components/source-schema";
-import { Button, Card, Notice, Select } from "@/components/ui";
+import { Button, Card, Icon, Notice, Select } from "@/components/ui";
 import {
   ApiError,
   type FieldInfo,
@@ -69,23 +78,37 @@ function Step({
   children?: ReactNode;
 }) {
   return (
-    <section className="flex gap-4">
-      <span
-        aria-hidden
-        className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-container-high text-xs font-medium text-on-surface-variant"
-      >
-        {n}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="text-sm font-medium text-on-surface">{title}</h2>
-          {answer && <span className="min-w-0 text-xs text-on-surface-variant">{answer}</span>}
+    /* The rail: a line down the left with the number on it, so the steps read as one
+       sequence rather than as a stack of unrelated headings. The last one's line runs
+       out on its own, since there is nothing below it to join. */
+    <section className="group relative flex gap-4 pb-1">
+      <div className="flex shrink-0 flex-col items-center">
+        <span
+          aria-hidden
+          className={`flex size-7 items-center justify-center rounded-full text-xs font-medium ${
+            answer
+              ? "bg-primary-container text-on-primary-container"
+              : "bg-surface-container-high text-on-surface-variant"
+          }`}
+        >
+          {n}
+        </span>
+        <span aria-hidden className="mt-1 w-px flex-1 bg-outline-variant group-last:hidden" />
+      </div>
+      <div className="min-w-0 flex-1 pb-6">
+        <div className="flex min-h-7 flex-wrap items-center gap-x-3 gap-y-1">
+          <h2 className="text-[15px] leading-6 font-medium text-on-surface">{title}</h2>
+          {answer && (
+            <span className="min-w-0 truncate text-xs text-on-surface-variant">{answer}</span>
+          )}
           {action && <span className="ml-auto">{action}</span>}
         </div>
         {hint && !answer && (
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-on-surface-variant">{hint}</p>
+          <p className="mt-1.5 max-w-prose text-xs leading-relaxed text-on-surface-variant">
+            {hint}
+          </p>
         )}
-        {children && <div className="mt-3">{children}</div>}
+        {children && <div className="mt-3.5">{children}</div>}
       </div>
     </section>
   );
@@ -233,20 +256,6 @@ function StateTableEditor() {
   const keyField = keys.find((f) => f.name === keyName) ?? keys[0];
   const amountField = amounts.find((f) => f.name === amountName) ?? amounts[0];
 
-  /** Put `text` in the file at the cursor, which is what the palette is for. */
-  const insert = (text: string) => {
-    const box = editor.current;
-    if (!box || code === null) return;
-    const at = box.selectionStart;
-    const to = box.selectionEnd;
-    setCode(code.slice(0, at) + text + code.slice(to));
-    // After React has written the new value, put the caret after what was inserted.
-    requestAnimationFrame(() => {
-      box.focus();
-      box.setSelectionRange(at + text.length, at + text.length);
-    });
-  };
-
   const pickSource = (next: SourceInfo) => {
     setSourceName(next.name);
     // Its fields are different, so the key and the amount chosen for the last one mean
@@ -289,15 +298,14 @@ function StateTableEditor() {
   return (
     <div>
       <PageHeader title={editing ? `Edit ${editing}` : "New state table"}>
-        {checked?.ok && <span className="text-xs text-on-tertiary-container">checks out</span>}
         <Button tone="primary" disabled={saving || !checked?.ok} onClick={() => void save()}>
           {saving ? "Saving…" : editing ? "Save changes" : "Create table"}
         </Button>
       </PageHeader>
 
-      <div className="flex max-w-6xl flex-col gap-6 px-8 py-6">
+      <div className="flex max-w-6xl flex-col gap-0 px-8 py-6">
         {code === null && !editing && (
-          <div>
+          <div className="mb-8">
             <h2 className="text-xl font-semibold tracking-tight">What should this table hold?</h2>
             <p className="mt-1.5 max-w-2xl text-sm text-on-surface-variant text-pretty">
               A row, and what each record does to it. Nineveh folds every record in order and
@@ -309,8 +317,9 @@ function StateTableEditor() {
         {/* Some of these aren't failures: a mirror or a log has no rules to edit, and a
             table declared in nineveh.yaml is edited there. Saying "couldn't read this
             project" over either explains nothing. */}
-        {loadError &&
-          (loadError.includes("no rules to edit") ? (
+        {loadError && (
+          <div className="mb-6">
+            {loadError.includes("no rules to edit") ? (
             <Notice tone="neutral" title="Nothing to edit here">
               {loadError}. Only tables built by reducers have rules; use New state table to fold
               these records into one of your own.
@@ -321,18 +330,24 @@ function StateTableEditor() {
             </Notice>
           ) : (
             <Notice tone="error" title="Couldn't read this project">
-              {loadError}
-            </Notice>
-          ))}
+                {loadError}
+              </Notice>
+            )}
+          </div>
+        )}
         {error && (
-          <Notice tone="error" title="That didn't save">
-            <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">{error}</pre>
-          </Notice>
+          <div className="mb-6">
+            <Notice tone="error" title="That didn't save">
+              <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">{error}</pre>
+            </Notice>
+          </div>
         )}
         {sources?.length === 0 && (
-          <Notice tone="warning" title="This project follows nothing yet">
-            Add a source to its config first.
-          </Notice>
+          <div className="mb-6">
+            <Notice tone="warning" title="This project follows nothing yet">
+              Add a source to its config first.
+            </Notice>
+          </div>
         )}
 
         {/* The sequence. The name first: it is the one answer that depends on nothing, and
@@ -493,22 +508,21 @@ function StateTableEditor() {
               }
             >
               <div className="grid gap-4 lg:grid-cols-[1fr_20rem] lg:items-start">
-                <Card className="overflow-hidden">
-                  {/* `wrap="off"`: a file that reflows mid-identifier is unreadable, so
-                      it scrolls sideways the way an editor does. */}
-                  <textarea
-                    ref={editor}
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    spellCheck={false}
-                    wrap="off"
-                    aria-label="Reducers"
-                    rows={Math.min(34, Math.max(14, code.split("\n").length + 1))}
-                    className="block w-full resize-y overflow-auto bg-surface-container-low px-4 py-3 font-mono text-[13px] leading-relaxed text-on-surface outline-none focus:ring-1 focus:ring-inset focus:ring-primary"
-                  />
-                </Card>
+                <Editor
+                  ref={editor}
+                  file={file}
+                  code={code}
+                  onChange={setCode}
+                  status={
+                    checked?.ok
+                      ? { tone: "ok", text: "checks out" }
+                      : checked
+                        ? { tone: "bad", text: "won't build" }
+                        : { tone: "quiet", text: "checking…" }
+                  }
+                />
                 <div className="flex flex-col gap-3">
-                  <Palette sources={sources} tables={existing} onInsert={insert} />
+                  <Palette sources={sources} tables={existing} />
                   <p className="text-xs leading-relaxed text-on-surface-variant">
                     This is the whole reducers file, in the{" "}
                     <a
@@ -525,11 +539,13 @@ function StateTableEditor() {
               </div>
             </Step>
             {checked && !checked.ok && (
-              <Notice tone="error" title="Nineveh can't build that">
-                <pre className="overflow-x-auto font-mono text-xs whitespace-pre">
-                  {checked.details}
-                </pre>
-              </Notice>
+              <div className="mb-6 ml-11">
+                <Notice tone="error" title="Nineveh can't build that">
+                  <pre className="overflow-x-auto font-mono text-xs whitespace-pre">
+                    {checked.details}
+                  </pre>
+                </Notice>
+              </div>
             )}
             {project && yaml && tableName && (
               <Step
@@ -674,134 +690,185 @@ function cell(value: unknown): string {
 }
 
 /**
- * Everything the file can name, to put in it.
+ * The reducers file, with the chrome an editor has.
  *
- * A reducers file folds as many sources as it likes and reads other tables by key
- * (ADR 0019), so one source's schema was never the whole vocabulary — this is the rest
- * of it. Clicking a name writes it at the cursor; opening one shows what it carries,
- * because the question when you are halfway through an expression is "what is this
- * called", and the answer was only ever in a completion popup you had to know to open.
+ * Line numbers because the errors are located — `./market.nineveh.ts:11:14` — and a bare
+ * textarea leaves you counting. The gutter is a second element rather than anything
+ * clever inside the box, so it has to be kept in step: same line height, and scrolled to
+ * match whenever the text is.
  */
-function Palette({
-  sources,
-  tables,
-  onInsert,
+function Editor({
+  ref,
+  file,
+  code,
+  onChange,
+  status,
 }: {
-  sources: SourceInfo[] | null;
-  /** The tables a rule may read. Logs are left out: they have no rows to look up. */
-  tables: Table[];
-  onInsert: (text: string) => void;
+  ref: React.RefObject<HTMLTextAreaElement | null>;
+  file: string;
+  code: string;
+  onChange: (code: string) => void;
+  status: { tone: "ok" | "bad" | "quiet"; text: string };
 }) {
-  const [open, setOpen] = useState<string | null>(null);
-  // Keep the editor focused, so the insertion knows where it is going.
-  const hold = (e: React.MouseEvent) => e.preventDefault();
-
-  const row = (
-    key: string,
-    name: string,
-    kind: string,
-    detail: string,
-    children: { name: string; type: string; insert: string }[],
-  ) => (
-    <div key={key} className="border-t border-outline-variant/60 first:border-t-0">
-      <div className="flex items-center gap-2 py-1">
-        <button
-          type="button"
-          onMouseDown={hold}
-          onClick={() => onInsert(name)}
-          title={`Put ${name} in the file`}
-          className="-mx-1 min-w-0 truncate rounded px-1 font-mono text-xs text-on-surface hover:bg-primary-container"
-        >
-          {name}
-        </button>
-        <span className="shrink-0 text-[10px] text-on-surface-variant">{kind}</span>
-        <button
-          type="button"
-          onMouseDown={hold}
-          onClick={() => setOpen(open === key ? null : key)}
-          aria-expanded={open === key}
-          className="ml-auto shrink-0 text-[10px] text-on-surface-variant hover:text-on-surface"
-        >
-          {open === key ? "hide" : detail}
-        </button>
-      </div>
-      {open === key && (
-        <table className="mb-1.5 w-full text-left">
-          <tbody className="font-mono text-[11px]">
-            {children.map((c) => (
-              <tr key={c.name}>
-                <td className="py-0.5">
-                  <button
-                    type="button"
-                    onMouseDown={hold}
-                    onClick={() => onInsert(c.insert)}
-                    title={`Put ${c.insert} in the file`}
-                    className="-mx-1 rounded px-1 text-left whitespace-nowrap text-on-surface hover:bg-primary-container"
-                  >
-                    {c.name}
-                  </button>
-                </td>
-                <td className="py-0.5 pl-3 text-on-surface-variant">{c.type}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
+  const gutter = useRef<HTMLDivElement>(null);
+  const lines = code.split("\n").length;
+  const tone =
+    status.tone === "ok"
+      ? "text-on-tertiary-container"
+      : status.tone === "bad"
+        ? "text-error"
+        : "text-on-surface-variant";
 
   return (
-    <section className="overflow-hidden rounded-md border border-outline-variant">
-      <div className="bg-secondary-container px-3 py-2 text-on-secondary-container">
-        <h3 className="text-[11px] font-semibold tracking-[0.08em] uppercase">In scope</h3>
+    <Card className="overflow-hidden">
+      <div className="flex items-center gap-3 border-b border-outline-variant bg-surface-container-high px-3 py-2">
+        <Icon name="code" className="text-[16px] text-on-surface-variant" />
+        <span className="min-w-0 flex-1 truncate font-mono text-xs text-on-surface">{file}</span>
+        <span className={`shrink-0 text-[11px] ${tone}`}>{status.text}</span>
       </div>
-      <div className="px-3 py-2">
-        <p className="pb-1 text-[10px] tracking-[0.08em] text-on-surface-variant uppercase">
-          Sources
-        </p>
-        {(sources ?? []).map((source) =>
-          row(
-            `s:${source.name}`,
-            source.name,
-            source.kind,
-            `${source.fields.length} fields`,
-            source.fields.map((f) => ({
-              name: f.name,
-              type: f.type,
-              // A handler's record is `r` in everything the shapes write.
-              insert: `r.${f.name}`,
-            })),
-          ),
+      <div className="flex">
+        <div
+          ref={gutter}
+          aria-hidden
+          className="shrink-0 overflow-hidden border-r border-outline-variant bg-surface-container py-3 font-mono text-[13px] leading-relaxed text-on-surface-variant/70 select-none"
+        >
+          {Array.from({ length: lines }, (_, i) => (
+            <div key={i} className="px-2.5 text-right tabular-nums">
+              {i + 1}
+            </div>
+          ))}
+        </div>
+        {/* `wrap="off"`: a file that reflows mid-identifier is unreadable, so it scrolls
+            sideways the way an editor does — and a wrapped line would put the gutter out
+            of step with the text beside it. */}
+        <textarea
+          ref={ref}
+          value={code}
+          onChange={(e) => onChange(e.target.value)}
+          onScroll={(e) => {
+            if (gutter.current) gutter.current.scrollTop = e.currentTarget.scrollTop;
+          }}
+          spellCheck={false}
+          wrap="off"
+          aria-label="Reducers"
+          rows={Math.min(34, Math.max(14, lines + 1))}
+          className="block min-w-0 flex-1 resize-y overflow-auto bg-surface-container-low px-3 py-3 font-mono text-[13px] leading-relaxed text-on-surface outline-none focus:ring-1 focus:ring-inset focus:ring-primary"
+        />
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * What this project has, to write the file against.
+ *
+ * Reference, not a tool: a reducers file folds as many sources as it likes and reads
+ * other tables by key (ADR 0019), and the question halfway through a line is "what is
+ * that field called". It answers that and stays out of the way — nothing here types for
+ * you, because a panel that edits the file from the side is a second way to write it.
+ */
+function Palette({ sources, tables }: { sources: SourceInfo[] | null; tables: Table[] }) {
+  const [open, setOpen] = useState<string | null>(null);
+
+  const entry = (
+    id: string,
+    name: string,
+    kind: string,
+    sub: string,
+    fields: { name: string; type: string }[],
+  ) => {
+    const shown = open === id;
+    return (
+      <div key={id}>
+        <button
+          type="button"
+          onClick={() => setOpen(shown ? null : id)}
+          aria-expanded={shown}
+          className="state flex w-full items-center gap-2 rounded-xs px-2 py-1.5 text-left"
+        >
+          <Icon
+            name="chevron_right"
+            className={`shrink-0 text-[16px] text-on-surface-variant transition-transform ${
+              shown ? "rotate-90" : ""
+            }`}
+          />
+          <span className="min-w-0 flex-1 truncate font-mono text-xs text-on-surface">{name}</span>
+          <span className="shrink-0 rounded-full bg-surface-container-high px-1.5 py-0.5 text-[10px] text-on-surface-variant">
+            {kind}
+          </span>
+        </button>
+        {shown && (
+          <div className="mb-1 ml-6 border-l border-outline-variant pl-3">
+            <p className="py-1 text-[11px] text-on-surface-variant">{sub}</p>
+            <dl className="grid grid-cols-[1fr_auto] gap-x-4">
+              {fields.map((f) => (
+                <Fragment key={f.name}>
+                  <dt className="truncate py-0.5 font-mono text-[11px] text-on-surface">
+                    {f.name}
+                  </dt>
+                  <dd className="py-0.5 font-mono text-[11px] text-on-surface-variant">{f.type}</dd>
+                </Fragment>
+              ))}
+            </dl>
+          </div>
         )}
-        {tables.length > 0 && (
-          <>
-            <p className="pt-2.5 pb-1 text-[10px] tracking-[0.08em] text-on-surface-variant uppercase">
-              Tables you can read
-            </p>
+      </div>
+    );
+  };
+
+  return (
+    <Card className="divide-y divide-outline-variant">
+      <div className="px-3 py-2.5">
+        <h3 className="text-xs font-medium text-on-surface">Sources</h3>
+        <p className="mt-0.5 text-[11px] text-on-surface-variant">
+          What a handler can fold. Its fields are on the record — <code>r.name</code>.
+        </p>
+        <div className="mt-1.5">
+          {(sources ?? []).map((source) =>
+            entry(
+              `s:${source.name}`,
+              source.name,
+              source.kind,
+              `Every field a ${source.kind} record carries.`,
+              source.fields.map((f) => ({ name: f.name, type: f.type })),
+            ),
+          )}
+        </div>
+      </div>
+      {tables.length > 0 && (
+        <div className="px-3 py-2.5">
+          <h3 className="text-xs font-medium text-on-surface">Tables you can read</h3>
+          <p className="mt-0.5 text-[11px] text-on-surface-variant">
+            By key, and <code>null</code> when there is no such row —{" "}
+            <code>name.get(key)?.column</code>.
+          </p>
+          <div className="mt-1.5">
             {tables.map((table) =>
-              row(
+              entry(
                 `t:${table.name}`,
                 table.name,
                 table.kind,
-                `keyed by ${table.key.join(", ")}`,
-                table.columns.map((c) => ({
-                  name: c.name,
-                  type: c.type,
-                  // How the DSL reads another table: by key, and `null` when it has
-                  // no such row (ADR 0019). The key is the caller's to fill in — it is
-                  // an expression, not a name, so there is nothing here to guess.
-                  insert: `${table.name}.get()?.${c.name}`,
-                })),
+                `Keyed by ${table.key.join(", ")}.`,
+                table.columns.map((c) => ({ name: c.name, type: c.type })),
               ),
             )}
-          </>
-        )}
-        <p className="pt-2.5 text-[11px] leading-relaxed text-on-surface-variant">
-          <span className="font-mono">tx.version</span> and{" "}
-          <span className="font-mono">tx.timestamp</span> are the only clock there is.
+          </div>
+        </div>
+      )}
+      <div className="px-3 py-2.5">
+        <h3 className="text-xs font-medium text-on-surface">Always there</h3>
+        <dl className="mt-1.5 grid grid-cols-[1fr_auto] gap-x-4">
+          <dt className="py-0.5 font-mono text-[11px] text-on-surface">tx.version</dt>
+          <dd className="py-0.5 font-mono text-[11px] text-on-surface-variant">u64</dd>
+          <dt className="py-0.5 font-mono text-[11px] text-on-surface">tx.timestamp</dt>
+          <dd className="py-0.5 font-mono text-[11px] text-on-surface-variant">u64</dd>
+        </dl>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-on-surface-variant">
+          The only clock there is. A reducer that read the wall clock would fold a
+          different answer on replay.
         </p>
       </div>
-    </section>
+    </Card>
   );
 }
 
