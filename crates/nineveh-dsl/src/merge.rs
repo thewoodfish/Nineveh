@@ -5,7 +5,9 @@
 //! behaviour. Neither is complete alone, so this is where they become one [`Config`],
 //! identical in kind to one written entirely in YAML.
 
-use nineveh_config::{Config, Diagnostic, Diagnostics, StateTable, TableKind};
+use nineveh_config::{
+    Config, Diagnostic, Diagnostics, StateTable, TableKind, subscription_problems,
+};
 
 use crate::scatter::{Context, SourceInfo, TableInfo};
 
@@ -50,7 +52,9 @@ impl Context {
 ///
 /// # Errors
 ///
-/// [`Diagnostics`] located in the DSL source, to render against that file's name.
+/// [`Diagnostics`] located in whichever file the problem is in — the DSL source for a
+/// bad handler, `nineveh.yaml` for a webhook that subscribes to a table no frontend
+/// declares. Each span carries its file, so callers pass both to `render_files`.
 pub fn merge(config: Config, source: &str) -> Result<Config, Diagnostics> {
     let mut tables = crate::compile(source, &Context::from_config(&config))?;
 
@@ -94,12 +98,18 @@ pub fn merge(config: Config, source: &str) -> Result<Config, Diagnostics> {
         );
     }
 
+    let merged = Config {
+        state: config.state.into_iter().chain(tables).collect(),
+        ..config
+    };
+    // Both halves' tables are here now, so the YAML's webhooks can be checked against
+    // the whole set — the only point at which that answer is right. They join the
+    // errors above rather than replacing them, so one run reports everything.
+    errors.extend(subscription_problems(&merged));
+
     match Diagnostics::from_vec(errors) {
         Some(d) => Err(d),
-        None => Ok(Config {
-            state: config.state.into_iter().chain(tables).collect(),
-            ..config
-        }),
+        None => Ok(merged),
     }
 }
 

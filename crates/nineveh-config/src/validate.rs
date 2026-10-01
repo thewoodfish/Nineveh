@@ -18,6 +18,10 @@ use crate::raw::{
 /// names, references between sources, tables and rules, column types and defaults.
 /// Resolve the result against the lock with [`Config::resolve`].
 ///
+/// A project that keeps its reduce tables in a `reducers:` file is only half described
+/// here, so the checks that need the whole table set — [`subscription_problems`] — are
+/// left to whoever merges the two halves.
+///
 /// # Errors
 ///
 /// Every problem found, each located in `source`. A YAML syntax or shape error stops
@@ -30,10 +34,45 @@ pub fn parse(source: &str) -> Result<Config, Diagnostics> {
         .map_err(|e| Diagnostics::single(yaml_diagnostic(&e)))?;
     let mut v = Validator::default();
     let config = v.config(raw);
+    // A YAML-only project's tables are all here, so its subscriptions join this pass's
+    // problems and are reported with them. One with a `reducers:` file has them checked
+    // after the merge instead, against the whole set.
+    if config.reducers.is_none() {
+        v.diagnostics.extend(subscription_problems(&config));
+    }
     match Diagnostics::from_vec(v.diagnostics) {
         Some(diagnostics) => Err(diagnostics),
         None => Ok(config),
     }
+}
+
+/// Every webhook subscription that names a state table no frontend declares.
+///
+/// This is deliberately not folded into the rest of validation. `nineveh.yaml` holds the
+/// mirror and log tables, while a `reducers:` file holds the reduce tables (ADR 0025),
+/// so the complete set only exists once the two have been merged — and a project may
+/// legitimately keep every table it has in the DSL. Checking against the YAML alone
+/// rejects subscriptions to tables that are really there.
+///
+/// Callers add these to whatever problems they already found, so a config still reports
+/// everything wrong with it in one go. Each diagnostic is located at the subscription
+/// that names the table, which is in `nineveh.yaml` either way.
+#[must_use]
+pub fn subscription_problems(config: &Config) -> Vec<Diagnostic> {
+    let names = || config.state.iter().map(|t| t.name.as_str());
+    let mut diagnostics = Vec::new();
+    for hook in &config.webhooks {
+        for on in &hook.on {
+            let table = on.table.as_str();
+            if !names().any(|n| n == table) {
+                diagnostics.push(
+                    Diagnostic::new(format!("unknown state table `{table}`"), on.table.span)
+                        .did_you_mean(table, names()),
+                );
+            }
+        }
+    }
+    diagnostics
 }
 
 /// Turn a YAML error into our diagnostic shape, dropping the parser's own location
@@ -145,13 +184,11 @@ impl Validator {
             }
             Vec::new()
         };
-        let empty = Entries::default();
-        let declared = raw.state.as_ref().map_or(&empty, |s| &s.value);
         let webhooks = raw
             .webhooks
             .0
             .iter()
-            .filter_map(|(name, hook)| self.webhook(name, hook, declared))
+            .filter_map(|(name, hook)| self.webhook(name, hook))
             .collect();
         let api = raw.api.map_or_else(Api::default, |a| Api {
             rest: a.rest.unwrap_or(true),
@@ -806,7 +843,6 @@ impl Validator {
         &mut self,
         name: &Spanned<String>,
         raw: &Spanned<crate::raw::RawWebhook>,
-        raw_tables: &Entries<Spanned<RawTable>>,
     ) -> Option<Webhook> {
         let at = span_of(name);
         let named = self.name(&name.value, at, "webhook");
@@ -829,7 +865,7 @@ impl Validator {
             .value
             .on
             .iter()
-            .filter_map(|entry| self.subscription(entry, raw_tables))
+            .filter_map(|entry| self.subscription(entry))
             .collect();
         // An endpoint with a change nobody can deliver isn't saved at all, so the
         // config never half-describes where state goes.
@@ -842,11 +878,7 @@ impl Validator {
     }
 
     /// `<table>.changed`, `.inserted`, `.updated` or `.deleted`.
-    fn subscription(
-        &mut self,
-        on: &Spanned<String>,
-        raw_tables: &Entries<Spanned<RawTable>>,
-    ) -> Option<Subscription> {
+    fn subscription(&mut self, on: &Spanned<String>) -> Option<Subscription> {
         let at = span_of(on);
         let Some((table, change)) = on.value.split_once('.') else {
             self.push(
@@ -855,14 +887,6 @@ impl Validator {
             );
             return None;
         };
-        let names = || raw_tables.0.iter().map(|(k, _)| k.value.as_str());
-        if !names().any(|n| n == table) {
-            self.push(
-                Diagnostic::new(format!("unknown state table `{table}`"), at)
-                    .did_you_mean(table, names()),
-            );
-            return None;
-        }
         let Some(change) = Change::ALL.into_iter().find(|c| c.as_str() == change) else {
             self.push(
                 Diagnostic::new(format!("unknown change `.{change}`"), at)

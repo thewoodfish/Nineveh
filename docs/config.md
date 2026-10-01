@@ -236,6 +236,9 @@ webhooks:
 | `on` | yes | The changes it wants: `<table>.changed`, `.inserted`, `.updated` or `.deleted`. |
 | `rows` | no | Whether a delivery carries the changed row, not only its key. Default `true`. |
 
+`on` may name any of the project's state tables — those `state:` declares and those a
+`reducers:` file does, since both are the same kind of table once they're built.
+
 URLs must use `https`; plain `http` is accepted only for `localhost`. Deliveries are
 signed with the endpoint's own secret, so URLs never carry credentials.
 

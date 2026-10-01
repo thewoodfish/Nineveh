@@ -36,4 +36,4 @@ pub use resolve::{
     record_scope,
 };
 pub use schema::{Projection, SchemaColumn, TableSchema, column_for};
-pub use validate::parse;
+pub use validate::{parse, subscription_problems};
