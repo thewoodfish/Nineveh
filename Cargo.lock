@@ -1848,6 +1848,7 @@ dependencies = [
  "nineveh-decode",
  "nineveh-dsl",
  "nineveh-engine",
+ "nineveh-expr",
  "nineveh-ingest",
  "nineveh-pipeline",
  "nineveh-proto",
