@@ -174,11 +174,13 @@ function Readers() {
           <div className="ml-auto text-xs text-on-surface-variant">
             {reader.slots_free} catch-up {reader.slots_free === 1 ? "stream" : "streams"} free
           </div>
-          {/* A stopped reader halts every project on its network at once, so the cause
-              belongs here rather than only in each project's own error. */}
+          {/* A failed reader halts every project on its network at once, so the cause
+              belongs here rather than only in each project's own error. "Failed", matching
+              the dot: the reader gave up on an error, which is not a project someone
+              paused. `stopped` is only what the field is called on the wire. */}
           {reader.stopped && (
             <p className="w-full text-xs text-error">
-              Stopped: {reader.stopped}. Every project on {reader.network} is halted until the
+              Failed: {reader.stopped}. Every project on {reader.network} is halted until the
               plane restarts.
             </p>
           )}
