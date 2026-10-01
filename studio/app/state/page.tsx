@@ -194,8 +194,11 @@ function StateTableEditor() {
   const [sourceName, setSourceName] = useState<string | null>(null);
   const [keyName, setKeyName] = useState<string | null>(null);
   const [amountName, setAmountName] = useState<string | null>(null);
-  /** Which shape this table started as, so step three can read back what it answered. */
+  /** Which shape this table started as, so its step can read back what it answered. */
   const [started, setStarted] = useState<string | null>(null);
+  // Held apart from the table so it can be answered before there is one. A shape brings
+  // its own name (`listed_per_owner`), which is only taken if nothing has been typed.
+  const [name, setName] = useState("");
   // Set once the reducer has been taken over by hand. From then on it is the file, and
   // the builder above is only what it started from — there is no parser here to read an
   // edited file back into pickers, and pretending otherwise would silently discard it.
@@ -222,13 +225,14 @@ function StateTableEditor() {
     if (editing) {
       control
         .stateTable(project, editing)
-        .then((saved) =>
+        .then((saved) => {
+          setName(saved.name);
           setTable({
             name: saved.name,
             columns: saved.columns,
             rules: saved.rules,
-          }),
-        )
+          });
+        })
         .catch(failed);
     }
   }, [project, editing]);
@@ -301,6 +305,12 @@ function StateTableEditor() {
     setTable(null);
   };
 
+  /** Renaming has to move the table with it, since that is what gets written. */
+  const rename = (next: string) => {
+    setName(next);
+    if (table) setTable({ ...table, name: next });
+  };
+
   const save = useCallback(async () => {
     if (!project || !yaml || !dsl || !tableName) return;
     setSaving(true);
@@ -368,14 +378,32 @@ function StateTableEditor() {
           </Notice>
         )}
 
-        {/* The sequence. A saved table skips the first three: it already has a source and
-            a key, and there is no parser here to read its rules back into those pickers. */}
+        {/* The sequence. The name first: it is the one answer that depends on nothing, and
+            a page that opens by asking for a word is easier to start than one that opens by
+            asking about the data model. A saved table skips the three after it — it already
+            has a source and a key, and there is no parser here to read its rules back into
+            those pickers. */}
+        <Step
+          n={1}
+          title="What will you call it?"
+          hint="The table's name in the REST API, the change feed and the reducers file. Lower snake case."
+        >
+          <input
+            value={name}
+            onChange={(e) => rename(e.target.value)}
+            spellCheck={false}
+            autoFocus={!editing}
+            placeholder={source ? `${source.name}_per_owner` : "orders_per_trader"}
+            className={`${field} w-full max-w-sm font-mono text-[15px]`}
+          />
+        </Step>
+
         {sources && isFilled(sources) && source && !editing && (
           <>
             <Step
-              n={1}
+              n={2}
               title="What are you folding?"
-              hint="A reducer folds one source's records. Until that's chosen there are no field names to offer, which is why it comes first."
+              hint="The source whose records bring rows into being. It needn't be the only one — a rule further down can fold a second source into the same table, which is how a balance goes up on deposits and down on withdrawals."
               answer={
                 table && (
                   <>
@@ -405,7 +433,7 @@ function StateTableEditor() {
             </Step>
 
             <Step
-              n={2}
+              n={3}
               title="What is one row?"
               hint="The key, and the table's whole meaning: one row per seller counts sellers, one row per day draws a chart. Everything else is derived from this."
               answer={
@@ -462,7 +490,7 @@ function StateTableEditor() {
             </Step>
 
             <Step
-              n={3}
+              n={4}
               title="Start from a shape"
               hint={
                 table
@@ -479,9 +507,11 @@ function StateTableEditor() {
                   keyField={keyField}
                   amountField={amountField}
                   existing={existing}
-                  onPick={(name, picked) => {
-                    setStarted(name);
-                    setTable(picked);
+                  onPick={(shape, picked) => {
+                    setStarted(shape);
+                    const chosen = name.trim() || picked.name;
+                    setName(chosen);
+                    setTable({ ...picked, name: chosen });
                   }}
                 />
               )}
@@ -494,14 +524,14 @@ function StateTableEditor() {
             {code === null && (
               <>
                 <Step
-                  n={editing ? 1 : 4}
+                  n={editing ? 2 : 5}
                   title="What does it keep?"
                   hint="One column per thing a row remembers, and the key ticked. An integer starts at zero so a rule can add to a row that doesn't exist yet; a column with no default has to be set by any rule that creates one."
                 >
                   <Columns table={table} onChange={setTable} />
                 </Step>
                 <Step
-                  n={editing ? 2 : 5}
+                  n={editing ? 3 : 6}
                   title="How does each record change it?"
                   hint="One rule per way a row moves. Several sources can write the same column — deposits add, withdrawals subtract — and the rules apply in this order, once per record, in version order."
                 >
@@ -514,31 +544,22 @@ function StateTableEditor() {
                 </Step>
               </>
             )}
-            <Step
-              n={editing ? 3 : 6}
-              title={code === null ? "What gets saved" : "Your reducers"}
-              hint={
-                code === null
-                  ? "The builder writes this. Take it over and the builder stops being the source of truth — there is no parser here to read an edited file back into pickers."
-                  : undefined
-              }
-            >
+            <details className="group ml-10" open={code !== null}>
+              <summary className="cursor-pointer text-xs text-on-surface-variant marker:text-on-surface-variant hover:text-on-surface">
+                {code === null
+                  ? "What gets saved, as reducer code"
+                  : "Your reducers — yours now, and what gets saved"}
+              </summary>
+              <div className="mt-3 flex flex-col gap-4">
             <Card className="overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant px-4 py-2">
                 {/* No filename: there is a file under this, but only the people who run
                     Nineveh themselves ever see it, and everyone else is just writing
                     reducers. */}
                 <span className="text-xs text-on-surface-variant">
-                  {code === null ? (
-                    <>
-                      Your reducers, as this will be saved
-                    </>
-                  ) : (
-                    <>
-                      Your reducers — <span className="text-on-surface">yours now</span>. The
-                      builder above is what it started from.
-                    </>
-                  )}
+                  {code === null
+                    ? "Written by the steps above"
+                    : "The builder above is only what this started from"}
                 </span>
                 <div className="flex items-center gap-3">
                   {code === null && (
@@ -588,7 +609,8 @@ function StateTableEditor() {
                 . Nineveh checks them as you type, and saving is held until they pass.
               </p>
             )}
-            </Step>
+              </div>
+            </details>
             {listed.length > 0 && (
               <Notice tone="warning" title="Not finished yet">
                 <ul className="list-inside list-disc">
@@ -976,17 +998,9 @@ function Columns({
   return (
     <>
       <Card className="overflow-hidden">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-outline-variant bg-surface-container-high px-4 py-3">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-on-surface-variant">Table name</span>
-            <input
-              value={table.name}
-              onChange={(e) => set({ name: e.target.value })}
-              spellCheck={false}
-              className={`${field} w-72 font-mono text-[15px]`}
-            />
-          </label>
-          <p className="pb-2 text-xs text-on-surface-variant">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-high px-4 py-2">
+          <span className="font-mono text-sm text-on-surface">{table.name || "this table"}</span>
+          <p className="text-xs text-on-surface-variant">
             {keyColumns.length > 0 ? (
               <>
                 one row per{" "}
