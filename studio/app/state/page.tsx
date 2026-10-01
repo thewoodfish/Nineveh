@@ -297,11 +297,7 @@ function StateTableEditor() {
 
   return (
     <div>
-      <PageHeader title={editing ? `Edit ${editing}` : "New state table"}>
-        <Button tone="primary" disabled={saving || !checked?.ok} onClick={() => void save()}>
-          {saving ? "Saving…" : editing ? "Save changes" : "Create table"}
-        </Button>
-      </PageHeader>
+      <PageHeader title={editing ? `Edit ${editing}` : "New state table"} />
 
       <div className="flex max-w-6xl flex-col gap-0 px-8 py-6">
         {code === null && !editing && (
@@ -562,6 +558,28 @@ function StateTableEditor() {
                 />
               </Step>
             )}
+
+            {/* The last thing in the sequence, where the sequence ends. It was in the
+                header, which is the one place on the page you are never looking while
+                you work — and it said nothing about why it was disabled. */}
+            <div className="ml-11 flex flex-wrap items-center gap-x-4 gap-y-2 pb-6">
+              <Button
+                tone="primary"
+                disabled={saving || !checked?.ok}
+                onClick={() => void save()}
+              >
+                {saving ? "Saving…" : editing ? "Save changes" : "Create table"}
+              </Button>
+              <span className="text-xs text-on-surface-variant">
+                {checked?.ok
+                  ? editing
+                    ? "Saving pins the layouts again and restarts the project."
+                    : "It builds into the project's schema and starts folding from the cursor."
+                  : checked
+                    ? "Not yet: the problem is above."
+                    : "Checking what you have written…"}
+              </span>
+            </div>
           </>
         )}
       </div>
