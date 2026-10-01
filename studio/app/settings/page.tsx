@@ -38,13 +38,16 @@ export default function Settings() {
       <div className="flex max-w-4xl flex-col gap-8 px-6 py-6">
         <Section
           title="Configuration"
-          hint="The file the CLI reads. Saving a change that alters what's built rebuilds the tables beside the served ones and swaps them in once caught up."
+          hint="What Studio has configured this project to follow and build, as the file the CLI reads. Keep a copy in your repo."
         >
           <ConfigRow name={current.name} />
         </Section>
 
         {hosted && (
-          <Section title="API keys" hint="Send one with every request to this project's API.">
+          <Section
+            title="API keys"
+            hint="Send one with every request to this project's API. Safe in browser code — revoke one any time."
+          >
             <ApiKeys project={current.name} api={current.api} />
           </Section>
         )}
