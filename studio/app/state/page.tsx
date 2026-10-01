@@ -132,7 +132,9 @@ function Step({
           {answer && <span className="min-w-0 text-xs text-on-surface-variant">{answer}</span>}
           {action && <span className="ml-auto">{action}</span>}
         </div>
-        {hint && <p className="mt-1 max-w-2xl text-xs leading-relaxed text-on-surface-variant">{hint}</p>}
+        {hint && !answer && (
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-on-surface-variant">{hint}</p>
+        )}
         {children && <div className="mt-3">{children}</div>}
       </div>
     </section>

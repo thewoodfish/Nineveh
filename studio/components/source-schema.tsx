@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import type { SourceInfo } from "@/lib/api";
 
 /**
@@ -17,6 +19,8 @@ import type { SourceInfo } from "@/lib/api";
  * has the focus — so the reference and the palette are one list, rather than two that have
  * to agree.
  */
+const FIRST = 8;
+
 export function SourceSchema({
   source,
   deleted = false,
@@ -27,8 +31,10 @@ export function SourceSchema({
   deleted?: boolean;
   onInsert?: (name: string) => void;
 }) {
+  const [all, setAll] = useState(false);
   const fields = deleted ? source.delete_fields : source.fields;
-  const nullable = fields.some((f) => f.nullable);
+  const shown = all ? fields : fields.slice(0, FIRST);
+  const nullable = shown.some((f) => f.nullable);
   return (
     <section className="overflow-hidden rounded-md border border-outline-variant">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-secondary-container px-3 py-2 text-on-secondary-container">
@@ -61,17 +67,18 @@ export function SourceSchema({
         ) : (
           /* Two named columns rather than a wide grid of pairs: one reading order, and
              the header says which half is the type instead of leaving it to be inferred.
-             Capped and scrolled, because a resource can carry thirty fields. */
-          <div className="max-h-56 overflow-y-auto px-3 pt-1.5 pb-2.5">
+             Shortened rather than scrolled, because a resource can carry thirty fields and
+             a scroller inside a page swallows the wheel on its way past. */
+          <div className="px-3 pt-1.5 pb-2.5">
             <table className="w-auto text-left">
-              <thead className="sticky top-0 bg-surface-container">
+              <thead>
                 <tr className="text-[10px] font-medium tracking-[0.08em] text-on-surface-variant uppercase">
                   <th className="pb-1 pr-16 font-medium">Field</th>
                   <th className="pb-1 font-medium">Type</th>
                 </tr>
               </thead>
               <tbody className="font-mono text-xs">
-                {fields.map((f) => (
+                {shown.map((f) => (
                   <tr key={f.name} className="border-t border-outline-variant/60">
                     <td className="py-1 pr-16 align-baseline">
                       {onInsert ? (
@@ -97,6 +104,15 @@ export function SourceSchema({
                 ))}
               </tbody>
             </table>
+            {fields.length > FIRST && (
+              <button
+                type="button"
+                onClick={() => setAll(!all)}
+                className="mt-1.5 text-xs text-on-surface-variant hover:text-on-surface"
+              >
+                {all ? "Show fewer" : `Show all ${fields.length} fields`}
+              </button>
+            )}
           </div>
         )}
       </div>
