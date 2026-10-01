@@ -4,13 +4,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { ExpressionInput, type Insert, type Name } from "@/components/expression";
-import { FUNCTIONS } from "@/lib/language";
 import { SourceSchema } from "@/components/source-schema";
 import { Button, Card, Notice, Select } from "@/components/ui";
 import {
   ApiError,
-  type ColumnType,
   type FieldInfo,
   type Preview,
   type SourceInfo,
@@ -20,69 +17,22 @@ import {
 } from "@/lib/api";
 import { useProject } from "@/lib/project";
 import {
-  COLUMN_TYPES,
-  type Column,
-  type Rule,
   type StateTable,
   amountFields,
   blank,
   countPer,
-  isInteger,
+  dslTableBlock,
   dailyPer,
   keyFields,
   latestPer,
   liveSet,
-  problems,
   sumPer,
-  toDsl,
   withLookup,
   withDslTable,
   withReducersKey,
   reducersFile,
 } from "@/lib/state-table";
 
-
-/**
- * Everything a rule's expressions can refer to: the record's fields, the row's own
- * columns, the transaction, the functions, and a row of another table (ADR 0019). A
- * name that is both a field and a column is offered qualified, since a bare one would
- * be ambiguous.
- */
-function namesInScope(
-  source: string,
-  fields: FieldInfo[],
-  columns: Column[],
-  tables: Table[],
-): Name[] {
-  const clash = (name: string) =>
-    fields.some((f) => f.name === name) && columns.some((c) => c.name === name);
-  return [
-    ...fields.map((f) => ({
-      label: clash(f.name) ? `${source}.${f.name}` : f.name,
-      detail: f.type,
-      kind: "field" as const,
-    })),
-    ...columns.map((c) => ({
-      label: clash(c.name) ? `row.${c.name}` : c.name,
-      detail: c.type,
-      kind: "column" as const,
-    })),
-    { label: "tx.version", detail: "u64", kind: "builtin" as const },
-    { label: "tx.timestamp", detail: "u64", kind: "builtin" as const },
-    ...tables.map((t) => ({
-      label: `${t.name}[${t.key.join(", ")}]`,
-      insert: `${t.name}[`,
-      detail: "table",
-      kind: "table" as const,
-    })),
-    ...FUNCTIONS.map((f) => ({
-      label: f,
-      insert: `${f}(`,
-      detail: "function",
-      kind: "function" as const,
-    })),
-  ];
-}
 
 /** Narrows a list to one with a first element, so pickers always have a selection. */
 function isFilled(sources: SourceInfo[]): sources is [SourceInfo, ...SourceInfo[]] {
@@ -155,18 +105,6 @@ function Undo({ onClick, children }: { onClick: () => void; children: ReactNode 
 }
 
 /**
- * What a column of `type` should hold before any rule has written it.
- *
- * Zero for the integers, which is what makes a fold total: `count = count + 1` on a row
- * that doesn't exist yet is only legal because the column it writes starts somewhere.
- * Nothing for the rest — there is no obvious empty address or id, and a rule that creates
- * a row has to say what goes there.
- */
-function defaultFor(type: ColumnType): string {
-  return isInteger(type) ? "0" : "";
-}
-
-/**
  * Design a state table: a key, typed columns, and rules that fold records into them.
  * The control plane checks the config as it's written, and saving it rebuilds the
  * project's tables (ADR 0016).
@@ -201,6 +139,7 @@ function StateTableEditor() {
   // Held apart from the table so it can be answered before there is one. A shape brings
   // its own name (`listed_per_owner`), which is only taken if nothing has been typed.
   const [name, setName] = useState("");
+  const editor = useRef<HTMLTextAreaElement>(null);
   // Set once the reducer has been taken over by hand. From then on it is the file, and
   // the builder above is only what it started from — there is no parser here to read an
   // edited file back into pickers, and pretending otherwise would silently discard it.
@@ -229,11 +168,7 @@ function StateTableEditor() {
         .stateTable(project, editing)
         .then((saved) => {
           setName(saved.name);
-          setTable({
-            name: saved.name,
-            columns: saved.columns,
-            rules: saved.rules,
-          });
+          setTable({ name: saved.name, columns: saved.columns, rules: saved.rules });
         })
         .catch(failed);
     }
@@ -252,22 +187,27 @@ function StateTableEditor() {
   // it if it doesn't have one yet: those two together are what gets saved.
   const file = project ? reducersFile(project) : "";
   const yaml = useMemo(
-    () => (table && config ? withReducersKey(config, file) : null),
-    [table, config, file],
+    () => (code !== null && config ? withReducersKey(config, file) : null),
+    [code, config, file],
   );
-  const dsl = useMemo(
-    () => (code !== null ? code : table ? withDslTable(reducers ?? "", table) : null),
-    [code, table, reducers],
-  );
-  // What the builder can tell is unfinished. Hand-written code is checked by the server
-  // instead, which is the only thing that can read it.
-  const listed = table && code === null ? problems(table) : [];
+  const dsl = code;
   // Renaming the table in the file has to move the preview and the redirect with it.
-  const tableName = (code !== null ? declaredName(code) : null) ?? table?.name ?? "";
+  const tableName = (code !== null ? declaredName(code) : null) ?? name.trim();
+
+  // Opening a saved table puts its file on screen. One already in the reducers file is
+  // shown as it was written, comments and all; one declared in YAML is rendered into it.
+  useEffect(() => {
+    if (!editing || !table || reducers === undefined || code !== null) return;
+    setCode(
+      dslTableBlock(reducers ?? "", table.name) !== null
+        ? (reducers ?? "")
+        : withDslTable(reducers ?? "", table),
+    );
+  }, [editing, table, reducers, code]);
 
   // Check with the server as it's written, once it's worth checking.
   useEffect(() => {
-    if (!project || !yaml || !dsl || listed.length > 0) {
+    if (!project || !yaml || !dsl) {
       setChecked(null);
       return;
     }
@@ -283,7 +223,7 @@ function StateTableEditor() {
         );
     }, 400);
     return () => clearTimeout(timer);
-  }, [project, yaml, dsl, listed.length]);
+  }, [project, yaml, dsl]);
 
   // The source is whichever is chosen, or the first one as soon as there are any: a
   // picker with nothing selected has no question to ask.
@@ -292,6 +232,24 @@ function StateTableEditor() {
   const amounts = source ? amountFields(source) : [];
   const keyField = keys.find((f) => f.name === keyName) ?? keys[0];
   const amountField = amounts.find((f) => f.name === amountName) ?? amounts[0];
+
+  const schemaFor =
+    (editing ? sources?.find((s) => s.name === table?.rules[0]?.on) : source) ?? source;
+
+  /** Put a field in the file at the cursor, which is what the schema is for. */
+  const insertField = (field: string) => {
+    const box = editor.current;
+    if (!box || code === null) return;
+    const at = box.selectionStart;
+    const to = box.selectionEnd;
+    const text = `r.${field}`;
+    setCode(code.slice(0, at) + text + code.slice(to));
+    // After React has written the new value, put the caret after what was inserted.
+    requestAnimationFrame(() => {
+      box.focus();
+      box.setSelectionRange(at + text.length, at + text.length);
+    });
+  };
 
   const pickSource = (next: SourceInfo) => {
     setSourceName(next.name);
@@ -307,11 +265,7 @@ function StateTableEditor() {
     setTable(null);
   };
 
-  /** Renaming has to move the table with it, since that is what gets written. */
-  const rename = (next: string) => {
-    setName(next);
-    if (table) setTable({ ...table, name: next });
-  };
+  const rename = setName;
 
   const save = useCallback(async () => {
     if (!project || !yaml || !dsl || !tableName) return;
@@ -346,7 +300,7 @@ function StateTableEditor() {
       </PageHeader>
 
       <div className="flex max-w-6xl flex-col gap-6 px-8 py-6">
-        {!table && !editing && (
+        {code === null && !editing && (
           <div>
             <h2 className="text-xl font-semibold tracking-tight">What should this table hold?</h2>
             <p className="mt-1.5 max-w-2xl text-sm text-on-surface-variant text-pretty">
@@ -407,14 +361,14 @@ function StateTableEditor() {
               title="What are you folding?"
               hint="The source whose records bring rows into being. It needn't be the only one — a rule further down can fold a second source into the same table, which is how a balance goes up on deposits and down on withdrawals."
               answer={
-                table && (
+                code !== null && (
                   <>
                     <span className="font-mono text-on-surface">{source.name}</span> ({source.kind})
                   </>
                 )
               }
             >
-              {!table && (
+              {code === null && (
                 <div className="flex flex-col gap-4">
                   <Select
                     value={source.name}
@@ -439,7 +393,7 @@ function StateTableEditor() {
               title="What is one row?"
               hint="The key, and the table's whole meaning: one row per seller counts sellers, one row per day draws a chart. Everything else is derived from this."
               answer={
-                table &&
+                code !== null &&
                 keyField && (
                   <>
                     one row per{" "}
@@ -448,7 +402,7 @@ function StateTableEditor() {
                 )
               }
             >
-              {!table && (
+              {code === null && (
                 <div className="flex flex-wrap items-end gap-3">
                   {keys.length > 0 ? (
                     <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
@@ -495,14 +449,13 @@ function StateTableEditor() {
               n={4}
               title="Start from a shape"
               hint={
-                table
+                code !== null
                   ? undefined
                   : "Each one arrives with its columns typed, its defaults set and its widths wide enough to hold the totals. Change anything about it afterwards."
               }
-              answer={table && started && <span className="text-on-surface">{started}</span>}
-              action={table && <Undo onClick={startOver}>Start over</Undo>}
+              answer={code !== null && started && <span className="text-on-surface">{started}</span>}
             >
-              {!table && (
+              {code === null && (
                 <Shapes
                   source={source}
                   sources={sources}
@@ -513,7 +466,7 @@ function StateTableEditor() {
                     setStarted(shape);
                     const chosen = name.trim() || picked.name;
                     setName(chosen);
-                    setTable({ ...picked, name: chosen });
+                    setCode(withDslTable(reducers ?? "", { ...picked, name: chosen }));
                   }}
                 />
               )}
@@ -521,107 +474,55 @@ function StateTableEditor() {
           </>
         )}
 
-        {sources && table && (
+        {sources && code !== null && (
           <>
-            {code === null && (
-              <>
-                <Step
-                  n={editing ? 2 : 5}
-                  title="What does it keep?"
-                  hint="One column per thing a row remembers, and the key ticked. An integer starts at zero so a rule can add to a row that doesn't exist yet; a column with no default has to be set by any rule that creates one."
-                >
-                  <Columns table={table} onChange={setTable} />
-                </Step>
-                <Step
-                  n={editing ? 3 : 6}
-                  title="How does each record change it?"
-                  hint="One rule per way a row moves. Several sources can write the same column — deposits add, withdrawals subtract — and the rules apply in this order, once per record, in version order."
-                >
-                  <Rules
-                    sources={sources}
-                    existing={existing}
-                    table={table}
-                    onChange={setTable}
+            {/* Columns and rules were two steps and two forms. They are one file: the
+                DSL declares what a row holds and what writes it in the same block, and
+                splitting that across two surfaces gave one table two sources of truth.
+                The schema sits beside the code instead of inside every rule, where it
+                used to be repeated once per rule. */}
+            <Step
+              n={editing ? 2 : 5}
+              title="Write the fold"
+              hint="What a row holds, and what each record does to it. `b` is the row this rule writes and `r` is the record it is folding; `tx.version` and `tx.timestamp` are the only clock there is."
+              action={
+                <Undo onClick={startOver}>
+                  {editing ? "Discard changes" : "Start over"}
+                </Undo>
+              }
+            >
+              <div className="grid gap-4 lg:grid-cols-[1fr_20rem] lg:items-start">
+                <Card className="overflow-hidden">
+                  {/* `wrap="off"`: a file that reflows mid-identifier is unreadable, so
+                      it scrolls sideways the way an editor does. */}
+                  <textarea
+                    ref={editor}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    spellCheck={false}
+                    wrap="off"
+                    aria-label="Reducers"
+                    rows={Math.min(34, Math.max(14, code.split("\n").length + 1))}
+                    className="block w-full resize-y overflow-auto bg-surface-container-low px-4 py-3 font-mono text-[13px] leading-relaxed text-on-surface outline-none focus:ring-1 focus:ring-inset focus:ring-primary"
                   />
-                </Step>
-              </>
-            )}
-            <details className="group ml-10" open={code !== null}>
-              <summary className="cursor-pointer text-xs text-on-surface-variant marker:text-on-surface-variant hover:text-on-surface">
-                {code === null
-                  ? "What gets saved, as reducer code"
-                  : "Your reducers — yours now, and what gets saved"}
-              </summary>
-              <div className="mt-3 flex flex-col gap-4">
-            <Card className="overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant px-4 py-2">
-                {/* No filename: there is a file under this, but only the people who run
-                    Nineveh themselves ever see it, and everyone else is just writing
-                    reducers. */}
-                <span className="text-xs text-on-surface-variant">
-                  {code === null
-                    ? "Written by the steps above"
-                    : "The builder above is only what this started from"}
-                </span>
-                <div className="flex items-center gap-3">
-                  {code === null && (
-                    <button
-                      type="button"
-                      onClick={() => setCode(withDslTable(reducers ?? "", table))}
-                      className="text-xs font-medium text-primary hover:underline"
+                </Card>
+                <div className="flex flex-col gap-3">
+                  {schemaFor && <SourceSchema source={schemaFor} onInsert={insertField} />}
+                  <p className="text-xs leading-relaxed text-on-surface-variant">
+                    This is the whole reducers file, in the{" "}
+                    <a
+                      href="https://www.nineveh.dev/docs/reducers"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline"
                     >
-                      Edit it yourself
-                    </button>
-                  )}
-                  <Undo onClick={startOver}>
-                    {code !== null ? "Throw it away" : editing ? "Discard changes" : "Start over"}
-                  </Undo>
+                      reducer language
+                    </a>
+                    . Nineveh checks it as you type, and saving is held until it passes.
+                  </p>
                 </div>
               </div>
-              {/* `wrap="off"`: a file that reflows mid-identifier is unreadable, so it
-                  scrolls sideways the way an editor does. */}
-              {code === null ? (
-                <pre className="max-h-64 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">
-                  {toDsl(table)}
-                </pre>
-              ) : (
-                <textarea
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  spellCheck={false}
-                  wrap="off"
-                  autoFocus
-                  aria-label="Reducers"
-                  rows={Math.min(30, Math.max(12, code.split("\n").length + 1))}
-                  className="block w-full resize-y overflow-auto bg-surface-container-low px-4 py-3 font-mono text-[13px] leading-relaxed text-on-surface outline-none focus:ring-1 focus:ring-inset focus:ring-primary"
-                />
-              )}
-            </Card>
-            {code !== null && (
-              <p className="text-xs leading-relaxed text-on-surface-variant">
-                These are all of this project's reducers, in the{" "}
-                <a
-                  href="https://www.nineveh.dev/docs/reducers"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  reducer language
-                </a>
-                . Nineveh checks them as you type, and saving is held until they pass.
-              </p>
-            )}
-              </div>
-            </details>
-            {listed.length > 0 && (
-              <Notice tone="warning" title="Not finished yet">
-                <ul className="list-inside list-disc">
-                  {listed.map((problem) => (
-                    <li key={problem}>{problem}</li>
-                  ))}
-                </ul>
-              </Notice>
-            )}
+            </Step>
             {checked && !checked.ok && (
               <Notice tone="error" title="Nineveh can't build that">
                 <pre className="overflow-x-auto font-mono text-xs whitespace-pre">
@@ -631,7 +532,7 @@ function StateTableEditor() {
             )}
             {project && yaml && tableName && (
               <Step
-                n={editing ? 4 : 7}
+                n={editing ? 3 : 6}
                 title="Try it on real data"
                 hint="Folded over a window of the chain without saving anything. It is the only step that can tell you the rules are right rather than merely legal."
               >
@@ -640,7 +541,6 @@ function StateTableEditor() {
                   yaml={yaml}
                   reducers={dsl ?? undefined}
                   name={tableName}
-                  columns={code === null ? table.columns.map((c) => c.name) : null}
                   ready={checked?.ok === true}
                 />
               </Step>
@@ -662,18 +562,12 @@ function PreviewCard({
   yaml,
   reducers,
   name,
-  columns,
   ready,
 }: {
   project: string;
   yaml: string;
   reducers: string | undefined;
   name: string;
-  /**
-   * The columns to show, in the order the builder put them in — or `null` for a reducer
-   * written by hand, whose columns Studio can't know until the rows come back.
-   */
-  columns: string[] | null;
   ready: boolean;
 }) {
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -698,8 +592,9 @@ function PreviewCard({
     }
   }, [project, yaml, reducers, name]);
 
-  const shown =
-    columns ?? [...new Set((preview?.rows ?? []).flatMap((row) => Object.keys(row)))];
+  // The file says what the columns are and Studio doesn't parse it, so they come back
+  // with the rows.
+  const shown = [...new Set((preview?.rows ?? []).flatMap((row) => Object.keys(row)))];
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-outline-variant px-4 py-2">
@@ -979,503 +874,5 @@ function Template({
       <div className="mt-1 text-xs leading-relaxed text-on-surface-variant">{body}</div>
       {shape && <Shape table={shape} />}
     </button>
-  );
-}
-
-/** The name, and the typed columns a row is made of. */
-function Columns({
-  table,
-  onChange,
-}: {
-  table: StateTable;
-  onChange: (table: StateTable) => void;
-}) {
-  const set = (changes: Partial<StateTable>) => onChange({ ...table, ...changes });
-  const setColumn = (index: number, changes: Partial<Column>) =>
-    set({
-      columns: table.columns.map((c, i) => (i === index ? { ...c, ...changes } : c)),
-    });
-
-  const keyColumns = table.columns.filter((c) => c.key).map((c) => c.name);
-  return (
-    <>
-      <Card className="overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-high px-4 py-2">
-          <span className="font-mono text-sm text-on-surface">{table.name || "this table"}</span>
-          <p className="text-xs text-on-surface-variant">
-            {keyColumns.length > 0 ? (
-              <>
-                one row per{" "}
-                <span className="font-mono text-on-surface">{keyColumns.join(", ")}</span>
-              </>
-            ) : (
-              "no key yet: tick the columns that identify a row"
-            )}
-          </p>
-        </div>
-
-        <div className="overflow-x-auto px-4 pt-3 pb-4">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-on-surface-variant">
-              <tr>
-                <th className="py-1 font-medium">Name</th>
-                <th className="py-1 font-medium">Type</th>
-                <th className="py-1 font-medium">Default</th>
-                <th className="py-1 font-medium">Null?</th>
-                <th className="py-1 font-medium" title="What identifies a row">
-                  Key?
-                </th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {table.columns.map((column, index) => (
-                <tr key={index}>
-                  <td className="py-1 pr-2">
-                    <input
-                      value={column.name}
-                      onChange={(e) => setColumn(index, { name: e.target.value })}
-                      spellCheck={false}
-                      className={`${field} w-40 font-mono`}
-                    />
-                  </td>
-                  <td className="py-1 pr-2">
-                    <Select
-                      value={column.type}
-                      onChange={(e) => {
-                        const type = e.target.value as ColumnType;
-                        // Carry the default with the type: an integer column wants its
-                        // zero, and keeping `0` on an address column would be a lie.
-                        const kept = column.default === defaultFor(column.type);
-                        setColumn(index, {
-                          type,
-                          default: kept ? defaultFor(type) : column.default,
-                        });
-                      }}
-                      className="font-mono"
-                    >
-                      {COLUMN_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </Select>
-                  </td>
-                  <td className="py-1 pr-2">
-                    <input
-                      value={column.default}
-                      onChange={(e) => setColumn(index, { default: e.target.value })}
-                      placeholder="none"
-                      spellCheck={false}
-                      className={`${field} w-24 font-mono`}
-                    />
-                  </td>
-                  <td className="py-1 pr-2">
-                    <input
-                      type="checkbox"
-                      checked={column.nullable}
-                      onChange={(e) => setColumn(index, { nullable: e.target.checked })}
-                      className="accent-primary"
-                    />
-                  </td>
-                  <td className="py-1 pr-2">
-                    <input
-                      type="checkbox"
-                      checked={column.key}
-                      onChange={(e) => setColumn(index, { key: e.target.checked })}
-                      className="accent-primary"
-                    />
-                  </td>
-                  <td className="py-1">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        set({
-                          columns: table.columns.filter((_, i) => i !== index),
-                        })
-                      }
-                      className="text-xs text-on-surface-variant hover:text-error"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <Button
-            className="mt-3"
-            onClick={() =>
-              set({
-                columns: [
-                  ...table.columns,
-                  {
-                    name: "",
-                    type: "u64",
-                    default: defaultFor("u64"),
-                    nullable: false,
-                    key: false,
-                  },
-                ],
-              })
-            }
-          >
-            Add column
-          </Button>
-        </div>
-      </Card>
-    </>
-  );
-}
-
-/** One rule per way a record changes a row. */
-function Rules({
-  sources,
-  existing,
-  table,
-  onChange,
-}: {
-  sources: SourceInfo[];
-  existing: Table[];
-  table: StateTable;
-  onChange: (table: StateTable) => void;
-}) {
-  const set = (changes: Partial<StateTable>) => onChange({ ...table, ...changes });
-  const setRule = (index: number, changes: Partial<Rule>) =>
-    set({
-      rules: table.rules.map((r, i) => (i === index ? { ...r, ...changes } : r)),
-    });
-
-  return (
-    <div className="flex flex-col gap-4">
-      {table.rules.map((rule, index) => (
-        <RuleCard
-          key={index}
-          n={index + 1}
-          sources={sources}
-          existing={existing}
-          table={table}
-          rule={rule}
-          onChange={(changes) => setRule(index, changes)}
-          onRemove={() => set({ rules: table.rules.filter((_, i) => i !== index) })}
-        />
-      ))}
-      <Button
-        onClick={() =>
-          set({
-            rules: [
-              ...table.rules,
-              {
-                on: sources[0]?.name ?? "",
-                deleted: false,
-                when: "",
-                keys: [],
-                sets: [],
-                removes: false,
-              },
-            ],
-          })
-        }
-      >
-        Add rule
-      </Button>
-    </div>
-  );
-}
-
-function RuleCard({
-  n,
-  sources,
-  existing,
-  table,
-  rule,
-  onChange,
-  onRemove,
-}: {
-  n: number;
-  sources: SourceInfo[];
-  existing: Table[];
-  table: StateTable;
-  rule: Rule;
-  onChange: (changes: Partial<Rule>) => void;
-  onRemove: () => void;
-}) {
-  const source = sources.find((s) => s.name === rule.on);
-  const readable = rule.deleted ? (source?.delete_fields ?? []) : (source?.fields ?? []);
-  const keyColumns = table.columns.filter((c) => c.key);
-  const mapped = new Set(rule.keys.map((k) => k.column));
-  // A key column the record doesn't name has to be mapped.
-  const unnamed = keyColumns.filter(
-    (c) => !mapped.has(c.name) && !readable.some((f) => f.name === c.name),
-  );
-
-  // A placeholder naming a field of the chosen source, rather than an `amount` that may
-  // well not exist on it: the example is only useful if it could be typed as it stands.
-  // Numeric and readable here: a `.deleted` rule sees only the key fields, so the whole
-  // source's amounts are the wrong list to draw from.
-  const counted = source
-    ? amountFields(source).filter((f) => readable.some((r) => r.name === f.name))
-    : [];
-  const example = `${counted[0]?.name ?? readable[0]?.name ?? "amount"} > 0`;
-
-  // Both a field of the record and a column of the row: a bare name would be ambiguous.
-  const ambiguous = (name: string) =>
-    readable.some((f) => f.name === name) && table.columns.some((c) => c.name === name);
-
-  const names = namesInScope(rule.on, readable, table.columns, existing);
-  // A key picks the row, so it can't read the row's own columns.
-  const keyNames = namesInScope(rule.on, readable, [], existing);
-  // The expression box the chips type into: whichever one has the focus.
-  const active = useRef<Insert | null>(null);
-  const chip = (text: string, insert = text) => (
-    <button
-      key={text}
-      type="button"
-      // Keep the focused input focused, so the chip knows where to type.
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={() => active.current?.insert(insert)}
-      title="Click to put it in the expression you're editing"
-      className="rounded bg-surface-container-high px-1.5 py-0.5 font-mono hover:bg-secondary-container"
-    >
-      {text}
-    </button>
-  );
-
-  return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-high px-4 py-2">
-        <span className="text-xs font-semibold tracking-wide text-on-surface-variant uppercase">
-          Rule {n}
-        </span>
-        <span className="truncate text-xs text-on-surface-variant">
-          {rule.removes
-            ? "deletes the row"
-            : `sets ${rule.sets.length || "no"} column${rule.sets.length === 1 ? "" : "s"}`}
-          {" on "}
-          <span className="font-mono text-on-surface">
-            {rule.on}
-            {rule.deleted ? ".deleted" : ""}
-          </span>
-        </span>
-      </div>
-      <div className="p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
-            On each record from
-            <Select
-              value={rule.on}
-              onChange={(e) => onChange({ on: e.target.value, deleted: false })}
-              className="font-mono"
-            >
-              {sources.map((s) => (
-                <option key={s.name} value={s.name}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-          {source?.deletes && (
-            <label className="flex items-center gap-2 pb-2 text-xs text-on-surface-variant">
-              <input
-                type="checkbox"
-                checked={rule.deleted}
-                onChange={(e) => onChange({ deleted: e.target.checked })}
-                className="accent-primary"
-              />
-              when it&apos;s deleted
-            </label>
-          )}
-          <label className="flex flex-1 basis-64 flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
-            Only when (optional)
-            <ExpressionInput
-              value={rule.when}
-              onChange={(when) => onChange({ when })}
-              names={names}
-              placeholder={example}
-              onActive={(handle) => (active.current = handle)}
-            />
-            {/* A labelled box with a placeholder says nothing about what is legal in it.
-                What it needs said is that blank is the common answer and that the thing
-                must be true or false: a bare `price` is a type error, not a truth test. */}
-            <span className="text-[11px] font-normal text-on-surface-variant">
-              True or false, not a value — blank runs on every record. Compare with{" "}
-              <span className="font-mono text-on-surface">{"== != < <= > >="}</span>, join with{" "}
-              <span className="font-mono text-on-surface">{"&& || !"}</span>.{" "}
-              <a
-                href="https://www.nineveh.dev/docs/expressions"
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary hover:underline"
-              >
-                The language
-              </a>
-            </span>
-          </label>
-          <button
-            type="button"
-            onClick={onRemove}
-            className="pb-2 text-xs text-on-surface-variant hover:text-error"
-          >
-            Remove rule
-          </button>
-        </div>
-
-        {source && (
-          <div className="mt-3">
-            <SourceSchema
-              source={source}
-              deleted={rule.deleted}
-              // A name that is also a column of this table has to be inserted qualified,
-              // the same way `namesInScope` offers it, or the expression is ambiguous.
-              onInsert={(name) =>
-                active.current?.insert(ambiguous(name) ? `${rule.on}.${name}` : name)
-              }
-            />
-          </div>
-        )}
-
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-on-surface-variant">
-          Also in scope:
-          {table.columns.filter((c) => !c.key).map((c) => chip(c.name))}
-          {chip("tx.timestamp")}
-          {existing.map((t) => chip(`${t.name}[${t.key.join(", ")}]`, `${t.name}[`))}
-        </div>
-
-        {unnamed.length > 0 && (
-          <p className="mt-2 text-xs text-on-warning-container">
-            Say where {unnamed.map((c) => c.name).join(", ")} comes from: the record has no field of
-            that name.
-          </p>
-        )}
-
-        <label className="mt-3 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={rule.removes}
-            onChange={(e) => onChange({ removes: e.target.checked })}
-            className="accent-primary"
-          />
-          Delete the row instead of setting columns
-        </label>
-
-        {!rule.removes && (
-          <div className="mt-2">
-            <div className="text-xs font-medium text-on-surface-variant">Set</div>
-            {rule.sets.map((assignment, index) => (
-              <div key={index} className="mt-1.5 flex items-center gap-2">
-                <Select
-                  value={assignment.column}
-                  onChange={(e) =>
-                    onChange({
-                      sets: rule.sets.map((s, i) =>
-                        i === index ? { ...s, column: e.target.value } : s,
-                      ),
-                    })
-                  }
-                  className={`${field} w-44 font-mono`}
-                >
-                  <option value="">column…</option>
-                  {table.columns
-                    .filter((c) => !c.key)
-                    .map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                </Select>
-                <span className="text-on-surface-variant">=</span>
-                <ExpressionInput
-                  value={assignment.expression}
-                  onChange={(expression) =>
-                    onChange({
-                      sets: rule.sets.map((s, i) => (i === index ? { ...s, expression } : s)),
-                    })
-                  }
-                  names={names}
-                  placeholder="count + 1"
-                  onActive={(handle) => (active.current = handle)}
-                />
-                <button
-                  type="button"
-                  onClick={() => onChange({ sets: rule.sets.filter((_, i) => i !== index) })}
-                  className="text-xs text-on-surface-variant hover:text-error"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-            <Button
-              className="mt-2"
-              onClick={() =>
-                onChange({
-                  sets: [...rule.sets, { column: "", expression: "" }],
-                })
-              }
-            >
-              Add a column to set
-            </Button>
-          </div>
-        )}
-
-        {(rule.keys.length > 0 || unnamed.length > 0) && (
-          <div className="mt-3">
-            <div className="text-xs font-medium text-on-surface-variant">
-              Key columns from the record
-            </div>
-            {rule.keys.map((assignment, index) => (
-              <div key={index} className="mt-1.5 flex items-center gap-2">
-                <Select
-                  value={assignment.column}
-                  onChange={(e) =>
-                    onChange({
-                      keys: rule.keys.map((k, i) =>
-                        i === index ? { ...k, column: e.target.value } : k,
-                      ),
-                    })
-                  }
-                  className={`${field} w-44 font-mono`}
-                >
-                  <option value="">key column…</option>
-                  {keyColumns.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
-                <span className="text-on-surface-variant">=</span>
-                <ExpressionInput
-                  value={assignment.expression}
-                  onChange={(expression) =>
-                    onChange({
-                      keys: rule.keys.map((k, i) => (i === index ? { ...k, expression } : k)),
-                    })
-                  }
-                  names={keyNames}
-                  placeholder="key"
-                  onActive={(handle) => (active.current = handle)}
-                />
-                <button
-                  type="button"
-                  onClick={() => onChange({ keys: rule.keys.filter((_, i) => i !== index) })}
-                  className="text-xs text-on-surface-variant hover:text-error"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-            <Button
-              className="mt-2"
-              onClick={() =>
-                onChange({
-                  keys: [...rule.keys, { column: unnamed[0]?.name ?? "", expression: "" }],
-                })
-              }
-            >
-              Map a key column
-            </Button>
-          </div>
-        )}
-      </div>
-    </Card>
   );
 }
