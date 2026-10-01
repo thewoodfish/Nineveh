@@ -233,16 +233,12 @@ function StateTableEditor() {
   const keyField = keys.find((f) => f.name === keyName) ?? keys[0];
   const amountField = amounts.find((f) => f.name === amountName) ?? amounts[0];
 
-  const schemaFor =
-    (editing ? sources?.find((s) => s.name === table?.rules[0]?.on) : source) ?? source;
-
-  /** Put a field in the file at the cursor, which is what the schema is for. */
-  const insertField = (field: string) => {
+  /** Put `text` in the file at the cursor, which is what the palette is for. */
+  const insert = (text: string) => {
     const box = editor.current;
     if (!box || code === null) return;
     const at = box.selectionStart;
     const to = box.selectionEnd;
-    const text = `r.${field}`;
     setCode(code.slice(0, at) + text + code.slice(to));
     // After React has written the new value, put the caret after what was inserted.
     requestAnimationFrame(() => {
@@ -512,7 +508,7 @@ function StateTableEditor() {
                   />
                 </Card>
                 <div className="flex flex-col gap-3">
-                  {schemaFor && <SourceSchema source={schemaFor} onInsert={insertField} />}
+                  <Palette sources={sources} tables={existing} onInsert={insert} />
                   <p className="text-xs leading-relaxed text-on-surface-variant">
                     This is the whole reducers file, in the{" "}
                     <a
@@ -675,6 +671,138 @@ function cell(value: unknown): string {
   if (value === null || value === undefined) return "—";
   const text = typeof value === "object" ? JSON.stringify(value) : String(value);
   return text.length > 40 ? `${text.slice(0, 39)}…` : text;
+}
+
+/**
+ * Everything the file can name, to put in it.
+ *
+ * A reducers file folds as many sources as it likes and reads other tables by key
+ * (ADR 0019), so one source's schema was never the whole vocabulary — this is the rest
+ * of it. Clicking a name writes it at the cursor; opening one shows what it carries,
+ * because the question when you are halfway through an expression is "what is this
+ * called", and the answer was only ever in a completion popup you had to know to open.
+ */
+function Palette({
+  sources,
+  tables,
+  onInsert,
+}: {
+  sources: SourceInfo[] | null;
+  /** The tables a rule may read. Logs are left out: they have no rows to look up. */
+  tables: Table[];
+  onInsert: (text: string) => void;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  // Keep the editor focused, so the insertion knows where it is going.
+  const hold = (e: React.MouseEvent) => e.preventDefault();
+
+  const row = (
+    key: string,
+    name: string,
+    kind: string,
+    detail: string,
+    children: { name: string; type: string; insert: string }[],
+  ) => (
+    <div key={key} className="border-t border-outline-variant/60 first:border-t-0">
+      <div className="flex items-center gap-2 py-1">
+        <button
+          type="button"
+          onMouseDown={hold}
+          onClick={() => onInsert(name)}
+          title={`Put ${name} in the file`}
+          className="-mx-1 min-w-0 truncate rounded px-1 font-mono text-xs text-on-surface hover:bg-primary-container"
+        >
+          {name}
+        </button>
+        <span className="shrink-0 text-[10px] text-on-surface-variant">{kind}</span>
+        <button
+          type="button"
+          onMouseDown={hold}
+          onClick={() => setOpen(open === key ? null : key)}
+          aria-expanded={open === key}
+          className="ml-auto shrink-0 text-[10px] text-on-surface-variant hover:text-on-surface"
+        >
+          {open === key ? "hide" : detail}
+        </button>
+      </div>
+      {open === key && (
+        <table className="mb-1.5 w-full text-left">
+          <tbody className="font-mono text-[11px]">
+            {children.map((c) => (
+              <tr key={c.name}>
+                <td className="py-0.5">
+                  <button
+                    type="button"
+                    onMouseDown={hold}
+                    onClick={() => onInsert(c.insert)}
+                    title={`Put ${c.insert} in the file`}
+                    className="-mx-1 rounded px-1 text-left whitespace-nowrap text-on-surface hover:bg-primary-container"
+                  >
+                    {c.name}
+                  </button>
+                </td>
+                <td className="py-0.5 pl-3 text-on-surface-variant">{c.type}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+
+  return (
+    <section className="overflow-hidden rounded-md border border-outline-variant">
+      <div className="bg-secondary-container px-3 py-2 text-on-secondary-container">
+        <h3 className="text-[11px] font-semibold tracking-[0.08em] uppercase">In scope</h3>
+      </div>
+      <div className="px-3 py-2">
+        <p className="pb-1 text-[10px] tracking-[0.08em] text-on-surface-variant uppercase">
+          Sources
+        </p>
+        {(sources ?? []).map((source) =>
+          row(
+            `s:${source.name}`,
+            source.name,
+            source.kind,
+            `${source.fields.length} fields`,
+            source.fields.map((f) => ({
+              name: f.name,
+              type: f.type,
+              // A handler's record is `r` in everything the shapes write.
+              insert: `r.${f.name}`,
+            })),
+          ),
+        )}
+        {tables.length > 0 && (
+          <>
+            <p className="pt-2.5 pb-1 text-[10px] tracking-[0.08em] text-on-surface-variant uppercase">
+              Tables you can read
+            </p>
+            {tables.map((table) =>
+              row(
+                `t:${table.name}`,
+                table.name,
+                table.kind,
+                `keyed by ${table.key.join(", ")}`,
+                table.columns.map((c) => ({
+                  name: c.name,
+                  type: c.type,
+                  // How the DSL reads another table: by key, and `null` when it has
+                  // no such row (ADR 0019). The key is the caller's to fill in — it is
+                  // an expression, not a name, so there is nothing here to guess.
+                  insert: `${table.name}.get()?.${c.name}`,
+                })),
+              ),
+            )}
+          </>
+        )}
+        <p className="pt-2.5 text-[11px] leading-relaxed text-on-surface-variant">
+          <span className="font-mono">tx.version</span> and{" "}
+          <span className="font-mono">tx.timestamp</span> are the only clock there is.
+        </p>
+      </div>
+    </section>
+  );
 }
 
 /**
