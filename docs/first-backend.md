@@ -122,17 +122,21 @@ https://api.nineveh.dev/projects/market
 
 ## 4. Query it
 
+Your tables are yours: every read needs a key, and a key opens one project. Make one in
+Studio under **Settings → API keys**, and keep it — it is shown once.
+
 ```sh
 BASE=https://api.nineveh.dev/projects/market
+AUTH="Authorization: Bearer nvk_…"         # Settings → API keys
 
-curl $BASE/v1/tables                       # what tables exist, and their columns
-curl "$BASE/v1/tables/sold?limit=3"
+curl -H "$AUTH" $BASE/v1/tables            # what tables exist, and their columns
+curl -H "$AUTH" "$BASE/v1/tables/sold?limit=3"
 ```
 
 Then something more specific: the ten priciest sales, dearest first.
 
 ```sh
-curl "$BASE/v1/tables/sold?limit=10&order=price.desc"
+curl -H "$AUTH" "$BASE/v1/tables/sold?limit=10&order=price.desc"
 ```
 
 Look closely at `price` in the response:
@@ -158,7 +162,7 @@ amounts is not, and the type is the same either way.
 In a third terminal:
 
 ```sh
-curl -N "$BASE/v1/changes"
+curl -N -H "$AUTH" "$BASE/v1/changes"
 ```
 
 Every row change is pushed as it commits, and with `play.sh` still running you are
@@ -173,7 +177,7 @@ data: {"version":"11292175483","table":"sold","op":"insert","key":{…},"row":{�
 Kill it, wait a moment, then resume from where you stopped:
 
 ```sh
-curl -N "$BASE/v1/changes?after=11292175483.0"
+curl -N -H "$AUTH" "$BASE/v1/changes?after=11292175483.0"
 ```
 
 Nothing is missed. That `id` is how a browser resumes too: `EventSource` sends it
@@ -263,7 +267,7 @@ reached until the new one swaps in. This project holds minutes of history, so th
 seconds:
 
 ```sh
-curl "$BASE/v1/tables/sellers?order=revenue.desc&limit=5"
+curl -H "$AUTH" "$BASE/v1/tables/sellers?order=revenue.desc&limit=5"
 ```
 
 That block is the whole of [Reducers](reducers.md), and it is where the rest of your

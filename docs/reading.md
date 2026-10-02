@@ -3,21 +3,30 @@
 Three ways out: a REST API for asking questions, a change feed for being told, and
 webhooks for being told somewhere else. All three serve the same tables.
 
-Everything below uses your project's base URL:
+Everything below uses your project's base URL and a key:
 
 ```sh
 BASE=https://api.nineveh.dev/projects/myproject
+AUTH="Authorization: Bearer nvk_…"    # Settings → API keys
 ```
 
-Running it yourself, that's `http://127.0.0.1:4000/projects/myproject` instead. Nothing
-else on this page changes.
+**Every read needs a key, and a key opens one project.** Nothing here is public: a
+request without one is refused, and a key made for another project is refused too. Make
+one under **Settings → API keys** — it is shown once, so keep it then. Three places it
+can go, and they are tried in this order: an `Authorization: Bearer` header, an `apikey`
+header, or `?apikey=` on the URL. Prefer a header. The query string is there for
+`EventSource`, which cannot set one, and a key in a URL ends up in logs and `Referer`
+headers.
+
+Running it yourself, that's `http://127.0.0.1:4000/projects/myproject` instead, and a
+plane in local mode serves loopback without a key. Nothing else on this page changes.
 
 ## 1. REST
 
 ```sh
-curl $BASE/v1/status                  # cursor, lag, whether a rebuild is running
-curl $BASE/v1/tables                  # every table: kind, key, columns
-curl $BASE/v1/tables/balances         # rows
+curl -H "$AUTH" $BASE/v1/status           # cursor, lag, whether a rebuild is running
+curl -H "$AUTH" $BASE/v1/tables           # every table: kind, key, columns
+curl -H "$AUTH" $BASE/v1/tables/balances  # rows
 ```
 
 Rows come back with the query that produced them:
@@ -42,7 +51,7 @@ Rows come back with the query that produced them:
 | `<column>=<value>` | keep rows where the column equals that |
 
 ```sh
-curl "$BASE/v1/tables/balances?balance>1000&order=balance.desc&limit=10"
+curl -H "$AUTH" "$BASE/v1/tables/balances?balance>1000&order=balance.desc&limit=10"
 ```
 
 ### Two things about every row
@@ -59,7 +68,7 @@ and it's what lets you tell a stale copy from a current one.
 Server-Sent Events, in commit order:
 
 ```sh
-curl -N "$BASE/v1/changes"
+curl -N -H "$AUTH" "$BASE/v1/changes"
 ```
 
 ```
@@ -85,8 +94,8 @@ const feed = new EventSource(`${BASE}/v1/changes?apikey=nvk_…`);
 feed.addEventListener("change", (e) => apply(JSON.parse(e.data)));
 ```
 
-`EventSource` can't set headers, which is why the key goes in the query string here.
-Get one from **Settings → API keys**.
+`EventSource` can't set headers, which is why the key goes in the query string here
+rather than in one.
 
 **A `reset` event means the tables were rebuilt** and swapped in. Your cached copy is
 from the old build; reload it.
