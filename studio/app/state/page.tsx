@@ -238,7 +238,31 @@ function StateTableEditor() {
   );
   const dsl = code;
   // Renaming the table in the file has to move the preview and the redirect with it.
-  const tableName = (code !== null ? declaredName(code) : null) ?? name.trim();
+  /**
+   * The table this page is working on, which is not always the first one in the file.
+   *
+   * The reducers file holds every table the project folds, so making a second one leaves
+   * two `export const`s in the editor — and taking the first was taking someone else's.
+   * The preview ran on it and saving redirected to it, both quietly.
+   *
+   * The one that belongs to this page is the one the server's copy of the file hasn't
+   * got. That stays true when you rename it in the editor, which is how a rename still
+   * takes the preview and the redirect with it.
+   */
+  const tableName = useMemo(() => {
+    if (code === null) return name.trim();
+    const inFile = declaredNames(code);
+    const saved = new Set(declaredNames(detail?.reducers ?? ""));
+    const added = inFile.filter((n) => !saved.has(n));
+    // One table the server hasn't got is this page's, even once it has been renamed.
+    if (added.length === 1) return added[0]!;
+    // Otherwise the name this page set, then the one it was opened to edit.
+    const mine = name.trim();
+    if (mine && inFile.includes(mine)) return mine;
+    if (editing && inFile.includes(editing)) return editing;
+    // Last resort: the one appended most recently, which is where this page writes.
+    return added.at(-1) ?? inFile.at(-1) ?? mine;
+  }, [code, detail, editing, name]);
   /**
    * Tables the project's reducers file declares that the one in the editor doesn't.
    *
@@ -761,9 +785,11 @@ function PreviewCard({
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-outline-variant px-4 py-2">
         <span className="text-xs text-on-surface-variant">
+          {/* Named, because the file may declare several tables and only one of them is
+              being folded here. */}
           {preview
-            ? `${preview.row_count} row${preview.row_count === 1 ? "" : "s"} from ${preview.transactions} recent transactions`
-            : "What these rules would produce, from the chain's recent transactions"}
+            ? `${preview.row_count} row${preview.row_count === 1 ? "" : "s"} in ${name} from ${preview.transactions} recent transactions`
+            : `What ${name} would hold, from the chain's recent transactions`}
         </span>
         <Button onClick={() => void run()} disabled={!ready || running}>
           {running ? "Folding…" : preview ? "Run again" : "Preview rows"}
@@ -817,19 +843,15 @@ function PreviewCard({
   );
 }
 
-/** Every table a reducers file declares, in the order it declares them. */
+/**
+ * Every table a reducers file declares, in the order it declares them.
+ *
+ * A regex rather than a parse: the real parser is in Rust, this only needs the names, and
+ * getting one wrong costs a preview, not a save — the server is what rejects a file that
+ * doesn't declare what it claims to.
+ */
 function declaredNames(code: string): string[] {
   return [...code.matchAll(/^export const ([A-Za-z_][A-Za-z0-9_]*) = table\(/gm)].map((m) => m[1]!);
-}
-
-/**
- * The table a hand-written reducers file declares first, so the preview and the redirect
- * follow a rename made in the file. A regex rather than a parse: the real parser is in
- * Rust, this only needs the name, and getting it wrong costs a preview, not a save — the
- * server is what rejects a file that doesn't declare it.
- */
-function declaredName(code: string): string | null {
-  return declaredNames(code)[0] ?? null;
 }
 
 /** One preview value, short enough for a cell. */
