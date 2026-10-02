@@ -627,3 +627,26 @@ body {
   border-radius: 0.75rem;
   border: 1px solid oklch(1 0 0 / 0.1);
 }
+
+/* A screenshot sits in the text column like everything else. It is tempting to break it
+   out wider — a product screen is wider than 68ch of prose — but the page has a contents
+   rail on the right whose position moves with the viewport, so any fixed breakout is
+   correct at one width and overlapping at another. These figures show the shape of a
+   screen rather than its small print, and the caption carries the detail. */
+.prose .shot {
+  margin-top: 2.25rem;
+  margin-bottom: 2.25rem;
+}
+
+.prose .shot img {
+  display: block;
+  width: 100%;
+}
+
+.prose .shot figcaption {
+  margin-top: 0.85rem;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: oklch(1 0 0 / 0.42);
+}
+

@@ -188,6 +188,19 @@ export function render(doc: Doc): Rendered {
     return `<div class="snippet"><pre><code${attr}>${escapeHtml(text)}\n</code></pre>${COPY_BUTTON}</div>\n`;
   };
 
+  // Images are written `![alt](images/x.jpg)`, which is the path that works on GitHub,
+  // where the markdown is read straight out of `docs/`. Here they come from
+  // `public/docs/`, which `scripts/doc-images.mjs` fills before the build. A caption is
+  // the image's title text — `![alt](src "caption")` — because a screenshot in a doc
+  // nearly always needs a line saying what to look at.
+  renderer.image = ({ href, title, text }) => {
+    const src = href.startsWith("images/") ? `/docs/${href.slice("images/".length)}` : href;
+    const caption = title
+      ? `<figcaption>${marked.parseInline(title) as string}</figcaption>`
+      : "";
+    return `<figure class="shot"><img src="${escapeHtml(src)}" alt="${escapeHtml(text)}" loading="lazy" />${caption}</figure>`;
+  };
+
   // Links out of the repo's docs point at sibling markdown files; on the site they
   // point at sibling routes.
   renderer.link = ({ href, title: linkTitle, tokens }) => {

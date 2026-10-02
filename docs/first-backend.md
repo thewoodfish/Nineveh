@@ -201,6 +201,8 @@ questions before it shows you any code:
 3. **What is one row?** — **one row per** `seller`, **adding up** `price`.
 4. **Start from a shape** — pick **Total per row**.
 
+![Studio's new state table page: the source ticked, its schema listed, the key chosen, and the shapes to start from](images/state-table-questions.jpg "Every field the source carries is on screen while you pick the key, so you are choosing from what exists rather than from memory.")
+
 Studio writes it as a reducer you can read:
 
 ```ts
@@ -227,6 +229,8 @@ halts a project rather than wrapping quietly.
 
 Everything below the questions is yours to change — the file is the table now, and the
 questions above it are only what it started from.
+
+![Studio's reducer editor, with the generated file beside a panel listing the project's sources and tables](images/state-table-editor.jpg "The four answers collapse to one line each, and the file takes over. Every source and table you can name is listed beside it; Nineveh checks as you type and holds the save until it builds.")
 
 It is also not quite right. `total_price` is what buyers paid, and the market keeps 2.5%
 of that, so it isn't what the seller got. Studio had no way to know: the fee is sitting

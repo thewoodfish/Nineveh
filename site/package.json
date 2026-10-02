@@ -4,8 +4,8 @@
   "private": true,
   "description": "Nineveh's landing page: a static site, deployed on its own.",
   "scripts": {
-    "dev": "next dev --port 3001",
-    "build": "next build",
+    "dev": "node scripts/doc-images.mjs && next dev --port 3001",
+    "build": "node scripts/doc-images.mjs && next build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

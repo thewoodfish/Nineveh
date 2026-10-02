@@ -3,3 +3,6 @@ node_modules/
 out/
 next-env.d.ts
 *.tsbuildinfo
+
+# Copied from `docs/images/` by `scripts/doc-images.mjs` before every build.
+public/docs/
