@@ -6,9 +6,13 @@ The tables you fold yourself live in a [reducers file](reducers.md) beside it.
 
 **You don't normally write this file.** Studio writes it as you add sources, tables and
 webhooks, and the config page shows it to read rather than to edit. This page is here
-for when you want to know what Studio wrote, or when you run Nineveh yourself and the
-CLI is your only interface — `nineveh init` reads it to pin the Move layouts it needs,
-and `nineveh validate` reports every problem at the line it's on.
+for when you want to know what Studio wrote.
+
+It's also the file you do write by hand if you
+[run Nineveh yourself](https://github.com/thewoodfish/Nineveh/blob/main/SELF_HOSTED.md),
+where your config lives in your own repository and is reviewed like code: `nineveh init`
+reads it to pin the Move layouts it needs, and `nineveh validate` reports every problem
+at the line it's on.
 
 ```yaml
 name: vault

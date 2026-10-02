@@ -60,25 +60,28 @@ create.
 with filtering, sorting and paging, plus a live change feed. Point your frontend at it,
 or have Nineveh post changes to your backend as signed webhooks.
 
-**4. Then add your own tables** — the part that matters. A handler, or a form in
-Studio that writes one for you:
+**4. Then add your own tables** — the part that matters. Studio asks four short
+questions — what to call it, which sources it folds, what one row is, what shape to
+start from — and writes the first draft. Then it gets out of the way, because the
+interesting part is never the draft:
 
 ```ts
 export const sellers = table({
   key:     { seller: address },
-  columns: { sold: u64.default(0), revenue: u64.default(0) },
+  columns: { sold: u64.default(0), revenue: u128.default(0) },
 })
 
 on(sold, (s) => {
   const row = sellers.row(s.seller)
   row.sold    += 1
-  row.revenue += s.price - s.fee
+  row.revenue += u128(s.price - s.fee)
 })
 ```
 
 Read it as a sentence: *when a `sold` event arrives, find that seller's row, count the
 sale and add what they made.* That's per-seller revenue the contract never stored, and
-never had to.
+never had to. `u128` because a column adding up `u64` prices outgrows a `u64`
+eventually, and Nineveh halts rather than wrapping.
 
 The language is six statements and reads like TypeScript, which is the point: the
 people who need this write TypeScript. Nothing is executed — it compiles to a
@@ -152,9 +155,11 @@ Don't put these on the site:
 - **Other query languages.** The API is REST (`/v1/tables`, `/v1/tables/{name}`) plus
   the change feed (`/v1/changes`, Server-Sent Events) and signed webhooks. Nothing
   shipped.
-- **Quotas and limits.** No usage metering, no plans, no billing.
-- **Hosted deployment.** It runs, it's built to be hosted, and nothing is deployed for
-  customers yet.
+- **Billing.** One tier exists and its limits are real and enforced — stored bytes,
+  networks, how far back a project may start (`crates/nineveh-control/src/tier.rs`).
+  What doesn't exist is anything to charge with: no plans, no payment, no invoices.
+  The site says "Free to build on. Always." and a paid tier "Coming soon", which is
+  the honest version of this and should stay that way until there is one.
 - **Live aggregate subscriptions.** You can subscribe to rows and tables changing, not
   to "the top 10 by volume, kept correct" — that's a much harder problem and
   deliberately out of scope for v1.

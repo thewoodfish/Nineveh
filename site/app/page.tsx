@@ -1,5 +1,6 @@
 import { Button, Code, Heading, Lede, Logo, Register, Section } from "@/components/bits";
 import { Pricing } from "@/components/pricing";
+import { Core } from "@/components/core";
 import { Shots } from "@/components/shots";
 import { Builds } from "@/components/builds";
 import { Nav } from "@/components/nav";
@@ -110,6 +111,7 @@ export default function Home() {
         <Problem />
         <Layers />
         <Machinery />
+        <Core />
         <Shots />
         <BuiltFor />
         <Pricing />
