@@ -34,6 +34,7 @@ fn ctx() -> Context {
             event("opened"),
             event("closed"),
             event("sold"),
+            event("cancelled"),
             SourceInfo {
                 name: "vaults".into(),
                 has_deletes: true,

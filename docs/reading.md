@@ -103,7 +103,10 @@ webhooks:
     rows: true
 ```
 
-`on` takes `<table>.changed`, `.inserted`, `.updated` or `.deleted`. Each POST carries
+`on` takes `<table>.changed`, `.inserted`, `.updated` or `.deleted`. A `log` table is
+append-only — its rows are written once and never touched again — so `.updated` and
+`.deleted` on a log are subscriptions that can never fire. Studio won't offer them.
+Each POST carries
 up to 100 changes in order:
 
 ```json

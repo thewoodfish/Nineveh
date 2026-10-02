@@ -116,6 +116,21 @@ on(vaults.deleted, (v) => {
 Every expression can also read `tx.version` and `tx.timestamp`: the transaction's
 number and its block time in microseconds.
 
+**One table, as many handlers as it has sources.** Most real tables need more than one:
+a balance goes up on deposits and down on withdrawals, a listing opens on one event and
+closes on another. Write a handler per source, each finding the same row:
+
+```ts
+on(deposits,    (d) => { balances.row(d.user).balance += u128(d.amount) })
+on(withdrawals, (w) => { balances.row(w.user).balance -= u128(w.amount) })
+```
+
+The catch is the key. Every handler has to reach the row from its own record, so the
+key has to be something **all** of them carry — `user` exists on both events above. If
+one source doesn't have it, that source belongs in a different table. Studio only
+offers keys that every source you ticked can name, so you meet this as a shorter list
+rather than as an error.
+
 ## 4. The six statements
 
 That is the entire language.
@@ -257,6 +272,21 @@ on(closed, (c) => {
 })
 ```
 
+**A balance that goes up and down.** The reason a table usually has more than one
+handler. Subtracting below zero halts the project, which is the correct outcome: it
+means the fold disagrees with the chain, and a silently clamped balance would be worse
+than a stopped one.
+
+```ts
+export const balances = table({
+  key:     { user: address },
+  columns: { balance: u128.default(0) },
+})
+
+on(deposits,    (d) => { balances.row(d.user).balance += u128(d.amount) })
+on(withdrawals, (w) => { balances.row(w.user).balance -= u128(w.amount) })
+```
+
 **Counting only some records.** A condition around the write.
 
 ```ts
@@ -345,12 +375,62 @@ aren't writing. A rule reads its own row directly; for any other, use
 checked once the contract's real types are known, and at that point the location is the
 expression, not the character. The message names the column and both types.
 
-## 11. Editor support
+## 11. What Studio writes for you
 
-`nineveh init` writes a `nineveh.d.ts` beside your config, holding your sources' fields
-and your tables' columns. With it, an editor completes `d.` and `b.`, and `tsc` catches
-a misspelled field before you save.
+Studio builds the first draft of a table from four answers — a name, the sources, the
+key, and a shape — and then gets out of the way. Two things in that draft are worth
+recognising.
 
-It is a convenience, not the checker. It simplifies integer widths to `bigint` and says
-nothing about exactness or overflow. `nineveh validate` is what decides whether a
-project is correct, and it checks against the real Move types.
+**The comment above a table says what it holds.** It describes the table in words, and
+it's yours to edit or delete like any other line.
+
+```ts
+// How many cancelled records each seller has, and when the last one arrived.
+```
+
+**A handler that only records an arrival is a placeholder.** When you fold more than one
+source, Studio builds the shape from the first and can't know what the others do to a
+row — a sale might close it, decrement it, or overwrite a price. Rather than guess, it
+writes a handler that compiles, is true, and says it isn't finished:
+
+```ts
+// How many cancelled records each seller has, and when the last one arrived. Also folds sold.
+export const cancelled_per_seller = table({
+  key:     { seller: address },
+  columns: {
+    count:     u64.default(0),
+    last_seen: u64.default(0),
+  },
+})
+
+on(cancelled, (r) => {
+  const b = cancelled_per_seller.row(r.seller)
+  b.count += 1
+  b.last_seen = tx.timestamp
+})
+
+on(sold, (r) => {
+  // What a sold record does to this row — this only records that one arrived.
+  const b = cancelled_per_seller.row(r.seller)
+  b.last_seen = tx.timestamp
+})
+```
+
+Replace the body with what a `sold` record actually means. The draft previews and saves
+as it stands, so you can watch real rows arrive before you finish it — but a table left
+like this is only recording that something happened, not what.
+
+## 12. Editor support
+
+If you run Nineveh yourself, `nineveh init` writes a `nineveh.d.ts` beside your config,
+holding your sources' fields and your tables' columns. With it, an editor completes `d.`
+and `b.`, and `tsc` catches a misspelled field before you save.
+
+In Studio you don't need it: the editor checks the file against the real Move types as
+you type, lists every source and table beside it with their fields, and holds **Save**
+until the project builds.
+
+Neither is the final word on correctness in the way the compiler is. `nineveh.d.ts`
+simplifies integer widths to `bigint` and says nothing about exactness or overflow; the
+check Studio runs, and `nineveh validate`, are what decide whether a project is correct,
+against the real Move types.

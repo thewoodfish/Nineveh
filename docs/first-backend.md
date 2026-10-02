@@ -191,15 +191,20 @@ running total per seller would mean an extra write on every trade, and writes co
 so almost no contract keeps one. The information is all there in the events you are
 already following. Nobody has added it up.
 
-That is what a reducer is for. In Studio, **New state table**, then:
+That is what a reducer is for. In Studio, **New state table**. It asks four short
+questions before it shows you any code:
 
-- **Fold records from** `sold`
-- **One row per** `seller`
-- **Adding up** `price`
+1. **What will you call it?** — already filled in, and it keeps up with your answers
+   below until you type over it.
+2. **What are you folding?** — tick `sold`. You can tick more than one source; a table
+   that goes up on one event and down on another needs two. One table here, so one tick.
+3. **What is one row?** — **one row per** `seller`, **adding up** `price`.
+4. **Start from a shape** — pick **Total per row**.
 
-Pick **Total per row**. Studio writes it as a reducer you can read:
+Studio writes it as a reducer you can read:
 
 ```ts
+// price on every sold record, added up per seller, in a u128 wide enough to hold the total.
 export const price_per_seller = table({
   key:     { seller: address },
   columns: {
@@ -219,6 +224,9 @@ Read it before saving it. `sold` is the source you ticked in §2. The handler sa
 one sale does: find that seller's row, add the price to a running total, count the sale.
 `u128` because a `u64` column adding up `u64` prices overflows eventually, and overflow
 halts a project rather than wrapping quietly.
+
+Everything below the questions is yours to change — the file is the table now, and the
+questions above it are only what it started from.
 
 It is also not quite right. `total_price` is what buyers paid, and the market keeps 2.5%
 of that, so it isn't what the seller got. Studio had no way to know: the fee is sitting

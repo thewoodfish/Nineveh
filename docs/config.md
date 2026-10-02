@@ -1,15 +1,20 @@
 # Configuration
 
 Every key in `nineveh.yaml`. A project's config names the chain data to follow
-(**sources**), the tables built from it (**state**), and how they're served.
+(**sources**), the tables copied straight from it (**state**), and how they're served.
+The tables you fold yourself live in a [reducers file](reducers.md) beside it.
 
-`nineveh init` reads it to pin the Move layouts it needs, and `nineveh validate`
-reports every problem at the line it's on.
+**You don't normally write this file.** Studio writes it as you add sources, tables and
+webhooks, and the config page shows it to read rather than to edit. This page is here
+for when you want to know what Studio wrote, or when you run Nineveh yourself and the
+CLI is your only interface — `nineveh init` reads it to pin the Move layouts it needs,
+and `nineveh validate` reports every problem at the line it's on.
 
 ```yaml
 name: vault
 network: mainnet
 start_version: auto
+reducers: ./vault.nineveh.ts
 
 sources:
   deposits:    { event: 0xabc::vault::DepositEvent }
@@ -18,16 +23,8 @@ sources:
   positions:   { table: 0xabc::vault::Vault.positions }
 
 state:
-  balances:
-    key: [user]
-    columns:
-      user:    address
-      balance: { type: u128, default: 0 }
-    reduce:
-      - { on: deposits,    set: { balance: "balance + amount" } }
-      - { on: withdrawals, set: { balance: "balance - amount" } }
-  vaults:    { mirror: vaults }
-  positions: { mirror: positions }
+  vaults:      { mirror: vaults }
+  positions:   { mirror: positions }
   deposit_log: { log: deposits }
 
 api: { rest: true }
@@ -37,6 +34,11 @@ webhooks:
     on: [balances.changed]
 ```
 
+`balances` isn't in `state` above. It's a fold — a running total per user, which no
+single record holds — so it's declared in `vault.nineveh.ts` along with the handlers
+that write it. Webhooks subscribe to it the same way regardless of which file declares
+it.
+
 ## Top level
 
 | Key | Required | Meaning |
@@ -45,8 +47,8 @@ webhooks:
 | `network` | yes | `mainnet`, `testnet` or `devnet`. |
 | `start_version` | no | `auto` (default) or a transaction version. `nineveh init` resolves `auto` to the first transaction that touched any of the sources' contract addresses, which is at or before their modules were published, and pins it in `nineveh.lock`. So nothing relevant is missed, and every build starts at the same place. |
 | `sources` | yes | At least one source. |
-| `state` | yes* | At least one state table. Optional when `reducers` declares them. |
-| `reducers` | no | A [reducers file](reducers.md) holding the reduce tables and the handlers that write them, named relative to this file. |
+| `state` | yes* | The `mirror` and `log` tables: copies of what the chain already holds. Optional when `reducers` declares the project's tables instead. |
+| `reducers` | yes* | A [reducers file](reducers.md), named relative to this file, holding the tables you fold yourself and the handlers that write them. Optional when `state` alone is enough. A project needs at least one table from one of the two. |
 | `api` | no | `rest`, `true` by default. |
 | `webhooks` | no | Where state changes are delivered. |
 
@@ -86,7 +88,15 @@ because the stream can't filter on resource or table writes.
 
 ## State tables
 
-Every table is built one way: `reduce`, `mirror` or `log`.
+A table is built one of three ways. Two of them are copies of what the chain already
+holds, and they're configured here:
+
+- **`mirror`**: the latest value of a resource or a table item, one row each.
+- **`log`**: every record a source produced, append-only, one row each.
+
+The third is a **reduce** table — a fold you write, like a running total or a count per
+day. Those are declared in the [reducers file](reducers.md), not here; see
+[your own folds](#your-own-folds) below.
 
 ### `mirror`: the latest value
 
@@ -131,72 +141,28 @@ One append-only row per event from an `event` source. The key is `version` and
 field of the event. An enum event gets its columns as described for
 [`mirror`](#mirror-the-latest-value).
 
-### `reduce`: your own fold
+### Your own folds
 
-A reduce table can be written here, or in the [reducers file](reducers.md), which is
-event-first, with the handler for one event in one place. The two build the same thing; this section
-describes the YAML form.
+Everything above is a copy of something the chain already holds. The tables that are
+yours — a total per user, a count per day, a leaderboard — are **reduce** tables, and
+they aren't written here. They're declared in the [reducers file](reducers.md) that
+`reducers:` names, where a table's columns and the handlers that write them sit
+together:
 
+```ts
+export const balances = table({
+  key:     { user: address },
+  columns: { balance: u128.default(0) },
+})
 
-```yaml
-balances:
-  key: [user]
-  columns:
-    user:    address
-    balance: { type: u128, default: 0 }
-    memo:    { type: string, nullable: true }
-  reduce:
-    - on: deposits
-      set: { balance: "balance + amount" }
-    - on: withdrawals
-      when: "amount > 0"
-      set: { balance: "balance - amount" }
-    - on: vaults.deleted
-      key: { user: "address" }
-      delete: true
+on(deposits, (d) => {
+  balances.row(d.user).balance += u128(d.amount)
+})
 ```
 
-- **`key`**: the columns that identify a row.
-- **`columns`**: each column's type, written either as `name: type` or as
-  `name: { type, default, nullable }`. A column is `nullable` if its value may be absent.
-  `default` is its value when a new row is created by a rule that doesn't set it.
-- **`reduce`**: rules applied to each record, in version order:
-  - `on`: a source name for its events or writes, or `<source>.deleted` for its
-    deletes (resources and tables only).
-  - `when`: optional; the rule applies only when this is true.
-  - `key`: optional expressions for key columns. A key column that isn't listed takes
-    the record's field of the same name, which must exist with the column's type.
-  - Then either `set: { column: "expression" }`, which creates or updates the row, or
-    `delete: true`, which deletes it.
-
-Any `set` rule may be the one that creates a row, so every non-key column needs a value
-from each `set` rule: set it there, give it a `default`, or make it `nullable`.
-
-Rules run in the order they're listed, each seeing the one before. Within one `set`,
-every expression sees the row as it was before the rule, so `set: { a: "b", b: "a" }`
-swaps. A `key` expression reads only the record, since the key is what finds the row.
-
-**What a rule's expressions can read.** Columns of the row are read by name. From the
-record:
-
-| Record | Fields |
-| --- | --- |
-| event | the event struct's fields |
-| resource write | the resource's fields, plus `address` |
-| resource delete | `address` |
-| table write | `handle`, `key`, `value` |
-| table delete | `handle`, `key` |
-
-For a Move enum (versioned layouts like `V1`/`V2`), a rule can read the fields every
-variant has with the same type.
-
-A rule can also read any other `reduce` or `mirror` table a row at a time, by key:
-`markets[market].fee_bps` is that row's `fee_bps`, or `null` if there's no such row.
-See [reading another table](expressions.md#reading-another-table).
-
-Expressions are typed, exact integer arithmetic up to 256 bits, with no floating point.
-The full language is in [expressions.md](expressions.md). Quote expressions when they
-contain YAML punctuation: `"balance + amount"`.
+One file, both halves of the project: `nineveh.yaml` says what to follow and what to
+serve, the reducers file says what to compute. Studio writes the first and you write
+the second — and [Reducers](reducers.md) is the page for it.
 
 ### Column types
 
@@ -209,13 +175,11 @@ contain YAML punctuation: `"balance + amount"`.
 | `bytes` | `vector<u8>` |
 | `json` | any struct, vector or other structured value |
 
-An `Option<T>` field fits a `nullable` column of `T`'s type. Integers never widen
-implicitly: put a `u64` into a `u128` column with an expression.
+These are the same type names the reducers file uses, so a column means the same thing
+whichever file declares it.
 
-Defaults are written as YAML values: `0`, `true`, `"text"`. Wide integers can be quoted
-decimal strings (`"340282366920938463463374607431768211455"`). Addresses must be quoted
-(`"0x1"`), because YAML reads an unquoted `0x1` as the number 1. Bytes are `"0x"`
-followed by hex.
+An `Option<T>` field fits a nullable column of `T`'s type. Integers never widen
+implicitly: put a `u64` into a `u128` column with an expression.
 
 ## `webhooks`
 
@@ -233,7 +197,7 @@ webhooks:
 | Key | Required | Meaning |
 | --- | --- | --- |
 | `url` | yes | Where deliveries go. |
-| `on` | yes | The changes it wants: `<table>.changed`, `.inserted`, `.updated` or `.deleted`. |
+| `on` | yes | The changes it wants: `<table>.changed`, `.inserted`, `.updated` or `.deleted`. A `log` table only ever inserts, so `.updated` and `.deleted` on one never fire. |
 | `rows` | no | Whether a delivery carries the changed row, not only its key. Default `true`. |
 
 `on` may name any of the project's state tables — those `state:` declares and those a

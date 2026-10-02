@@ -23,8 +23,10 @@ and folds it into tables you define. Those tables are served three ways:
 - a **change feed** that pushes every row change as it happens
 - **webhooks**, signed, to a URL of yours
 
-You write two things: a short config naming the contract data you care about, and
-reducers saying what each record changes. Nineveh does the rest.
+Two things decide what you get: which of the contract's data you follow, and what each
+record changes. You pick the first in Studio, off a list it reads from the chain. The
+second is yours to write — it is the part no tool can guess, and it's where the time
+goes. Nineveh does the rest.
 
 ## 2. Why this exists
 
@@ -82,7 +84,8 @@ In order, if you're new:
 
 Two references, for when you need a specific answer:
 
-- **[Configuration](config.md)**: every key in `nineveh.yaml`.
+- **[Configuration](config.md)**: every key in `nineveh.yaml`, the file Studio writes
+  as you add sources, tables and webhooks.
 - **[Expressions](expressions.md)**: the small language reducer values are written in.
 
 And if you'd rather run it yourself:
