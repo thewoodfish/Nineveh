@@ -293,11 +293,21 @@ function StateTableEditor() {
     fold([name, ...folded.map((s) => s.name).filter((n) => n !== name)]);
   };
 
-  const startOver = () => {
-    setStarted(null);
-    setCode(null);
-    setTable(null);
-  };
+  /**
+   * Whether the answers above the editor are open again.
+   *
+   * The link beside the editor used to say "Start over" and mean it — it threw the file
+   * away and put you back at an empty page. But the reason you go back is almost always
+   * to change the key or add a source, and losing what you had written to do that is a
+   * bad trade. So it reopens the steps instead and leaves the file alone; the file is
+   * only rewritten if you go on to pick a shape, which is a click on a card that says so.
+   */
+  const [details, setDetails] = useState(false);
+  /** Whether steps 2-4 are asking rather than reading back what they were answered with. */
+  const open = code === null || details;
+
+  /** Put a saved table back the way the server has it, dropping what has been typed. */
+  const discard = () => setCode(null);
 
   const rename = setName;
 
@@ -404,14 +414,14 @@ function StateTableEditor() {
               title="What are you folding?"
               hint="As many sources as change the same row — a balance goes up on deposits and down on withdrawals. They aren't interchangeable: the first brings rows into being, and the rest change the row it made."
               answer={
-                code !== null && (
+                !open && (
                   <span className="font-mono text-on-surface">
                     {folded.map((s) => s.name).join(" + ")}
                   </span>
                 )
               }
             >
-              {code === null && (
+              {open && (
                 <div className="flex flex-col gap-4">
                   <Folding
                     sources={sources}
@@ -438,7 +448,7 @@ function StateTableEditor() {
                   : "The key, and the table's whole meaning: one row per seller counts sellers, one row per day draws a chart. Everything else is derived from this."
               }
               answer={
-                code !== null &&
+                !open &&
                 keyField && (
                   <>
                     one row per{" "}
@@ -447,7 +457,7 @@ function StateTableEditor() {
                 )
               }
             >
-              {code === null && (
+              {open && (
                 <div className="flex flex-wrap items-end gap-3">
                   {keys.length > 0 ? (
                     <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
@@ -506,15 +516,17 @@ function StateTableEditor() {
               n={4}
               title="Start from a shape"
               hint={
-                code !== null
+                !open
                   ? undefined
-                  : extras.length > 0
-                    ? `Each one arrives with its columns typed, its defaults set and its widths wide enough to hold the totals — built from ${source.name}, with a handler waiting to be written for ${extras.map((s) => s.name).join(" and ")}.`
-                    : "Each one arrives with its columns typed, its defaults set and its widths wide enough to hold the totals. Change anything about it afterwards."
+                  : code !== null
+                    ? "Picking one again rewrites the file below from your answers above, losing anything you have typed into it."
+                    : extras.length > 0
+                      ? `Each one arrives with its columns typed, its defaults set and its widths wide enough to hold the totals — built from ${source.name}, with a handler waiting to be written for ${extras.map((s) => s.name).join(" and ")}.`
+                      : "Each one arrives with its columns typed, its defaults set and its widths wide enough to hold the totals. Change anything about it afterwards."
               }
-              answer={code !== null && started && <span className="text-on-surface">{started}</span>}
+              answer={!open && started && <span className="text-on-surface">{started}</span>}
             >
-              {code === null && (
+              {open && (
                 <Shapes
                   source={source}
                   extras={extras}
@@ -524,6 +536,9 @@ function StateTableEditor() {
                   existing={existing}
                   onPick={(shape, picked) => {
                     setStarted(shape);
+                    // The answers collapse back to their read-backs: the question has
+                    // been answered again, and the file below is the subject now.
+                    setDetails(false);
                     const chosen = name.trim() || picked.name;
                     setName(chosen);
                     setCode(withDslTable(reducers ?? "", { ...picked, name: chosen }));
@@ -546,8 +561,8 @@ function StateTableEditor() {
               title="Write the fold"
               hint="What a row holds, and what each record does to it. `b` is the row this rule writes and `r` is the record it is folding; `tx.version` and `tx.timestamp` are the only clock there is."
               action={
-                <Undo onClick={startOver}>
-                  {editing ? "Discard changes" : "Start over"}
+                <Undo onClick={editing ? discard : () => setDetails(!details)}>
+                  {editing ? "Discard changes" : details ? "Hide details" : "Edit details"}
                 </Undo>
               }
             >
