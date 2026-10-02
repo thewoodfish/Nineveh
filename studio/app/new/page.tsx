@@ -80,7 +80,6 @@ export default function NewProject() {
   const [choosing, setChoosing] = useState(false);
   const [name, setName] = useState("");
   const [start, setStart] = useState<Start>("auto");
-  const [preview, setPreview] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<Failure | null>(null);
 
@@ -98,7 +97,6 @@ export default function NewProject() {
     setInspecting(true);
     setError(null);
     setCatalog(null);
-    setPreview(null);
     try {
       const found = await control.inspect(network, address.trim());
       setCatalog(found);
@@ -118,15 +116,6 @@ export default function NewProject() {
     network,
     start,
     picks: catalog?.items.filter((i) => picked.has(i.id)).map((i) => i.id) ?? [],
-  };
-
-  const showPreview = async () => {
-    setError(null);
-    try {
-      setPreview((await control.scaffold(draft)).config);
-    } catch (e) {
-      setError(failure(e));
-    }
   };
 
   const create = async () => {
@@ -312,29 +301,12 @@ export default function NewProject() {
                   ? "Pinning layouts and starting…"
                   : `Create backend with ${draft.picks.length} ${draft.picks.length === 1 ? "table" : "tables"}`}
               </Button>
-              <Button
-                disabled={creating || draft.picks.length === 0}
-                onClick={() => void (preview ? setPreview(null) : showPreview())}
-              >
-                {preview ? "Hide config" : "Preview config"}
-              </Button>
               {creating && error && <span className="text-sm text-error">{error.message}</span>}
             </div>
             {creating && error?.details && (
               <pre className="overflow-x-auto rounded-sm bg-error-container p-3 font-mono text-xs text-on-error-container">
                 {error.details}
               </pre>
-            )}
-            {preview && (
-              <Card className="overflow-hidden">
-                <div className="border-b border-outline-variant px-4 py-2 text-xs text-on-surface-variant">
-                  <span className="font-mono">nineveh.yaml</span>: what Nineveh will run. You can
-                  edit it after creating, from the project&apos;s Config.
-                </div>
-                <pre className="max-h-96 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed">
-                  {preview}
-                </pre>
-              </Card>
             )}
           </div>
         )}
