@@ -287,9 +287,18 @@ module are the commonest way to lose a morning.
 **History is the expensive axis, not tables.** You chose **All of its history** in §2
 and it cost nothing, because there wasn't any. A contract that has been live for months
 is a real backfill, and Nineveh reads every version of the chain in the range, not just
-yours. If you only need data from today, start **From now on**, and accept that a
+yours.
+
+On the free tier it isn't a cost but a wall: a project starts within six hours of the
+chain's tip, and asking for more is refused before anything is created — *"The Free tier
+starts a project within 6 hours of the chain's tip."* Deep backfill holds one of a few
+shared catch-up streams for hours, which is the scarce thing ([limits](running.md#3-limits)).
+
+So for a contract that has been live a while, start **From now on**, and accept that a
 `table:` source will not know which table is yours until the resource holding it is
-written again. Following the whole history is what makes that certain.
+written again. Events and resources fill from the first transaction that touches them;
+only table sources need the write that created the table, which is why following the
+whole history is what makes those certain.
 
 And if your contract is quiet, make it busy before you judge what you built.
 [`play.sh`](https://github.com/thewoodfish/Nineveh/blob/main/examples/play.sh) does
