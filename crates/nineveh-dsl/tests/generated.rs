@@ -235,7 +235,7 @@ on(closed, (r) => {
 #[test]
 fn empty_table() {
     let tables = built(
-        r"// Everything here is meant to be replaced: the key, the columns and what writes them.
+        r"// One row per user, from every deposits record.
 export const deposits_per_user = table({
   key:     { user: address },
   columns: {

@@ -187,7 +187,7 @@ export function sumPer(source: SourceInfo, field: FieldInfo, amount: FieldInfo):
   const cast = total === amount.type ? read : `${total}(${read})`;
   return {
     name: `${amount.name}_per_${field.name}`,
-    note: `${amount.name} added up per ${field.name}, in a ${total} wide enough to hold the total.`,
+    note: `${amount.name} on every ${source.name} record, added up per ${field.name}, in a ${total} wide enough to hold the total.`,
     columns: [
       { name: field.name, type: field.type, default: "", nullable: false, key: true },
       { name: `total_${amount.name}`, type: total, default: "0", nullable: false, key: false },
@@ -258,7 +258,7 @@ export function dailyPer(source: SourceInfo, field: FieldInfo, amount?: FieldInf
   const cast = amount && total === amount.type ? read : `${total}(${read})`;
   return {
     name: amount ? `daily_${amount.name}_per_${field.name}` : `daily_${source.name}_per_${field.name}`,
-    note: `One row per ${field.name} per day — ${amount ? `${amount.name} added up` : `${source.name} records counted`}, bucketed from tx.timestamp.`,
+    note: `One row per ${field.name} per day, from ${source.name} — ${amount ? `${amount.name} added up` : "records counted"}, bucketed into days of tx.timestamp.`,
     columns: [
       { name: field.name, type: field.type, default: "", nullable: false, key: true },
       { name: "day", type: "u64", default: "", nullable: false, key: true },
@@ -420,6 +420,10 @@ export function alsoFolds(table: StateTable, extras: SourceInfo[]): StateTable {
   const keys = table.rules[0]?.keys ?? [];
   return {
     ...table,
+    // The description names what the table folds, so a source added here belongs in it.
+    note: table.note
+      ? `${table.note} Also folds ${extras.map((s) => s.name).join(" and ")}.`
+      : table.note,
     // A shape with nowhere to record a touch gains somewhere, rather than the rule
     // having nothing legal to write.
     columns: existing ? table.columns : [...table.columns, TOUCHED],
@@ -460,7 +464,9 @@ export function blank(source: SourceInfo | undefined, field?: FieldInfo): StateT
   };
   return {
     name: source ? `${source.name}_per_${key.name}` : "",
-    note: "Everything here is meant to be replaced: the key, the columns and what writes them.",
+    note: source
+      ? `One row per ${key.name}, from every ${source.name} record.`
+      : `One row per ${key.name}.`,
     columns: [key, TOUCHED],
     rules: [
       {
