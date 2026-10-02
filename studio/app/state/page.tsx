@@ -896,7 +896,10 @@ function Editor({
           spellCheck={false}
           wrap="off"
           aria-label="Reducers"
-          rows={Math.min(34, Math.max(14, lines + 1))}
+          // Tall enough to write in before you have written anything, and tall enough to
+          // hold most files whole. A box that grows to the file beats a scroller inside
+          // a page, which swallows the wheel on its way past.
+          rows={Math.min(68, Math.max(28, lines + 1))}
           className="block min-w-0 flex-1 resize-y overflow-auto bg-surface-container-low px-3 py-3 font-mono text-[13px] leading-relaxed text-on-surface outline-none focus:ring-1 focus:ring-inset focus:ring-primary"
         />
       </div>
