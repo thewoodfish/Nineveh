@@ -21,6 +21,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { ApiConsole } from "@/components/api-console";
 import { DataGrid } from "@/components/data-grid";
 import { PageHeader } from "@/components/page-header";
+import { Palette } from "@/components/palette";
 import { ReducerEditor } from "@/components/reducer-editor";
 import { SourceSchema } from "@/components/source-schema";
 import { Button, Card, Icon, Live, Notice, Offline, filledButton } from "@/components/ui";
@@ -214,6 +215,10 @@ function Inner({ table, tab, go }: { table: Table; tab: Tab; go: (to: Tab) => vo
 function DefinitionPanel({ table }: { table: Table }) {
   const { name: project, mode } = useProject();
   const { data: sources } = useSources();
+  // The same reference the state table editor keeps beside its editor. Editing a saved
+  // table asks the same question as writing a new one — what is that field called — and
+  // the answer shouldn't depend on which of the two editors you happened to open.
+  const { tables } = useTables();
   const [config, setConfig] = useState<string | null>(null);
   const [reducers, setReducers] = useState<string | null>(null);
   const [draft, setDraft] = useState<string | null>(null);
@@ -318,7 +323,7 @@ function DefinitionPanel({ table }: { table: Table }) {
     : [];
 
   return (
-    <div className="flex max-w-4xl flex-col gap-5 px-8 py-6">
+    <div className="flex max-w-6xl flex-col gap-5 px-8 py-6">
       {block !== null && (
         <>
           {/* Said before the box, because a blank editor explains nothing. Nobody running
@@ -349,6 +354,7 @@ function DefinitionPanel({ table }: { table: Table }) {
             )}
           </div>
 
+        <div className="grid gap-4 lg:grid-cols-[1fr_20rem] lg:items-start">
         <Card className="overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-high px-4 py-2">
             <span className="min-w-0 flex-1 truncate text-[11px] font-semibold tracking-[0.08em] text-on-surface-variant uppercase">
@@ -382,6 +388,12 @@ function DefinitionPanel({ table }: { table: Table }) {
             scope={{ table, sources: sources ?? [], functions: FUNCTIONS }}
           />
         </Card>
+        {/* A table can't read itself, so it isn't in the list of ones it can. */}
+        <Palette
+          sources={sources ?? null}
+          tables={(tables ?? []).filter((t) => t.kind !== "log" && t.name !== table.name)}
+        />
+        </div>
         </>
       )}
 
