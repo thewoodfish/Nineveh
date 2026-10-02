@@ -177,6 +177,14 @@ function StateTableEditor() {
   // Held apart from the table so it can be answered before there is one. A shape brings
   // its own name (`listed_per_owner`), which is only taken if nothing has been typed.
   const [name, setName] = useState("");
+  /**
+   * Whether the name was typed rather than derived.
+   *
+   * Until it is, the field keeps up with the answers below it. A table's name is mostly a
+   * description of its key, so a default that went stale the moment you changed the key
+   * would be worse than no default at all.
+   */
+  const [named, setNamed] = useState(false);
   const editor = useRef<HTMLTextAreaElement>(null);
   // Set once the reducer has been taken over by hand. From then on it is the file, and
   // the builder above is only what it started from — there is no parser here to read an
@@ -200,6 +208,7 @@ function StateTableEditor() {
         .stateTable(project, editing)
         .then((saved) => {
           setName(saved.name);
+          setNamed(true);
           setTable({ name: saved.name, columns: saved.columns, rules: saved.rules });
         })
         .catch(failed);
@@ -332,7 +341,18 @@ function StateTableEditor() {
   /** Put a saved table back the way the server has it, dropping what has been typed. */
   const discard = () => setCode(null);
 
-  const rename = setName;
+  const rename = (next: string) => {
+    setNamed(true);
+    setName(next);
+  };
+
+  // The name starts filled in rather than merely hinted at: an empty required field at the
+  // top of the page asks a question you can't answer yet, and the answer almost everyone
+  // wants is the one the key implies.
+  useEffect(() => {
+    if (named || editing || code !== null || !source) return;
+    setName(keyField ? `${source.name}_per_${keyField.name}` : source.name);
+  }, [named, editing, code, source, keyField]);
 
   const save = useCallback(async () => {
     if (!project || !yaml || !dsl || !tableName) return;
@@ -562,7 +582,10 @@ function StateTableEditor() {
                     // The answers collapse back to their read-backs: the question has
                     // been answered again, and the file below is the subject now.
                     setDetails(false);
-                    const chosen = name.trim() || picked.name;
+                    // A name that was typed is kept. One that was only derived gives way
+                    // to the shape's own, which says more — `daily_price_per_id` rather
+                    // than the `per key` name every shape would otherwise share.
+                    const chosen = (named && name.trim()) || picked.name || name.trim();
                     setName(chosen);
                     setCode(withDslTable(reducers ?? "", { ...picked, name: chosen }));
                   }}
