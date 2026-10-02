@@ -1251,10 +1251,10 @@ function Shapes({
 
       <button
         type="button"
-        onClick={() => pick("An empty table", blank(source))}
+        onClick={() => pick("Just the key", blank(source, keyField))}
         className="rounded-sm border border-dashed border-outline px-4 py-3 text-sm text-on-surface-variant transition-colors hover:border-primary hover:text-on-surface"
       >
-        Or start from an empty table and write the columns and rules yourself.
+        Or start from just the key and write the columns and rules yourself.
       </button>
     </div>
   );

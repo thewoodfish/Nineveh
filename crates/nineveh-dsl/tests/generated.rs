@@ -225,3 +225,34 @@ on(closed, (r) => {
     assert_eq!(set.len(), 1, "it records the arrival and nothing else");
     assert_eq!(set[0].1.text, "tx.timestamp");
 }
+
+/// "Start from just the key": the escape hatch, which still has to compile.
+///
+/// It used to emit an unnamed key column and a handler that wrote nothing, which neither
+/// parses nor builds — the way out of the templates handed you a broken file before you
+/// had typed a character. The smallest thing that works is a named key and one column
+/// something writes, so that is what it starts from.
+#[test]
+fn empty_table() {
+    let tables = built(
+        r"// Everything here is meant to be replaced: the key, the columns and what writes them.
+export const deposits_per_user = table({
+  key:     { user: address },
+  columns: {
+    last_seen: u64.default(0),
+  },
+})
+
+on(deposits, (r) => {
+  const b = deposits_per_user.row(r.user)
+  b.last_seen = tx.timestamp
+})
+",
+    );
+    let TableKind::Reduce { key, columns, rules } = &tables[0].kind else {
+        panic!("not a reduce table")
+    };
+    assert_eq!(key.len(), 1);
+    assert_eq!(columns.len(), 2, "the key column and the one write");
+    assert_eq!(rules.len(), 1);
+}

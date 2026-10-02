@@ -438,17 +438,37 @@ export function alsoFolds(table: StateTable, extras: SourceInfo[]): StateTable {
   };
 }
 
-export function blank(source: SourceInfo | undefined): StateTable {
+/**
+ * The smallest table that works: the key, and a column recording that a record reached
+ * the row.
+ *
+ * "Empty" means no shape imposed, not literally nothing. It used to mean literally
+ * nothing — an unnamed key column of no particular type and a handler that wrote
+ * nothing, which rendered as `key: { : address }` and `b = t.row(r.)`. That doesn't
+ * parse, and a table with a key but no writes doesn't compile either ("nothing writes
+ * table `t`"), so the escape hatch handed you a file that was wrong before you had typed
+ * a character. This one is valid and previewable from the first second, and every part
+ * of it is meant to be replaced.
+ */
+export function blank(source: SourceInfo | undefined, field?: FieldInfo): StateTable {
+  const key: Column = {
+    name: field?.name ?? "id",
+    type: field?.type ?? "address",
+    default: "",
+    nullable: false,
+    key: true,
+  };
   return {
-    name: "",
-    columns: [{ name: "", type: "address", default: "", nullable: false, key: true }],
+    name: source ? `${source.name}_per_${key.name}` : "",
+    note: "Everything here is meant to be replaced: the key, the columns and what writes them.",
+    columns: [key, TOUCHED],
     rules: [
       {
         on: source?.name ?? "",
         deleted: false,
         when: "",
         keys: [],
-        sets: [],
+        sets: [{ column: TOUCHED.name, expression: "tx.timestamp" }],
         removes: false,
       },
     ],
