@@ -34,9 +34,26 @@ export type Rule = {
   sets: Assignment[];
   /** Delete the row instead of setting columns. */
   removes: boolean;
+  /**
+   * A comment to put at the top of the handler. Scaffolding writes one where the rule is
+   * a placeholder it can't guess the body of, so the file says what is missing rather
+   * than looking finished.
+   */
+  note?: string;
 };
 
-export type StateTable = { name: string; columns: Column[]; rules: Rule[] };
+export type StateTable = {
+  name: string;
+  columns: Column[];
+  rules: Rule[];
+  /**
+   * A line above the declaration saying what the table is in words. Shapes write one,
+   * because the next person to open the file — usually the same person, later — reads
+   * "one row per seller, counting cancelled records" faster than they re-derive it from
+   * the key and the arithmetic.
+   */
+  note?: string;
+};
 
 export const COLUMN_TYPES: ColumnType[] = [
   "address",
@@ -89,6 +106,40 @@ export function amountFields(source: SourceInfo): FieldInfo[] {
   return source.fields.filter((f) => isInteger(f.type) && !f.nullable);
 }
 
+/** Whether `source` carries a field of this exact name and type. */
+function carries(source: SourceInfo, field: FieldInfo): boolean {
+  return source.fields.some((f) => f.name === field.name && f.type === field.type);
+}
+
+/**
+ * Fields worth keying by that *every* one of these sources can name.
+ *
+ * A table folded from several sources is keyed once, so every rule has to be able to
+ * reach the row — and a rule reaches it by reading the key column off its own record.
+ * Offering a key only the first source carries makes a table that can't compile, and
+ * the error arrives much later, in the file, about the handler rather than the key.
+ * Intersecting here makes it unrepresentable instead.
+ */
+export function keyFieldsAcross(sources: SourceInfo[]): FieldInfo[] {
+  const [first, ...rest] = sources;
+  if (!first) return [];
+  return keyFields(first).filter((field) => rest.every((s) => carries(s, field)));
+}
+
+/**
+ * The sources that share no keyable field with the first, which is the reason there is
+ * nothing to key by — worth naming, because the fix is to untick one of them.
+ */
+export function keylessWith(sources: SourceInfo[]): string[] {
+  const [first, ...rest] = sources;
+  if (!first) return [];
+  const keys = keyFields(first);
+  // When the first source has no identifiers of its own, every other one is vacuously
+  // blameless: the problem is that source, and saying so is a different message.
+  if (keys.length === 0) return [];
+  return rest.filter((s) => !keys.some((field) => carries(s, field))).map((s) => s.name);
+}
+
 const zero = (type: ColumnType): string => (isInteger(type) ? "0" : "");
 
 /** The handler's parameter: the record a rule is folding. */
@@ -107,6 +158,7 @@ const own = (column: string): string => `${ROW}.${column}`;
 export function countPer(source: SourceInfo, field: FieldInfo): StateTable {
   return {
     name: `${source.name}_per_${field.name}`,
+    note: `How many ${source.name} records each ${field.name} has, and when the last one arrived.`,
     columns: [
       { name: field.name, type: field.type, default: "", nullable: false, key: true },
       { name: "count", type: "u64", default: "0", nullable: false, key: false },
@@ -135,6 +187,7 @@ export function sumPer(source: SourceInfo, field: FieldInfo, amount: FieldInfo):
   const cast = total === amount.type ? read : `${total}(${read})`;
   return {
     name: `${amount.name}_per_${field.name}`,
+    note: `${amount.name} added up per ${field.name}, in a ${total} wide enough to hold the total.`,
     columns: [
       { name: field.name, type: field.type, default: "", nullable: false, key: true },
       { name: `total_${amount.name}`, type: total, default: "0", nullable: false, key: false },
@@ -164,6 +217,7 @@ export function latestPer(source: SourceInfo, field: FieldInfo): StateTable {
   const rest = source.fields.filter((f) => f.name !== field.name);
   return {
     name: `latest_${source.name}_per_${field.name}`,
+    note: `The newest ${source.name} for each ${field.name}, field by field.`,
     columns: [
       { name: field.name, type: field.type, default: "", nullable: false, key: true },
       ...rest.map((f) => ({
@@ -204,6 +258,7 @@ export function dailyPer(source: SourceInfo, field: FieldInfo, amount?: FieldInf
   const cast = amount && total === amount.type ? read : `${total}(${read})`;
   return {
     name: amount ? `daily_${amount.name}_per_${field.name}` : `daily_${source.name}_per_${field.name}`,
+    note: `One row per ${field.name} per day — ${amount ? `${amount.name} added up` : `${source.name} records counted`}, bucketed from tx.timestamp.`,
     columns: [
       { name: field.name, type: field.type, default: "", nullable: false, key: true },
       { name: "day", type: "u64", default: "", nullable: false, key: true },
@@ -255,6 +310,7 @@ export function liveSet(
   const rest = source.fields.filter((f) => f.name !== field.name);
   return {
     name: `open_${source.name}`,
+    note: `A row per ${field.name} while it is open: added on ${source.name}, removed on ${gone.deleted ? `${gone.name} deleted` : gone.name}.`,
     columns: [
       { name: field.name, type: field.type, default: "", nullable: false, key: true },
       ...rest.map((f) => ({
@@ -295,6 +351,7 @@ export function withLookup(
 ): StateTable {
   return {
     name: `${source.name}_with_${column.name}`,
+    note: `How many ${source.name} records per ${field.name}, plus ${column.name} looked up in ${table.name} — null when it has no row for it.`,
     columns: [
       { name: field.name, type: field.type, default: "", nullable: false, key: true },
       { name: "count", type: "u64", default: "0", nullable: false, key: false },
@@ -315,6 +372,68 @@ export function withLookup(
         ],
         removes: false,
       },
+    ],
+  };
+}
+
+/** The column whose whole meaning is "a record reached this row". */
+const TOUCHED: Column = {
+  name: "last_seen",
+  type: "u64",
+  default: "0",
+  nullable: false,
+  key: false,
+};
+
+/**
+ * The column a placeholder rule writes to say only that a record arrived.
+ *
+ * `last_seen` and nothing else, because it is the one column whose meaning any source
+ * may set. Reusing a shape's other timestamps would quietly corrupt them — `since` is
+ * when the row opened and `version` is the version of its newest record, and a second
+ * source overwriting either states something false while compiling cleanly. A table that
+ * hasn't got a `last_seen` gains one instead.
+ */
+function touched(table: StateTable): Column | null {
+  return table.columns.find((c) => !c.key && c.name === TOUCHED.name) ?? null;
+}
+
+/**
+ * `table`, with a handler for each further source folded into it.
+ *
+ * The sources of a table are not interchangeable: one brings the row into being and the
+ * rest change the row it made. So a shape is built from the first and the others are
+ * scaffolded — because what a second source does to a row is the one thing no template
+ * can know. A `sold` record might close the row, decrement it, or overwrite a price,
+ * and guessing would be worse than leaving it visibly unfinished: a rule that silently
+ * does the wrong thing is harder to notice than one that says it is a placeholder.
+ *
+ * What it writes compiles and is true — the row was touched at `tx.timestamp` — so the
+ * file checks out, previews, and shows you rows while you replace the body.
+ *
+ * The key mapping is copied from the first rule because it belongs to the table, not to
+ * the record: a `per day` table buckets every source's records by the same arithmetic.
+ */
+export function alsoFolds(table: StateTable, extras: SourceInfo[]): StateTable {
+  if (extras.length === 0) return table;
+  const existing = touched(table);
+  const keys = table.rules[0]?.keys ?? [];
+  return {
+    ...table,
+    // A shape with nowhere to record a touch gains somewhere, rather than the rule
+    // having nothing legal to write.
+    columns: existing ? table.columns : [...table.columns, TOUCHED],
+    rules: [
+      ...table.rules,
+      ...extras.map((extra) => ({
+        on: extra.name,
+        deleted: false,
+        when: "",
+        keys: keys.map((k) => ({ ...k })),
+        sets: [{ column: TOUCHED.name, expression: "tx.timestamp" }],
+        removes: false,
+        note: `What a ${extra.name} record does to this row — this only records that one arrived.`,
+      })),
     ],
   };
 }
@@ -413,6 +532,7 @@ export function toDsl(table: StateTable): string {
   const restWidth = pad(rest.map((c) => c.name));
 
   const lines: string[] = [];
+  if (table.note) lines.push(`// ${table.note}`);
   lines.push(`export const ${table.name} = table({`);
   lines.push(
     `  key:     { ${keys.map((c) => `${c.name}:${" ".repeat(keyWidth - c.name.length)} ${c.type}`).join(", ")} },`,
@@ -433,6 +553,9 @@ export function toDsl(table: StateTable): string {
     const on = `${rule.on}${rule.deleted ? ".deleted" : ""}`;
     lines.push("");
     lines.push(`on(${on}, (${RECORD}) => {`);
+    // A note goes inside the handler rather than above it, so it travels with the body
+    // it is about when the handlers are reordered or one is deleted.
+    if (rule.note) lines.push(`  // ${rule.note}`);
     const when = rule.when.trim();
     if (when) {
       lines.push(`  if (${when}) {`);
@@ -446,6 +569,38 @@ export function toDsl(table: StateTable): string {
   return `${lines.join("\n")}\n`;
 }
 
+/** The first line of the comment block sitting directly above `i`, or `i` itself. */
+function lead(lines: string[], i: number): number {
+  let at = i;
+  while (at > 0 && /^\s*\/\//.test(lines[at - 1] ?? "")) at -= 1;
+  return at;
+}
+
+/**
+ * Where `table`'s block starts and ends: its declaration, the handlers under it, and any
+ * comment written directly above it.
+ *
+ * A block runs from one `export const` to the next, but a comment immediately above a
+ * declaration is about that declaration, not about the handlers it happens to follow.
+ * Counting it with the block above would make splicing one table carry off the next
+ * one's comment, and would duplicate the note `toDsl` writes every time a table was
+ * rewritten. A blank line breaks the association, which is what keeps a file-header
+ * comment out of the first table's block.
+ */
+function bounds(lines: string[], table: string): { at: number; to: number } | null {
+  const declaration = new RegExp(`^export const ${table}\\b`);
+  const found = lines.findIndex((line) => declaration.test(line));
+  if (found < 0) return null;
+  let to = lines.length;
+  for (let i = found + 1; i < lines.length; i++) {
+    if (/^export const /.test(lines[i] ?? "")) {
+      to = lead(lines, i);
+      break;
+    }
+  }
+  return { at: lead(lines, found), to };
+}
+
 /**
  * The block of `reducers` that declares `table` and the handlers under it — the same
  * span [`withDslTable`] replaces, read back out.
@@ -455,17 +610,9 @@ export function toDsl(table: StateTable): string {
  */
 export function dslTableBlock(reducers: string, table: string): string | null {
   const lines = reducers.split("\n");
-  const declaration = new RegExp(`^export const ${table}\\b`);
-  const at = lines.findIndex((line) => declaration.test(line));
-  if (at < 0) return null;
-  let to = lines.length;
-  for (let i = at + 1; i < lines.length; i++) {
-    if (/^export const /.test(lines[i] ?? "")) {
-      to = i;
-      break;
-    }
-  }
-  return lines.slice(at, to).join("\n").replace(/\s+$/, "");
+  const span = bounds(lines, table);
+  if (!span) return null;
+  return lines.slice(span.at, span.to).join("\n").replace(/\s+$/, "");
 }
 
 /**
@@ -490,27 +637,19 @@ export function foreignWrites(block: string, table: string): string[] {
  * `reducers` with `table` in it: replacing the block of that name if it's there, and
  * appended if it isn't.
  *
- * A table's block runs from its `export const` line to the next one, which is how
- * `toDsl` lays it out. Handlers written between two declarations belong to the one
- * above them.
+ * A table's block runs from its `export const` line — or the comment above it — to the
+ * next one, which is how `toDsl` lays it out. Handlers written between two declarations
+ * belong to the one above them.
  */
 export function withDslTable(reducers: string, table: StateTable): string {
   const lines = reducers.split("\n");
-  const declaration = new RegExp(`^export const ${table.name}\\b`);
-  const at = lines.findIndex((line) => declaration.test(line));
-  if (at < 0) {
+  const span = bounds(lines, table.name);
+  if (!span) {
     const before = reducers.trimEnd();
     return before ? `${before}\n\n${toDsl(table)}` : toDsl(table);
   }
-  let to = lines.length;
-  for (let i = at + 1; i < lines.length; i++) {
-    if (/^export const /.test(lines[i] ?? "")) {
-      to = i;
-      break;
-    }
-  }
-  const before = lines.slice(0, at).join("\n");
-  const after = lines.slice(to).join("\n").replace(/^\n+/, "");
+  const before = lines.slice(0, span.at).join("\n");
+  const after = lines.slice(span.to).join("\n").replace(/^\n+/, "");
   return `${before ? `${before.trimEnd()}\n\n` : ""}${toDsl(table)}${after ? `\n${after}` : ""}`;
 }
 

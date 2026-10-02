@@ -174,3 +174,54 @@ on(deposits, (r) => {
     };
     assert_eq!(set[1].1.text, "markets[deposits.user].fee_bps");
 }
+
+/// A table folded from more than one source: the shape on the first, and a scaffolded
+/// handler on each of the rest.
+///
+/// What Studio can't generate is what a second source *does* to a row, so it writes a
+/// handler that records only that a record arrived and says so in a comment. The point
+/// of pinning it here is that the half-written file still compiles — Studio holds `Save`
+/// until the server says the file is good, so a scaffold that didn't compile would be a
+/// scaffold you couldn't preview or get out of.
+#[test]
+fn folds_several_sources() {
+    let tables = built(
+        r"// How many deposits records each user has, and when the last one arrived.
+export const deposits_per_user = table({
+  key:     { user: address },
+  columns: {
+    count:     u64.default(0),
+    last_seen: u64.default(0),
+  },
+})
+
+on(deposits, (r) => {
+  const b = deposits_per_user.row(r.user)
+  b.count += 1
+  b.last_seen = tx.timestamp
+})
+
+on(closed, (r) => {
+  // What a closed record does to this row — this only records that one arrived.
+  const b = deposits_per_user.row(r.user)
+  b.last_seen = tx.timestamp
+})
+",
+    );
+    assert_eq!(tables.len(), 1, "two handlers, one table");
+    let TableKind::Reduce { rules, .. } = &tables[0].kind else {
+        panic!("not a reduce table")
+    };
+    assert_eq!(rules.len(), 2);
+    assert_eq!(rules[0].on.source.as_str(), "deposits");
+    assert_eq!(rules[1].on.source.as_str(), "closed");
+    // Both reach the same row by reading the key off their own record, which is why the
+    // editor only offers keys every folded source can name.
+    assert_eq!(rules[0].key[0].1.text, "deposits.user");
+    assert_eq!(rules[1].key[0].1.text, "closed.user");
+    let Action::Set(set) = &rules[1].action else {
+        panic!("the scaffold sets a column")
+    };
+    assert_eq!(set.len(), 1, "it records the arrival and nothing else");
+    assert_eq!(set[0].1.text, "tx.timestamp");
+}

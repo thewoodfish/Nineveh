@@ -27,12 +27,14 @@ import {
 import { useProject } from "@/lib/project";
 import {
   type StateTable,
+  alsoFolds,
   amountFields,
   blank,
   countPer,
   dslTableBlock,
   dailyPer,
-  keyFields,
+  keyFieldsAcross,
+  keylessWith,
   latestPer,
   liveSet,
   sumPer,
@@ -42,11 +44,6 @@ import {
   reducersFile,
 } from "@/lib/state-table";
 
-
-/** Narrows a list to one with a first element, so pickers always have a selection. */
-function isFilled(sources: SourceInfo[]): sources is [SourceInfo, ...SourceInfo[]] {
-  return sources.length > 0;
-}
 
 const field =
   "rounded-sm border border-outline-variant bg-surface-container-low px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none";
@@ -154,7 +151,13 @@ function StateTableEditor() {
   const [table, setTable] = useState<StateTable | null>(null);
   // The first two answers, which every shape below is built from. Held here rather than
   // inside the shapes, because they are steps of the page in their own right.
-  const [sourceName, setSourceName] = useState<string | null>(null);
+  //
+  // `folding` is a list because most tables need more than one source: a balance goes up
+  // on deposits and down on withdrawals, and a row that appears on one event disappears
+  // on another. It is ordered, not a set — the first source brings rows into being and
+  // the rest change the row it made, which is the difference the shapes are built on.
+  // Names rather than sources, because the list they index into is reloaded.
+  const [folding, setFolding] = useState<string[]>([]);
   const [keyName, setKeyName] = useState<string | null>(null);
   const [amountName, setAmountName] = useState<string | null>(null);
   /** Which shape this table started as, so its step can read back what it answered. */
@@ -248,20 +251,46 @@ function StateTableEditor() {
     return () => clearTimeout(timer);
   }, [project, yaml, dsl]);
 
-  // The source is whichever is chosen, or the first one as soon as there are any: a
-  // picker with nothing selected has no question to ask.
-  const source = sources?.find((s) => s.name === sourceName) ?? sources?.[0];
-  const keys = source ? keyFields(source) : [];
+  // What is being folded, resolved against the sources that loaded. Nothing chosen means
+  // the first source: a picker with no selection has no question to ask. Names that no
+  // longer exist drop out rather than leaving a hole in the list.
+  const folded = useMemo(() => {
+    if (!sources) return [];
+    const names = folding.length > 0 ? folding : sources[0] ? [sources[0].name] : [];
+    return names.flatMap((name) => sources.find((s) => s.name === name) ?? []);
+  }, [sources, folding]);
+  const source = folded[0];
+  // The sources beyond the first: each one gets a scaffolded handler, never a generated
+  // one, because what a second source does to a row is the thing no template can know.
+  const extras = folded.slice(1);
+  // Only keys every folded source can name — see `keyFieldsAcross`. With one source this
+  // is exactly its own keyable fields, so the single-source page is unchanged.
+  const keys = keyFieldsAcross(folded);
+  // The amount is read off the first source: it is the one whose records the shape sums.
   const amounts = source ? amountFields(source) : [];
   const keyField = keys.find((f) => f.name === keyName) ?? keys[0];
   const amountField = amounts.find((f) => f.name === amountName) ?? amounts[0];
+  // Which sources are the reason there is no key to offer, so the page can say whose
+  // fault it is instead of sending you off to write the key by hand.
+  const keyless = keylessWith(folded);
 
-  const pickSource = (next: SourceInfo) => {
-    setSourceName(next.name);
-    // Its fields are different, so the key and the amount chosen for the last one mean
-    // nothing here.
-    setKeyName(null);
-    setAmountName(null);
+  const fold = (names: string[]) => {
+    setFolding(names);
+    // An amount belongs to the first source, so promoting another one invalidates it.
+    // The key doesn't need clearing: it falls back through the intersection on its own.
+    if (names[0] !== folded[0]?.name) setAmountName(null);
+  };
+
+  /** Tick or untick a source. Unticking the last one is refused, not allowed to empty it. */
+  const toggleSource = (name: string) => {
+    const names = folded.map((s) => s.name);
+    const next = names.includes(name) ? names.filter((n) => n !== name) : [...names, name];
+    if (next.length > 0) fold(next);
+  };
+
+  /** Promote a ticked source to the one that brings rows into being. */
+  const foldFirst = (name: string) => {
+    fold([name, ...folded.map((s) => s.name).filter((n) => n !== name)]);
   };
 
   const startOver = () => {
@@ -366,36 +395,36 @@ function StateTableEditor() {
           />
         </Step>
 
-        {sources && isFilled(sources) && source && !editing && (
+        {/* `source` stands in for "there is anything to fold": it is the first of the
+            picked sources, which is only undefined when the project follows nothing. */}
+        {sources && source && !editing && (
           <>
             <Step
               n={2}
               title="What are you folding?"
-              hint="The source whose records bring rows into being. It needn't be the only one — a rule further down can fold a second source into the same table, which is how a balance goes up on deposits and down on withdrawals."
+              hint="As many sources as change the same row — a balance goes up on deposits and down on withdrawals. They aren't interchangeable: the first brings rows into being, and the rest change the row it made."
               answer={
                 code !== null && (
-                  <>
-                    <span className="font-mono text-on-surface">{source.name}</span> ({source.kind})
-                  </>
+                  <span className="font-mono text-on-surface">
+                    {folded.map((s) => s.name).join(" + ")}
+                  </span>
                 )
               }
             >
               {code === null && (
                 <div className="flex flex-col gap-4">
-                  <Select
-                    value={source.name}
-                    onChange={(e) =>
-                      pickSource(sources.find((s) => s.name === e.target.value) ?? sources[0])
-                    }
-                    className="w-full max-w-sm font-mono"
-                  >
-                    {sources.map((s) => (
-                      <option key={s.name} value={s.name}>
-                        {s.name} ({s.kind})
-                      </option>
-                    ))}
-                  </Select>
-                  <SourceSchema source={source} />
+                  <Folding
+                    sources={sources}
+                    picked={folded}
+                    onToggle={toggleSource}
+                    onFirst={foldFirst}
+                  />
+                  {/* One schema per ticked source, because picking a key that works for
+                      all of them means reading all of them. Each is shortened to its
+                      first fields, so two of them still fit on a screen. */}
+                  {folded.map((s) => (
+                    <SourceSchema key={s.name} source={s} />
+                  ))}
                 </div>
               )}
             </Step>
@@ -403,7 +432,11 @@ function StateTableEditor() {
             <Step
               n={3}
               title="What is one row?"
-              hint="The key, and the table's whole meaning: one row per seller counts sellers, one row per day draws a chart. Everything else is derived from this."
+              hint={
+                extras.length > 0
+                  ? "The key, and the table's whole meaning: one row per seller counts sellers, one row per day draws a chart. Only fields every source above can name, since every rule has to reach the same row."
+                  : "The key, and the table's whole meaning: one row per seller counts sellers, one row per day draws a chart. Everything else is derived from this."
+              }
               answer={
                 code !== null &&
                 keyField && (
@@ -431,6 +464,18 @@ function StateTableEditor() {
                         ))}
                       </Select>
                     </label>
+                  ) : keyless.length > 0 ? (
+                    /* The common case once a second source is ticked, and a different
+                       problem from a source with no identifiers at all: the fix is to
+                       untick one, not to write the key by hand. */
+                    <p className="max-w-prose text-xs leading-relaxed text-on-surface-variant">
+                      <span className="font-mono">{keyless.join(", ")}</span>{" "}
+                      {keyless.length === 1 ? "names" : "name"} nothing that{" "}
+                      <span className="font-mono">{source.name}</span> also names, so there is no
+                      one row these could share. Untick{" "}
+                      {keyless.length === 1 ? "it" : "them"}, or fold{" "}
+                      {keyless.length === 1 ? "it" : "them"} into a table of their own.
+                    </p>
                   ) : (
                     <p className="text-xs text-on-surface-variant">
                       Nothing on <span className="font-mono">{source.name}</span> can identify a
@@ -463,14 +508,17 @@ function StateTableEditor() {
               hint={
                 code !== null
                   ? undefined
-                  : "Each one arrives with its columns typed, its defaults set and its widths wide enough to hold the totals. Change anything about it afterwards."
+                  : extras.length > 0
+                    ? `Each one arrives with its columns typed, its defaults set and its widths wide enough to hold the totals — built from ${source.name}, with a handler waiting to be written for ${extras.map((s) => s.name).join(" and ")}.`
+                    : "Each one arrives with its columns typed, its defaults set and its widths wide enough to hold the totals. Change anything about it afterwards."
               }
               answer={code !== null && started && <span className="text-on-surface">{started}</span>}
             >
               {code === null && (
                 <Shapes
                   source={source}
-                  sources={sources}
+                  extras={extras}
+                  more={sources.length > folded.length}
                   keyField={keyField}
                   amountField={amountField}
                   existing={existing}
@@ -891,37 +939,124 @@ function Palette({ sources, tables }: { sources: SourceInfo[] | null; tables: Ta
 }
 
 /**
- * The shapes most state tables have, filled in from the chosen source and key.
+ * Which sources fold into this table, and in what role.
+ *
+ * A list rather than a dropdown because the answer is often more than one, and ordered
+ * rather than a flat set because the sources are not interchangeable: one brings the row
+ * into being and the rest change the row it made. That difference is what the shapes
+ * below are generated from, so the list has to carry it rather than leave it implied —
+ * hence the badge on the first and `Make it first` on the others, instead of the usual
+ * trick of a set plus a hidden rule about which one counts.
+ *
+ * The order is the order you ticked them, which is almost always right: you reach for
+ * the source that creates the row first.
+ */
+function Folding({
+  sources,
+  picked,
+  onToggle,
+  onFirst,
+}: {
+  sources: SourceInfo[];
+  /** In fold order: the first brings rows into being. */
+  picked: SourceInfo[];
+  onToggle: (name: string) => void;
+  onFirst: (name: string) => void;
+}) {
+  const names = picked.map((s) => s.name);
+  const only = picked.length === 1;
+  return (
+    <ul className="divide-y divide-outline-variant overflow-hidden rounded-sm border border-outline-variant">
+      {sources.map((source) => {
+        const at = names.indexOf(source.name);
+        return (
+          <li key={source.name} className="flex items-center bg-surface-container-low">
+            {/* A label rather than a row-wide button, so the native checkbox keeps its
+                keyboard behaviour — and so `Make it first` can sit beside it without
+                nesting one control inside another. */}
+            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 px-3 py-2">
+              <input
+                type="checkbox"
+                className="size-4 shrink-0 accent-primary"
+                checked={at >= 0}
+                // The last one can't be unticked: a table folded from nothing has no
+                // question to ask, and every picker below it would have no answer.
+                disabled={only && at === 0}
+                title={only && at === 0 ? "A table folds at least one source" : undefined}
+                onChange={() => onToggle(source.name)}
+              />
+              <span className="min-w-0 truncate font-mono text-sm text-on-surface">
+                {source.name}
+              </span>
+              <span className="shrink-0 text-xs text-on-surface-variant">{source.kind}</span>
+              {at === 0 && (
+                <span className="shrink-0 rounded-full bg-primary-container px-2 py-0.5 text-[10px] font-medium text-on-primary-container">
+                  brings rows into being
+                </span>
+              )}
+              {at > 0 && (
+                <span className="shrink-0 text-[11px] text-on-surface-variant">
+                  also changes the row
+                </span>
+              )}
+            </label>
+            {at > 0 && (
+              <button
+                type="button"
+                onClick={() => onFirst(source.name)}
+                className="shrink-0 px-3 py-2 text-[11px] text-on-surface-variant hover:text-on-surface"
+              >
+                Make it first
+              </button>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * The shapes most state tables have, filled in from the chosen sources and key.
  *
  * These are the front door, not a shortcut: `count per`, `total per`, `latest per` and
  * `per day` are most of what an app actually wants, and each arrives with its columns
  * typed, its defaults set and its width already widened — `sumPer` sums `u64`s into a
  * `u128` because a `u64` would overflow. Starting from an empty table is the escape
  * hatch underneath.
+ *
+ * Every shape is built from the first source only. The rest get a scaffolded handler
+ * instead (see `alsoFolds`), because a template can't know what a second source does to
+ * a row — `Appears and disappears` is the one exception, since saying "removed on this
+ * one" *is* the shape.
  */
 function Shapes({
   source,
-  sources,
+  extras,
+  more,
   keyField,
   amountField,
   existing,
   onPick,
 }: {
   source: SourceInfo;
-  sources: [SourceInfo, ...SourceInfo[]];
+  /** The further sources folded in, which every shape scaffolds a handler for. */
+  extras: SourceInfo[];
+  /** Whether the project has a source not folded yet, so "tick another" is advice. */
+  more: boolean;
   keyField: FieldInfo | undefined;
   amountField: FieldInfo | undefined;
   existing: Table[];
   onPick: (started: string, table: StateTable) => void;
 }) {
-  // What makes a row disappear again: this source's own deletes, or another source
-  // that names the same key.
+  // What makes a row disappear again: this source's own deletes, or a further source
+  // that was ticked in step 2. It used to be guessed — the first other source in the
+  // project carrying the same key — which made one shape quietly fold a source the page
+  // never admitted to using. Now it is only offered once you've said so.
+  const remover = source.deletes ? undefined : extras[0];
   const gone = source.deletes
     ? { name: source.name, deleted: true }
-    : sources
-        .filter((s) => s.name !== source.name)
-        .filter((s) => s.fields.some((f) => f.name === keyField?.name && f.type === keyField?.type))
-        .map((s) => ({ name: s.name, deleted: false }))[0];
+    : remover && { name: remover.name, deleted: false };
 
   // A table this one could look a row up in: keyed by one column of the same type as
   // the key, with something to read.
@@ -935,6 +1070,14 @@ function Shapes({
       return column ? [{ table: t, column }] : [];
     })[0];
 
+  /**
+   * Hand a shape up, with a scaffolded handler for every further source it didn't use
+   * itself. `used` is how `Appears and disappears` keeps its remover from being
+   * scaffolded on top of the rule that already deletes the row.
+   */
+  const pick = (started: string, table: StateTable, used: SourceInfo[] = []) =>
+    onPick(started, alsoFolds(table, extras.filter((s) => !used.includes(s))));
+
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -947,7 +1090,7 @@ function Shapes({
           }
           disabled={!keyField}
           shape={keyField && countPer(source, keyField)}
-          onClick={() => keyField && onPick("Count per row", countPer(source, keyField))}
+          onClick={() => keyField && pick("Count per row", countPer(source, keyField))}
         />
         <Template
           title="Total per row"
@@ -959,17 +1102,19 @@ function Shapes({
           disabled={!keyField || !amountField}
           shape={keyField && amountField && sumPer(source, keyField, amountField)}
           onClick={() =>
-            keyField && amountField && onPick("Total per row", sumPer(source, keyField, amountField))
+            keyField && amountField && pick("Total per row", sumPer(source, keyField, amountField))
           }
         />
         <Template
           title="Latest per row"
           body={
-            keyField ? `The newest ${source.name} for each ${keyField.name}, field by field.` : ""
+            keyField
+              ? `The newest ${source.name} for each ${keyField.name}, field by field.`
+              : ""
           }
           disabled={!keyField}
           shape={keyField && latestPer(source, keyField)}
-          onClick={() => keyField && onPick("Latest per row", latestPer(source, keyField))}
+          onClick={() => keyField && pick("Latest per row", latestPer(source, keyField))}
         />
         <Template
           title="Per day"
@@ -980,19 +1125,27 @@ function Shapes({
           }
           disabled={!keyField}
           shape={keyField && dailyPer(source, keyField, amountField)}
-          onClick={() => keyField && onPick("Per day", dailyPer(source, keyField, amountField))}
+          onClick={() => keyField && pick("Per day", dailyPer(source, keyField, amountField))}
         />
         <Template
           title="Appears and disappears"
           body={
             keyField && gone
               ? `A row per ${keyField.name} while it's open: added on ${source.name}, removed on ${gone.deleted ? `${gone.name} deleted` : gone.name}.`
-              : "Nothing here says when a row should go away again."
+              : keyField && more
+                ? "Nothing here says when a row should go away again. Tick the source that ends one in step 2."
+                : "Nothing here says when a row should go away again: nothing this project follows reports a deletion."
           }
           disabled={!keyField || !gone}
           shape={keyField && gone && liveSet(source, keyField, gone)}
           onClick={() =>
-            keyField && gone && onPick("Appears and disappears", liveSet(source, keyField, gone))
+            keyField &&
+            gone &&
+            pick(
+              "Appears and disappears",
+              liveSet(source, keyField, gone),
+              remover ? [remover] : [],
+            )
           }
         />
         <Template
@@ -1009,7 +1162,7 @@ function Shapes({
           onClick={() =>
             keyField &&
             joinable &&
-            onPick(
+            pick(
               "With a value from another table",
               withLookup(source, keyField, joinable.table, joinable.column),
             )
@@ -1019,7 +1172,7 @@ function Shapes({
 
       <button
         type="button"
-        onClick={() => onPick("An empty table", blank(source))}
+        onClick={() => pick("An empty table", blank(source))}
         className="rounded-sm border border-dashed border-outline px-4 py-3 text-sm text-on-surface-variant transition-colors hover:border-primary hover:text-on-surface"
       >
         Or start from an empty table and write the columns and rules yourself.
