@@ -18,6 +18,7 @@ import { Button, Card, Icon, Notice, Select } from "@/components/ui";
 import {
   ApiError,
   type FieldInfo,
+  type ProjectDetail,
   type Preview,
   type SourceInfo,
   type Table,
@@ -144,10 +145,21 @@ function StateTableEditor() {
   const editing = useSearchParams().get("table");
   const [sources, setSources] = useState<SourceInfo[] | null>(null);
   const [existing, setExisting] = useState<Table[]>([]);
-  const [config, setConfig] = useState<string | null>(null);
+  /**
+   * The project as the server has it, or null until it has been read.
+   *
+   * One piece of state rather than a `config` and a `reducers`, because `reducers` is
+   * absent for a project written entirely in YAML and was also absent before the request
+   * landed — two situations with opposite right answers, told apart by nothing. Picking a
+   * shape in the gap wrote a reducers file containing the new table and nothing else,
+   * silently dropping every table already in it, and the first sign of it was a webhook
+   * in nineveh.yaml failing to build against a table that had just stopped existing.
+   */
+  const [detail, setDetail] = useState<ProjectDetail | null>(null);
+  const config = detail?.config ?? null;
   // Carried through untouched: this editor writes YAML, but a project whose reducers
   // are in the DSL has to be saved with them or it isn't the same project (ADR 0025).
-  const [reducers, setReducers] = useState<string | undefined>(undefined);
+  const reducers = detail?.reducers;
   const [table, setTable] = useState<StateTable | null>(null);
   // The first two answers, which every shape below is built from. Held here rather than
   // inside the shapes, because they are steps of the page in their own right.
@@ -182,13 +194,7 @@ function StateTableEditor() {
     if (!project) return;
     const failed = (e: unknown) => setLoadError(e instanceof Error ? e.message : String(e));
     control.sources(project).then(setSources).catch(failed);
-    control
-      .project(project)
-      .then((p) => {
-        setConfig(p.config);
-        setReducers(p.reducers);
-      })
-      .catch(failed);
+    control.project(project).then(setDetail).catch(failed);
     if (editing) {
       control
         .stateTable(project, editing)
@@ -219,17 +225,34 @@ function StateTableEditor() {
   const dsl = code;
   // Renaming the table in the file has to move the preview and the redirect with it.
   const tableName = (code !== null ? declaredName(code) : null) ?? name.trim();
+  /**
+   * Tables the project's reducers file declares that the one in the editor doesn't.
+   *
+   * Saving writes the whole file, so a table missing from it is a table deleted. Doing
+   * that on purpose is allowed — it is how you remove one — but it is invisible, and
+   * until now the only thing that noticed was a webhook subscribed to the casualty,
+   * which failed to build long after the damage was done.
+   */
+  const dropped = useMemo(
+    () =>
+      code === null || !detail
+        ? []
+        : declaredNames(detail.reducers ?? "").filter((n) => !declaredNames(code).includes(n)),
+    [code, detail],
+  );
 
   // Opening a saved table puts its file on screen. One already in the reducers file is
   // shown as it was written, comments and all; one declared in YAML is rendered into it.
   useEffect(() => {
-    if (!editing || !table || reducers === undefined || code !== null) return;
+    // `detail`, not `reducers`: a project written entirely in YAML has no reducers file,
+    // and waiting for one to appear would leave the editor empty for good.
+    if (!editing || !table || !detail || code !== null) return;
     setCode(
       dslTableBlock(reducers ?? "", table.name) !== null
         ? (reducers ?? "")
         : withDslTable(reducers ?? "", table),
     );
-  }, [editing, table, reducers, code]);
+  }, [editing, table, detail, reducers, code]);
 
   // Check with the server as it's written, once it's worth checking.
   useEffect(() => {
@@ -407,7 +430,7 @@ function StateTableEditor() {
 
         {/* `source` stands in for "there is anything to fold": it is the first of the
             picked sources, which is only undefined when the project follows nothing. */}
-        {sources && source && !editing && (
+        {sources && source && detail && !editing && (
           <>
             <Step
               n={2}
@@ -622,6 +645,19 @@ function StateTableEditor() {
               </Step>
             )}
 
+            {dropped.length > 0 && (
+              <div className="mb-6 ml-11">
+                <Notice tone="warning" title="This would remove a table">
+                  <span className="font-mono">{dropped.join(", ")}</span>{" "}
+                  {dropped.length === 1 ? "is" : "are"} in this project&apos;s reducers file but
+                  not in what is written above, so saving drops{" "}
+                  {dropped.length === 1 ? "it" : "them"} and the data{" "}
+                  {dropped.length === 1 ? "it holds" : "they hold"}. Put{" "}
+                  {dropped.length === 1 ? "it" : "them"} back if that isn&apos;t what you meant.
+                </Notice>
+              </div>
+            )}
+
             {/* The last thing in the sequence, where the sequence ends. It was in the
                 header, which is the one place on the page you are never looking while
                 you work — and it said nothing about why it was disabled. */}
@@ -753,6 +789,11 @@ function PreviewCard({
   );
 }
 
+/** Every table a reducers file declares, in the order it declares them. */
+function declaredNames(code: string): string[] {
+  return [...code.matchAll(/^export const ([A-Za-z_][A-Za-z0-9_]*) = table\(/gm)].map((m) => m[1]!);
+}
+
 /**
  * The table a hand-written reducers file declares first, so the preview and the redirect
  * follow a rename made in the file. A regex rather than a parse: the real parser is in
@@ -760,7 +801,7 @@ function PreviewCard({
  * server is what rejects a file that doesn't declare it.
  */
 function declaredName(code: string): string | null {
-  return /^export const ([A-Za-z_][A-Za-z0-9_]*) = table\(/m.exec(code)?.[1] ?? null;
+  return declaredNames(code)[0] ?? null;
 }
 
 /** One preview value, short enough for a cell. */
