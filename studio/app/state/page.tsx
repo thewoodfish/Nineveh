@@ -271,6 +271,11 @@ function StateTableEditor() {
    * until now the only thing that noticed was a webhook subscribed to the casualty,
    * which failed to build long after the damage was done.
    */
+  /** A name that says one key and a table that has another — see `keyMismatch`. */
+  const misnamed = useMemo(
+    () => (code === null || !tableName ? null : keyMismatch(code, tableName)),
+    [code, tableName],
+  );
   const dropped = useMemo(
     () =>
       code === null || !detail
@@ -697,6 +702,19 @@ function StateTableEditor() {
               </Step>
             )}
 
+            {misnamed && (
+              <div className="mb-6 ml-11">
+                <Notice tone="warning" title="The name says a different key">
+                  <span className="font-mono">{tableName}</span> is keyed by{" "}
+                  <span className="font-mono">{misnamed.keyed.join(", ")}</span>, not by{" "}
+                  <span className="font-mono">{misnamed.claims}</span>. It will fold and serve
+                  correctly — but anyone reading this table will look for{" "}
+                  <span className="font-mono">{misnamed.claims}</span> and find{" "}
+                  <span className="font-mono">{misnamed.keyed[0]}</span>.
+                </Notice>
+              </div>
+            )}
+
             {dropped.length > 0 && (
               <div className="mb-6 ml-11">
                 <Notice tone="warning" title="This would remove a table">
@@ -841,6 +859,34 @@ function PreviewCard({
       )}
     </Card>
   );
+}
+
+/** The key columns of one table in a reducers file, in key order. */
+function declaredKey(code: string, table: string): string[] {
+  const found = new RegExp(`^export const ${table} = table\\(\\{[^]*?key:\\s*\\{([^}]*)\\}`, "m").exec(
+    code,
+  );
+  return (found?.[1] ?? "")
+    .split(",")
+    .map((part) => part.split(":")[0]?.trim() ?? "")
+    .filter(Boolean);
+}
+
+/**
+ * A name that claims a key the table hasn't got.
+ *
+ * Studio names tables `<what>_per_<key>` and every generated one is consistent by
+ * construction — but the name is also the one part you can overrule, and once you have
+ * typed one it stops following the key. Change the key afterwards and the file reads
+ * `cancelled_per_id` over `key: { seller: address }`, where the columns, the comment and
+ * the handlers all say seller and only the name says id. Nothing downstream catches it:
+ * it compiles, it folds, and it is wrong only to the person who later queries `?id=`.
+ */
+function keyMismatch(code: string, table: string): { claims: string; keyed: string[] } | null {
+  const claims = /_per_([a-z0-9_]+)$/.exec(table)?.[1];
+  if (!claims) return null;
+  const keyed = declaredKey(code, table);
+  return keyed.length > 0 && !keyed.includes(claims) ? { claims, keyed } : null;
 }
 
 /**
