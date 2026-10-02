@@ -27,12 +27,18 @@ Publish them first (below). `./deploy.sh` writes the address of each one to
    a table source needs to see the write that created its table.
 4. **Create**. Then run `./play.sh` (below) and watch rows arrive.
 
-For the market, try the reducers too. Its project is written across two files, which is
-the shape the docs teach: [`nineveh.yaml`](03-market/nineveh.yaml) says what to follow,
-and [`market.nineveh.ts`](03-market/market.nineveh.ts) says what to do about it. Replace
-`0xMARKET` in the YAML with the address, paste the two into the project's **Config** and
-**Reducers**, and save. You get `sellers` and `buyers` tables with counts and totals that
-nothing on chain keeps.
+For the market, try the reducers too. Everything so far is a copy of something the
+contract already holds; `sellers` and `buyers` are the numbers it never keeps, because a
+running total per account would cost gas on every trade.
+
+Open **New state table** and, instead of answering the questions, paste
+[`market.nineveh.ts`](03-market/market.nineveh.ts) over what's in the editor — that pane
+is the project's whole reducers file, not one table, so a file declaring two of them
+makes two. Save, and you have per-seller revenue and per-buyer spend folded out of events
+the contract was emitting anyway.
+
+Nothing to replace in it: the file names sources, not addresses. Those you ticked in
+step 2, and Studio wrote them into the project's config for you.
 
 ## Publish them yourself
 

@@ -1,8 +1,9 @@
 // The numbers the market never stores.
 //
-// `nineveh.yaml` beside this file says what to follow, and keeps the tables that are
-// copies of what the contract holds: the open listings, everyone's credits, every sale
-// in order. This file is the other half. A marketplace's most obvious questions are
+// The project's config says what to follow, and keeps the tables that are copies of what
+// the contract holds: the open listings, everyone's credits, every sale in order. Studio
+// writes that half as you tick sources (`nineveh.yaml` beside this file is what it comes
+// out looking like). This file is the other half, and the only one you write. A marketplace's most obvious questions are
 // about people rather than listings, and the contract answers none of them: it has no
 // idea who its best seller is, because keeping a running total would cost gas on every
 // trade.

@@ -1,5 +1,10 @@
-# The market: what to follow, and the tables that mirror what the contract holds.
-# The totals it doesn't hold are in `market.nineveh.ts`, next to this file.
+# What Studio will have written for you, once you've pasted the market's address and
+# ticked its events and tables. It is here to read, not to paste: Studio owns this file,
+# and its Settings page shows you the real one to keep in version control.
+#
+# `0xMARKET` is wherever you published the contract, and the network is wherever you
+# published it to. The tables below are copies of what the contract holds; the totals it
+# doesn't hold are in `market.nineveh.ts`, next to this file.
 name: market
 network: testnet
 start_version: auto
