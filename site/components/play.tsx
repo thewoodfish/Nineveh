@@ -425,8 +425,11 @@ export function Play() {
                     Each republish is a new address, and a project following the old one goes quiet
                     without saying so.
                   </strong>{" "}
-                  If that has happened to you, paste your project&apos;s address above and this will
-                  drive that instead — no need to build it again.
+                  If that has happened to you, paste your project&apos;s own address above and this
+                  will drive that instead, with nothing to rebuild. Studio shows it under{" "}
+                  <strong className="font-normal text-white/55">Settings → Configuration</strong>,
+                  in the <code>sources:</code> block — it is the long hex in front of{" "}
+                  <code>::market::</code>, and every source shares it.
                 </>
               )}
             </p>
