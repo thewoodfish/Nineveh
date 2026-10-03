@@ -44,9 +44,14 @@ api.nineveh.dev {
 		# browser refuses it outright and the page sees "Failed to fetch" with no status
 		# to explain it. Preflights go upstream too, for the same reason: whatever
 		# answers them should be the thing that answers the request.
+		#
+		# {$NODE_API_KEY} comes from Caddy's own environment, not from the page and not
+		# from nineveh.env — see deploy/README.md for the drop-in that puts it there.
+		# Empty, this forwards an empty bearer and falls back to the anonymous limit,
+		# which fails under load and says nothing about why.
 		reverse_proxy https://api.devnet.aptoslabs.com {
 			header_up Host api.devnet.aptoslabs.com
-			header_up Authorization "Bearer {$APTOS_API_KEY}"
+			header_up Authorization "Bearer {$NODE_API_KEY}"
 		}
 	}
 

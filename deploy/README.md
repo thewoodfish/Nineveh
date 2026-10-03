@@ -144,11 +144,22 @@ anonymous per-IP allowance gives — two publishes exhaust it — and that allow
 shared with everything else leaving the machine. This is Nineveh's key on Nineveh's
 server; it is the reason a visitor to the page needs none of their own.
 
+One file holds it, and two services read it: the republish job, and Caddy, which
+substitutes it into the Caddyfile's Aptos proxy. The Aptos CLI picks `NODE_API_KEY` up
+from the environment by itself, which is why that is the name.
+
 ```sh
 install -d -m 0750 /etc/nineveh
 echo 'NODE_API_KEY=aptoslabs_…' > /etc/nineveh/demo.env   # a devnet key
 chmod 0640 /etc/nineveh/demo.env
 
+# Caddy reads its own environment when it loads the Caddyfile, not nineveh.env.
+install -d /etc/systemd/system/caddy.service.d
+cp deploy/caddy-demo.conf /etc/systemd/system/caddy.service.d/demo.conf
+systemctl daemon-reload && systemctl restart caddy
+
+# The CLI is what publishes; it is not part of the base install.
+curl -fsSL https://aptos.dev/scripts/install_cli.sh | sh
 sudo -u nineveh aptos init --profile nineveh-demo --network devnet --assume-yes
 
 cp deploy/nineveh-demo.{service,timer} /etc/systemd/system/
@@ -159,6 +170,16 @@ systemctl start nineveh-demo              # publish one now
 cat /var/lib/nineveh/public/demo.json     # where the page will look
 ```
 
+Two things worth checking once, because both fail quietly rather than loudly:
+
+```sh
+curl -s https://api.nineveh.dev/demo.json | head -3
+curl -s https://api.nineveh.dev/aptos/v1 | head -c 60   # not a rate-limit message
+```
+
+A rate-limit message from the second means Caddy has no key, and the page will work
+until enough people share an IP.
+
 Every four hours, not daily, so one failed run still leaves the contract inside the
 six-hour window. A run that fails changes nothing: the previous deployment and the
 previous `demo.json` stay as they were, and the page keeps working on the last good one.
@@ -167,7 +188,7 @@ Caddy serves that file at `https://api.nineveh.dev/demo.json`, public and read-o
 it holds a devnet address and nothing else.
 
 Caddy also forwards the page's fullnode reads at `/aptos/*`, attaching the same key from
-`{$APTOS_API_KEY}` in the service environment. That is what keeps a visitor off the
+`{$NODE_API_KEY}` in its own environment. That is what keeps a visitor off the
 anonymous per-IP allowance, which they would otherwise share with everyone behind their
 office, campus or VPN address. The site is then built with
 
