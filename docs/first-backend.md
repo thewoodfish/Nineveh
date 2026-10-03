@@ -242,6 +242,11 @@ seconds:
 curl -H "$AUTH" "$BASE/v1/tables/sellers?order=revenue.desc&limit=5"
 ```
 
+Now go back to **[play](https://nineveh.dev/play)** and sell a few more things. Run that
+query again between clicks and watch `revenue` climb. Nothing rebuilds and nothing is
+triggered: a sale arrives, your rule runs on it, the row changes. The table you just
+invented is now as live as the ones Studio made for you.
+
 That block is the whole of [Reducers](reducers.md), and it is where the rest of your
 time goes. The market's finished version, with a `buyers` table beside this one, is
 [`market.nineveh.ts`](https://github.com/thewoodfish/Nineveh/blob/main/examples/03-market/market.nineveh.ts)
