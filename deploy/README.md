@@ -128,6 +128,35 @@ curl -s https://api.nineveh.dev/health
 
 Caddy gets a certificate on the first request and renews it itself.
 
+## The demo contract
+
+The page at `nineveh.dev/play` fires a market contract on devnet, so visitors can watch
+a backend fill without installing anything. Devnet is wiped about weekly, and the free
+tier only lets a project start within six hours of the chain's tip, so that contract has
+to be republished regularly or the page points at nothing and new projects come up with
+empty table sources.
+
+It needs the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) on the box and one devnet
+profile to publish from. The faucet is an API on devnet, so nothing here is interactive:
+
+```sh
+sudo -u nineveh aptos init --profile nineveh-demo --network devnet --assume-yes
+
+cp deploy/nineveh-demo.{service,timer} /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now nineveh-demo.timer
+
+systemctl start nineveh-demo              # publish one now
+cat /var/lib/nineveh/public/demo.json     # where the page will look
+```
+
+Every four hours, not daily, so one failed run still leaves the contract inside the
+six-hour window. A run that fails changes nothing: the previous deployment and the
+previous `demo.json` stay as they were, and the page keeps working on the last good one.
+
+Caddy serves that file at `https://api.nineveh.dev/demo.json`, public and read-only —
+it holds a devnet address and nothing else.
+
 ## Backups
 
 ```sh

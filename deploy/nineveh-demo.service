@@ -1,0 +1,12 @@
+[Unit]
+Description=Republish the market example on devnet for the demo page
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=nineveh
+Environment=NINEVEH_DEMO_REPO=/opt/nineveh
+Environment=NINEVEH_DEMO_DIR=/var/lib/nineveh/public
+Environment=NINEVEH_DEMO_PROFILE=nineveh-demo
+ExecStart=/opt/nineveh/deploy/demo.sh

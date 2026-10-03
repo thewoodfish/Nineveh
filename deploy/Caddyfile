@@ -16,6 +16,18 @@ api.nineveh.dev {
 		}
 	}
 
+	# Where the demo contract is right now. `deploy/demo.sh` republishes it every few
+	# hours and rewrites this file; the demo page reads it to know what to fire. Public
+	# and read-only — it holds one devnet address and nothing else — and served from
+	# here rather than from the site because the site is a static export deployed
+	# elsewhere, and this value changes without a site build.
+	handle /demo.json {
+		header Access-Control-Allow-Origin "*"
+		header Cache-Control "public, max-age=60"
+		root * /var/lib/nineveh/public
+		file_server
+	}
+
 	encode gzip
 	log {
 		output file /var/log/caddy/api.log
