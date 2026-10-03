@@ -120,6 +120,17 @@ export function Play() {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<Entry[]>([]);
   const [copied, setCopied] = useState(false);
+  /**
+   * The contract this page is driving, which is not always the newest one.
+   *
+   * The demo contract is republished every few hours so that a new project can still
+   * choose "All of its history", and that moves it to a new address. A project created
+   * against the previous address keeps running perfectly and never sees another row,
+   * which looks exactly like Nineveh being broken. So the address is a field: whatever
+   * your project is following, paste it here and this drives that.
+   */
+  const [address, setAddress] = useState("");
+  const [holds, setHolds] = useState<"checking" | "yes" | "no" | null>(null);
   const nextId = useRef(0);
   const listings = useRef<number[]>([]);
 
@@ -152,6 +163,28 @@ export function Play() {
       .then(setDemo)
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : String(e)));
   }, []);
+
+  useEffect(() => {
+    if (demo && !address) setAddress(demo.market);
+  }, [demo, address]);
+
+  /** Does a `market` module live there? Checked before anything is sent to it. */
+  useEffect(() => {
+    const at = address.trim();
+    if (!/^0x[0-9a-fA-F]{1,64}$/.test(at)) {
+      setHolds(at ? "no" : null);
+      return;
+    }
+    setHolds("checking");
+    let live = true;
+    void aptos.current
+      .getAccountModule({ accountAddress: at, moduleName: "market" })
+      .then(() => live && setHolds("yes"))
+      .catch(() => live && setHolds("no"));
+    return () => {
+      live = false;
+    };
+  }, [address]);
 
   const note = useCallback((what: string, who: string): number => {
     const id = nextId.current++;
@@ -243,7 +276,7 @@ export function Play() {
         const transaction = await aptos.current.transaction.build.simple({
           sender: signer.accountAddress,
           data: {
-            function: `${demo.module}::${fn}` as `${string}::${string}::${string}`,
+            function: `${address.trim()}::market::${fn}` as `${string}::${string}::${string}`,
             functionArguments: args as never,
           },
         });
@@ -256,7 +289,7 @@ export function Play() {
         return null;
       }
     },
-    [demo, note, settle],
+    [address, demo, note, settle],
   );
 
   /** Credits, a listing, and a sale: one of each record the project follows. */
@@ -270,7 +303,7 @@ export function Play() {
       const item = ITEMS[Math.floor(Math.random() * ITEMS.length)]!;
       const price = 50 + Math.floor(Math.random() * 400);
       const before = await aptos.current
-        .view({ payload: { function: `${demo.module}::next_id` as `${string}::${string}::${string}` } })
+        .view({ payload: { function: `${address.trim()}::market::next_id` as `${string}::${string}::${string}` } })
         .then((r) => Number(r[0]))
         .catch(() => null);
 
@@ -290,7 +323,7 @@ export function Play() {
     } finally {
       setBusy(false);
     }
-  }, [accounts, demo, fund, send]);
+  }, [accounts, address, demo, fund, send]);
 
   const cancel = useCallback(async () => {
     if (!accounts || !demo) return;
@@ -298,7 +331,7 @@ export function Play() {
     try {
       if (!(await fund(true))) return;
       const before = await aptos.current
-        .view({ payload: { function: `${demo.module}::next_id` as `${string}::${string}::${string}` } })
+        .view({ payload: { function: `${address.trim()}::market::next_id` as `${string}::${string}::${string}` } })
         .then((r) => Number(r[0]))
         .catch(() => null);
       const item = ITEMS[Math.floor(Math.random() * ITEMS.length)]!;
@@ -315,11 +348,11 @@ export function Play() {
     } finally {
       setBusy(false);
     }
-  }, [accounts, demo, fund, send]);
+  }, [accounts, address, demo, fund, send]);
 
   const copy = () => {
     if (!demo) return;
-    void navigator.clipboard.writeText(demo.market).then(() => {
+    void navigator.clipboard.writeText(address.trim()).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     });
@@ -355,15 +388,47 @@ export function Play() {
               → tick everything → <strong className="text-white/80">All of its history</strong>.
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <code className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-black/40 px-3 py-2 font-mono text-xs text-blue-200">
-                {demo.market}
-              </code>
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                spellCheck={false}
+                autoComplete="off"
+                aria-label="The market contract to follow and drive"
+                aria-invalid={holds === "no"}
+                className={`min-w-0 flex-1 rounded-lg border bg-black/40 px-3 py-2 font-mono text-xs text-blue-200 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                  holds === "no" ? "border-rose-400/40" : "border-white/10"
+                }`}
+              />
               <Act onClick={copy}>{copied ? "Copied" : "Copy"}</Act>
             </div>
-            <p className="mt-3 text-xs text-white/35">
-              Published {age < 1 ? "just now" : `${age} minute${age === 1 ? "" : "s"} ago`}. It is
-              republished every few hours, because devnet is wiped weekly and a free project has to
-              start within six hours of the chain&apos;s tip.
+
+            <p className="mt-3 text-xs leading-relaxed text-white/35">
+              {holds === "checking" && "Looking for a market contract there…"}
+              {holds === "no" && (
+                <span className="text-rose-300/80">
+                  No <code>market</code> module at that address on devnet. Check it, or clear the
+                  field to go back to the current one.
+                </span>
+              )}
+              {holds === "yes" && address.trim() !== demo.market && (
+                <span className="text-amber-200/80">
+                  Driving your address rather than the current demo one. That is the point of this
+                  field — carry on.
+                </span>
+              )}
+              {holds === "yes" && address.trim() === demo.market && (
+                <>
+                  Published {age < 1 ? "just now" : `${age} minute${age === 1 ? "" : "s"} ago`}, and
+                  republished every few hours: devnet is wiped weekly, and a free project has to
+                  start within six hours of the chain&apos;s tip.{" "}
+                  <strong className="font-normal text-white/55">
+                    Each republish is a new address, and a project following the old one goes quiet
+                    without saying so.
+                  </strong>{" "}
+                  If that has happened to you, paste your project&apos;s address above and this will
+                  drive that instead — no need to build it again.
+                </>
+              )}
             </p>
           </section>
 
@@ -393,10 +458,10 @@ export function Play() {
               <Act onClick={() => void fundNow()} disabled={busy}>
                 Top the accounts up
               </Act>
-              <Act onClick={() => void round()} disabled={busy} tone="primary">
+              <Act onClick={() => void round()} disabled={busy || holds !== "yes"} tone="primary">
                 List and sell something
               </Act>
-              <Act onClick={() => void cancel()} disabled={busy}>
+              <Act onClick={() => void cancel()} disabled={busy || holds !== "yes"}>
                 List and cancel
               </Act>
             </div>
