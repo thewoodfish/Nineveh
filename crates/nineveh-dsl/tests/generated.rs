@@ -249,7 +249,12 @@ on(deposits, (r) => {
 })
 ",
     );
-    let TableKind::Reduce { key, columns, rules } = &tables[0].kind else {
+    let TableKind::Reduce {
+        key,
+        columns,
+        rules,
+    } = &tables[0].kind
+    else {
         panic!("not a reduce table")
     };
     assert_eq!(key.len(), 1);

@@ -13,8 +13,8 @@ use nineveh_config::{
 };
 use nineveh_core::{Address, Network, Value, Version};
 use nineveh_decode::{Lockfile, TransactionDecoder};
-use nineveh_expr::NamePosition;
 use nineveh_engine::{ChangeSet, Engine, MemoryState, TableId};
+use nineveh_expr::NamePosition;
 use nineveh_pipeline::{BatchStream, SharedTip, Source};
 use nineveh_realtime::Hub;
 use nineveh_store::accounts::{self, ApiKey};
