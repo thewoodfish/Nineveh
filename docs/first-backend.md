@@ -24,12 +24,8 @@ later. It is
 [two hundred lines of Move](https://github.com/thewoodfish/Nineveh/blob/main/examples/03-market/sources/market.move)
 and you don't have to read any of them yet.
 
-**Copy the address each time you start a project.** That contract is republished every
-few hours, at a new address, for two reasons worth knowing now because both will come up
-again: devnet is wiped about weekly, and a free project can only start within six hours
-of the chain's tip, so following a contract older than that would mean giving up the
-history its tables are built from. A project you already created keeps running against
-the address it was created with.
+That address is stable. It changes only when devnet is wiped, about weekly, which takes
+every contract on it with it — and then the page shows the new one.
 
 Other people are driving the same contract, so some of the rows you see will be theirs.
 That is a fair picture of what following any live contract looks like, and §7 covers
@@ -58,10 +54,19 @@ Under **Tables**:
 That last one is not an event, and it is the interesting one. Keep reading in §3 to see
 why it behaves differently from the other three.
 
-Name the project `market` and choose **All of its history** rather than **From now on**.
-That contract is only hours old, so its whole history is a few minutes of reading, and a
-table source needs to start early enough to see the write that created its table —
-without that, `Market.listings` would never learn which table is yours.
+Name the project `market` and choose **From now on**.
+
+That is the opposite of what you want for a contract of your own, and it is worth knowing
+why it is right here. A free project starts within six hours of the chain's tip, and the
+demo contract has been there longer — it stays at one address so that projects following
+it don't go quiet every time it is replaced. Starting from now costs you its past, which
+for a shared toy is no loss.
+
+It costs you nothing else, because a `table:` source does not need the write that
+*created* its table — it needs any write to the resource holding it. `Market.listings`
+lives in the `Market` resource, and every listing, sale and cancellation writes that
+resource. So one click in §3 is enough to tell Nineveh which tables are yours, and from
+then on they fill like everything else.
 
 **Create backend with 4 tables.**
 
@@ -282,21 +287,21 @@ Studio tells you once it has read far enough to be sure: *"this source hasn't ma
 anything yet"*. Until then, check the type name twice. Near-identical names in one
 module are the commonest way to lose a morning.
 
-**History is the expensive axis, not tables.** You chose **All of its history** in §2
-and it cost nothing, because there wasn't any. A contract that has been live for months
-is a real backfill, and Nineveh reads every version of the chain in the range, not just
-yours.
+**History is the expensive axis, not tables.** You chose **From now on** in §2 and gave
+up nothing that mattered. For a contract of your own the choice is real: following a
+contract that has been live for months means Nineveh reads every version of the chain in
+the range, not just yours.
 
 On the free tier it isn't a cost but a wall: a project starts within six hours of the
 chain's tip, and asking for more is refused before anything is created — *"The Free tier
 starts a project within 6 hours of the chain's tip."* Deep backfill holds one of a few
 shared catch-up streams for hours, which is the scarce thing ([limits](running.md#3-limits)).
 
-So for a contract that has been live a while, start **From now on**, and accept that a
-`table:` source will not know which table is yours until the resource holding it is
-written again. Events and resources fill from the first transaction that touches them;
-only table sources need the write that created the table, which is why following the
-whole history is what makes those certain.
+So **All of its history** is for a contract you published minutes ago, which is the usual
+case when you are building. Past that window, start from now and know what you are
+trading away: the past of your event and log tables. Your mirror and table sources catch
+up as soon as the resources behind them are written again — which, on a contract anybody
+is using, is immediately.
 
 **A quiet contract looks exactly like a broken one.** Make it busy before you judge what
 you built.

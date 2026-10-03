@@ -198,9 +198,14 @@ curl -s https://api.nineveh.dev/aptos/v1 | head -c 60   # not a rate-limit messa
 A rate-limit message from the second means Caddy has no key, and the page will work
 until enough people share an IP.
 
-Every four hours, not daily, so one failed run still leaves the contract inside the
-six-hour window. A run that fails changes nothing: the previous deployment and the
-previous `demo.json` stay as they were, and the page keeps working on the last good one.
+Four-hourly, and almost every run does nothing: the contract keeps one address, so the
+job only publishes when devnet has been wiped and taken it. The cadence is how long that
+goes unnoticed.
+
+A run that cannot tell — a timeout, a 5xx, a rate limit — leaves the deployment alone and
+exits non-zero. Only a 404 counts as gone. Treating an unreachable node as a missing
+contract would republish a healthy one and move the address out from under every project
+following it, which is the failure this is built to avoid.
 
 Caddy serves that file at `https://api.nineveh.dev/demo.json`, public and read-only —
 it holds a devnet address and nothing else.

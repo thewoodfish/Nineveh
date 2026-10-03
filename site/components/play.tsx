@@ -358,8 +358,6 @@ export function Play() {
     });
   };
 
-  const age = demo ? Math.round((Date.now() - Date.parse(demo.published_at)) / 60_000) : 0;
-
   return (
     <div className="mx-auto max-w-4xl px-6 pt-28 pb-24">
       <h1 className="font-display text-4xl font-semibold tracking-[-0.015em] text-balance text-white">
@@ -384,8 +382,9 @@ export function Play() {
             <h2 className="text-sm font-semibold text-white">1. Follow this contract</h2>
             <p className="mt-2 text-sm leading-relaxed text-white/50">
               Paste it into Studio: <strong className="text-white/80">New project</strong> →{" "}
-              <strong className="text-white/80">devnet</strong> → <strong className="text-white/80">Inspect</strong>{" "}
-              → tick everything → <strong className="text-white/80">All of its history</strong>.
+              <strong className="text-white/80">devnet</strong> →{" "}
+              <strong className="text-white/80">Inspect</strong> → tick everything →{" "}
+              <strong className="text-white/80">From now on</strong>.
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <input
@@ -418,18 +417,20 @@ export function Play() {
               )}
               {holds === "yes" && address.trim() === demo.market && (
                 <>
-                  Published {age < 1 ? "just now" : `${age} minute${age === 1 ? "" : "s"} ago`}, and
-                  republished every few hours: devnet is wiped weekly, and a free project has to
-                  start within six hours of the chain&apos;s tip.{" "}
+                  This address is stable — bookmark it if you like. It only moves when devnet is
+                  wiped, which takes the contract with it, and that is about weekly.{" "}
                   <strong className="font-normal text-white/55">
-                    Each republish is a new address, and a project following the old one goes quiet
-                    without saying so.
+                    Choose <em className="not-italic">From now on</em> when you create the project,
+                    not <em className="not-italic">All of its history</em>
                   </strong>{" "}
-                  If that has happened to you, paste your project&apos;s own address above and this
-                  will drive that instead, with nothing to rebuild. Studio shows it under{" "}
+                  — a free project can only start within six hours of the chain&apos;s tip, and this
+                  contract is older than that. The tables still fill: one click below writes the
+                  market&apos;s own resource, and that is what tells Nineveh which tables are yours.
+                  {" "}Following a different deployment? Paste its address above. Studio shows your
+                  project&apos;s under{" "}
                   <strong className="font-normal text-white/55">Settings → Configuration</strong>,
-                  in the <code>sources:</code> block — it is the long hex in front of{" "}
-                  <code>::market::</code>, and every source shares it.
+                  in the <code>sources:</code> block — the long hex in front of{" "}
+                  <code>::market::</code>.
                 </>
               )}
             </p>

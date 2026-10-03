@@ -30,16 +30,16 @@ Publish them first (below). `./deploy.sh` writes the address of each one to
    - **guestbook**: the events, and the `Guestbook.entries` table.
    - **market**: the events, and the `Market.listings` and `Market.credits` tables.
    - **arena**: `Played`, and the `Record` resource.
-3. Choose **All of its history**. A table source has to start early enough to see the
-   write that created its table, and a contract you published minutes ago has almost no
-   history to read, so this costs nothing here.
+3. Choose **All of its history**. You published these minutes ago, so there is barely any
+   to read, and it is the simplest thing that works: a table source starts early enough
+   to see the write that created its table, with nothing to think about.
 
    **Publish them the same day you follow them.** The free tier starts a project within
    six hours of the chain's tip — deep backfills tie up shared catch-up capacity, so
-   they're a paid thing ([limits](../docs/running.md#3-limits)). Past that window
-   Studio refuses the project outright: *"The Free tier starts a project within 6 hours
-   of the chain's tip."* Publish again and use the new address — on devnet that's the
-   normal state of affairs anyway, since it's reset about weekly.
+   they're a paid thing ([limits](../docs/running.md#3-limits)). Past that window Studio
+   refuses the project outright: *"The Free tier starts a project within 6 hours of the
+   chain's tip."* Publish again and use the new address, or start **From now on** and
+   send a transaction, which writes the resources your table sources are waiting on.
 4. **Create**. Then run `./play.sh` (below) and watch rows arrive.
 
 For the market, try the reducers too. Everything so far is a copy of something the
