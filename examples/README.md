@@ -11,6 +11,13 @@ pasting one into Studio's **New project** shows just that contract.
 | 3 | [`market`](03-market/sources/market.move) | A `SmartTable` of listings and a `Table` of balances, plus [`market.nineveh.ts`](03-market/market.nineveh.ts): reducers for the per-seller and per-buyer totals the contract never stores. It is the contract the [tutorial](../docs/first-backend.md) walks through. |
 | 4 | [`arena`](04-arena/sources/arena.move) | Move 2 enums: a versioned event (`V1`, then `V2`), a resource that upgrades from `V1` to `V2` in place, and label enums inside them. |
 
+## Just want to watch one work?
+
+[nineveh.dev/play](https://nineveh.dev/play) keeps a copy of the market published on
+devnet and gives you buttons that drive it, so you can follow a live contract from Studio
+without publishing anything or installing a toolchain. Everything below is for when you
+want to own both ends: your contracts, your accounts, your transactions.
+
 ## Try them in Studio
 
 Publish them first (below). `./deploy.sh` writes the address of each one to

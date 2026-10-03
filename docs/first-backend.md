@@ -1,66 +1,39 @@
 # Your first backend
 
-Publish a contract, point Nineveh at it, and watch your own transactions turn into
-tables you can query. Follow it top to bottom; every step produces something you can
-see.
+Point Nineveh at a contract, send it transactions from a browser tab, and watch them
+turn into tables you can query. Follow it top to bottom; every step produces something
+you can see, and the whole thing runs without installing anything.
 
-You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/), a GitHub account, and a
-free [Geomi](https://geomi.dev) key for the network you publish to:
+You need a GitHub account. Nothing else: no toolchain, no wallet, and no key to Aptos —
+Nineveh holds its own credentials for the chain, and the one key you will ever handle is
+[your project's own](reading.md#1-rest), for reading what it builds.
 
-```sh
-export NODE_API_KEY=aptoslabs_…
-```
+## 1. Find a contract to follow
 
-That key is for **your** side of the conversation — publishing the contract and sending
-it transactions. Without one those calls share an anonymous per-IP budget with everyone
-else, which is enough for about a minute of steady use before every transaction starts
-failing. The Aptos CLI reads the variable on its own.
+The interesting thing about a backend is what happens when the chain moves, so you want
+a contract you can make move on demand. Open **[nineveh.dev/play](https://nineveh.dev/play)**
+and leave the tab open: it holds a marketplace contract on devnet, and buttons that send
+it real transactions. You will use it again in §3.
 
-Nineveh doesn't need it. It holds its own stream credentials, so nothing you do in
-Studio asks you for a key to Aptos — only [your project's own API key](reading.md#1-rest)
-to read what it builds.
+Copy the address it shows. That is what you are about to follow.
 
-## 1. Publish a contract to play with
-
-You could point Nineveh at a contract that is already out there, but then the first
-thing you see is somebody else's data, and you can't tell a mistake of yours from a
-quiet afternoon on chain. It's better to own both ends. So publish a small contract,
-drive it yourself, and watch what happens in between.
-
-`market` is a marketplace, the third of four example contracts in the repo. Sellers list
-an item for a price in the market's own credits, buyers buy it, sellers take down what
-doesn't sell, and the market keeps 2.5% of every sale. Open listings live in a
-`SmartTable` and balances in a `Table`, which matters later. It is
+`market` is a small marketplace. Sellers list an item for a price in the market's own
+credits, buyers buy it, sellers take down what doesn't sell, and the market keeps 2.5% of
+every sale. Open listings live in a `SmartTable` and balances in a `Table`, which matters
+later. It is
 [two hundred lines of Move](https://github.com/thewoodfish/Nineveh/blob/main/examples/03-market/sources/market.move)
 and you don't have to read any of them yet.
 
-```sh
-git clone https://github.com/thewoodfish/Nineveh.git
-cd Nineveh/examples
+**Copy the address each time you start a project.** That contract is republished every
+few hours, at a new address, for two reasons worth knowing now because both will come up
+again: devnet is wiped about weekly, and a free project can only start within six hours
+of the chain's tip, so following a contract older than that would mean giving up the
+history its tables are built from. A project you already created keeps running against
+the address it was created with.
 
-export NETWORK=devnet
-./setup.sh                 # two accounts, funded from the faucet
-./deploy.sh 03-market      # publishes it at an object address of its own
-```
-
-Devnet because its faucet funds accounts over its API, so `setup.sh` finishes without
-stopping to ask you for anything. Testnet works identically if you'd rather, but its
-faucet is a web page, so `setup.sh` prints a link and waits for you.
-
-`deploy.sh` prints the address you need:
-
-```text
-==> 03-market
-    market is at 0x35c1f01bf1f6187df158d342b4e41f66d7747fb393b9841ded0457d0fb44adfa
-```
-
-Yours will be a different one: the contract goes to an address of its own, derived from
-the account that published it. Copy what your terminal prints, not what is printed here.
-Leave it open; you'll want that window again in §3.
-
-Devnet is wiped about once a week, and everything published there goes with it. Run
-`./deploy.sh 03-market` again and it notices the address has nothing at it any more and
-republishes; you then point a new project at the new address.
+Other people are driving the same contract, so some of the rows you see will be theirs.
+That is a fair picture of what following any live contract looks like, and §7 covers
+pointing Nineveh at one of your own, where every row is yours.
 
 ## 2. Create the project
 
@@ -86,8 +59,9 @@ That last one is not an event, and it is the interesting one. Keep reading in §
 why it behaves differently from the other three.
 
 Name the project `market` and choose **All of its history** rather than **From now on**.
-You published this contract two minutes ago, so its whole history is almost nothing, and
-a table source needs to start early enough to see the write that created its table.
+That contract is only hours old, so its whole history is a few minutes of reading, and a
+table source needs to start early enough to see the write that created its table —
+without that, `Market.listings` would never learn which table is yours.
 
 **Create backend with 4 tables.**
 
@@ -96,24 +70,18 @@ a table source needs to start early enough to see the write that created its tab
 The Overview shows a cursor climbing, the chain head it's chasing, and the gap between
 them. Within a few seconds it reads *following the chain*.
 
-And every table is empty, which is correct. You published a contract and nobody has used
-it. Nothing has happened yet.
+And the tables may well be empty, which is correct: a table has nothing in it until
+something happens on chain.
 
-So make something happen. Back in the terminal:
+So make something happen. Back in the **[play](https://nineveh.dev/play)** tab:
 
-```sh
-./play.sh
-```
+**Fund the two accounts**, once. Two throwaway accounts live in that tab — one sells, one
+buys, because the contract won't let you buy your own listing — and the devnet faucet
+tops them up. Then **List and sell something**, as many times as you like. Each click
+claims credits, lists an item and buys it: three transactions, three records.
 
-If every line comes back `(failed)`, the script says why under the first one. A rate
-limit means `NODE_API_KEY` isn't set or isn't valid for this network.
-
-Two accounts start trading: listing items, buying each other's, cancelling some. It
-prints a line per transaction and runs until you stop it with Ctrl-C.
-
-Leave Studio open on the project while it runs. Rows arrive in the order the chain
-commits them, a few seconds behind the transaction you just watched go out. Watch two
-tables in particular:
+Put the two tabs side by side. Rows arrive in the order the chain commits them, a couple
+of seconds behind the click. Watch two tables in particular:
 
 - **`sold`** only grows. It is a log: one row per sale, kept forever, in order.
 - **`market_listings`** grows *and shrinks*. A row appears when something is listed and
@@ -182,8 +150,8 @@ In a third terminal:
 curl -N -H "$AUTH" "$BASE/v1/changes"
 ```
 
-Every row change is pushed as it commits, and with `play.sh` still running you are
-watching your own transactions come back to you:
+Every row change is pushed as it commits. Click **List and sell something** again with
+this running and you are watching your own transactions come back to you:
 
 ```text
 event: change
@@ -295,8 +263,17 @@ in the repo.
 ## 7. Now point it at your own contract
 
 You have already done every step: paste an address, tick what to follow, fold it into
-the table you want. Two things are different about a contract you didn't publish four
-minutes ago.
+the table you want. Your own contract is the same five minutes again, with three things
+to know that the demo didn't teach you.
+
+**Owning both ends is worth it.** On the demo contract some of the rows were other
+people's, and when you are learning that is fine. When you are checking your own work it
+is not: you cannot tell a mistake of yours from a quiet afternoon on chain. Publish
+something you control and drive it yourself. The four
+[example contracts](https://github.com/thewoodfish/Nineveh/blob/main/examples/README.md)
+are there to be published that way — that is the one part of this that needs the
+[Aptos CLI](https://aptos.dev/tools/aptos-cli/) and a free [Geomi](https://geomi.dev)
+key, because now you are the one sending transactions rather than a page we run.
 
 **A source that matches nothing is not an error.** If you tick a type that never
 arrives, you get a project that runs perfectly and stays empty. Nothing fails and
@@ -321,10 +298,11 @@ written again. Events and resources fill from the first transaction that touches
 only table sources need the write that created the table, which is why following the
 whole history is what makes those certain.
 
-And if your contract is quiet, make it busy before you judge what you built.
-[`play.sh`](https://github.com/thewoodfish/Nineveh/blob/main/examples/play.sh) does
-nothing cleverer than sending transactions in a loop; it is under a hundred lines and
-most of them are picking what to send.
+**A quiet contract looks exactly like a broken one.** Make it busy before you judge what
+you built.
+[`play.sh`](https://github.com/thewoodfish/Nineveh/blob/main/examples/play.sh) in the
+examples does nothing cleverer than sending transactions in a loop; it is under a hundred
+lines and most of them are picking what to send.
 
 ## 8. What you just learned
 

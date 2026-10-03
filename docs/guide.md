@@ -73,9 +73,11 @@ no "wait for N confirmations". A version cursor is the whole safety story.
 
 In order, if you're new:
 
-1. **[Your first backend](first-backend.md)**: publish an example contract, point
-   Nineveh at it, and query your own transactions. Start here; everything else makes
-   more sense after it. It needs the Aptos CLI, and nothing else.
+1. **[Your first backend](first-backend.md)**: point Nineveh at a contract, send it
+   transactions from a browser tab, and query what comes out. Start here; everything
+   else makes more sense after it. It needs a GitHub account and nothing else — the
+   contract and the transactions are at [nineveh.dev/play](https://nineveh.dev/play),
+   which is also the quickest way to see the thing work at all.
 2. **[Reducers](reducers.md)**: how to say what your tables hold. This is the part
    you'll spend your time in.
 3. **[Reading your data](reading.md)**: the REST API, the change feed, webhooks.

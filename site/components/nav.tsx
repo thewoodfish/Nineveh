@@ -10,6 +10,7 @@ import { Button, Logo } from "./bits";
 const LINKS = [
   { label: "How it works", href: "/#how", anchor: true },
   { label: "Pricing", href: "/#pricing", anchor: true },
+  { label: "Try it", href: "/play", anchor: false },
   { label: "Docs", href: "/docs", anchor: false },
 ];
 
