@@ -68,6 +68,13 @@ type Entry = { id: number; what: string; who: string; state: "sending" | "done" 
 const ITEMS = ["lamp", "rug", "chair", "mug", "poster", "plant", "clock", "kettle"];
 
 /**
+ * Top up below a quarter of an APT. A transaction reserves its maximum gas up front, so
+ * the balance that matters is the one the chain checks before running anything, not what
+ * the work actually costs.
+ */
+const LOW_WATER = 25_000_000;
+
+/**
  * The two accounts, kept in localStorage so a reload doesn't orphan funded keys.
  *
  * These are throwaway devnet keys with no value, which is the only reason generating
@@ -106,7 +113,10 @@ export function Play() {
   const [demo, setDemo] = useState<Deployment | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<{ seller: Account; buyer: Account } | null>(null);
-  const [funded, setFunded] = useState(false);
+  const [held, setHeld] = useState<{ seller: number | null; buyer: number | null }>({
+    seller: null,
+    buyer: null,
+  });
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<Entry[]>([]);
   const [copied, setCopied] = useState(false);
@@ -153,25 +163,77 @@ export function Play() {
     setLog((l) => l.map((e) => (e.id === id ? { ...e, state, detail } : e)));
   }, []);
 
-  /** Fund both accounts. Devnet's faucet is an API, which is why this page can exist. */
-  const fund = useCallback(async () => {
+  /** What each account holds, in octas, or null before it has been looked up. */
+  const balances = useCallback(async () => {
+    if (!accounts) return { seller: null, buyer: null };
+    const read = async (a: Account) => {
+      try {
+        return await aptos.current.getAccountAPTAmount({ accountAddress: a.accountAddress });
+      } catch {
+        // An account nothing has funded yet doesn't exist, which is not an error here.
+        return 0;
+      }
+    };
+    const [seller, buyer] = await Promise.all([read(accounts.seller), read(accounts.buyer)]);
+    return { seller, buyer };
+  }, [accounts]);
+
+  // Read the balances once the accounts exist, so the page can say what it has before
+  // anyone presses anything.
+  useEffect(() => {
     if (!accounts) return;
+    let live = true;
+    void balances().then((b) => {
+      if (live) setHeld(b);
+    });
+    return () => {
+      live = false;
+    };
+  }, [accounts, balances]);
+
+  /**
+   * Top both accounts up to something comfortable.
+   *
+   * Gas is reserved at the transaction's maximum, not charged at its actual cost, so an
+   * account can hold enough to have paid for everything it has done and still be refused
+   * for the next one. That refusal arrives as INSUFFICIENT_BALANCE_FOR_TRANSACTION_FEE,
+   * which reads like an empty account and is usually a nearly-full one. Rather than make
+   * anyone reason about that, every round tops up first if either account is low — the
+   * faucet is free, and a devnet account is worth nothing.
+   */
+  const fund = useCallback(
+    async (quiet = false) => {
+      if (!accounts) return false;
+      const have = await balances();
+      const low = (v: number | null) => v === null || v < LOW_WATER;
+      if (quiet && !low(have.seller) && !low(have.buyer)) return true;
+
+      const id = note("topping the two accounts up from the devnet faucet", "faucet");
+      try {
+        await Promise.all(
+          [accounts.seller, accounts.buyer].map((a) =>
+            aptos.current.fundAccount({ accountAddress: a.accountAddress, amount: 100_000_000 }),
+          ),
+        );
+        settle(id, "done");
+        setHeld(await balances());
+        return true;
+      } catch (e) {
+        settle(id, "failed", e instanceof Error ? e.message : String(e));
+        return false;
+      }
+    },
+    [accounts, balances, note, settle],
+  );
+
+  const fundNow = useCallback(async () => {
     setBusy(true);
-    const id = note("funding two accounts from the devnet faucet", "faucet");
     try {
-      await Promise.all(
-        [accounts.seller, accounts.buyer].map((a) =>
-          aptos.current.fundAccount({ accountAddress: a.accountAddress, amount: 100_000_000 }),
-        ),
-      );
-      setFunded(true);
-      settle(id, "done");
-    } catch (e) {
-      settle(id, "failed", e instanceof Error ? e.message : String(e));
+      await fund();
     } finally {
       setBusy(false);
     }
-  }, [accounts, note, settle]);
+  }, [fund]);
 
   const send = useCallback(
     async (signer: Account, who: string, fn: string, args: unknown[], label: string) => {
@@ -202,6 +264,7 @@ export function Play() {
     if (!accounts || !demo) return;
     setBusy(true);
     try {
+      if (!(await fund(true))) return;
       await send(accounts.buyer, "buyer", "claim_credits", [1_000], "claiming credits");
 
       const item = ITEMS[Math.floor(Math.random() * ITEMS.length)]!;
@@ -227,12 +290,13 @@ export function Play() {
     } finally {
       setBusy(false);
     }
-  }, [accounts, demo, send]);
+  }, [accounts, demo, fund, send]);
 
   const cancel = useCallback(async () => {
     if (!accounts || !demo) return;
     setBusy(true);
     try {
+      if (!(await fund(true))) return;
       const before = await aptos.current
         .view({ payload: { function: `${demo.module}::next_id` as `${string}::${string}::${string}` } })
         .then((r) => Number(r[0]))
@@ -251,7 +315,7 @@ export function Play() {
     } finally {
       setBusy(false);
     }
-  }, [accounts, demo, send]);
+  }, [accounts, demo, fund, send]);
 
   const copy = () => {
     if (!demo) return;
@@ -307,17 +371,32 @@ export function Play() {
             <h2 className="text-sm font-semibold text-white">2. Make something happen</h2>
             <p className="mt-2 text-sm leading-relaxed text-white/50">
               Two throwaway accounts live in this browser — one sells, one buys, because the
-              contract won&apos;t let you buy your own listing. Fund them once from the devnet
-              faucet, then send whatever you like.
+              contract won&apos;t let you buy your own listing. They top themselves up from the
+              devnet faucet whenever they run low, so just send things.
             </p>
+            {accounts && (
+              <dl className="mt-4 grid gap-2 font-mono text-xs sm:grid-cols-2">
+                {(["seller", "buyer"] as const).map((who) => (
+                  <div key={who} className="flex items-baseline gap-2">
+                    <dt className="text-white/35">{who}</dt>
+                    <dd className="min-w-0 flex-1 truncate text-white/55">
+                      {accounts[who].accountAddress.toString().slice(0, 10)}…
+                      <span className="ml-2 text-white/35">
+                        {held[who] === null ? "" : `${(held[who] / 100_000_000).toFixed(2)} APT`}
+                      </span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
             <div className="mt-5 flex flex-wrap gap-3">
-              <Act onClick={() => void fund()} disabled={busy || funded}>
-                {funded ? "Funded" : "Fund the two accounts"}
+              <Act onClick={() => void fundNow()} disabled={busy}>
+                Top the accounts up
               </Act>
-              <Act onClick={() => void round()} disabled={busy || !funded} tone="primary">
+              <Act onClick={() => void round()} disabled={busy} tone="primary">
                 List and sell something
               </Act>
-              <Act onClick={() => void cancel()} disabled={busy || !funded}>
+              <Act onClick={() => void cancel()} disabled={busy}>
                 List and cancel
               </Act>
             </div>
