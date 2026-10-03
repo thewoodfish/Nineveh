@@ -433,22 +433,8 @@ export function Play() {
                 </span>
               )}
               {holds === "yes" && address.trim() === demo.market && (
-                <>
-                  This address is stable — bookmark it if you like. It only moves when devnet is
-                  wiped, which takes the contract with it, and that is about weekly.{" "}
-                  <strong className="font-normal text-white/55">
-                    Choose <em className="not-italic">From now on</em> when you create the project,
-                    not <em className="not-italic">All of its history</em>
-                  </strong>{" "}
-                  — a free project can only start within six hours of the chain&apos;s tip, and this
-                  contract is older than that. The tables still fill: one click below writes the
-                  market&apos;s own resource, and that is what tells Nineveh which tables are yours.
-                  {" "}Following a different deployment? Paste its address above. Studio shows your
-                  project&apos;s under{" "}
-                  <strong className="font-normal text-white/55">Settings → Configuration</strong>,
-                  in the <code>sources:</code> block — the long hex in front of{" "}
-                  <code>::market::</code>.
-                </>
+                <>Devnet is wiped about weekly and this contract goes with it. Then it&apos;s a
+                new address here, and a new project.</>
               )}
             </p>
           </section>
