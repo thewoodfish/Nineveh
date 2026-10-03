@@ -4,8 +4,8 @@
 // example running on devnet — the same contract the demo page drives — so the rows in
 // them are rows Nineveh actually produced.
 //
-// The shots are tabbed rather than stacked: four full-width images in a row is a scroll,
-// and the point is that these are four views of one product, not four features.
+// The shots are tabbed rather than stacked: five full-width images in a row is a scroll,
+// and the point is that these are five views of one product, not five features.
 //
 // It sits under `Core` and carries no section heading of its own. Screenshots are
 // evidence, and evidence goes after the claim — the section used to lead with them,
@@ -17,16 +17,24 @@ import { useState } from "react";
 
 import { Register, Section } from "./bits";
 
-// The order is the order the work happens in: you describe a table, then you have one,
-// then it moves, then you watch it keep up.
+// The order is the order the work happens in: an address becomes a project, you describe
+// a table, then you have one, then it moves, then you watch it keep up.
 //
-// TODO: a shot of the create flow — the address pasted, the catalog listed, the events
-// and resources ticked — which would prove the closing panel's first two steps instead
-// of asking to be believed. One was taken and couldn't be used: it still had the
-// "Preview config" button, removed in adeacf5, and a screenshot of a control that no
-// longer exists is worse than no screenshot. Retake and add it here as the first entry.
+// The first shot predates adeacf5 and still shows a "Preview config" button that has
+// since gone. Deliberate: it is one control in a 1920-pixel screenshot of a page that is
+// otherwise current, and the alternative was not showing the step at all.
 
 const SHOTS = [
+  {
+    id: "create",
+    tab: "From an address",
+    src: "/shots/create.jpg",
+    width: 1920,
+    height: 998,
+    caption:
+      "Paste a contract address and Nineveh reads it off the chain: every event it emits, every resource it stores, every table inside them. Tick what you want followed, name it, and the backend exists.",
+    alt: "Nineveh Studio's new project page, having read a contract and listing the events, resources and tables it could follow",
+  },
   {
     id: "reducer",
     tab: "Your own tables",
