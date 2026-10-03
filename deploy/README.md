@@ -148,25 +148,40 @@ One file holds it, and two services read it: the republish job, and Caddy, which
 substitutes it into the Caddyfile's Aptos proxy. The Aptos CLI picks `NODE_API_KEY` up
 from the environment by itself, which is why that is the name.
 
+Every path below is relative to the checkout, which is `/opt/nineveh/src` — the install
+root `/opt/nineveh` holds only the binary and the scripts.
+
 ```sh
+cd /opt/nineveh/src && git pull --ff-only
+
 install -d -m 0750 /etc/nineveh
 echo 'NODE_API_KEY=aptoslabs_…' > /etc/nineveh/demo.env   # a devnet key
 chmod 0640 /etc/nineveh/demo.env
 
 # Caddy reads its own environment when it loads the Caddyfile, not nineveh.env.
-install -d /etc/systemd/system/caddy.service.d
-cp deploy/caddy-demo.conf /etc/systemd/system/caddy.service.d/demo.conf
+install -D -m 644 deploy/caddy-demo.conf /etc/systemd/system/caddy.service.d/demo.conf
+cp deploy/Caddyfile /etc/caddy/Caddyfile
 systemctl daemon-reload && systemctl restart caddy
 
-# The CLI is what publishes; it is not part of the base install.
+# The CLI is what publishes, and it is not part of the base install. Into a system
+# path, because the user that runs the job is not the one installing it.
 curl -fsSL https://aptos.dev/scripts/install_cli.sh | sh
-sudo -u nineveh aptos init --profile nineveh-demo --network devnet --assume-yes
+install -m 755 /root/.local/bin/aptos /usr/local/bin/aptos
+
+# From `examples/`, where the job runs: the CLI keeps its profiles in the
+# `.aptos/config.yaml` of the directory it is used from.
+install -d -m 755 -o nineveh -g nineveh /var/lib/nineveh /var/lib/nineveh/public
+install -D -m 755 deploy/demo.sh /opt/nineveh/deploy/demo.sh
+chown -R nineveh:nineveh /opt/nineveh/src
+sudo -u nineveh sh -c 'cd /opt/nineveh/src/examples &&
+  aptos init --profile nineveh-demo --network devnet --assume-yes'
 
 cp deploy/nineveh-demo.{service,timer} /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now nineveh-demo.timer
 
-systemctl start nineveh-demo              # publish one now
+systemctl start nineveh-demo              # publish one now; takes a minute
+journalctl -u nineveh-demo -n 20 --no-pager
 cat /var/lib/nineveh/public/demo.json     # where the page will look
 ```
 

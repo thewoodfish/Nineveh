@@ -6,7 +6,9 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=nineveh
-Environment=NINEVEH_DEMO_REPO=/opt/nineveh
+# The checkout, not the install root: `demo.sh` builds the contract out of
+# `examples/03-market`, which only exists in the source tree.
+Environment=NINEVEH_DEMO_REPO=/opt/nineveh/src
 Environment=NINEVEH_DEMO_DIR=/var/lib/nineveh/public
 Environment=NINEVEH_DEMO_PROFILE=nineveh-demo
 # Nineveh's own Geomi key, for Nineveh's own publishing. A package publish costs more
