@@ -50,7 +50,15 @@ step 2, and Studio wrote them into the project's config for you.
 
 ## Publish them yourself
 
-You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) (`brew install aptos`).
+You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) (`brew install aptos`) and
+a free [Geomi](https://geomi.dev) key for the network you're publishing to. **Set it
+first.** Without one these calls share an anonymous per-IP budget — 40,000 compute units
+per 300 seconds — which is about a minute of `play.sh` before every transaction starts
+failing:
+
+```sh
+export NODE_API_KEY=aptoslabs_…   # the Aptos CLI reads this on its own
+```
 
 ```sh
 ./setup.sh              # two accounts; fund any it can't at the faucet link it prints
@@ -59,6 +67,9 @@ You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) (`brew install apto
 ./play.sh               # keeps whatever you published busy, until Ctrl-C
 ```
 
+`play.sh` prints the reason under its first failure, so a run that turns into a wall of
+`(failed)` tells you which of the three it is: no key, no gas, or a devnet reset.
+
 They default to testnet, whose faucet only works through its web page. Devnet funds
 accounts over its API, so everything runs unattended there, and devnet is reset about
 once a week:
@@ -66,9 +77,6 @@ once a week:
 ```sh
 NETWORK=devnet ./setup.sh && NETWORK=devnet ./deploy.sh && NETWORK=devnet ./play.sh
 ```
-
-Set `NODE_API_KEY` to a [Geomi](https://geomi.dev) key for the network you're using:
-without one these calls share the anonymous per-IP rate limit, and start failing.
 
 Devnet is reset about once a week, and everything published there goes with it: run
 `deploy.sh` again (after deleting `deployed.devnet.env`) to publish afresh.

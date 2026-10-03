@@ -4,7 +4,21 @@ Publish a contract, point Nineveh at it, and watch your own transactions turn in
 tables you can query. Follow it top to bottom; every step produces something you can
 see.
 
-You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) and a GitHub account.
+You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/), a GitHub account, and a
+free [Geomi](https://geomi.dev) key for the network you publish to:
+
+```sh
+export NODE_API_KEY=aptoslabs_…
+```
+
+That key is for **your** side of the conversation — publishing the contract and sending
+it transactions. Without one those calls share an anonymous per-IP budget with everyone
+else, which is enough for about a minute of steady use before every transaction starts
+failing. The Aptos CLI reads the variable on its own.
+
+Nineveh doesn't need it. It holds its own stream credentials, so nothing you do in
+Studio asks you for a key to Aptos — only [your project's own API key](reading.md#1-rest)
+to read what it builds.
 
 ## 1. Publish a contract to play with
 
@@ -90,6 +104,9 @@ So make something happen. Back in the terminal:
 ```sh
 ./play.sh
 ```
+
+If every line comes back `(failed)`, the script says why under the first one. A rate
+limit means `NODE_API_KEY` isn't set or isn't valid for this network.
 
 Two accounts start trading: listing items, buying each other's, cancelling some. It
 prints a line per transaction and runs until you stop it with Ctrl-C.

@@ -35,13 +35,42 @@ echo "playing on $NETWORK:$(
   done
 )"
 
+# Why a transaction failed, once. A run that hits the anonymous rate limit fails every
+# call from then on, and a few hundred bare `(failed)`s say nothing about which of the
+# three likely causes it is — no key, no gas, or a devnet reset. The first failure
+# carries its reason; the rest stay quiet so the log is still readable.
+explained=""
+explain() { # explain OUTPUT
+  [[ -n $explained ]] && return
+  explained=yes
+  case $1 in
+    *"rate limit"*|*"429"*)
+      echo "   ↳ the node is rate-limiting this IP. Set NODE_API_KEY to a Geomi key" >&2
+      echo "     for $NETWORK (https://geomi.dev) and run this again — the Aptos CLI" >&2
+      echo "     picks it up from the environment." >&2
+      ;;
+    *INSUFFICIENT_BALANCE*|*"insufficient"*)
+      echo "   ↳ out of gas. Fund the accounts again: NETWORK=$NETWORK ./setup.sh" >&2
+      ;;
+    *MODULE_NOT_FOUND*|*"not found"*|*ACCOUNT_NOT_FOUND*)
+      echo "   ↳ nothing is published at that address any more. Devnet is reset about" >&2
+      echo "     weekly: rm deployed.$NETWORK.env and publish again with ./deploy.sh." >&2
+      ;;
+    *)
+      echo "   ↳ ${1//$'\n'/ }" >&2
+      ;;
+  esac
+  echo "     (only the first failure is explained; the rest are quiet)" >&2
+}
+
 run() { # run PROFILE FUNCTION [ARGS...]
-  local profile=$1 function=$2
+  local profile=$1 function=$2 output
   shift 2
-  if aptos move run --profile "$profile" --function-id "$function" "$@" --assume-yes >/dev/null 2>&1; then
+  if output=$(aptos move run --profile "$profile" --function-id "$function" "$@" --assume-yes 2>&1); then
     echo "$(date +%T)  ${profile#nineveh-}  ${function#*::}"
   else
     echo "$(date +%T)  ${profile#nineveh-}  ${function#*::}  (failed)"
+    explain "$output"
   fi
 }
 
