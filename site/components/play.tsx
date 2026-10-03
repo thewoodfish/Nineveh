@@ -60,6 +60,7 @@ function Act({
 // Where `deploy/demo.sh` publishes the current address. Overridable so the page can be
 // run against a local file while developing it.
 const DEMO_URL = process.env.NEXT_PUBLIC_NINEVEH_DEMO ?? "https://api.nineveh.dev/demo.json";
+const STUDIO = process.env.NEXT_PUBLIC_NINEVEH_STUDIO ?? "https://studio.nineveh.dev";
 const STORE = "nineveh-play-keys";
 
 type Deployment = { network: string; market: string; module: string; published_at: string };
@@ -381,10 +382,10 @@ export function Play() {
           <section className="mt-12 rounded-xl border border-white/10 bg-white/[0.03] p-6">
             <h2 className="text-sm font-semibold text-white">1. Follow this contract</h2>
             <p className="mt-2 text-sm leading-relaxed text-white/50">
-              Paste it into Studio: <strong className="text-white/80">New project</strong> →{" "}
-              <strong className="text-white/80">devnet</strong> →{" "}
+              Follow it in Studio and every click below becomes rows. The button carries the
+              address with it, so there is nothing to copy — then{" "}
               <strong className="text-white/80">Inspect</strong> → tick everything →{" "}
-              <strong className="text-white/80">From now on</strong>.
+              <strong className="text-white/80">Create</strong>.
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <input
@@ -399,6 +400,22 @@ export function Play() {
                 }`}
               />
               <Act onClick={copy}>{copied ? "Copied" : "Copy"}</Act>
+            </div>
+
+            <div className="mt-4">
+              <a
+                href={`${STUDIO}/new?network=${encodeURIComponent(demo.network)}&address=${encodeURIComponent(address.trim())}&start=now`}
+                target="_blank"
+                rel="noreferrer"
+                aria-disabled={holds !== "yes"}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium shadow-card transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                  holds === "yes"
+                    ? "bg-blue-600 text-white hover:bg-blue-500 hover:shadow-glow"
+                    : "pointer-events-none bg-blue-600/30 text-white/40"
+                }`}
+              >
+                Follow this contract in Studio →
+              </a>
             </div>
 
             <p className="mt-3 text-xs leading-relaxed text-white/35">
