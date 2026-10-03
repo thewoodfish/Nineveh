@@ -28,6 +28,28 @@ api.nineveh.dev {
 		file_server
 	}
 
+	# The demo page's reads of the Aptos fullnode, forwarded with Nineveh's key.
+	#
+	# Aptos rate-limits anonymous callers per IP, so without this a visitor behind a
+	# shared address — an office, a campus, a VPN — can have their clicks refused for
+	# somebody else's traffic. Putting the key in the page instead would publish it:
+	# a browser keeps no secrets. So it lives here, in {$APTOS_API_KEY} from the
+	# service environment, and never reaches the client.
+	#
+	# Read-only by nature: a signed transaction is signed before it arrives, so this
+	# forwards bytes it cannot alter in any way that would still verify.
+	handle_path /aptos/* {
+		# No CORS headers here, deliberately. The Aptos API already sends its own, and
+		# adding a second `Access-Control-Allow-Origin` makes the response invalid — a
+		# browser refuses it outright and the page sees "Failed to fetch" with no status
+		# to explain it. Preflights go upstream too, for the same reason: whatever
+		# answers them should be the thing that answers the request.
+		reverse_proxy https://api.devnet.aptoslabs.com {
+			header_up Host api.devnet.aptoslabs.com
+			header_up Authorization "Bearer {$APTOS_API_KEY}"
+		}
+	}
+
 	encode gzip
 	log {
 		output file /var/log/caddy/api.log

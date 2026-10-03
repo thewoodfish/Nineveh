@@ -113,7 +113,27 @@ export function Play() {
   const nextId = useRef(0);
   const listings = useRef<number[]>([]);
 
-  const aptos = useRef(new Aptos(new AptosConfig({ network: Network.DEVNET })));
+  // Reads go through Nineveh's own proxy rather than straight to the public fullnode.
+  //
+  // The anonymous allowance is per IP, so an office, a campus or a VPN exit shares one
+  // between everyone behind it, and the visitor whose click fails did nothing wrong. The
+  // obvious fix — a Geomi key in the page — would publish that key to anyone who opens
+  // the console, because a browser cannot hold a secret. So the key stays on the server
+  // and `api.nineveh.dev/aptos` forwards with it attached.
+  //
+  // Signing is unaffected: the proxy carries bytes a key was already applied to, and the
+  // private keys never leave this tab. Unset, the page talks to the public fullnode and
+  // lives on the anonymous allowance, which is fine for one person on their own address.
+  const aptos = useRef(
+    new Aptos(
+      new AptosConfig({
+        network: Network.DEVNET,
+        ...(process.env.NEXT_PUBLIC_APTOS_FULLNODE
+          ? { fullnode: process.env.NEXT_PUBLIC_APTOS_FULLNODE }
+          : {}),
+      }),
+    ),
+  );
 
   useEffect(() => {
     setAccounts(load());

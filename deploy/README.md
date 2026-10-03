@@ -166,6 +166,19 @@ previous `demo.json` stay as they were, and the page keeps working on the last g
 Caddy serves that file at `https://api.nineveh.dev/demo.json`, public and read-only —
 it holds a devnet address and nothing else.
 
+Caddy also forwards the page's fullnode reads at `/aptos/*`, attaching the same key from
+`{$APTOS_API_KEY}` in the service environment. That is what keeps a visitor off the
+anonymous per-IP allowance, which they would otherwise share with everyone behind their
+office, campus or VPN address. The site is then built with
+
+```sh
+NEXT_PUBLIC_APTOS_FULLNODE=https://api.nineveh.dev/aptos/v1
+```
+
+so the key stays here and never reaches a browser. Built without it the page talks to
+the public fullnode directly and lives on the anonymous allowance, which is fine for one
+person on an unused address.
+
 ## Backups
 
 ```sh
