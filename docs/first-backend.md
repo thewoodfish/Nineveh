@@ -10,12 +10,9 @@ Nineveh holds its own credentials for the chain, and the one key you will ever h
 
 ## 1. Find a contract to follow
 
-The interesting thing about a backend is what happens when the chain moves, so you want
-a contract you can make move on demand. Open **[nineveh.dev/play](https://nineveh.dev/play)**
-and leave the tab open: it holds a marketplace contract on devnet, and buttons that send
-it real transactions. You will use it again in §3.
-
-Copy the address it shows. That is what you are about to follow.
+Open **[nineveh.dev/play](https://nineveh.dev/play)** and leave the tab open. It holds a
+marketplace contract on devnet and buttons that send it real transactions, which is what
+you need: a backend is only interesting once the chain moves. You'll use it again in §3.
 
 `market` is a small marketplace. Sellers list an item for a price in the market's own
 credits, buyers buy it, sellers take down what doesn't sell, and the market keeps 2.5% of
@@ -24,12 +21,8 @@ later. It is
 [two hundred lines of Move](https://github.com/thewoodfish/Nineveh/blob/main/examples/03-market/sources/market.move)
 and you don't have to read any of them yet.
 
-That address is stable. It changes only when devnet is wiped, about weekly, which takes
-every contract on it with it — and then the page shows the new one.
-
-Other people are driving the same contract, so some of the rows you see will be theirs.
-That is a fair picture of what following any live contract looks like, and §7 covers
-pointing Nineveh at one of your own, where every row is yours.
+It's shared, so some rows will be other people's. §7 covers pointing Nineveh at a
+contract of your own.
 
 ## 2. Create the project
 
@@ -54,19 +47,8 @@ Under **Tables**:
 That last one is not an event, and it is the interesting one. Keep reading in §3 to see
 why it behaves differently from the other three.
 
-Name the project `market` and choose **From now on**.
-
-That is the opposite of what you want for a contract of your own, and it is worth knowing
-why it is right here. A free project starts within six hours of the chain's tip, and the
-demo contract has been there longer — it stays at one address so that projects following
-it don't go quiet every time it is replaced. Starting from now costs you its past, which
-for a shared toy is no loss.
-
-It costs you nothing else, because a `table:` source does not need the write that
-*created* its table — it needs any write to the resource holding it. `Market.listings`
-lives in the `Market` resource, and every listing, sale and cancellation writes that
-resource. So one click in §3 is enough to tell Nineveh which tables are yours, and from
-then on they fill like everything else.
+Name the project `market`. **From now on** is already selected, which is right for a
+contract that has been running a while — §7 says when you'd want the other.
 
 **Create backend with 4 tables.**
 
@@ -267,47 +249,30 @@ in the repo.
 
 ## 7. Now point it at your own contract
 
-You have already done every step: paste an address, tick what to follow, fold it into
-the table you want. Your own contract is the same five minutes again, with three things
-to know that the demo didn't teach you.
+Same five minutes again: paste an address, tick what to follow, fold it into the table
+you want. Three things the demo couldn't teach you.
 
-**Owning both ends is worth it.** On the demo contract some of the rows were other
-people's, and when you are learning that is fine. When you are checking your own work it
-is not: you cannot tell a mistake of yours from a quiet afternoon on chain. Publish
-something you control and drive it yourself. The four
+**Own both ends.** Some of the demo's rows were other people's, which is fine while
+learning and useless while checking your own work — you can't tell your mistake from a
+quiet afternoon on chain. The four
 [example contracts](https://github.com/thewoodfish/Nineveh/blob/main/examples/README.md)
-are there to be published that way — that is the one part of this that needs the
+are there to publish and drive yourself. That part needs the
 [Aptos CLI](https://aptos.dev/tools/aptos-cli/) and a free [Geomi](https://geomi.dev)
-key, because now you are the one sending transactions rather than a page we run.
+key, because you're the one sending transactions now.
 
-**A source that matches nothing is not an error.** If you tick a type that never
-arrives, you get a project that runs perfectly and stays empty. Nothing fails and
-nothing complains, because that is also what a contract nobody is using looks like.
-Studio tells you once it has read far enough to be sure: *"this source hasn't matched
-anything yet"*. Until then, check the type name twice. Near-identical names in one
-module are the commonest way to lose a morning.
+**A source that matches nothing is not an error.** Tick a type that never arrives and you
+get a project that runs perfectly and stays empty — which is also what a contract nobody
+uses looks like. Studio says *"this source hasn't matched anything yet"* once it has read
+far enough to be sure. Until then, check the type name twice.
 
-**History is the expensive axis, not tables.** You chose **From now on** in §2 and gave
-up nothing that mattered. For a contract of your own the choice is real: following a
-contract that has been live for months means Nineveh reads every version of the chain in
-the range, not just yours.
+**Choose All of its history for a contract you just published**, which is the usual case
+when you're building. Past six hours the free tier refuses it
+([limits](running.md#3-limits)), so start from now and expect the past to be missing.
 
-On the free tier it isn't a cost but a wall: a project starts within six hours of the
-chain's tip, and asking for more is refused before anything is created — *"The Free tier
-starts a project within 6 hours of the chain's tip."* Deep backfill holds one of a few
-shared catch-up streams for hours, which is the scarce thing ([limits](running.md#3-limits)).
-
-So **All of its history** is for a contract you published minutes ago, which is the usual
-case when you are building. Past that window, start from now and know what you are
-trading away: the past of your event and log tables. Your mirror and table sources catch
-up as soon as the resources behind them are written again — which, on a contract anybody
-is using, is immediately.
-
-**A quiet contract looks exactly like a broken one.** Make it busy before you judge what
-you built.
-[`play.sh`](https://github.com/thewoodfish/Nineveh/blob/main/examples/play.sh) in the
-examples does nothing cleverer than sending transactions in a loop; it is under a hundred
-lines and most of them are picking what to send.
+And make it busy before you judge it: a quiet contract looks exactly like a broken one.
+[`play.sh`](https://github.com/thewoodfish/Nineveh/blob/main/examples/play.sh) sends
+transactions in a loop, or point the [play page](https://nineveh.dev/play) at your own
+address.
 
 ## 8. What you just learned
 
