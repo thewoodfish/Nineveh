@@ -222,10 +222,19 @@ export function Notice({
   tone = "neutral",
   title,
   children,
+  onClose,
 }: {
   tone?: "neutral" | "warning" | "error";
   title: ReactNode;
   children?: ReactNode;
+  /**
+   * Show a close button, and call this when it is pressed.
+   *
+   * Only for a notice that is telling you something rather than reporting a condition.
+   * A halted pipeline is not dismissible: the X would say the problem had been dealt
+   * with when nothing had, and it would come back on the next render anyway.
+   */
+  onClose?: () => void;
 }) {
   // Material has no alert component, so the console states things in a tonal container
   // with the matching symbol. That is what this is.
@@ -238,10 +247,20 @@ export function Notice({
   return (
     <div className={`flex gap-3 rounded-md px-4 py-3 text-sm ${tones[tone]}`}>
       <Icon name={icons[tone]} className="mt-px shrink-0 text-[20px]" />
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="font-medium">{title}</div>
         {children && <div className="mt-1 opacity-90">{children}</div>}
       </div>
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Dismiss"
+          className="state -mt-1 -mr-1 grid size-8 shrink-0 cursor-pointer place-items-center self-start rounded-full"
+        >
+          <Icon name="close" className="text-[18px]" />
+        </button>
+      )}
     </div>
   );
 }

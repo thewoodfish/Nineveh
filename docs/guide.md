@@ -90,6 +90,9 @@ Two references, for when you need a specific answer:
   as you add sources, tables and webhooks.
 - **[Expressions](expressions.md)**: the small language reducer values are written in.
 
+Stuck on something, or it did something you didn't expect? There's a
+[Telegram group](https://t.me/+kVwq6suLvZNlNGE0) — that's the fastest way to reach us.
+
 And if you'd rather run it yourself:
 [Running Nineveh yourself](https://github.com/thewoodfish/Nineveh/blob/main/SELF_HOSTED.md)
 covers building it, the CLI, the control plane, and what you take on as the operator.

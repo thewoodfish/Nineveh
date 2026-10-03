@@ -66,6 +66,14 @@ export function Nav() {
             </a>
           ))}
           <a
+            href="https://t.me/+kVwq6suLvZNlNGE0"
+            target="_blank"
+            rel="noreferrer"
+            className="hidden text-white/55 transition-colors hover:text-white sm:block"
+          >
+            Telegram
+          </a>
+          <a
             href="https://github.com/thewoodfish/Nineveh"
             className="hidden text-white/55 transition-colors hover:text-white sm:block"
           >

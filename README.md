@@ -24,6 +24,8 @@ publish yourself, and [`examples/`](examples/) has four to try it on.
 Nineveh is also open source and runs on your own machine, which is a supported path
 rather than the main one: [Running Nineveh yourself](SELF_HOSTED.md).
 
+Questions, or something behaving oddly? [Telegram](https://t.me/+kVwq6suLvZNlNGE0).
+
 ## How it works
 
 Nineveh is event sourcing with materialized read models:

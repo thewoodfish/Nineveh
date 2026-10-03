@@ -412,6 +412,12 @@ function Supporting({ label, value }: { label: string; value: ReactNode }) {
  * failure.
  */
 function Silent({ sources, status }: { sources: SourceInfo[] | null; status: Status }) {
+  // Dismissible, unlike the notices above it. Those report a condition — a halted
+  // pipeline, a lost API — and closing one would claim it had been dealt with. This one
+  // is advice, and advice you have read is in the way. It comes back on reload, because
+  // the sources really are still quiet.
+  const [hidden, setHidden] = useState(false);
+  if (hidden) return null;
   if (!sources || sources.length === 0) return null;
 
   // Far enough to be worth mentioning. Below this, a quiet minute proves nothing.
@@ -433,6 +439,7 @@ function Silent({ sources, status }: { sources: SourceInfo[] | null; status: Sta
   return (
     <Notice
       tone="warning"
+      onClose={() => setHidden(true)}
       title={
         quiet.length === 1
           ? `${quiet[0]!.name} hasn't matched anything yet`
