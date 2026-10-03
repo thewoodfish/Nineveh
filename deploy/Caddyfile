@@ -58,5 +58,25 @@ api.nineveh.dev {
 	encode gzip
 	log {
 		output file /var/log/caddy/api.log
+
+		# Keys out of the log.
+		#
+		# `EventSource` cannot set a header, so the change feed takes the project key as
+		# `?apikey=` and the docs tell people to send it that way. Caddy redacts the
+		# `Authorization` and `Cookie` headers on its own, but nothing redacts a query
+		# string, and an access log is the worst place for a credential to settle: it is
+		# backed up, copied into tickets, and read by anyone with a shell, and a key
+		# already written there outlives being rotated.
+		#
+		# `replace` rather than `delete` so the line still says a key was sent and which
+		# path it went to, which is what the log is for.
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					replace apikey REDACTED
+				}
+			}
+		}
 	}
 }
