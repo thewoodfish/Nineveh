@@ -173,6 +173,9 @@ install -m 755 /root/.local/bin/aptos /usr/local/bin/aptos
 install -d -m 755 -o nineveh -g nineveh /var/lib/nineveh /var/lib/nineveh/public
 install -D -m 755 deploy/demo.sh /opt/nineveh/deploy/demo.sh
 chown -R nineveh:nineveh /opt/nineveh/src
+# Press Enter at "Enter your private key": `--assume-yes` answers the yes/no prompts
+# but not that one, and empty input is what asks it to generate a key and fund it from
+# the faucet. This account should be a throwaway holding nothing but devnet gas.
 sudo -u nineveh sh -c 'cd /opt/nineveh/src/examples &&
   aptos init --profile nineveh-demo --network devnet --assume-yes'
 
