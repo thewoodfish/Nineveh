@@ -15,14 +15,30 @@
 #
 # It is idempotent in the way that matters: a failure leaves the previous deployment and
 # the previous `demo.json` untouched, so the page keeps working on the last good one.
+#
+# NODE_API_KEY is not optional here, however much it is for a visitor. Publishing a
+# package is expensive in the node's terms — fetch the account, simulate four and a half
+# kilobytes of bytecode, submit, poll — and two publishes are enough to exhaust the
+# anonymous per-IP allowance of 40,000 compute units per five minutes. That allowance is
+# also shared with everything else leaving this machine. The key is Nineveh's own, on
+# Nineveh's own server; nobody visiting the page ever needs one.
 set -euo pipefail
+
+if [[ -z ${NODE_API_KEY:-} ]]; then
+  echo "demo: NODE_API_KEY is unset — publishing will hit the anonymous rate limit" >&2
+  echo "      and leave the demo contract stale. Get a devnet key at https://geomi.dev" >&2
+  exit 1
+fi
 
 REPO="${NINEVEH_DEMO_REPO:-/opt/nineveh}"
 DIR="${NINEVEH_DEMO_DIR:-/var/lib/nineveh/public}"
 PROFILE="${NINEVEH_DEMO_PROFILE:-nineveh-demo}"
 NETWORK=devnet
 
-cd "$REPO/examples/03-market"
+# From `examples/`, not from the package: the Aptos CLI finds its profiles in the
+# `.aptos/config.yaml` of the directory it runs in, and `--package-dir` is how
+# `examples/deploy.sh` points at a contract from there.
+cd "$REPO/examples"
 
 # Devnet funds over its API, which is the whole reason the demo lives there: no faucet
 # page to click through, so this can run unattended. Topping up every time is cheaper
@@ -32,18 +48,27 @@ aptos account fund-with-faucet --profile "$PROFILE" --amount 100000000 >/dev/nul
   exit 1
 }
 
+# A build left by a previous run was compiled for a previous address, and a stale one is
+# published as-is — which the chain rejects with MODULE_ADDRESS_DOES_NOT_MATCH_SENDER,
+# after taking the gas. Start from nothing.
+rm -rf 03-market/build
+
 # An object deployment, like examples/deploy.sh: the module's address is baked into its
 # bytecode, so each publish compiles against the address it is going to live at.
 out=$(aptos move deploy-object \
-  --profile "$PROFILE" \
+  --package-dir 03-market \
   --address-name market \
+  --profile "$PROFILE" \
+  --max-gas 200000 --gas-unit-price 100 \
   --assume-yes 2>&1) || {
   echo "demo: publish failed, keeping the current deployment" >&2
   echo "$out" >&2
   exit 1
 }
 
-address=$(echo "$out" | grep -Eo '0x[0-9a-f]{64}' | head -1)
+# The phrase, then the address in it: the output also carries a transaction hash, which
+# is the same shape and would be taken instead.
+address=$(grep -Eo 'object address 0x[0-9a-f]+' <<<"$out" | grep -Eo '0x[0-9a-f]+' | tail -1)
 if [[ -z $address ]]; then
   echo "demo: published but could not find the address in the output" >&2
   echo "$out" >&2

@@ -139,7 +139,16 @@ empty table sources.
 It needs the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) on the box and one devnet
 profile to publish from. The faucet is an API on devnet, so nothing here is interactive:
 
+It also needs a Geomi key. Publishing a package costs more compute units than the
+anonymous per-IP allowance gives — two publishes exhaust it — and that allowance is
+shared with everything else leaving the machine. This is Nineveh's key on Nineveh's
+server; it is the reason a visitor to the page needs none of their own.
+
 ```sh
+install -d -m 0750 /etc/nineveh
+echo 'NODE_API_KEY=aptoslabs_…' > /etc/nineveh/demo.env   # a devnet key
+chmod 0640 /etc/nineveh/demo.env
+
 sudo -u nineveh aptos init --profile nineveh-demo --network devnet --assume-yes
 
 cp deploy/nineveh-demo.{service,timer} /etc/systemd/system/

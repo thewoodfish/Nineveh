@@ -9,4 +9,8 @@ User=nineveh
 Environment=NINEVEH_DEMO_REPO=/opt/nineveh
 Environment=NINEVEH_DEMO_DIR=/var/lib/nineveh/public
 Environment=NINEVEH_DEMO_PROFILE=nineveh-demo
+# Nineveh's own Geomi key, for Nineveh's own publishing. A package publish costs more
+# compute units than the anonymous allowance gives, so without this the job fails and
+# the demo contract goes stale. Visitors to the page still need nothing.
+EnvironmentFile=/etc/nineveh/demo.env
 ExecStart=/opt/nineveh/deploy/demo.sh
