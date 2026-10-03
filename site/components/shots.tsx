@@ -4,9 +4,8 @@
 // example running on devnet — the same contract the demo page drives — so the rows in
 // them are rows Nineveh actually produced.
 //
-// The shots are tabbed rather than stacked: three full-width images in a row is a
-// scroll, and the point is that these are three views of one product, not three
-// features.
+// The shots are tabbed rather than stacked: four full-width images in a row is a scroll,
+// and the point is that these are four views of one product, not four features.
 //
 // It sits under `Core` and carries no section heading of its own. Screenshots are
 // evidence, and evidence goes after the claim — the section used to lead with them,
@@ -19,17 +18,14 @@ import { useState } from "react";
 import { Register, Section } from "./bits";
 
 // The order is the order the work happens in: you describe a table, then you have one,
-// then it moves.
+// then it moves, then you watch it keep up.
 //
 // TODO: a shot of the create flow — the address pasted, the catalog listed, the events
 // and resources ticked — which would prove the closing panel's first two steps instead
 // of asking to be believed. One was taken and couldn't be used: it still had the
 // "Preview config" button, removed in adeacf5, and a screenshot of a control that no
 // longer exists is worse than no screenshot. Retake and add it here as the first entry.
-//
-// TODO: the Overview, for keeping up — cursor, lag, and how much history is kept. The
-// old shot went because it predated the sidebar and the signed-in state and was
-// advertising a product we no longer ship.
+
 const SHOTS = [
   {
     id: "reducer",
@@ -61,6 +57,16 @@ const SHOTS = [
       "Every row that changes, as it commits, with the record behind it. The same feed your app subscribes to over SSE — inserts, updates and deletes in the order the chain made them.",
     alt: "Nineveh Studio's change feed, showing inserts, updates and deletes arriving in commit order",
   },
+  {
+    id: "health",
+    tab: "Keeping up",
+    src: "/shots/overview.jpg",
+    width: 1920,
+    height: 998,
+    caption:
+      "Where the cursor is, how far behind the chain, and how fast it's folding — plus the URL your app calls. The history it keeps is what a rule change replays against, instead of reading the chain a second time.",
+    alt: "Nineveh Studio's overview, showing a project caught up with the chain, its API URL and how much history it keeps",
+  },
 ];
 
 export function Shots() {
@@ -75,8 +81,9 @@ export function Shots() {
         </h3>
         <p className="mt-4 max-w-[62ch] leading-relaxed text-pretty text-white/55">
           Studio creates the project, then shows you what it built: the tables you chose, the ones
-          you folded yourself, and every change as it commits. These are real screens against a
-          contract running on devnet, not mockups — the rows in them came off the chain.
+          you folded yourself, every change as it commits, and whether the whole thing is keeping
+          up. These are real screens against a contract running on devnet, not mockups — the rows
+          in them came off the chain.
         </p>
 
         <div
