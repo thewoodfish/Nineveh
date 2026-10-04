@@ -52,9 +52,10 @@ function failure(e: unknown): Failure {
 export default function NewProject() {
   const { mode, projects, refresh, limits, networks: served } = useProject();
   const router = useRouter();
-  // Somewhere else can point here with a contract already chosen — the demo page does,
-  // so nobody has to carry an address between two tabs by hand. The fields are filled,
-  // not submitted: what gets followed is still something you looked at and agreed to.
+  // Somewhere else can point here with a contract already chosen — a link out of a
+  // deploy script or a doc — so nobody has to carry an address between two tabs by hand.
+  // The fields are filled, not submitted: what gets followed is still something you
+  // looked at and agreed to.
   const params = useSearchParams();
   const [network, setNetwork] = useState<Network>("testnet");
   // Two separate reasons a network might be off, and they need telling apart. The tier
