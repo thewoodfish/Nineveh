@@ -78,12 +78,9 @@ cd /opt/nineveh/src
 echo "--- install"
 install -D -m 755 target/release/nineveh /opt/nineveh/bin/nineveh
 install -D -m 755 deploy/backup.sh       /opt/nineveh/deploy/backup.sh
-install -D -m 755 deploy/demo.sh         /opt/nineveh/deploy/demo.sh
 chown -R nineveh:nineveh /opt/nineveh
 
-# What the demo page reads, written by the republish job and served by Caddy, so it
-# needs to exist before either runs and be traversable by both.
-install -d -m 755 -o nineveh -g nineveh /var/lib/nineveh /var/lib/nineveh/public
+install -d -m 755 -o nineveh -g nineveh /var/lib/nineveh
 
 install -d -m 700 /etc/nineveh
 [ -f /etc/nineveh/nineveh.env ] \
@@ -92,9 +89,6 @@ install -d -m 700 /etc/nineveh
 cp deploy/nineveh.service /etc/systemd/system/
 cp deploy/nineveh-backup.service /etc/systemd/system/
 cp deploy/nineveh-backup.timer   /etc/systemd/system/
-cp deploy/nineveh-demo.service   /etc/systemd/system/
-cp deploy/nineveh-demo.timer     /etc/systemd/system/
-install -D -m 644 deploy/caddy-demo.conf /etc/systemd/system/caddy.service.d/demo.conf
 cp deploy/Caddyfile /etc/caddy/Caddyfile
 systemctl daemon-reload
 systemctl enable --now nineveh-backup.timer

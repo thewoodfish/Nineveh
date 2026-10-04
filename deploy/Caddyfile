@@ -16,45 +16,6 @@ api.nineveh.dev {
 		}
 	}
 
-	# Where the demo contract is right now. `deploy/demo.sh` republishes it every few
-	# hours and rewrites this file; the demo page reads it to know what to fire. Public
-	# and read-only — it holds one devnet address and nothing else — and served from
-	# here rather than from the site because the site is a static export deployed
-	# elsewhere, and this value changes without a site build.
-	handle /demo.json {
-		header Access-Control-Allow-Origin "*"
-		header Cache-Control "public, max-age=60"
-		root * /var/lib/nineveh/public
-		file_server
-	}
-
-	# The demo page's reads of the Aptos fullnode, forwarded with Nineveh's key.
-	#
-	# Aptos rate-limits anonymous callers per IP, so without this a visitor behind a
-	# shared address — an office, a campus, a VPN — can have their clicks refused for
-	# somebody else's traffic. Putting the key in the page instead would publish it:
-	# a browser keeps no secrets. So it lives here, in {$APTOS_API_KEY} from the
-	# service environment, and never reaches the client.
-	#
-	# Read-only by nature: a signed transaction is signed before it arrives, so this
-	# forwards bytes it cannot alter in any way that would still verify.
-	handle_path /aptos/* {
-		# No CORS headers here, deliberately. The Aptos API already sends its own, and
-		# adding a second `Access-Control-Allow-Origin` makes the response invalid — a
-		# browser refuses it outright and the page sees "Failed to fetch" with no status
-		# to explain it. Preflights go upstream too, for the same reason: whatever
-		# answers them should be the thing that answers the request.
-		#
-		# {$NODE_API_KEY} comes from Caddy's own environment, not from the page and not
-		# from nineveh.env — see deploy/README.md for the drop-in that puts it there.
-		# Empty, this forwards an empty bearer and falls back to the anonymous limit,
-		# which fails under load and says nothing about why.
-		reverse_proxy https://api.devnet.aptoslabs.com {
-			header_up Host api.devnet.aptoslabs.com
-			header_up Authorization "Bearer {$NODE_API_KEY}"
-		}
-	}
-
 	encode gzip
 	log {
 		output file /var/log/caddy/api.log

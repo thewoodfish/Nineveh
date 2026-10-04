@@ -1,8 +1,8 @@
 "use client";
 
 // Studio, photographed rather than described. These are real screens against the market
-// example running on devnet — the same contract the demo page drives — so the rows in
-// them are rows Nineveh actually produced.
+// example running on devnet — `examples/03-market`, the one the tutorial publishes — so
+// the rows in them are rows Nineveh actually produced.
 //
 // The shots are tabbed rather than stacked: five full-width images in a row is a scroll,
 // and the point is that these are five views of one product, not five features.

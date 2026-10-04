@@ -128,100 +128,38 @@ curl -s https://api.nineveh.dev/health
 
 Caddy gets a certificate on the first request and renews it itself.
 
-## The demo contract
+## The demo contract (removed)
 
-The page at `nineveh.dev/play` fires a market contract on devnet, so visitors can watch
-a backend fill without installing anything. Devnet is wiped about weekly, and the free
-tier only lets a project start within six hours of the chain's tip, so that contract has
-to be republished regularly or the page points at nothing and new projects come up with
-empty table sources.
+There used to be a `nineveh.dev/play` page that fired a market contract on devnet from
+the browser, with a timer on this box republishing that contract and a Caddy proxy
+forwarding the page's fullnode reads with Nineveh's own Geomi key. All of it is gone: the
+[tutorial](../docs/first-backend.md) now has the reader publish `examples/03-market`
+themselves and drive it from the Aptos CLI, which is what an Aptos developer already has.
 
-It needs the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) on the box and one devnet
-profile to publish from. The faucet is an API on devnet, so nothing here is interactive:
+The proxy is the part worth understanding before putting anything like it back. It was
+unauthenticated by necessity — a page cannot hold a secret — so anyone who found
+`/aptos/*` could spend the key's monthly credit, and in the end something did: it
+returned `429 Blocked due to MonthlyCredit cap` for every request, which the page
+reported as "no contract at that address".
 
-It also needs a Geomi key. Publishing a package costs more compute units than the
-anonymous per-IP allowance gives — two publishes exhaust it — and that allowance is
-shared with everything else leaving the machine. This is Nineveh's key on Nineveh's
-server; it is the reason a visitor to the page needs none of their own.
-
-One file holds it, and two services read it: the republish job, and Caddy, which
-substitutes it into the Caddyfile's Aptos proxy. The Aptos CLI picks `NODE_API_KEY` up
-from the environment by itself, which is why that is the name.
-
-Every path below is relative to the checkout, which is `/opt/nineveh/src` — the install
-root `/opt/nineveh` holds only the binary and the scripts.
+On a box that ran it, this takes it out:
 
 ```sh
-cd /opt/nineveh/src && git pull --ff-only
+systemctl disable --now nineveh-demo.timer
+rm -f /etc/systemd/system/nineveh-demo.service /etc/systemd/system/nineveh-demo.timer
+rm -f /etc/systemd/system/caddy.service.d/demo.conf
+rm -f /etc/nineveh/demo.env               # then revoke that key at https://geomi.dev
+rm -rf /var/lib/nineveh/public            # demo.json lived here
 
-install -d -m 0750 /etc/nineveh
-echo 'NODE_API_KEY=aptoslabs_…' > /etc/nineveh/demo.env   # a devnet key
-chmod 0640 /etc/nineveh/demo.env
-
-# Caddy reads its own environment when it loads the Caddyfile, not nineveh.env.
-install -D -m 644 deploy/caddy-demo.conf /etc/systemd/system/caddy.service.d/demo.conf
-cp deploy/Caddyfile /etc/caddy/Caddyfile
+cp deploy/Caddyfile /etc/caddy/Caddyfile  # no /demo.json, no /aptos/*
 systemctl daemon-reload && systemctl restart caddy
 
-# The CLI is what publishes, and it is not part of the base install. Into a system
-# path, because the user that runs the job is not the one installing it.
-curl -fsSL https://aptos.dev/scripts/install_cli.sh | sh
-install -m 755 /root/.local/bin/aptos /usr/local/bin/aptos
-
-# From `examples/`, where the job runs: the CLI keeps its profiles in the
-# `.aptos/config.yaml` of the directory it is used from.
-install -d -m 755 -o nineveh -g nineveh /var/lib/nineveh /var/lib/nineveh/public
-install -D -m 755 deploy/demo.sh /opt/nineveh/deploy/demo.sh
-chown -R nineveh:nineveh /opt/nineveh/src
-# Press Enter at "Enter your private key": `--assume-yes` answers the yes/no prompts
-# but not that one, and empty input is what asks it to generate a key and fund it from
-# the faucet. This account should be a throwaway holding nothing but devnet gas.
-sudo -u nineveh sh -c 'cd /opt/nineveh/src/examples &&
-  aptos init --profile nineveh-demo --network devnet --assume-yes'
-
-cp deploy/nineveh-demo.{service,timer} /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now nineveh-demo.timer
-
-systemctl start nineveh-demo              # publish one now; takes a minute
-journalctl -u nineveh-demo -n 20 --no-pager
-cat /var/lib/nineveh/public/demo.json     # where the page will look
+curl -s -o /dev/null -w '%{http_code}\n' https://api.nineveh.dev/demo.json   # 404
 ```
 
-Two things worth checking once, because both fail quietly rather than loudly:
-
-```sh
-curl -s https://api.nineveh.dev/demo.json | head -3
-curl -s https://api.nineveh.dev/aptos/v1 | head -c 60   # not a rate-limit message
-```
-
-A rate-limit message from the second means Caddy has no key, and the page will work
-until enough people share an IP.
-
-Four-hourly, and almost every run does nothing: the contract keeps one address, so the
-job only publishes when devnet has been wiped and taken it. The cadence is how long that
-goes unnoticed.
-
-A run that cannot tell — a timeout, a 5xx, a rate limit — leaves the deployment alone and
-exits non-zero. Only a 404 counts as gone. Treating an unreachable node as a missing
-contract would republish a healthy one and move the address out from under every project
-following it, which is the failure this is built to avoid.
-
-Caddy serves that file at `https://api.nineveh.dev/demo.json`, public and read-only —
-it holds a devnet address and nothing else.
-
-Caddy also forwards the page's fullnode reads at `/aptos/*`, attaching the same key from
-`{$NODE_API_KEY}` in its own environment. That is what keeps a visitor off the
-anonymous per-IP allowance, which they would otherwise share with everyone behind their
-office, campus or VPN address. The site is then built with
-
-```sh
-NEXT_PUBLIC_APTOS_FULLNODE=https://api.nineveh.dev/aptos/v1
-```
-
-so the key stays here and never reaches a browser. Built without it the page talks to
-the public fullnode directly and lives on the anonymous allowance, which is fine for one
-person on an unused address.
+Revoke the key rather than just unmounting it: it was reachable by anyone for as long as
+the proxy was up. The keys in `nineveh.env` that the processors use are separate and
+unaffected.
 
 ## Backups
 
