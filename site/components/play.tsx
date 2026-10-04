@@ -69,6 +69,18 @@ type Entry = { id: number; what: string; who: string; state: "sending" | "done" 
 const ITEMS = ["lamp", "rug", "chair", "mug", "poster", "plant", "clock", "kettle"];
 
 /**
+ * Did the chain actually say there is no such module?
+ *
+ * A 404 is an answer: nothing is published there. A rate limit, a 5xx or a failed
+ * fetch is not an answer — the check never ran. Reporting those as a missing contract
+ * blames the visitor's address for an outage on our side, and leaves them retyping a
+ * perfectly good address while every button stays dead.
+ */
+function absent(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as { status?: unknown }).status === 404;
+}
+
+/**
  * Top up below a quarter of an APT. A transaction reserves its maximum gas up front, so
  * the balance that matters is the one the chain checks before running anything, not what
  * the work actually costs.
@@ -131,7 +143,7 @@ export function Play() {
    * your project is following, paste it here and this drives that.
    */
   const [address, setAddress] = useState("");
-  const [holds, setHolds] = useState<"checking" | "yes" | "no" | null>(null);
+  const [holds, setHolds] = useState<"checking" | "yes" | "no" | "unreachable" | null>(null);
   const nextId = useRef(0);
   const listings = useRef<number[]>([]);
 
@@ -181,7 +193,7 @@ export function Play() {
     void aptos.current
       .getAccountModule({ accountAddress: at, moduleName: "market" })
       .then(() => live && setHolds("yes"))
-      .catch(() => live && setHolds("no"));
+      .catch((e: unknown) => live && setHolds(absent(e) ? "no" : "unreachable"));
     return () => {
       live = false;
     };
@@ -351,6 +363,13 @@ export function Play() {
     }
   }, [accounts, address, demo, fund, send]);
 
+  /**
+   * Is this address worth sending to? A check that couldn't run doesn't say no: the
+   * Studio link never touches this page's read path, and a send that does fail will
+   * print what the node answered, which is more use than a disabled button.
+   */
+  const ready = holds === "yes" || holds === "unreachable";
+
   const copy = () => {
     if (!demo) return;
     void navigator.clipboard.writeText(address.trim()).then(() => {
@@ -407,9 +426,9 @@ export function Play() {
                 href={`${STUDIO}/new?network=${encodeURIComponent(demo.network)}&address=${encodeURIComponent(address.trim())}&start=now`}
                 target="_blank"
                 rel="noreferrer"
-                aria-disabled={holds !== "yes"}
+                aria-disabled={!ready}
                 className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium shadow-card transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-                  holds === "yes"
+                  ready
                     ? "bg-blue-600 text-white hover:bg-blue-500 hover:shadow-glow"
                     : "pointer-events-none bg-blue-600/30 text-white/40"
                 }`}
@@ -424,6 +443,13 @@ export function Play() {
                 <span className="text-rose-300/80">
                   No <code>market</code> module at that address on devnet. Check it, or clear the
                   field to go back to the current one.
+                </span>
+              )}
+              {holds === "unreachable" && (
+                <span className="text-amber-200/80">
+                  Couldn&apos;t reach devnet to check this address, so nothing here says it is
+                  wrong — the node this page reads through is refusing requests. Sending below
+                  will print whatever it answers.
                 </span>
               )}
               {holds === "yes" && address.trim() !== demo.market && (
@@ -465,10 +491,10 @@ export function Play() {
               <Act onClick={() => void fundNow()} disabled={busy}>
                 Top the accounts up
               </Act>
-              <Act onClick={() => void round()} disabled={busy || holds !== "yes"} tone="primary">
+              <Act onClick={() => void round()} disabled={busy || !ready} tone="primary">
                 List and sell something
               </Act>
-              <Act onClick={() => void cancel()} disabled={busy || holds !== "yes"}>
+              <Act onClick={() => void cancel()} disabled={busy || !ready}>
                 List and cancel
               </Act>
             </div>
