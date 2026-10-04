@@ -56,11 +56,12 @@ step 2, and Studio wrote them into the project's config for you.
 
 ## Publish them yourself
 
-You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) (`brew install aptos`) and
-a free [Geomi](https://geomi.dev) key for the network you're publishing to. **Set it
-first.** Without one these calls share an anonymous per-IP budget — 40,000 compute units
-per 300 seconds — which is about a minute of `play.sh` before every transaction starts
-failing:
+You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) (`brew install aptos`).
+`setup.sh` and `deploy.sh` run fine without a node key — the fullnode answers anonymous
+callers — but that budget is per IP and small: 40,000 compute units per 300 seconds,
+which measures out at about thirty transactions, so `play.sh` exhausts it in a minute and
+then fails every call. Before running the loop, get a free [Geomi](https://geomi.dev) key
+for the network and let the CLI pick it up:
 
 ```sh
 export NODE_API_KEY=aptoslabs_…   # the Aptos CLI reads this on its own
