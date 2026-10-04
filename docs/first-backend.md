@@ -1,28 +1,54 @@
 # Your first backend
 
-Point Nineveh at a contract, send it transactions from a browser tab, and watch them
-turn into tables you can query. Follow it top to bottom; every step produces something
-you can see, and the whole thing runs without installing anything.
+Publish a contract, point Nineveh at it, send it transactions, and watch them turn into
+tables you can query. Follow it top to bottom; every step produces something you can
+see.
 
-You need a GitHub account. Nothing else: no toolchain, no wallet, and no key to Aptos —
-Nineveh holds its own credentials for the chain, and the one key you will ever handle is
+You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) (`brew install aptos`), a
+free [Geomi](https://geomi.dev) key for the node, and a GitHub account for Studio. If
+you're building on Aptos you have the first two already. Nineveh holds its own
+credentials for the chain, so the only key it ever asks you for is
 [your project's own](reading.md#1-rest), for reading what it builds.
 
-## 1. Find a contract to follow
+## 1. Publish a contract to follow
 
-Open **[nineveh.dev/play](https://nineveh.dev/play)** and leave the tab open. It holds a
-marketplace contract on devnet and buttons that send it real transactions, which is what
-you need: a backend is only interesting once the chain moves. You'll use it again in §3.
+A backend is only interesting once the chain moves, and the quickest way to have a
+contract that moves when you say so is to publish one you control.
 
 `market` is a small marketplace. Sellers list an item for a price in the market's own
 credits, buyers buy it, sellers take down what doesn't sell, and the market keeps 2.5% of
 every sale. Open listings live in a `SmartTable` and balances in a `Table`, which matters
-later. It is
+in §3. It is
 [two hundred lines of Move](https://github.com/thewoodfish/Nineveh/blob/main/examples/03-market/sources/market.move)
 and you don't have to read any of them yet.
 
-It's shared, so some rows will be other people's. §7 covers pointing Nineveh at a
-contract of your own.
+```sh
+git clone https://github.com/thewoodfish/Nineveh
+cd Nineveh/examples
+
+export NODE_API_KEY=aptoslabs_…        # free, from https://geomi.dev
+
+NETWORK=devnet ./setup.sh              # two accounts, funded from the devnet faucet
+NETWORK=devnet ./deploy.sh 03-market   # publishes it at an object address
+```
+
+Two accounts because `buy` asserts the buyer is not the seller: `nineveh-publisher-devnet`
+publishes the contract and sells in it, `nineveh-player-devnet` buys. Their keys live in
+`examples/.aptos/config.yaml`, which git ignores.
+
+Devnet because its faucet funds accounts over its API, so none of this needs a browser.
+`NETWORK=testnet` works the same way except you fund the two accounts through the faucet
+page `setup.sh` prints. Devnet is wiped about weekly, which §7 comes back to.
+
+`deploy.sh` writes the address it published to:
+
+```sh
+source deployed.devnet.env && echo $MARKET
+```
+
+That address is yours. Nothing in this tutorial is shared with anyone, so every row you
+see from here on is a transaction you sent — which is the whole reason to publish it
+rather than follow someone else's.
 
 ## 2. Create the project
 
@@ -47,8 +73,11 @@ Under **Tables**:
 That last one is not an event, and it is the interesting one. Keep reading in §3 to see
 why it behaves differently from the other three.
 
-Name the project `market`. **From now on** is already selected, which is right for a
-contract that has been running a while — §7 says when you'd want the other.
+Name the project `market`. Choose **All of its history** — you published this minutes
+ago, so there is nothing to catch up on, and starting at the beginning means a table
+source sees the write that created its table with nothing to think about. The free tier
+starts a project within six hours of the chain's tip ([limits](running.md#3-limits)),
+which is the whole of a contract you just published and none of one from last week.
 
 **Create backend with 4 tables.**
 
@@ -57,21 +86,37 @@ contract that has been running a while — §7 says when you'd want the other.
 The Overview shows a cursor climbing, the chain head it's chasing, and the gap between
 them. Within a few seconds it reads *following the chain*.
 
-And the tables may well be empty, which is correct: a table has nothing in it until
-something happens on chain.
+And the tables are empty, which is correct: a table has nothing in it until something
+happens on chain. Nothing has happened yet — you published the contract and stopped.
 
-So make something happen. Back in the **[play](https://nineveh.dev/play)** tab:
+So make something happen. Back in `examples`:
 
-**Fund the two accounts**, once. Two throwaway accounts live in that tab — one sells, one
-buys, because the contract won't let you buy your own listing — and the devnet faucet
-tops them up. Then **List and sell something**, as many times as you like. Each click
-claims credits, lists an item and buys it: three transactions, three records.
+```sh
+source deployed.devnet.env
+A=nineveh-publisher-devnet
+B=nineveh-player-devnet
 
-Put the two tabs side by side. Rows arrive in the order the chain commits them, a couple
-of seconds behind the click. Watch two tables in particular:
+# the buyer claims credits to spend
+aptos move run --profile $B --function-id $MARKET::market::claim_credits \
+  --args u64:5000 --assume-yes
+
+# the seller lists a kettle for 640 credits
+aptos move run --profile $A --function-id $MARKET::market::list \
+  --args string:kettle u64:640 --assume-yes
+
+# listings are numbered from zero; this says which one is next
+aptos move view --profile $A --function-id $MARKET::market::next_id
+
+# the buyer takes it — the id above, less one
+aptos move run --profile $B --function-id $MARKET::market::buy \
+  --args u64:0 --assume-yes
+```
+
+Put the terminal and Studio side by side. Rows arrive in the order the chain commits
+them, a couple of seconds behind each `aptos move run`. Watch two tables in particular:
 
 - **`sold`** only grows. It is a log: one row per sale, kept forever, in order.
-- **`market_listings`** grows *and shrinks*. A row appears when something is listed and
+- **`market_listings`** grows *and shrinks*. A row appears when you list something and
   disappears when it sells or is cancelled.
 
 You could have worked that out from the events alone: fold `Listed`, then take away
@@ -85,6 +130,10 @@ Which of the two carries the state you need is the contract author's decision, n
 and because on-chain storage costs gas, plenty of contracts keep their real state in
 resources and barely emit events at all. Following only events would leave you guessing
 at those.
+
+When you'd rather not type, `NETWORK=devnet ./play.sh` keeps both accounts trading — a
+transaction every few seconds, listing, buying and cancelling at random, until Ctrl-C.
+Leave it running for the rest of this page.
 
 You now have a backend. It has a URL:
 
@@ -131,14 +180,14 @@ amounts is not, and the type is the same either way.
 
 ## 5. Watch changes arrive
 
-In a third terminal:
+In another terminal:
 
 ```sh
 curl -N -H "$AUTH" "$BASE/v1/changes"
 ```
 
-Every row change is pushed as it commits. Click **List and sell something** again with
-this running and you are watching your own transactions come back to you:
+Every row change is pushed as it commits. Send another sale with this running and you
+are watching your own transactions come back to you:
 
 ```text
 event: change
@@ -242,42 +291,46 @@ seconds:
 curl -H "$AUTH" "$BASE/v1/tables/sellers?order=revenue.desc&limit=5"
 ```
 
-Now go back to **[play](https://nineveh.dev/play)** and sell a few more things. Run that
-query again between clicks and watch `revenue` climb. Nothing rebuilds and nothing is
-triggered: a sale arrives, your rule runs on it, the row changes. The table you just
-invented is now as live as the ones Studio made for you.
+With `play.sh` still running, run that query again a minute later and watch `revenue`
+climb. Nothing rebuilds and nothing is triggered: a sale arrives, your rule runs on it,
+the row changes. The table you just invented is now as live as the ones Studio made for
+you.
 
 That block is the whole of [Reducers](reducers.md), and it is where the rest of your
 time goes. The market's finished version, with a `buyers` table beside this one, is
 [`market.nineveh.ts`](https://github.com/thewoodfish/Nineveh/blob/main/examples/03-market/market.nineveh.ts)
-in the repo.
+in the repo. Paste it over what's in the editor — that pane is the project's whole
+reducers file, not one table, so a file declaring two of them makes two.
 
 ## 7. Now point it at your own contract
 
 Same five minutes again: paste an address, tick what to follow, fold it into the table
-you want. Three things the demo couldn't teach you.
-
-**Own both ends.** Some of the demo's rows were other people's, which is fine while
-learning and useless while checking your own work — you can't tell your mistake from a
-quiet afternoon on chain. The four
-[example contracts](https://github.com/thewoodfish/Nineveh/blob/main/examples/README.md)
-are there to publish and drive yourself. That part needs the
-[Aptos CLI](https://aptos.dev/tools/aptos-cli/) and a free [Geomi](https://geomi.dev)
-key, because you're the one sending transactions now.
+you want. Four things the market didn't teach you.
 
 **A source that matches nothing is not an error.** Tick a type that never arrives and you
 get a project that runs perfectly and stays empty — which is also what a contract nobody
 uses looks like. Studio says *"this source hasn't matched anything yet"* once it has read
 far enough to be sure. Until then, check the type name twice.
 
-**Choose All of its history for a contract you just published**, which is the usual case
-when you're building. Past six hours the free tier refuses it
-([limits](running.md#3-limits)), so start from now and expect the past to be missing.
+**Follow it the day you publish it.** Past six hours of the chain's tip the free tier
+refuses **All of its history** ([limits](running.md#3-limits)), because deep backfills
+tie up shared catch-up capacity. For an older contract, start **From now on** and send it
+a transaction straight away: that writes the resources your table sources are waiting on,
+and a `table:` source learns its handle from any write to the parent, not only the one
+that created it.
 
-And make it busy before you judge it: a quiet contract looks exactly like a broken one.
-[`play.sh`](https://github.com/thewoodfish/Nineveh/blob/main/examples/play.sh) sends
-transactions in a loop, or point the [play page](https://nineveh.dev/play) at your own
-address.
+**Devnet resets take your contract with them**, about weekly. The address stops
+answering, `play.sh` starts printing `(failed)`, and the project sits there following
+something that no longer exists. Delete the line from `deployed.devnet.env`, publish
+again, and create a project against the new address. Testnet doesn't do this, at the
+price of a faucet you have to visit.
+
+**Make it busy before you judge it.** A quiet contract looks exactly like a broken
+one, and the only way to tell them apart is to send something and watch for the row.
+There are three more contracts in
+[`examples/`](https://github.com/thewoodfish/Nineveh/blob/main/examples/README.md) —
+a counter, a guestbook, and an arena that uses Move 2 enums — and `play.sh` drives
+whichever of them you published.
 
 ## 8. What you just learned
 
