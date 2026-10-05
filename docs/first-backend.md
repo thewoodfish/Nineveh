@@ -131,23 +131,20 @@ and because on-chain storage costs gas, plenty of contracts keep their real stat
 resources and barely emit events at all. Following only events would leave you guessing
 at those.
 
-When you'd rather not type, `NETWORK=devnet ./play.sh` keeps both accounts trading — a
-transaction every few seconds, listing, buying and cancelling at random, until Ctrl-C.
-Leave it running for the rest of this page.
+When you'd rather not type, `NETWORK=devnet ./play.sh` keeps both accounts trading —
+listing, buying and cancelling at random, about four transactions a minute, until
+Ctrl-C. Leave it running for the rest of this page.
 
-That is the one thing worth a node key. Anonymous calls share a budget with every other
-caller on your IP, and a loop burns it: keyless, `play.sh` sends about thirty
-transactions in a minute and then every call fails. A free key from
-[Geomi](https://geomi.dev) lifts the ceiling, and the CLI reads it from the environment
-on its own:
+That rate is deliberate, and it is the one place the node's limits show. Anonymous
+callers share a budget per IP — 40,000 compute units per 300 seconds — which a
+transaction spends about a thousand of, so four a minute runs indefinitely and needs no
+key. Go faster and it stops dead mid-run, which from Studio is indistinguishable from a
+broken contract. If you want a flood, get a free key from [Geomi](https://geomi.dev) and
+spend the headroom; the CLI reads it from the environment on its own:
 
 ```sh
-export NODE_API_KEY=aptoslabs_…
+export NODE_API_KEY=aptoslabs_… DELAY=1
 ```
-
-By hand you will never notice. The whole of this page up to here — two accounts, a
-publish and a handful of `move run`s — fits inside the anonymous budget with room
-over.
 
 You now have a backend. It has a URL:
 
@@ -340,8 +337,7 @@ again, and create a project against the new address. Testnet doesn't do this, at
 price of a faucet you have to visit.
 
 **Make it busy before you judge it.** A quiet contract looks exactly like a broken
-one, and the only way to tell them apart is to send something and watch for the row —
-with `NODE_API_KEY` set, if you are sending it in a loop.
+one, and the only way to tell them apart is to send something and watch for the row.
 There are three more contracts in
 [`examples/`](https://github.com/thewoodfish/Nineveh/blob/main/examples/README.md) —
 a counter, a guestbook, and an arena that uses Move 2 enums — and `play.sh` drives

@@ -1,19 +1,31 @@
 #!/usr/bin/env bash
 # Keep the examples busy so Studio has something live to show: two accounts count,
-# sign the guestbook, trade in the market and play the arena, a transaction every few
-# seconds, until Ctrl-C. Run ./deploy.sh first.
+# sign the guestbook, trade in the market and play the arena, about four transactions a
+# minute, until Ctrl-C. Run ./deploy.sh first.
 #
 #   ./play.sh
 #   NETWORK=devnet ./play.sh
+#   DELAY=1 ./play.sh                 # as fast as the CLI goes; needs NODE_API_KEY
 #
 # Whatever `./deploy.sh` published is what this plays with, so `./deploy.sh 03-market`
 # then `./play.sh` sends nothing but market traffic.
 #
-# Set NODE_API_KEY to a Geomi key for the network, or these calls share the anonymous
-# per-IP rate limit with everyone else and start failing.
+# Paced because that is what an anonymous caller can keep up indefinitely. The fullnode
+# gives an IP 40,000 compute units per 300 seconds, and a transaction costs the node
+# around a thousand of them to simulate, submit and poll, so staying under six a minute
+# needs no key at all: ten seconds of sleep plus the CLI's own three-second round trip
+# measures out at about four a minute, which ran for seven minutes without a failure.
+# Unpaced — there was no sleep here at all — it managed thirty-one transactions in
+# fifty-six seconds and then failed every call after that, which from Studio looks
+# exactly like a broken contract.
+#
+# Set NODE_API_KEY to a Geomi key for the network if you want it faster than that —
+# the CLI reads it from the environment — and lower DELAY to use the headroom.
 set -uo pipefail
 cd "$(dirname "$0")"
 NETWORK=${NETWORK:-testnet}
+# Seconds between transactions. See the note above before raising the rate.
+DELAY=${DELAY:-10}
 deployed="deployed.$NETWORK.env"
 if [[ ! -s $deployed ]]; then
   echo "nothing is published on $NETWORK yet: run ./setup.sh && ./deploy.sh" >&2
@@ -72,6 +84,9 @@ run() { # run PROFILE FUNCTION [ARGS...]
     echo "$(date +%T)  ${profile#nineveh-}  ${function#*::}  (failed)"
     explain "$output"
   fi
+  # Paced here rather than once a round: a round is two to ten transactions depending
+  # on what you published, and the budget counts transactions, not rounds.
+  sleep "$DELAY"
 }
 
 view() { # view FUNCTION: the first number it returns

@@ -56,15 +56,14 @@ step 2, and Studio wrote them into the project's config for you.
 
 ## Publish them yourself
 
-You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) (`brew install aptos`).
-`setup.sh` and `deploy.sh` run fine without a node key — the fullnode answers anonymous
-callers — but that budget is per IP and small: 40,000 compute units per 300 seconds,
-which measures out at about thirty transactions, so `play.sh` exhausts it in a minute and
-then fails every call. Before running the loop, get a free [Geomi](https://geomi.dev) key
-for the network and let the CLI pick it up:
+You need the [Aptos CLI](https://aptos.dev/tools/aptos-cli/) (`brew install aptos`), and
+no node key: all three scripts stay inside the fullnode's anonymous per-IP budget of
+40,000 compute units per 300 seconds. `play.sh` is paced to about four transactions a
+minute for exactly that reason. A free [Geomi](https://geomi.dev) key buys the headroom
+to go faster, and the CLI picks it up on its own:
 
 ```sh
-export NODE_API_KEY=aptoslabs_…   # the Aptos CLI reads this on its own
+export NODE_API_KEY=aptoslabs_…   # then DELAY=1 ./play.sh
 ```
 
 ```sh
