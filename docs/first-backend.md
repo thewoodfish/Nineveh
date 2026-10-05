@@ -29,8 +29,8 @@ NETWORK=devnet ./setup.sh              # two accounts, funded from the devnet fa
 NETWORK=devnet ./deploy.sh 03-market   # publishes it at an object address
 ```
 
-Ten seconds, and nothing asked you for a key: devnet's faucet and fullnode both answer
-anonymously. §3 says where that stops being true.
+Under a minute, and nothing asked you for a key: devnet's faucet and fullnode both
+answer anonymously. §3 says where that stops being true.
 
 Two accounts because `buy` asserts the buyer is not the seller: `nineveh-publisher-devnet`
 publishes the contract and sells in it, `nineveh-player-devnet` buys. Their keys live in
@@ -171,14 +171,29 @@ Then something more specific: the ten priciest sales, dearest first.
 curl -H "$AUTH" "$BASE/v1/tables/sold?limit=10&order=price.desc"
 ```
 
-Look closely at `price` in the response:
+Rows come back with the query that produced them:
 
 ```json
-{ "id": "412", "seller": "0x9f3a…", "item": "kettle", "price": "640", "fee": "16" }
+{
+  "rows": [
+    {
+      "version": "95130619", "event_index": 0,
+      "id": "3", "seller": "0x1ce3…", "buyer": "0x5356…",
+      "item": "kettle", "price": "640", "fee": "16",
+      "_version": "95130619"
+    }
+  ],
+  "limit": 10, "offset": 0, "count": null
+}
 ```
 
-It's a **string**, not a number. `price` is a Move `u64`, which goes up to 18
-quintillion, and JavaScript numbers stop being exact at 2⁵³. Nineveh returns wide
+`version` and `event_index` are the key Nineveh gives a log table — which transaction the
+event came from, and where in it — and the rest are the event's own fields. `_version` is
+on every row in every table and says when that row last changed; on a log row, which is
+written once and never touched again, it is the same transaction it came from.
+
+Now look closely at `price`. It's a **string**, not a number — a Move `u64` goes up to
+18 quintillion, and JavaScript numbers stop being exact at 2⁵³. Nineveh returns wide
 integers as strings so nothing is silently rounded, which means in your app:
 
 ```js
@@ -203,7 +218,7 @@ are watching your own transactions come back to you:
 ```text
 event: change
 id: 11292175483.0
-data: {"version":"11292175483","table":"sold","op":"insert","key":{…},"row":{…}}
+data: {"version":"11292175483","seq":0,"table":"sold","op":"insert","key":{…},"row":{…}}
 ```
 
 Kill it, wait a moment, then resume from where you stopped:
@@ -320,8 +335,9 @@ you want. Four things the market didn't teach you.
 
 **A source that matches nothing is not an error.** Tick a type that never arrives and you
 get a project that runs perfectly and stays empty — which is also what a contract nobody
-uses looks like. Studio says *"this source hasn't matched anything yet"* once it has read
-far enough to be sure. Until then, check the type name twice.
+uses looks like. Studio names the quiet ones on the Overview — *`listed` hasn't matched
+anything yet* — once it has read far enough to be sure. Until then, check the type name
+twice.
 
 **Follow it the day you publish it.** Past six hours of the chain's tip the free tier
 refuses **All of its history** ([limits](running.md#3-limits)), because deep backfills

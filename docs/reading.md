@@ -51,7 +51,7 @@ Rows come back with the query that produced them:
 | `<column>=<value>` | keep rows where the column equals that |
 
 ```sh
-curl -H "$AUTH" "$BASE/v1/tables/balances?balance>1000&order=balance.desc&limit=10"
+curl -H "$AUTH" "$BASE/v1/tables/balances?user=0xabc…&order=balance.desc&limit=10"
 ```
 
 ### Two things about every row
