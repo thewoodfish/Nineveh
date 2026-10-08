@@ -89,7 +89,9 @@ them. Within a few seconds it reads *following the chain*.
 And the tables are empty, which is correct: a table has nothing in it until something
 happens on chain. Nothing has happened yet — you published the contract and stopped.
 
-So make something happen. Back in `examples`:
+So make something happen. There are two ways, and either will do.
+
+**Either send the transactions yourself.** Back in `examples`:
 
 ```sh
 source deployed.devnet.env
@@ -104,13 +106,29 @@ aptos move run --profile $B --function-id $MARKET::market::claim_credits \
 aptos move run --profile $A --function-id $MARKET::market::list \
   --args string:kettle u64:640 --assume-yes
 
-# listings are numbered from zero; this says which one is next
-aptos move view --profile $A --function-id $MARKET::market::next_id
+# listings are numbered from zero, so the one just made is the next id less one
+ID=$(($(aptos move view --profile $A --function-id $MARKET::market::next_id \
+  | grep -Eo '"[0-9]+"' | tr -d '"' | tail -1) - 1))
 
-# the buyer takes it — the id above, less one
+# the buyer takes it
 aptos move run --profile $B --function-id $MARKET::market::buy \
-  --args u64:0 --assume-yes
+  --args u64:$ID --assume-yes
 ```
+
+The id is read rather than written down because it only stays predictable while the
+contract is new. On the one you just published it is 0; after a few trades it isn't,
+and buying an id that has already sold aborts with `E_NO_LISTING`.
+
+**Or let `play.sh` do it.** It keeps both accounts trading on their own — listing,
+buying and cancelling at random, about four transactions a minute, until Ctrl-C:
+
+```sh
+NETWORK=devnet ./play.sh
+```
+
+That is the better one to leave running for the rest of this page: the tables keep
+moving while you read, and §5's change feed has something to push. Open a second
+terminal if you want to send a transaction by hand as well — the two don't conflict.
 
 Put the terminal and Studio side by side. Rows arrive in the order the chain commits
 them, a couple of seconds behind each `aptos move run`. Watch two tables in particular:
@@ -131,16 +149,13 @@ and because on-chain storage costs gas, plenty of contracts keep their real stat
 resources and barely emit events at all. Following only events would leave you guessing
 at those.
 
-When you'd rather not type, `NETWORK=devnet ./play.sh` keeps both accounts trading —
-listing, buying and cancelling at random, about four transactions a minute, until
-Ctrl-C. Leave it running for the rest of this page.
-
-That rate is deliberate, and it is the one place the node's limits show. Anonymous
-callers share a budget per IP — 40,000 compute units per 300 seconds — which a
-transaction spends about a thousand of, so four a minute runs indefinitely and needs no
-key. Go faster and it stops dead mid-run, which from Studio is indistinguishable from a
-broken contract. If you want a flood, get a free key from [Geomi](https://geomi.dev) and
-spend the headroom; the CLI reads it from the environment on its own:
+`play.sh`'s four a minute is deliberate, and it is the one place the node's limits
+show. Anonymous callers share a budget per IP — 40,000 compute units per 300 seconds —
+which a transaction spends about a thousand of, so four a minute runs indefinitely and
+needs no key. Go faster and it stops dead mid-run, which from Studio is
+indistinguishable from a broken contract. If you want a flood, get a free key from
+[Geomi](https://geomi.dev) and spend the headroom; the CLI reads it from the
+environment on its own:
 
 ```sh
 export NODE_API_KEY=aptoslabs_… DELAY=1
