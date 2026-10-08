@@ -319,7 +319,17 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         let word = self.take_while(|c| c.is_ascii_alphanumeric() || c == '_');
         if word.is_empty() {
-            return Err(self.error("expected a type"));
+            // Move 2 function values: `|u64|u64`, and `||u64` taking none. Nineveh
+            // can't follow one — there is no column a closure goes in — but a type
+            // naming one has to say that rather than `expected a type`, which reads
+            // like a malformed string. They turn up as generic arguments of other
+            // people's structs, so the message is read far more often than it is
+            // acted on.
+            return Err(self.error(if self.peek() == Some('|') {
+                "Move function types aren't supported"
+            } else {
+                "expected a type"
+            }));
         }
 
         if word.starts_with("0x") {
@@ -511,6 +521,32 @@ mod tests {
         ] {
             assert!(bad.parse::<TypeTag>().is_err(), "{bad:?} should not parse");
         }
+    }
+
+    /// A Move 2 function value, which arrives as a generic argument of somebody
+    /// else's struct far more often than as anything a project follows. Still an
+    /// error — there is no column a closure goes in — but one that says which.
+    #[test]
+    fn a_function_type_says_what_it_is() {
+        for bad in [
+            "|u64|u64",
+            "||u64",
+            "0x6cb4::ft::Holder<|u64|u64>",
+            "vector<|u64|u64>",
+        ] {
+            let error = bad
+                .parse::<TypeTag>()
+                .expect_err("a function type doesn't parse");
+            assert!(
+                error
+                    .to_string()
+                    .contains("function types aren't supported"),
+                "{bad:?} said: {error}"
+            );
+        }
+        // And the empty-word case it shares a branch with still reads as it did.
+        let error = "".parse::<TypeTag>().expect_err("empty doesn't parse");
+        assert!(error.to_string().contains("expected a type"), "{error}");
     }
 
     #[test]

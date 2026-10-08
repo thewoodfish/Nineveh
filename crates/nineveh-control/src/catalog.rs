@@ -316,6 +316,13 @@ fn mirror_problem(s: &StructAbi, keys: &[&str]) -> Option<String> {
                     "field `{name}` isn't a valid column name; build this table with `reduce` \
                      instead"
                 ))
+            } else if let Err(e) = TypeTag::parse_declared(&f.ty) {
+                // Said here, where the type can still be left unticked, rather than at
+                // `pin` — which reads the same ABI and fails the whole creation after
+                // the sources are chosen and the project is named.
+                Some(format!(
+                    "field `{name}` has a type Nineveh can't follow: {e}"
+                ))
             } else {
                 None
             }
