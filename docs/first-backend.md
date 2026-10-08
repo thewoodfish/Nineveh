@@ -116,8 +116,16 @@ aptos move run --profile $B --function-id $MARKET::market::buy \
 ```
 
 The id is read rather than written down because it only stays predictable while the
-contract is new. On the one you just published it is 0; after a few trades it isn't,
-and buying an id that has already sold aborts with `E_NO_LISTING`.
+contract is new. On the one you just published it is 0; after a few trades it isn't.
+
+Run those four together: `next_id` names the listing *just* made, so reading it later
+lands on one that has since sold, and `buy` aborts with `E_NO_LISTING`. If that
+happens, ask what is actually for sale and buy one of those instead — any of them the
+seller listed, since the contract won't let you buy your own:
+
+```sh
+aptos move view --profile $A --function-id $MARKET::market::open_ids
+```
 
 **Or let `play.sh` do it.** It keeps both accounts trading on their own — listing,
 buying and cancelling at random, about four transactions a minute, until Ctrl-C:

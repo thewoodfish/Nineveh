@@ -165,6 +165,18 @@ module market::market {
         smart_table::length(&borrow_global<Market>(@market).listings)
     }
 
+    #[view]
+    /// The ids that are for sale right now, so a buyer can name one that exists.
+    ///
+    /// `next_id` says what the *next* listing will be called, which identifies the one
+    /// just made and nothing else: by the time anything has sold, counting back from it
+    /// lands on an id that has gone. These are the ones still there. A market with
+    /// thousands of them would need `smart_table::keys_paginated`; this one is a
+    /// tutorial and fits in a single call.
+    public fun open_ids(): vector<u64> acquires Market {
+        smart_table::keys(&borrow_global<Market>(@market).listings)
+    }
+
     #[test(framework = @aptos_framework, publisher = @market, alice = @0xa11ce, bob = @0xb0b)]
     fun lists_sells_and_cancels(
         framework: &signer,
