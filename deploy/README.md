@@ -236,7 +236,8 @@ tables throughout.
 | --- | --- |
 | `curl -s localhost:4000/health` | up, and can it reach Postgres — 503 when it can't |
 | `journalctl -u nineveh -f` | what it's doing |
-| `curl -s localhost:4000/control/v1/readers` | the shared streams, and `slots_free` |
+| `curl -s localhost:4000/control/v1/readers` | the shared streams, `slots_free`, and what they have pulled |
+| `journalctl -u nineveh \| grep 'stream draw'` | hourly: GiB and dollars a month at the current rate |
 | `df -h` | the one that will bite you |
 
 Point an uptime check at `https://api.nineveh.dev/health`. It needs no auth and

@@ -473,6 +473,15 @@ pub struct ReaderInfo {
     /// project on the network is halted when it is, and a restart is what revives it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stopped: Option<String>,
+    /// Bytes this reader has pulled since the plane started, and how long it has been
+    /// open. Geomi bills a stream by both, against one monthly credit for the whole
+    /// organization — so this is the number that runs out, and the only place it can
+    /// be seen before it does.
+    pub bytes_streamed: String,
+    pub open_secs: u64,
+    /// Bytes a month at the rate so far, once there is enough of a rate to say.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes_per_month: Option<String>,
 }
 
 /// The shared readers a plane holds, one per network it serves.
@@ -637,6 +646,24 @@ impl<C: Chain> ControlPlane<C> {
                     return;
                 };
                 plane.sweep_idle().await;
+            }
+        });
+        // And say what the streams are costing, hourly. One organization's credit
+        // backs every project here, so running out stops all of them at once — and
+        // until this line existed there was nowhere to see it coming.
+        let metering = Arc::downgrade(&plane);
+        tokio::spawn(async move {
+            let mut every = tokio::time::interval(Self::METER_EVERY);
+            every.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            // The first tick is immediate, and a reader that has just opened has
+            // nothing to report.
+            every.tick().await;
+            loop {
+                every.tick().await;
+                let Some(plane) = metering.upgrade() else {
+                    return;
+                };
+                plane.report_draw().await;
             }
         });
         let pruning = Arc::downgrade(&plane);
@@ -944,6 +971,8 @@ impl<C: Chain> ControlPlane<C> {
 
     /// How often the plane reconsiders which projects are worth folding.
     const SWEEP_EVERY: Duration = Duration::from_secs(60);
+    /// How often the streams' draw is written to the log.
+    const METER_EVERY: Duration = Duration::from_secs(60 * 60);
 
     /// Stop folding the projects nothing is waiting on, and start the ones something
     /// is (ADR 0023).
@@ -1123,18 +1152,54 @@ impl<C: Chain> ControlPlane<C> {
         })
     }
 
+    /// Say what the shared streams have drawn, for whoever is reading the journal.
+    ///
+    /// Bytes only: Geomi also bills the minutes a stream is held open, and this plane
+    /// holds one per network for as long as it runs, so the real figure is higher than
+    /// what this prints. The per-byte price is the one confirmed in
+    /// `docs/research/spike-a-stream.md`.
+    async fn report_draw(&self) {
+        /// Geomi's confirmed Transaction Stream price, in hundred-thousandths of a
+        /// dollar per GiB: $0.00255.
+        const PER_GIB: u64 = 255;
+        const MIB: u64 = 1024 * 1024;
+        for reader in self.readers().await {
+            let Some(bytes) = reader.bytes_per_month.and_then(|b| b.parse::<u64>().ok()) else {
+                continue;
+            };
+            let mib = bytes / MIB;
+            // MiB × price-per-GiB ÷ 1024 gives hundred-thousandths of a dollar; two
+            // more digits make it cents, which is what the line prints.
+            let cents = mib.saturating_mul(PER_GIB) / (1024 * 1000);
+            info!(
+                network = %reader.network,
+                projects = reader.projects,
+                open_hours = reader.open_secs / 3600,
+                gib_per_month = mib / 1024,
+                usd_per_month = format!("{}.{:02}", cents / 100, cents % 100),
+                "shared stream draw, bytes only — minutes held open are billed too"
+            );
+        }
+    }
+
     /// What each network's shared reader is doing.
     pub async fn readers(&self) -> Vec<ReaderInfo> {
         self.readers
             .lock()
             .await
             .iter()
-            .map(|(network, reader)| ReaderInfo {
-                network: network.to_string(),
-                position: reader.position().map(|v| v.to_string()),
-                projects: reader.subscribers(),
-                slots_free: reader.slots_free(),
-                stopped: reader.failure(),
+            .map(|(network, reader)| {
+                let drawn = reader.drawn();
+                ReaderInfo {
+                    network: network.to_string(),
+                    position: reader.position().map(|v| v.to_string()),
+                    projects: reader.subscribers(),
+                    slots_free: reader.slots_free(),
+                    stopped: reader.failure(),
+                    bytes_streamed: drawn.bytes.to_string(),
+                    open_secs: drawn.open.as_secs(),
+                    bytes_per_month: drawn.bytes_per_month().map(|b| b.to_string()),
+                }
             })
             .collect()
     }

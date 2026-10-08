@@ -24,6 +24,26 @@ pub struct Batch {
     pub processed_range: Option<RangeInclusive<Version>>,
 }
 
+impl Batch {
+    /// Roughly what this batch cost to stream, in bytes.
+    ///
+    /// Geomi bills a Transaction Stream by bytes streamed and minutes held open, and
+    /// an organization's monthly credit is what runs out — so knowing the rate matters
+    /// before the cap does ([`crate::RestError::is_credit_cap`]).
+    ///
+    /// This is the decoded protobuf's length, not what crossed the wire: the wire is
+    /// zstd (`StreamConfig::compression`), so the billed figure is lower. An
+    /// over-estimate is the right direction for a number whose job is to warn early.
+    /// `docs/research/spike-a-stream.md` measures the two against each other.
+    #[must_use]
+    pub fn encoded_bytes(&self) -> u64 {
+        self.transactions
+            .iter()
+            .map(|t| prost::Message::encoded_len(t) as u64)
+            .sum()
+    }
+}
+
 /// An open Transaction Stream that delivers ordered, gap-checked batches.
 #[derive(Debug)]
 pub struct TransactionStream {

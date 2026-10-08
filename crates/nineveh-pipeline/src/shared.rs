@@ -26,8 +26,9 @@
 //! never an option: ordered, exactly-once delivery per project is what makes the fold
 //! replayable (ADR 0005), and a gap would corrupt state with no error anywhere.
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use nineveh_core::Version;
 use nineveh_ingest::{Batch, IngestError};
@@ -60,6 +61,11 @@ fn covers(batch: &Batch) -> Option<Version> {
 /// The shared reader for one network.
 pub struct SharedTip<S> {
     source: Arc<S>,
+    /// What this reader has drawn from the organization's stream budget: bytes
+    /// delivered, and when it opened. Billing is by bytes and by minutes held open,
+    /// and a reader holds its stream for as long as the plane runs, so both are
+    /// counted here rather than inferred from a project's cursor.
+    meter: Meter,
     /// Streams available for catching up. Sized with the shared reader's own stream so
     /// that `1 + slots` stays under the organization's cap with headroom.
     slots: Arc<Semaphore>,
@@ -81,6 +87,58 @@ struct Subscriber {
     queue: mpsc::Sender<Arc<Batch>>,
 }
 
+/// What a reader has cost, as far as this process can see it.
+///
+/// Counted per batch pulled, not per subscriber served: the reader reads the stream
+/// once however many projects are on it, which is the whole point of sharing it
+/// (ADR 0021). Resets when the plane restarts — it is a rate to watch, not a ledger.
+#[derive(Debug)]
+struct Meter {
+    bytes: AtomicU64,
+    transactions: AtomicU64,
+    opened: Instant,
+}
+
+impl Default for Meter {
+    fn default() -> Self {
+        Self {
+            bytes: AtomicU64::new(0),
+            transactions: AtomicU64::new(0),
+            opened: Instant::now(),
+        }
+    }
+}
+
+/// What a shared reader has drawn, for whoever is watching the bill.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Drawn {
+    /// Decoded protobuf bytes delivered: an over-estimate of the billed figure, which
+    /// is zstd on the wire ([`Batch::encoded_bytes`]).
+    pub bytes: u64,
+    pub transactions: u64,
+    /// How long this reader has held its stream open.
+    pub open: Duration,
+}
+
+impl Drawn {
+    /// Bytes a month at the rate so far, which is the number to compare against an
+    /// allowance. `None` before the reader has been open long enough to mean anything.
+    ///
+    /// Integer throughout: a byte count is exact, and widening it through `f64` would
+    /// start rounding above 2^53 — which is only 9 PiB, closer than it sounds for a
+    /// figure that extrapolates.
+    #[must_use]
+    pub fn bytes_per_month(&self) -> Option<u64> {
+        const MONTH_SECS: u128 = 30 * 24 * 60 * 60;
+        let secs = u128::from(self.open.as_secs());
+        if secs < 60 {
+            return None;
+        }
+        u64::try_from(u128::from(self.bytes) * MONTH_SECS / secs).ok()
+    }
+}
+
 impl<S: Source + 'static> SharedTip<S> {
     /// Start reading `source` at `from` and keep reading forever.
     ///
@@ -89,6 +147,7 @@ impl<S: Source + 'static> SharedTip<S> {
     pub fn start(source: Arc<S>, from: Version, slots: usize) -> Arc<Self> {
         let tip = Arc::new(Self {
             source,
+            meter: Meter::default(),
             slots: Arc::new(Semaphore::new(slots.max(1))),
             state: Mutex::new(State {
                 subscribers: Vec::new(),
@@ -169,6 +228,13 @@ impl<S: Source + 'static> SharedTip<S> {
     /// Nothing here waits. A subscriber whose queue is full is dropped from the list,
     /// which its own stream notices and repairs by catching up on a slot.
     fn fan_out(&self, batch: &Arc<Batch>, covered: Option<Version>) {
+        self.meter
+            .bytes
+            .fetch_add(batch.encoded_bytes(), Ordering::Relaxed);
+        self.meter.transactions.fetch_add(
+            batch.transactions.len().try_into().unwrap_or(u64::MAX),
+            Ordering::Relaxed,
+        );
         let mut state = self.state();
         let mut detached = Vec::new();
         state.subscribers.retain(|subscriber| {
@@ -246,6 +312,17 @@ impl<S> SharedTip<S> {
     #[must_use]
     pub fn failure(&self) -> Option<String> {
         self.state().failed.clone()
+    }
+
+    /// What this reader has drawn from the organization's stream budget since the
+    /// plane started.
+    #[must_use]
+    pub fn drawn(&self) -> Drawn {
+        Drawn {
+            bytes: self.meter.bytes.load(Ordering::Relaxed),
+            transactions: self.meter.transactions.load(Ordering::Relaxed),
+            open: self.meter.opened.elapsed(),
+        }
     }
 
     /// Catch-up streams still available. Zero means the next project to fall behind
@@ -451,5 +528,35 @@ impl<S: Source + 'static> BatchStream for SharedStream<S> {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The projection is what an operator compares against an allowance, so it has to
+    /// hold up at the sizes a firehose reaches: a month of unfiltered testnet is
+    /// terabytes (`docs/research/spike-a-stream.md`).
+    #[test]
+    fn a_month_is_projected_from_the_rate_so_far() {
+        let drawn = |bytes, secs| Drawn {
+            bytes,
+            transactions: 0,
+            open: Duration::from_secs(secs),
+        };
+        // Too early to mean anything.
+        assert_eq!(drawn(1_000_000, 59).bytes_per_month(), None);
+        // An hour at 1 MiB a second projects to 720 times that over thirty days.
+        assert_eq!(
+            drawn(1024 * 1024 * 3600, 3600).bytes_per_month(),
+            Some(1024 * 1024 * 3600 * 720)
+        );
+        // Terabytes extrapolate without rounding or overflowing.
+        let month = 30 * 24 * 60 * 60;
+        assert_eq!(
+            drawn(5 * 1024 * 1024 * 1024 * 1024, month).bytes_per_month(),
+            Some(5 * 1024 * 1024 * 1024 * 1024)
+        );
     }
 }

@@ -45,6 +45,6 @@ pub use config::{Parallel, PipelineConfig};
 pub use error::PipelineError;
 pub use filter::{MAX_FILTER_BYTES, stream_filter, stream_filter_within};
 pub use pipeline::{Outcome, Pipeline};
-pub use shared::{SharedSource, SharedStream, SharedTip};
+pub use shared::{Drawn, SharedSource, SharedStream, SharedTip};
 pub use source::{BatchStream, Source, StreamSource};
 pub use status::{Phase, Status};
