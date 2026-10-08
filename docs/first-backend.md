@@ -307,8 +307,11 @@ one sale does: find that seller's row, add the price to a running total, count t
 `u128` because a `u64` column adding up `u64` prices overflows eventually, and overflow
 halts a project rather than wrapping quietly.
 
-Everything below the questions is yours to change — the file is the table now, and the
-questions above it are only what it started from.
+Everything below the questions is yours to change, and what you are changing is the
+project's **whole reducers file**: every table a project folds is declared in one file,
+and the name you gave at the top says which of them this page is making. Yours is the
+only one in there because the project had none before. Make a second table later and
+both will be in this pane, and the questions above will be about the new one.
 
 ![Studio's reducer editor, with the generated file beside a panel listing the project's sources and tables](images/state-table-editor.jpg "The four answers collapse to one line each, and the file takes over. Every source and table you can name is listed beside it; Nineveh checks as you type and holds the save until it builds.")
 
@@ -392,8 +395,9 @@ you.
 That block is the whole of [Reducers](reducers.md), and it is where the rest of your
 time goes. The market's finished version, with a `buyers` table beside this one, is
 [`market.nineveh.ts`](https://github.com/thewoodfish/Nineveh/blob/main/examples/03-market/market.nineveh.ts)
-in the repo. Paste it over what's there the same way; it declares two tables, so you get
-two.
+in the repo. Paste it over what's there the same way — one file, two `export const`s,
+two tables — and `buyers` is built beside `sellers` without going near the questions
+again.
 
 ## 7. Now point it at your own contract
 
