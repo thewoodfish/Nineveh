@@ -248,13 +248,6 @@ function ProjectNav() {
             </span>
           </Link>
         ))}
-      <NavLink
-        href={href("/state")}
-        active={pathname === "/state"}
-        icon="add_circle"
-      >
-        New state table
-      </NavLink>
       {/* Webhooks ahead of the feed: both are this project reaching outward, and the
           durable one is the one a developer comes looking for. */}
       <NavLink
@@ -278,6 +271,21 @@ function ProjectNav() {
       >
         Settings
       </NavLink>
+
+      {/* The only thing in here that makes something rather than going somewhere, so
+          it sits apart from the places and reads as a button: a rule above it, and a
+          surface under it that lifts it off the drawer without competing with the lit
+          row above. */}
+      <div className="mt-3 border-t border-outline-variant pt-3">
+        <NavLink
+          href={href("/state")}
+          active={pathname === "/state"}
+          icon="add_circle"
+          className={pathname === "/state" ? "" : "bg-surface-container-high text-on-surface"}
+        >
+          New state table
+        </NavLink>
+      </div>
     </nav>
   );
 }
