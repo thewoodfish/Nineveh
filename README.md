@@ -8,10 +8,13 @@ chain, and no indexing infrastructure to run.
 
 Aptos answers point reads: one resource at one address, one view function, one table
 item by key. *How much volume did this market do today*, *show me every open position*
-and *what changed since I last looked* have nowhere to come from — on-chain storage
-costs gas, so the real shape of an app's data lives in events and resource changes
-rather than in queryable state. Nineveh is the thing that turns those into tables
-([the longer version](docs/guide.md#2-why-this-exists)).
+and *what changed since I last looked* have nowhere to come from.
+
+Half the answer is in events. The other half was never emitted at all — a contract
+keeps the state it needs to work and announces only what it expected you to want, so
+the `SmartTable` of open listings and the tally nobody fired an event for exist only as
+storage writes. Nineveh follows both, reading the write set rather than the
+announcements ([the longer version](docs/guide.md#2-why-this-exists)).
 
 > **Status: beta, and live at [nineveh.dev](https://nineveh.dev).** A contract address
 > in; live tables, a REST API, a change feed and signed webhooks out, driven from a

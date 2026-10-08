@@ -48,8 +48,8 @@ const WORKFLOW = [
     body: "Describe the tables your product needs, with their keys, columns and types, rather than building an indexing pipeline from scratch.",
   },
   {
-    title: "React to Aptos activity",
-    body: "Attach logic to the events and state changes your Move contracts already produce. Resources and tables too, not only events.",
+    title: "Follow everything the chain wrote",
+    body: "Not just events: resource changes and the entries inside a table, read from the write set — including the state your contract never emitted an event about.",
   },
   {
     title: "Derive useful state",
@@ -179,9 +179,14 @@ function Problem() {
             </p>
             <p className="mt-5 max-w-[62ch] text-white/55">
               Turning that into the backend your frontend needs is still application logic, state
-              management, database work and server code. And the data it needs mostly isn&apos;t
-              in storage to begin with. It lives in events and write sets, because keeping totals
-              on-chain costs gas on every transaction.
+              management, database work and server code. And a contract announces less than it
+              stores. It emits events for what it expected you to want, and keeps the rest in
+              storage because storage is what it needs to work: the table of open positions, the
+              running sum it keeps for itself, the vote tally no event is fired for.
+            </p>
+            <p className="mt-5 max-w-[62ch] text-white/55">
+              Read only the events and that half is invisible — not missing, invisible, which is
+              worse, because what you do get still looks plausible.
             </p>
             <p className="mt-5 max-w-[62ch] text-white/55">
               So it gets assembled the same way in every project: a processor, a database, a server,

@@ -14,6 +14,7 @@ Alternatives, same idea:
 - Point Nineveh at your contract. Get a database and an API that stay in sync with it.
 - Your contract's data, queryable. No indexer to write, nothing to run.
 - Firebase for Aptos contracts.
+- The state your contract never emitted an event about, queryable.
 
 **On the word "backend".** Own it. It is the category developers recognise and search
 for, and Firebase is not a whole backend either without anyone minding. *Your backend
@@ -38,14 +39,22 @@ most want to keep.
 
 Your contract's data is all on-chain, but the chain answers only one kind of question:
 *what is X right now?* One account's balance. One listing by id. One resource at one
-address.
+address. It can't sort, total, join, or give you a feed.
 
-It can't sort, total, join, or give you a feed. And the interesting data isn't even in
-storage — it's in **events** and **storage writes**, because keeping totals on-chain
-costs gas on every transaction.
+That much is true of every indexer, and it is the easy half. The hard half is that **a
+contract announces less than it stores.** It emits events for what it expected you to
+want, and keeps the rest in storage because storage is what it needs to work: the
+`SmartTable` of open listings, the running total it keeps for itself, the vote tally
+that changes with no event behind it at all.
+
+Read only the events and that half is invisible — not missing, *invisible*, which is
+worse, because what you do get still looks plausible. It is also the half that tells
+you what is true **now** rather than what happened once.
 
 So every team writes an indexer: a processor, a database, a server, a deploy pipeline.
-A week of work, and something to maintain forever. Nineveh is that week, done.
+A week of work, something to maintain forever, and it still only sees what was
+announced. Nineveh is that week, done — and it reads the write set, so it sees what the
+chain actually wrote.
 
 ## What a developer does
 
