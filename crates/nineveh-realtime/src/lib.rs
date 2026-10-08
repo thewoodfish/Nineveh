@@ -29,7 +29,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use futures::Stream;
+use futures::{Stream, StreamExt as _};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sqlx::PgPool;
@@ -326,10 +326,16 @@ impl Tail {
 }
 
 fn stream(tail: Tail) -> impl Stream<Item = Result<Event, Infallible>> {
-    futures::stream::unfold(tail, |mut tail| async move {
+    // A comment first, before anything has happened, so a client knows it is connected.
+    // Without it nothing reaches the other end until either a change or the first
+    // keep-alive fifteen seconds later — so `curl -N` prints nothing, and a browser's
+    // `EventSource` doesn't fire `open`, for fifteen seconds that look exactly like a
+    // feed that isn't working. The comment is ignored by every SSE client by spec.
+    let hello = futures::stream::once(async { Ok(Event::default().comment("following")) });
+    hello.chain(futures::stream::unfold(tail, |mut tail| async move {
         let event = tail.next().await;
         Some((Ok(event), tail))
-    })
+    }))
 }
 
 async fn fingerprint(feed: &Feed) -> Result<Option<String>, sqlx::Error> {
