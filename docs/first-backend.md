@@ -344,10 +344,24 @@ That gap is the whole reason reducers exist. Anything can hand you the records. 
 number your product actually shows is usually one piece of arithmetic away from them,
 and that piece is yours.
 
-Save it. Nineveh rebuilds the new table from the records it already has, without
-re-reading the chain, and the old table answers reads throughout, frozen where it had
-reached until the new one swaps in. This project holds minutes of history, so that takes
-seconds:
+Before you save it, run it. **Try it on real data** folds your rules over a window of
+the chain and shows you the rows they make, without building anything or writing
+anything down:
+
+![Studio folding the reducer over recent transactions: two seller rows, their revenue and their sale counts, and the button that builds the table](images/state-table-preview.jpg "A rule that compiles is not a rule that is right. Thirty thousand transactions, two sellers, and the numbers either look like your market or they don't.")
+
+This is the step that tells you the rules are *right* rather than merely legal. A
+reducer that compiles can still add up the wrong field, key the wrong column, or fold a
+fee the wrong way round, and nothing downstream would complain — the rows would simply
+be wrong, quietly, for as long as the project ran. Here they are in front of you,
+against transactions the contract really produced, before a schema exists. Two sellers,
+their revenue, their sale counts. If those numbers aren't what your market looks like,
+the rule is wrong, and it costs nothing to find out now.
+
+Then **Create table**. Nineveh builds it from the records it already has, without
+re-reading the chain, and the tables you already had answer reads throughout, frozen
+where they had reached until the new build swaps in. This project holds minutes of
+history, so that takes seconds:
 
 ```sh
 curl -H "$AUTH" "$BASE/v1/tables/sellers?order=revenue.desc&limit=5"

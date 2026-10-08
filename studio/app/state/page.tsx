@@ -45,7 +45,6 @@ import {
   reducersFile,
 } from "@/lib/state-table";
 
-
 const field =
   "rounded-sm border border-outline-variant bg-surface-container-low px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none";
 
@@ -91,13 +90,20 @@ function Step({
         >
           {n}
         </span>
-        <span aria-hidden className="mt-1 w-px flex-1 bg-outline-variant group-last:hidden" />
+        <span
+          aria-hidden
+          className="mt-1 w-px flex-1 bg-outline-variant group-last:hidden"
+        />
       </div>
       <div className="min-w-0 flex-1 pb-6">
         <div className="flex min-h-7 flex-wrap items-center gap-x-3 gap-y-1">
-          <h2 className="text-[15px] leading-6 font-medium text-on-surface">{title}</h2>
+          <h2 className="text-[15px] leading-6 font-medium text-on-surface">
+            {title}
+          </h2>
           {answer && (
-            <span className="min-w-0 truncate text-xs text-on-surface-variant">{answer}</span>
+            <span className="min-w-0 truncate text-xs text-on-surface-variant">
+              {answer}
+            </span>
           )}
           {action && <span className="ml-auto">{action}</span>}
         </div>
@@ -113,7 +119,13 @@ function Step({
 }
 
 /** A quiet link that undoes a step, so a wrong turn costs one click. */
-function Undo({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+function Undo({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -200,7 +212,8 @@ function StateTableEditor() {
 
   useEffect(() => {
     if (!project) return;
-    const failed = (e: unknown) => setLoadError(e instanceof Error ? e.message : String(e));
+    const failed = (e: unknown) =>
+      setLoadError(e instanceof Error ? e.message : String(e));
     control.sources(project).then(setSources).catch(failed);
     control.project(project).then(setDetail).catch(failed);
     if (editing) {
@@ -209,7 +222,11 @@ function StateTableEditor() {
         .then((saved) => {
           setName(saved.name);
           setNamed(true);
-          setTable({ name: saved.name, columns: saved.columns, rules: saved.rules });
+          setTable({
+            name: saved.name,
+            columns: saved.columns,
+            rules: saved.rules,
+          });
         })
         .catch(failed);
     }
@@ -224,7 +241,9 @@ function StateTableEditor() {
       // there to list, and while it is being edited listing it would offer a lookup into
       // the rows this very fold is writing.
       .then((tables) =>
-        setExisting(tables.filter((t) => t.kind !== "log" && t.name !== editing)),
+        setExisting(
+          tables.filter((t) => t.kind !== "log" && t.name !== editing),
+        ),
       )
       .catch(() => setExisting([]));
   }, [base, editing]);
@@ -280,7 +299,9 @@ function StateTableEditor() {
     () =>
       code === null || !detail
         ? []
-        : declaredNames(detail.reducers ?? "").filter((n) => !declaredNames(code).includes(n)),
+        : declaredNames(detail.reducers ?? "").filter(
+            (n) => !declaredNames(code).includes(n),
+          ),
     [code, detail],
   );
 
@@ -310,7 +331,8 @@ function StateTableEditor() {
         .catch((e: unknown) =>
           setChecked({
             ok: false,
-            details: e instanceof ApiError ? (e.details ?? e.message) : String(e),
+            details:
+              e instanceof ApiError ? (e.details ?? e.message) : String(e),
           }),
         );
     }, 400);
@@ -322,7 +344,8 @@ function StateTableEditor() {
   // longer exist drop out rather than leaving a hole in the list.
   const folded = useMemo(() => {
     if (!sources) return [];
-    const names = folding.length > 0 ? folding : sources[0] ? [sources[0].name] : [];
+    const names =
+      folding.length > 0 ? folding : sources[0] ? [sources[0].name] : [];
     return names.flatMap((name) => sources.find((s) => s.name === name) ?? []);
   }, [sources, folding]);
   const source = folded[0];
@@ -350,7 +373,9 @@ function StateTableEditor() {
   /** Tick or untick a source. Unticking the last one is refused, not allowed to empty it. */
   const toggleSource = (name: string) => {
     const names = folded.map((s) => s.name);
-    const next = names.includes(name) ? names.filter((n) => n !== name) : [...names, name];
+    const next = names.includes(name)
+      ? names.filter((n) => n !== name)
+      : [...names, name];
     if (next.length > 0) fold(next);
   };
 
@@ -418,10 +443,13 @@ function StateTableEditor() {
       <div className="flex max-w-6xl flex-col gap-0 px-8 py-6">
         {code === null && !editing && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold tracking-tight">What should this table hold?</h2>
+            <h2 className="text-xl font-semibold tracking-tight">
+              What should this table hold?
+            </h2>
             <p className="mt-1.5 max-w-2xl text-sm text-on-surface-variant text-pretty">
-              A row, and what each record does to it. Nineveh folds every record in order and
-              serves the result over REST with a change feed, like any other table.
+              A row, and what each record does to it. Nineveh folds every record
+              in order and serves the result over REST with a change feed, like
+              any other table.
             </p>
           </div>
         )}
@@ -432,16 +460,16 @@ function StateTableEditor() {
         {loadError && (
           <div className="mb-6">
             {loadError.includes("no rules to edit") ? (
-            <Notice tone="neutral" title="Nothing to edit here">
-              {loadError}. Only tables built by reducers have rules; use New state table to fold
-              these records into one of your own.
-            </Notice>
-          ) : loadError.includes("declared in nineveh.yaml") ? (
-            <Notice tone="neutral" title="This one lives in the config">
-              {loadError}.
-            </Notice>
-          ) : (
-            <Notice tone="error" title="Couldn't read this project">
+              <Notice tone="neutral" title="Nothing to edit here">
+                {loadError}. Only tables built by reducers have rules; use New
+                state table to fold these records into one of your own.
+              </Notice>
+            ) : loadError.includes("declared in nineveh.yaml") ? (
+              <Notice tone="neutral" title="This one lives in the config">
+                {loadError}.
+              </Notice>
+            ) : (
+              <Notice tone="error" title="Couldn't read this project">
                 {loadError}
               </Notice>
             )}
@@ -450,7 +478,9 @@ function StateTableEditor() {
         {error && (
           <div className="mb-6">
             <Notice tone="error" title="That didn't save">
-              <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">{error}</pre>
+              <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">
+                {error}
+              </pre>
             </Notice>
           </div>
         )}
@@ -477,7 +507,9 @@ function StateTableEditor() {
             onChange={(e) => rename(e.target.value)}
             spellCheck={false}
             autoFocus={!editing}
-            placeholder={source ? `${source.name}_per_owner` : "orders_per_trader"}
+            placeholder={
+              source ? `${source.name}_per_owner` : "orders_per_trader"
+            }
             className={`${field} w-full max-w-sm font-mono text-[15px]`}
           />
         </Step>
@@ -529,7 +561,9 @@ function StateTableEditor() {
                 keyField && (
                   <>
                     one row per{" "}
-                    <span className="font-mono text-on-surface">{keyField.name}</span>
+                    <span className="font-mono text-on-surface">
+                      {keyField.name}
+                    </span>
                   </>
                 )
               }
@@ -558,15 +592,18 @@ function StateTableEditor() {
                     <p className="max-w-prose text-xs leading-relaxed text-on-surface-variant">
                       <span className="font-mono">{keyless.join(", ")}</span>{" "}
                       {keyless.length === 1 ? "names" : "name"} nothing that{" "}
-                      <span className="font-mono">{source.name}</span> also names, so there is no
-                      one row these could share. Untick{" "}
+                      <span className="font-mono">{source.name}</span> also
+                      names, so there is no one row these could share. Untick{" "}
                       {keyless.length === 1 ? "it" : "them"}, or fold{" "}
-                      {keyless.length === 1 ? "it" : "them"} into a table of their own.
+                      {keyless.length === 1 ? "it" : "them"} into a table of
+                      their own.
                     </p>
                   ) : (
                     <p className="text-xs text-on-surface-variant">
-                      Nothing on <span className="font-mono">{source.name}</span> can identify a
-                      row. Start from an empty table below and write the key yourself.
+                      Nothing on{" "}
+                      <span className="font-mono">{source.name}</span> can
+                      identify a row. Start from an empty table below and write
+                      the key yourself.
                     </p>
                   )}
                   {amounts.length > 0 && (
@@ -601,7 +638,10 @@ function StateTableEditor() {
                       ? `Each one arrives with its columns typed, its defaults set and its widths wide enough to hold the totals — built from ${source.name}, with a handler waiting to be written for ${extras.map((s) => s.name).join(" and ")}.`
                       : "Each one arrives with its columns typed, its defaults set and its widths wide enough to hold the totals. Change anything about it afterwards."
               }
-              answer={!open && started && <span className="text-on-surface">{started}</span>}
+              answer={
+                !open &&
+                started && <span className="text-on-surface">{started}</span>
+              }
             >
               {open && (
                 <Shapes
@@ -619,9 +659,12 @@ function StateTableEditor() {
                     // A name that was typed is kept. One that was only derived gives way
                     // to the shape's own, which says more — `daily_price_per_id` rather
                     // than the `per key` name every shape would otherwise share.
-                    const chosen = (named && name.trim()) || picked.name || name.trim();
+                    const chosen =
+                      (named && name.trim()) || picked.name || name.trim();
                     setName(chosen);
-                    setCode(withDslTable(reducers ?? "", { ...picked, name: chosen }));
+                    setCode(
+                      withDslTable(reducers ?? "", { ...picked, name: chosen }),
+                    );
                   }}
                 />
               )}
@@ -642,7 +685,11 @@ function StateTableEditor() {
               hint="What a row holds, and what each record does to it. `b` is the row this rule writes and `r` is the record it is folding; `tx.version` and `tx.timestamp` are the only clock there is."
               action={
                 <Undo onClick={editing ? discard : () => setDetails(!details)}>
-                  {editing ? "Discard changes" : details ? "Hide details" : "Edit details"}
+                  {editing
+                    ? "Discard changes"
+                    : details
+                      ? "Hide details"
+                      : "Edit details"}
                 </Undo>
               }
             >
@@ -672,7 +719,8 @@ function StateTableEditor() {
                     >
                       reducer language
                     </a>
-                    . Nineveh checks it as you type, and saving is held until it passes.
+                    . Nineveh checks it as you type, and saving is held until it
+                    passes.
                   </p>
                 </div>
               </div>
@@ -706,9 +754,10 @@ function StateTableEditor() {
               <div className="mb-6 ml-11">
                 <Notice tone="warning" title="The name says a different key">
                   <span className="font-mono">{tableName}</span> is keyed by{" "}
-                  <span className="font-mono">{misnamed.keyed.join(", ")}</span>, not by{" "}
-                  <span className="font-mono">{misnamed.claims}</span>. It will fold and serve
-                  correctly — but anyone reading this table will look for{" "}
+                  <span className="font-mono">{misnamed.keyed.join(", ")}</span>
+                  , not by <span className="font-mono">{misnamed.claims}</span>.
+                  It will fold and serve correctly — but anyone reading this
+                  table will look for{" "}
                   <span className="font-mono">{misnamed.claims}</span> and find{" "}
                   <span className="font-mono">{misnamed.keyed[0]}</span>.
                 </Notice>
@@ -719,11 +768,12 @@ function StateTableEditor() {
               <div className="mb-6 ml-11">
                 <Notice tone="warning" title="This would remove a table">
                   <span className="font-mono">{dropped.join(", ")}</span>{" "}
-                  {dropped.length === 1 ? "is" : "are"} in this project&apos;s reducers file but
-                  not in what is written above, so saving drops{" "}
-                  {dropped.length === 1 ? "it" : "them"} and the data{" "}
+                  {dropped.length === 1 ? "is" : "are"} in this project&apos;s
+                  reducers file but not in what is written above, so saving
+                  drops {dropped.length === 1 ? "it" : "them"} and the data{" "}
                   {dropped.length === 1 ? "it holds" : "they hold"}. Put{" "}
-                  {dropped.length === 1 ? "it" : "them"} back if that isn&apos;t what you meant.
+                  {dropped.length === 1 ? "it" : "them"} back if that isn&apos;t
+                  what you meant.
                 </Notice>
               </div>
             )}
@@ -797,8 +847,17 @@ function PreviewCard({
   }, [project, yaml, reducers, name]);
 
   // The file says what the columns are and Studio doesn't parse it, so they come back
-  // with the rows.
-  const shown = [...new Set((preview?.rows ?? []).flatMap((row) => Object.keys(row)))];
+  // with the rows — in whatever order the fold serialised them, which is alphabetical
+  // and puts the key wherever its name happens to fall. The key is what a row *is*, so
+  // it leads, and the file is what says which columns those are.
+  const keyed = declaredKey(reducers ?? "", name);
+  const columns = [
+    ...new Set((preview?.rows ?? []).flatMap((row) => Object.keys(row))),
+  ];
+  const shown = [
+    ...keyed.filter((column) => columns.includes(column)),
+    ...columns.filter((column) => !keyed.includes(column)),
+  ];
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-outline-variant px-4 py-2">
@@ -816,14 +875,17 @@ function PreviewCard({
       {error && (
         <div className="px-4 py-3">
           <Notice tone="error" title="These rules don't survive real data">
-            <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">{error}</pre>
+            <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">
+              {error}
+            </pre>
           </Notice>
         </div>
       )}
       {preview && !error && preview.rows.length === 0 && (
         <p className="px-4 py-3 text-sm text-on-surface-variant">
-          Nothing in the last {preview.transactions} transactions fed this table. That isn&apos;t a
-          problem with the rules — try again once the contract has been used.
+          Nothing in the last {preview.transactions} transactions fed this
+          table. That isn&apos;t a problem with the rules — try again once the
+          contract has been used.
         </p>
       )}
       {preview && preview.rows.length > 0 && (
@@ -832,7 +894,10 @@ function PreviewCard({
             <thead className="border-b border-outline-variant text-xs text-on-surface-variant">
               <tr>
                 {shown.map((column) => (
-                  <th key={column} className="px-4 py-1.5 font-medium">
+                  <th
+                    key={column}
+                    className={`px-4 py-1.5 font-medium ${keyed.includes(column) ? "bg-primary/10 text-primary" : ""}`}
+                  >
                     {column}
                   </th>
                 ))}
@@ -840,9 +905,15 @@ function PreviewCard({
             </thead>
             <tbody>
               {preview.rows.map((row, i) => (
-                <tr key={i} className="border-b border-outline-variant last:border-0">
+                <tr
+                  key={i}
+                  className="border-b border-outline-variant last:border-0"
+                >
                   {shown.map((column) => (
-                    <td key={column} className="px-4 py-1.5 font-mono text-xs">
+                    <td
+                      key={column}
+                      className={`px-4 py-1.5 font-mono text-xs ${keyed.includes(column) ? "bg-primary/[0.06]" : ""}`}
+                    >
                       {cell(row[column])}
                     </td>
                   ))}
@@ -863,9 +934,10 @@ function PreviewCard({
 
 /** The key columns of one table in a reducers file, in key order. */
 function declaredKey(code: string, table: string): string[] {
-  const found = new RegExp(`^export const ${table} = table\\(\\{[^]*?key:\\s*\\{([^}]*)\\}`, "m").exec(
-    code,
-  );
+  const found = new RegExp(
+    `^export const ${table} = table\\(\\{[^]*?key:\\s*\\{([^}]*)\\}`,
+    "m",
+  ).exec(code);
   return (found?.[1] ?? "")
     .split(",")
     .map((part) => part.split(":")[0]?.trim() ?? "")
@@ -882,7 +954,10 @@ function declaredKey(code: string, table: string): string[] {
  * the handlers all say seller and only the name says id. Nothing downstream catches it:
  * it compiles, it folds, and it is wrong only to the person who later queries `?id=`.
  */
-function keyMismatch(code: string, table: string): { claims: string; keyed: string[] } | null {
+function keyMismatch(
+  code: string,
+  table: string,
+): { claims: string; keyed: string[] } | null {
   const claims = /_per_([a-z0-9_]+)$/.exec(table)?.[1];
   if (!claims) return null;
   const keyed = declaredKey(code, table);
@@ -897,13 +972,16 @@ function keyMismatch(code: string, table: string): { claims: string; keyed: stri
  * doesn't declare what it claims to.
  */
 function declaredNames(code: string): string[] {
-  return [...code.matchAll(/^export const ([A-Za-z_][A-Za-z0-9_]*) = table\(/gm)].map((m) => m[1]!);
+  return [
+    ...code.matchAll(/^export const ([A-Za-z_][A-Za-z0-9_]*) = table\(/gm),
+  ].map((m) => m[1]!);
 }
 
 /** One preview value, short enough for a cell. */
 function cell(value: unknown): string {
   if (value === null || value === undefined) return "—";
-  const text = typeof value === "object" ? JSON.stringify(value) : String(value);
+  const text =
+    typeof value === "object" ? JSON.stringify(value) : String(value);
   return text.length > 40 ? `${text.slice(0, 39)}…` : text;
 }
 
@@ -941,7 +1019,9 @@ function Editor({
     <Card className="overflow-hidden">
       <div className="flex items-center gap-3 border-b border-outline-variant bg-surface-container-high px-3 py-2">
         <Icon name="code" className="text-[16px] text-on-surface-variant" />
-        <span className="min-w-0 flex-1 truncate font-mono text-xs text-on-surface">{file}</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-xs text-on-surface">
+          {file}
+        </span>
         <span className={`shrink-0 text-[11px] ${tone}`}>{status.text}</span>
       </div>
       <div className="flex">
@@ -964,7 +1044,8 @@ function Editor({
           value={code}
           onChange={(e) => onChange(e.target.value)}
           onScroll={(e) => {
-            if (gutter.current) gutter.current.scrollTop = e.currentTarget.scrollTop;
+            if (gutter.current)
+              gutter.current.scrollTop = e.currentTarget.scrollTop;
           }}
           spellCheck={false}
           wrap="off"
@@ -1012,7 +1093,10 @@ function Folding({
       {sources.map((source) => {
         const at = names.indexOf(source.name);
         return (
-          <li key={source.name} className="flex items-center bg-surface-container-low">
+          <li
+            key={source.name}
+            className="flex items-center bg-surface-container-low"
+          >
             {/* A label rather than a row-wide button, so the native checkbox keeps its
                 keyboard behaviour — and so `Make it first` can sit beside it without
                 nesting one control inside another. */}
@@ -1024,13 +1108,19 @@ function Folding({
                 // The last one can't be unticked: a table folded from nothing has no
                 // question to ask, and every picker below it would have no answer.
                 disabled={only && at === 0}
-                title={only && at === 0 ? "A table folds at least one source" : undefined}
+                title={
+                  only && at === 0
+                    ? "A table folds at least one source"
+                    : undefined
+                }
                 onChange={() => onToggle(source.name)}
               />
               <span className="min-w-0 truncate font-mono text-sm text-on-surface">
                 {source.name}
               </span>
-              <span className="shrink-0 text-xs text-on-surface-variant">{source.kind}</span>
+              <span className="shrink-0 text-xs text-on-surface-variant">
+                {source.kind}
+              </span>
               {at === 0 && (
                 <span className="shrink-0 rounded-full bg-primary-container px-2 py-0.5 text-[10px] font-medium text-on-primary-container">
                   brings rows into being
@@ -1118,7 +1208,13 @@ function Shapes({
    * scaffolded on top of the rule that already deletes the row.
    */
   const pick = (started: string, table: StateTable, used: SourceInfo[] = []) =>
-    onPick(started, alsoFolds(table, extras.filter((s) => !used.includes(s))));
+    onPick(
+      started,
+      alsoFolds(
+        table,
+        extras.filter((s) => !used.includes(s)),
+      ),
+    );
 
   return (
     <div className="flex flex-col gap-5">
@@ -1132,7 +1228,9 @@ function Shapes({
           }
           disabled={!keyField}
           shape={keyField && countPer(source, keyField)}
-          onClick={() => keyField && pick("Count per row", countPer(source, keyField))}
+          onClick={() =>
+            keyField && pick("Count per row", countPer(source, keyField))
+          }
         />
         <Template
           title="Total per row"
@@ -1142,9 +1240,13 @@ function Shapes({
               : "This source has no amounts to add up."
           }
           disabled={!keyField || !amountField}
-          shape={keyField && amountField && sumPer(source, keyField, amountField)}
+          shape={
+            keyField && amountField && sumPer(source, keyField, amountField)
+          }
           onClick={() =>
-            keyField && amountField && pick("Total per row", sumPer(source, keyField, amountField))
+            keyField &&
+            amountField &&
+            pick("Total per row", sumPer(source, keyField, amountField))
           }
         />
         <Template
@@ -1156,7 +1258,9 @@ function Shapes({
           }
           disabled={!keyField}
           shape={keyField && latestPer(source, keyField)}
-          onClick={() => keyField && pick("Latest per row", latestPer(source, keyField))}
+          onClick={() =>
+            keyField && pick("Latest per row", latestPer(source, keyField))
+          }
         />
         <Template
           title="Per day"
@@ -1167,7 +1271,9 @@ function Shapes({
           }
           disabled={!keyField}
           shape={keyField && dailyPer(source, keyField, amountField)}
-          onClick={() => keyField && pick("Per day", dailyPer(source, keyField, amountField))}
+          onClick={() =>
+            keyField && pick("Per day", dailyPer(source, keyField, amountField))
+          }
         />
         <Template
           title="Appears and disappears"
@@ -1199,7 +1305,9 @@ function Shapes({
           }
           disabled={!keyField || !joinable}
           shape={
-            keyField && joinable && withLookup(source, keyField, joinable.table, joinable.column)
+            keyField &&
+            joinable &&
+            withLookup(source, keyField, joinable.table, joinable.column)
           }
           onClick={() =>
             keyField &&
@@ -1237,16 +1345,26 @@ function Shape({ table }: { table: StateTable }) {
           <span
             key={column.name}
             className={`truncate font-mono text-[10px] ${
-              column.key ? "font-medium text-primary" : "text-on-surface-variant"
+              column.key
+                ? "font-medium text-primary"
+                : "text-on-surface-variant"
             }`}
           >
             {column.name}
           </span>
         ))}
-        {more > 0 && <span className="text-[10px] text-on-surface-variant/50">+{more}</span>}
+        {more > 0 && (
+          <span className="text-[10px] text-on-surface-variant/50">
+            +{more}
+          </span>
+        )}
       </div>
       {[0.7, 0.45].map((fade, row) => (
-        <div key={row} className="flex items-center gap-3 px-2.5 py-1.5" style={{ opacity: fade }}>
+        <div
+          key={row}
+          className="flex items-center gap-3 px-2.5 py-1.5"
+          style={{ opacity: fade }}
+        >
           {columns.map((column, i) => (
             <span
               key={column.name}
@@ -1284,7 +1402,9 @@ function Template({
       <div className="text-sm font-semibold group-enabled:group-hover:text-on-secondary-container">
         {title}
       </div>
-      <div className="mt-1 text-xs leading-relaxed text-on-surface-variant">{body}</div>
+      <div className="mt-1 text-xs leading-relaxed text-on-surface-variant">
+        {body}
+      </div>
       {shape && <Shape table={shape} />}
     </button>
   );

@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { type Change, type Row, type RowsQuery, type Table, getRows, rowKey } from "@/lib/api";
+import {
+  type Change,
+  type Row,
+  type RowsQuery,
+  type Table,
+  getRows,
+  rowKey,
+} from "@/lib/api";
 import { formatInteger } from "@/lib/format";
 import { useFeed } from "@/lib/hooks";
 import { useProject } from "@/lib/project";
@@ -44,7 +51,9 @@ export function DataGrid({
 
   const columns = table.columns;
   const defaultView =
-    offset === 0 && order === undefined && Object.values(filters).every((v) => v === "");
+    offset === 0 &&
+    order === undefined &&
+    Object.values(filters).every((v) => v === "");
 
   const load = useCallback(async () => {
     if (!base) return;
@@ -117,7 +126,8 @@ export function DataGrid({
             }),
           );
         }
-        if (here.length < latest.size) setMissed((m) => m + latest.size - here.length);
+        if (here.length < latest.size)
+          setMissed((m) => m + latest.size - here.length);
       }
       const now = Date.now();
       setFlashes((current) => {
@@ -139,7 +149,9 @@ export function DataGrid({
     if (flashes.size === 0) return;
     const timer = setTimeout(() => {
       const now = Date.now();
-      setFlashes((current) => new Map([...current].filter(([, at]) => now - at < 1600)));
+      setFlashes(
+        (current) => new Map([...current].filter(([, at]) => now - at < 1600)),
+      );
     }, 1700);
     return () => clearTimeout(timer);
   }, [flashes]);
@@ -154,7 +166,9 @@ export function DataGrid({
   };
 
   const applyFilters = () => {
-    const same = columns.every((c) => (draft[c.name] ?? "") === (filters[c.name] ?? ""));
+    const same = columns.every(
+      (c) => (draft[c.name] ?? "") === (filters[c.name] ?? ""),
+    );
     if (same) return;
     setOffset(0);
     setFilters({ ...draft });
@@ -169,7 +183,8 @@ export function DataGrid({
   useEffect(() => {
     report.current?.(filtered ? null : count);
   }, [count, filtered]);
-  const last = count === null ? offset + rows.length : Math.min(offset + PAGE, count);
+  const last =
+    count === null ? offset + rows.length : Math.min(offset + PAGE, count);
 
   const stale = missed > 0 && (
     <button
@@ -189,175 +204,198 @@ export function DataGrid({
       {/* Toolbar and table share a shrink-to-fit column, so the button lands flush with
           the table's right edge instead of out at the bound the table never reaches. */}
       <div className="w-fit max-w-full">
-      <div className="mb-3 flex min-h-9 items-center justify-end gap-3">
-        {stale}
-        {action}
-      </div>
-
-      {error && (
-        <div className="mb-3">
-          {/* A config change rebuilds the tables beside the served ones (ADR 0016):
-              that's work in progress, not a failure. */}
-          {error.includes("being rebuilt") ? (
-            <Notice tone="neutral" title="Building this table">
-              Nineveh is folding the project&apos;s history into its new tables. The rows appear
-              when it catches up; the Overview shows how far along it is.
-            </Notice>
-          ) : (
-            <Notice tone="error" title="Couldn't load rows">
-              {error}
-            </Notice>
-          )}
+        <div className="mb-3 flex min-h-9 items-center justify-end gap-3">
+          {stale}
+          {action}
         </div>
-      )}
 
-      <div className="overflow-hidden rounded-md border border-outline-variant bg-surface-container-low">
-        {/* Only this scrolls sideways, so the footer under it stays put. The head isn't
-            sticky any more: there is no tall scroller for it to stick inside. */}
-        <div className="overflow-x-auto">
-        <table className="w-auto border-separate border-spacing-0 text-sm">
-          <thead className="bg-surface-container-low">
-            <tr>
-              {columns.map((column, i) => (
-                <th
-                  key={column.name}
-                  className={`border-b border-outline-variant px-3 py-2 text-left font-medium whitespace-nowrap ${
-                    i > 0 ? "border-l border-outline-variant" : ""
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => sortBy(column.name)}
-                    className="inline-flex items-center gap-1 hover:text-primary"
-                  >
-                    <span className="font-mono text-[13px]">{column.name}</span>
-                    {table.key.includes(column.name) && (
-                      <span
-                        className="rounded bg-primary/20 px-1 py-px text-[9px] font-semibold text-primary"
-                        title="key column"
-                      >
-                        KEY
-                      </span>
-                    )}
-                    <span className="font-mono text-[11px] font-normal text-on-surface-variant">
-                      {column.type}
-                    </span>
-                    {order?.column === column.name && (
-                      <span className="text-xs">{order.desc ? "↓" : "↑"}</span>
-                    )}
-                  </button>
-                </th>
-              ))}
-              <th className="border-l border-b border-outline-variant px-3 py-2 text-left font-medium whitespace-nowrap">
-                <button
-                  type="button"
-                  onClick={() => sortBy("_version")}
-                  className="inline-flex items-center gap-1 text-[13px] text-on-surface-variant hover:text-primary"
-                  title="Version of the row's last change"
-                >
-                  version{" "}
-                  {order?.column === "_version" ? (order.desc ? "↓" : "↑") : order ? "" : "↓"}
-                </button>
-              </th>
-              <th className="border-b border-outline-variant" />
-            </tr>
-            <tr>
-              {columns.map((column, i) => (
-                <th
-                  key={column.name}
-                  className={`border-b border-outline-variant bg-surface-container px-2 py-1 ${
-                    i > 0 ? "border-l border-outline-variant" : ""
-                  }`}
-                >
-                  {column.type !== "json" && (
-                    <input
-                      value={draft[column.name] ?? ""}
-                      onChange={(e) => setDraft({ ...draft, [column.name]: e.target.value })}
-                      onKeyDown={(e) => e.key === "Enter" && applyFilters()}
-                      onBlur={applyFilters}
-                      placeholder="filter ="
-                      className="w-full min-w-28 rounded-sm border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-xs font-normal text-on-surface transition-colors placeholder:text-on-surface-variant/50 hover:border-outline focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                    />
-                  )}
-                </th>
-              ))}
-              <th className="border-l border-b border-outline-variant bg-surface-container" />
-              <th className="border-b border-outline-variant bg-surface-container" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const key = rowKey(table, row);
-              return (
-                <tr
-                  key={`${key}:${flashes.get(key) ?? 0}`}
-                  className={`transition-colors hover:bg-on-surface/[0.06] ${flashes.has(key) ? "flash" : ""}`}
-                >
-                  {columns.map((column, i) => (
-                    <td
-                      key={column.name}
-                      className={`max-w-xs truncate border-b border-outline-variant px-3 py-1.5 text-left whitespace-nowrap ${
-                        i > 0 ? "border-l border-outline-variant" : ""
-                      }`}
-                    >
-                      <Cell type={column.type} value={row[column.name]} />
-                    </td>
-                  ))}
-                  <td className="border-l border-b border-outline-variant px-3 py-1.5 text-left text-xs whitespace-nowrap">
-                    <Cell type="version" value={row._version} />
-                  </td>
-                  <td className="border-b border-outline-variant" />
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {!loading && rows.length === 0 && !error && (
-          <div className="mx-auto max-w-sm px-8 py-20 text-center">
-            <p className="text-sm font-medium">
-              {filtered ? "Nothing matches these filters" : "No rows yet"}
-            </p>
-            <p className="mt-1 text-sm text-on-surface-variant text-pretty">
-              {filtered
-                ? "Filters match a column exactly."
-                : table.kind === "reduce"
-                  ? "Rows appear as records reach this table's rules."
-                  : "Rows appear as the chain is folded into this table."}
-            </p>
-            {filtered && (
-              <Button
-                className="mt-4"
-                onClick={() => {
-                  setDraft({});
-                  setFilters({});
-                  setOffset(0);
-                }}
-              >
-                Clear filters
-              </Button>
+        {error && (
+          <div className="mb-3">
+            {/* A config change rebuilds the tables beside the served ones (ADR 0016):
+              that's work in progress, not a failure. */}
+            {error.includes("being rebuilt") ? (
+              <Notice tone="neutral" title="Building this table">
+                Nineveh is folding the project&apos;s history into its new
+                tables. The rows appear when it catches up; the Overview shows
+                how far along it is.
+              </Notice>
+            ) : (
+              <Notice tone="error" title="Couldn't load rows">
+                {error}
+              </Notice>
             )}
           </div>
         )}
-        </div>
 
-      <footer className="flex items-center justify-between border-t border-outline-variant px-4 py-2.5 text-xs text-on-surface-variant">
-        <span className="tabular-nums">
-          {rows.length === 0 ? "0 rows" : `${formatInteger(offset + 1)}–${formatInteger(last)}`}
-          {count !== null && ` of ${formatInteger(count)}`}
-        </span>
-        <div className="flex gap-2">
-          <PageButton disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>
-            Previous
-          </PageButton>
-          <PageButton
-            disabled={count !== null ? offset + PAGE >= count : rows.length < PAGE}
-            onClick={() => setOffset(offset + PAGE)}
-          >
-            Next
-          </PageButton>
+        <div className="overflow-hidden rounded-md border border-outline-variant bg-surface-container-low">
+          {/* Only this scrolls sideways, so the footer under it stays put. The head isn't
+            sticky any more: there is no tall scroller for it to stick inside. */}
+          <div className="overflow-x-auto">
+            <table className="w-auto border-separate border-spacing-0 text-sm">
+              <thead className="bg-surface-container-low">
+                <tr>
+                  {columns.map((column, i) => (
+                    <th
+                      key={column.name}
+                      className={`border-b border-outline-variant px-3 py-2 text-left font-medium whitespace-nowrap ${
+                        i > 0 ? "border-l border-outline-variant" : ""
+                      } ${table.key.includes(column.name) ? "bg-primary/10" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => sortBy(column.name)}
+                        className="inline-flex items-center gap-1 hover:text-primary"
+                      >
+                        <span className="font-mono text-[13px]">
+                          {column.name}
+                        </span>
+                        {table.key.includes(column.name) && (
+                          <span
+                            className="rounded bg-primary/20 px-1 py-px text-[9px] font-semibold text-primary"
+                            title="key column"
+                          >
+                            KEY
+                          </span>
+                        )}
+                        <span className="font-mono text-[11px] font-normal text-on-surface-variant">
+                          {column.type}
+                        </span>
+                        {order?.column === column.name && (
+                          <span className="text-xs">
+                            {order.desc ? "↓" : "↑"}
+                          </span>
+                        )}
+                      </button>
+                    </th>
+                  ))}
+                  <th className="border-l border-b border-outline-variant px-3 py-2 text-left font-medium whitespace-nowrap">
+                    <button
+                      type="button"
+                      onClick={() => sortBy("_version")}
+                      className="inline-flex items-center gap-1 text-[13px] text-on-surface-variant hover:text-primary"
+                      title="Version of the row's last change"
+                    >
+                      version{" "}
+                      {order?.column === "_version"
+                        ? order.desc
+                          ? "↓"
+                          : "↑"
+                        : order
+                          ? ""
+                          : "↓"}
+                    </button>
+                  </th>
+                  <th className="border-b border-outline-variant" />
+                </tr>
+                <tr>
+                  {columns.map((column, i) => (
+                    <th
+                      key={column.name}
+                      className={`border-b border-outline-variant bg-surface-container px-2 py-1 ${
+                        i > 0 ? "border-l border-outline-variant" : ""
+                      }`}
+                    >
+                      {column.type !== "json" && (
+                        <input
+                          value={draft[column.name] ?? ""}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              [column.name]: e.target.value,
+                            })
+                          }
+                          onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+                          onBlur={applyFilters}
+                          placeholder="filter ="
+                          className="w-full min-w-28 rounded-sm border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-xs font-normal text-on-surface transition-colors placeholder:text-on-surface-variant/50 hover:border-outline focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                      )}
+                    </th>
+                  ))}
+                  <th className="border-l border-b border-outline-variant bg-surface-container" />
+                  <th className="border-b border-outline-variant bg-surface-container" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const key = rowKey(table, row);
+                  return (
+                    <tr
+                      key={`${key}:${flashes.get(key) ?? 0}`}
+                      className={`transition-colors hover:bg-on-surface/[0.06] ${flashes.has(key) ? "flash" : ""}`}
+                    >
+                      {columns.map((column, i) => (
+                        <td
+                          key={column.name}
+                          className={`max-w-xs truncate border-b border-outline-variant px-3 py-1.5 text-left whitespace-nowrap ${
+                            i > 0 ? "border-l border-outline-variant" : ""
+                          } ${table.key.includes(column.name) ? "bg-primary/[0.06]" : ""}`}
+                        >
+                          <Cell type={column.type} value={row[column.name]} />
+                        </td>
+                      ))}
+                      <td className="border-l border-b border-outline-variant px-3 py-1.5 text-left text-xs whitespace-nowrap">
+                        <Cell type="version" value={row._version} />
+                      </td>
+                      <td className="border-b border-outline-variant" />
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {!loading && rows.length === 0 && !error && (
+              <div className="mx-auto max-w-sm px-8 py-20 text-center">
+                <p className="text-sm font-medium">
+                  {filtered ? "Nothing matches these filters" : "No rows yet"}
+                </p>
+                <p className="mt-1 text-sm text-on-surface-variant text-pretty">
+                  {filtered
+                    ? "Filters match a column exactly."
+                    : table.kind === "reduce"
+                      ? "Rows appear as records reach this table's rules."
+                      : "Rows appear as the chain is folded into this table."}
+                </p>
+                {filtered && (
+                  <Button
+                    className="mt-4"
+                    onClick={() => {
+                      setDraft({});
+                      setFilters({});
+                      setOffset(0);
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <footer className="flex items-center justify-between border-t border-outline-variant px-4 py-2.5 text-xs text-on-surface-variant">
+            <span className="tabular-nums">
+              {rows.length === 0
+                ? "0 rows"
+                : `${formatInteger(offset + 1)}–${formatInteger(last)}`}
+              {count !== null && ` of ${formatInteger(count)}`}
+            </span>
+            <div className="flex gap-2">
+              <PageButton
+                disabled={offset === 0}
+                onClick={() => setOffset(Math.max(0, offset - PAGE))}
+              >
+                Previous
+              </PageButton>
+              <PageButton
+                disabled={
+                  count !== null ? offset + PAGE >= count : rows.length < PAGE
+                }
+                onClick={() => setOffset(offset + PAGE)}
+              >
+                Next
+              </PageButton>
+            </div>
+          </footer>
         </div>
-      </footer>
-      </div>
       </div>
     </div>
   );
