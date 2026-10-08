@@ -47,11 +47,26 @@ body::before {
 
 /* ---- header ------------------------------------------------------------- */
 
-header { padding: 72px 0 8px; }
+/* The mark sits above everything, with the live state opposite it: who made this, and
+   whether it is working, answered before the headline. */
+.top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+  padding: 26px 0 0;
+}
+.brand {
+  display: inline-flex; align-items: center; gap: 9px;
+  color: var(--ink-2); font-size: 13.5px; text-decoration: none;
+}
+.brand:hover { color: var(--ink); }
+.brand b { color: var(--ink); font-weight: 600; }
+.mark { height: 15px; width: 20px; color: var(--accent); }
+
+header { padding: 44px 0 8px; }
 
 .eyebrow {
   display: inline-flex; align-items: center; gap: 8px;
-  margin: 0 0 22px; padding: 5px 12px 5px 10px;
+  padding: 5px 12px 5px 10px;
   border: 1px solid var(--line-strong); border-radius: 999px;
   background: oklch(1 0 0 / 0.03);
   font-size: 12.5px; letter-spacing: 0.01em; color: var(--ink-2);

@@ -14,6 +14,18 @@ state:
   vaults:  { mirror: vault }
   markets: { mirror: market }`;
 
+/** The gate: two pillars and the arch between them. The same mark as the site. */
+function Mark() {
+  return (
+    <svg viewBox="0 0 24 18" className="mark" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M0 18 V7.74 L4.3 4.27 V18 Z M5 18 V7.2 A7 7 0 0 1 19 7.2 V18 H15.75 V7.2 A3.75 3.75 0 0 0 8.25 7.2 V18 Z M19.7 18 V4.27 L24 7.74 V18 Z"
+      />
+    </svg>
+  );
+}
+
 /** A SimpleMap arrives as { data: [{ key, value }] }. */
 type Entry = { key?: { inner?: string }; value?: unknown };
 const entries = (map: unknown): Entry[] => (map as { data?: Entry[] } | null)?.data ?? [];
@@ -174,11 +186,20 @@ export default function App() {
 
   return (
     <main className="wrap">
-      <header>
-        <p className="eyebrow">
+      <nav className="top">
+        <a className="brand" href="https://nineveh.dev" target="_blank" rel="noreferrer">
+          <Mark />
+          <span>
+            Powered by <b>Nineveh</b>
+          </span>
+        </a>
+        <span className="eyebrow">
           <span className={`dot${connected ? "" : " off"}`} />
           {error ?? (connected ? "Following Aptos mainnet" : "Connecting…")}
-        </p>
+        </span>
+      </nav>
+
+      <header>
         <h1>
           Echelon&apos;s lending state,
           <br />
