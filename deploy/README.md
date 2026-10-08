@@ -230,6 +230,32 @@ one-plane rule. Migrations run at startup. A build whose fingerprint changed reb
 into a fresh schema and swaps when it has caught up, so the API keeps serving the old
 tables throughout.
 
+## Letting one account onto mainnet
+
+The free tier follows testnet and devnet. To let a single account start a mainnet
+project — for a demo, not as a tier change — name its GitHub login:
+
+```sh
+# /etc/nineveh/nineveh.env
+APTOS_API_KEY_MAINNET=aptoslabs_...
+NINEVEH_MAINNET_ACCOUNTS=yourlogin
+```
+
+```sh
+systemctl restart nineveh
+journalctl -u nineveh | grep "by exception"   # it says so, every time it applies
+```
+
+To take it away: delete the line and restart. Nothing in the source changed, so there
+is nothing to revert and nothing to forget.
+
+It widens **one account**, deliberately. Widening the tier instead would let every
+account that has ever signed up start a mainnet project on the organization's stream
+credit, and running that credit out stops every project at once, on every network.
+
+A mainnet project also streams the full firehose if it follows any resource or table
+(ADR 0004), so expect it in the hourly `stream draw` line.
+
 ## Watching it
 
 | | |

@@ -119,6 +119,19 @@ pub async fn session_account(
     }))
 }
 
+/// An account's GitHub login, for deciding what it is allowed.
+///
+/// # Errors
+///
+/// If the database fails.
+pub async fn login(pool: &PgPool, id: i64) -> Result<Option<String>, StoreError> {
+    Ok(
+        sqlx::query_scalar!("SELECT login FROM nineveh.accounts WHERE id = $1", id)
+            .fetch_optional(pool)
+            .await?,
+    )
+}
+
 /// End a session.
 ///
 /// # Errors

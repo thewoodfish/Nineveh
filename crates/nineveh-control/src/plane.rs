@@ -164,6 +164,19 @@ impl From<StoreError> for ControlError {
     }
 }
 
+/// Whether `login` is one of the comma-separated names in `allowed`.
+///
+/// Trimmed and case-insensitive, because this is typed into a unit file by a person
+/// under some pressure, and `Alice, bob` should mean what it looks like. An empty name
+/// matches nothing: a trailing comma must not admit an account whose login is empty.
+fn listed(allowed: &str, login: &str) -> bool {
+    allowed
+        .split(',')
+        .map(str::trim)
+        .filter(|a| !a.is_empty())
+        .any(|a| a.eq_ignore_ascii_case(login))
+}
+
 /// The address a request names.
 fn address_of(text: &str) -> Result<Address, ControlError> {
     text.trim()
@@ -744,6 +757,42 @@ impl<C: Chain> ControlPlane<C> {
             )));
         }
         Ok(catalog(address, &modules))
+    }
+
+    /// Whether `account` may use a network its tier doesn't cover.
+    ///
+    /// Read from `NINEVEH_MAINNET_ACCOUNTS` — GitHub logins, comma separated — rather
+    /// than compiled in or stored, so switching it off is editing the unit's
+    /// environment and restarting: no deploy, and nothing left in the source for
+    /// somebody to forget to take out. Unset, which is the default everywhere, means
+    /// the tier decides on its own.
+    ///
+    /// Deliberately one account rather than the tier. Widening the tier would let
+    /// every account that has ever signed up start a mainnet project on the
+    /// organization's stream credit — and running that credit out stops every project
+    /// at once, on every network.
+    async fn excepted(&self, account: i64, network: Network) -> bool {
+        if network != Network::Mainnet {
+            return false;
+        }
+        let Ok(allowed) = std::env::var("NINEVEH_MAINNET_ACCOUNTS") else {
+            return false;
+        };
+        if allowed.trim().is_empty() {
+            return false;
+        }
+        match accounts::login(&self.pool, account).await {
+            Ok(Some(login)) if listed(&allowed, &login) => {
+                warn!(%login, %network, "account is outside its tier's networks by exception");
+                true
+            }
+            Ok(_) => false,
+            // A database that can't answer is not a reason to widen anything.
+            Err(e) => {
+                warn!(error = %e, "couldn't read the account's login; the tier applies");
+                false
+            }
+        }
     }
 
     /// Whether this contract may be followed from its first transaction.
@@ -1769,7 +1818,7 @@ impl<C: Chain> ControlPlane<C> {
             return Ok(());
         };
         let limits = tier::FREE;
-        if !limits.allows(network.as_str()) {
+        if !limits.allows(network.as_str()) && !self.excepted(account, network).await {
             return Err(ControlError::BadRequest(limits.describe(Limit::Network)));
         }
         let mine = self
@@ -2242,5 +2291,31 @@ fn detail(name: &str, entry: &Entry) -> Detail {
         summary: summary(name, entry),
         config: entry.config.clone(),
         reducers: entry.reducers.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::listed;
+
+    /// The allowlist is typed into a unit file by hand, so it forgives spacing and
+    /// case — and admits nobody by accident.
+    #[test]
+    fn the_network_exception_names_one_account_at_a_time() {
+        assert!(listed("thewoodfish", "thewoodfish"));
+        assert!(listed("alice, thewoodfish ,bob", "thewoodfish"));
+        assert!(
+            listed("TheWoodfish", "thewoodfish"),
+            "logins are not case-sensitive"
+        );
+
+        assert!(!listed("alice,bob", "thewoodfish"));
+        assert!(!listed("", "thewoodfish"));
+        assert!(!listed("   ", "thewoodfish"));
+        // A trailing comma leaves an empty name, which must not admit an empty login.
+        assert!(!listed("alice,", ""));
+        // And a prefix is not a match.
+        assert!(!listed("thewoodfish", "thewoodfishing"));
+        assert!(!listed("thewoodfish", "wood"));
     }
 }
