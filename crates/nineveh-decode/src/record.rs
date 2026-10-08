@@ -8,7 +8,8 @@ use nineveh_core::{
     Version,
 };
 use nineveh_proto::transaction::{
-    Event, Transaction, transaction::TxnData, write_set_change::Change,
+    DeleteTableItem, Event, Transaction, WriteTableItem, transaction::TxnData,
+    write_set_change::Change,
 };
 
 use crate::json::{Decoder, ValueError};
@@ -483,7 +484,14 @@ impl<'a> TransactionDecoder<'a> {
         origin: Origin,
         out: &mut Vec<Record>,
     ) -> Result<(), DecodeErrorKind> {
-        let tag = parse_struct(&event.type_str)?;
+        let tag = match parse_struct(&event.type_str) {
+            Ok(tag) => tag,
+            Err(error) => {
+                return unreadable(error, &event.type_str, |name| {
+                    self.selection.events.contains_key(name)
+                });
+            }
+        };
         let Some(sources) = matching(&self.selection.events, &tag) else {
             return Ok(());
         };
@@ -511,7 +519,14 @@ impl<'a> TransactionDecoder<'a> {
     ) -> Result<(), DecodeErrorKind> {
         match change {
             Change::WriteResource(write) => {
-                let tag = parse_struct(&write.type_str)?;
+                let tag = match parse_struct(&write.type_str) {
+                    Ok(tag) => tag,
+                    Err(error) => {
+                        return unreadable(error, &write.type_str, |name| {
+                            self.selection.resources.contains_key(name)
+                        });
+                    }
+                };
                 let Some(sources) = matching(&self.selection.resources, &tag) else {
                     return Ok(());
                 };
@@ -524,7 +539,17 @@ impl<'a> TransactionDecoder<'a> {
                 });
             }
             Change::DeleteResource(delete) => {
-                let tag = parse_struct(&delete.type_str)?;
+                // A delete routes to the resource's own sources and to any group
+                // member's, so either one makes the type this project's business.
+                let tag = match parse_struct(&delete.type_str) {
+                    Ok(tag) => tag,
+                    Err(error) => {
+                        return unreadable(error, &delete.type_str, |name| {
+                            self.selection.resources.contains_key(name)
+                                || self.selection.group_members.contains_key(name)
+                        });
+                    }
+                };
                 let address = parse_address(&delete.address)?;
                 if let Some(sources) = matching(&self.selection.resources, &tag) {
                     push_all(out, &sources, origin, |_| RecordData::ResourceDelete {
@@ -539,72 +564,106 @@ impl<'a> TransactionDecoder<'a> {
                     });
                 }
             }
-            Change::WriteTableItem(write) => {
-                let data = write
-                    .data
-                    .as_ref()
-                    .ok_or(DecodeErrorKind::MissingTableData)?;
-                let types = (parse_type(&data.key_type)?, parse_type(&data.value_type)?);
-                let by_items = self.selection.table_items.get(&types);
-                let by_value = self.selection.table_values.get(&types.1);
-                if by_items.is_none() && by_value.is_none() {
-                    return Ok(());
-                }
-                let handle = parse_address(&write.handle)?;
-                let value = self.decode_str(&types.1, &data.value)?;
-                // Value watchers need only the value; the key's type may not even be
-                // in the lock.
-                for &source in by_value.into_iter().flatten() {
-                    out.push(Record {
-                        source,
-                        origin,
-                        data: RecordData::TableValue {
-                            handle,
-                            value: value.clone(),
-                        },
-                    });
-                }
-                let Some(by_items) = by_items else {
-                    return Ok(());
-                };
-                let key = self.decode_str(&types.0, &data.key)?;
-                for &(source, container) in by_items {
-                    out.push(Record {
-                        source,
-                        origin,
-                        data: RecordData::TableWrite {
-                            container,
-                            handle,
-                            key: key.clone(),
-                            value: value.clone(),
-                        },
-                    });
-                }
-            }
-            Change::DeleteTableItem(delete) => {
-                let data = delete
-                    .data
-                    .as_ref()
-                    .ok_or(DecodeErrorKind::MissingTableData)?;
-                let key_type = parse_type(&data.key_type)?;
-                let Some(sources) = self.selection.table_keys.get(&key_type) else {
-                    return Ok(());
-                };
-                let handle = parse_address(&delete.handle)?;
-                let key = self.decode_str(&key_type, &data.key)?;
-                for &(source, container) in sources {
-                    out.push(Record {
-                        source,
-                        origin,
-                        data: RecordData::TableDelete {
-                            container,
-                            handle,
-                            key: key.clone(),
-                        },
-                    });
-                }
-            }
+            Change::WriteTableItem(write) => self.table_write(write, origin, out)?,
+            Change::DeleteTableItem(delete) => self.table_delete(delete, origin, out)?,
             Change::WriteModule(_) | Change::DeleteModule(_) => {}
+        }
+        Ok(())
+    }
+
+    /// One table item written: the value picks the sources, the key completes them.
+    fn table_write(
+        &self,
+        write: &WriteTableItem,
+        origin: Origin,
+        out: &mut Vec<Record>,
+    ) -> Result<(), DecodeErrorKind> {
+        let data = write
+            .data
+            .as_ref()
+            .ok_or(DecodeErrorKind::MissingTableData)?;
+        // Table sources match on types, not names, and every type in the selection
+        // came from the config and the lock — so one this parser can't read equals
+        // none of them. That makes it a non-match rather than a failure, the same
+        // judgement `unreadable` makes by name. The value type decides both lookups;
+        // an unreadable key only rules out the pair, and leaves the value watchers
+        // to serve.
+        let Ok(value_type) = parse_type(&data.value_type) else {
+            return Ok(());
+        };
+        let pair = parse_type(&data.key_type)
+            .ok()
+            .map(|key_type| (key_type, value_type.clone()));
+        let by_items = pair
+            .as_ref()
+            .and_then(|p| self.selection.table_items.get(p));
+        let by_value = self.selection.table_values.get(&value_type);
+        if by_items.is_none() && by_value.is_none() {
+            return Ok(());
+        }
+        let handle = parse_address(&write.handle)?;
+        let value = self.decode_str(&value_type, &data.value)?;
+        // Value watchers need only the value; the key's type may not even be in the
+        // lock.
+        for &source in by_value.into_iter().flatten() {
+            out.push(Record {
+                source,
+                origin,
+                data: RecordData::TableValue {
+                    handle,
+                    value: value.clone(),
+                },
+            });
+        }
+        let (Some(by_items), Some((key_type, _))) = (by_items, pair.as_ref()) else {
+            return Ok(());
+        };
+        let key = self.decode_str(key_type, &data.key)?;
+        for &(source, container) in by_items {
+            out.push(Record {
+                source,
+                origin,
+                data: RecordData::TableWrite {
+                    container,
+                    handle,
+                    key: key.clone(),
+                    value: value.clone(),
+                },
+            });
+        }
+        Ok(())
+    }
+
+    /// One table item deleted. A delete carries only the key, so only key watchers
+    /// can route it.
+    fn table_delete(
+        &self,
+        delete: &DeleteTableItem,
+        origin: Origin,
+        out: &mut Vec<Record>,
+    ) -> Result<(), DecodeErrorKind> {
+        let data = delete
+            .data
+            .as_ref()
+            .ok_or(DecodeErrorKind::MissingTableData)?;
+        let Ok(key_type) = parse_type(&data.key_type) else {
+            return Ok(());
+        };
+        let Some(sources) = self.selection.table_keys.get(&key_type) else {
+            return Ok(());
+        };
+        let handle = parse_address(&delete.handle)?;
+        let key = self.decode_str(&key_type, &data.key)?;
+        for &(source, container) in sources {
+            out.push(Record {
+                source,
+                origin,
+                data: RecordData::TableDelete {
+                    container,
+                    handle,
+                    key: key.clone(),
+                },
+            });
         }
         Ok(())
     }
@@ -664,6 +723,35 @@ fn timestamp_micros(tx: &Transaction) -> u64 {
 /// fail if that ever changes, since the index is only used to locate records.
 fn index(i: usize) -> u32 {
     u32::try_from(i).unwrap_or(u32::MAX)
+}
+
+/// The struct a type string names, even when its type arguments don't parse.
+fn named(type_str: &str) -> Option<StructName> {
+    type_str.split('<').next()?.trim().parse().ok()
+}
+
+/// What to do with a type string Nineveh can't read.
+///
+/// A write set carries every contract's changes, not only a project's own: the stream
+/// can't filter write-set changes server-side (ADR 0004), so most of what arrives
+/// belongs to strangers. A type this parser doesn't know is almost always one of
+/// theirs — a Move function type in a generic argument, say,
+/// `0x…::ft::Holder<|u64|u64>` — and halting a project at that version over somebody
+/// else's resource is wrong. Skipping one of its own would be worse: that is the
+/// silent under-coverage this codebase refuses everywhere else.
+///
+/// The qualified name before the `<` decides which it is, and it parses when the
+/// arguments don't. A type nothing selects is skipped; a type something selects still
+/// halts, with the located error it always had.
+fn unreadable(
+    error: DecodeErrorKind,
+    type_str: &str,
+    followed: impl Fn(&StructName) -> bool,
+) -> Result<(), DecodeErrorKind> {
+    match named(type_str) {
+        Some(name) if followed(&name) => Err(error),
+        _ => Ok(()),
+    }
 }
 
 fn parse_struct(s: &str) -> Result<StructTag, DecodeErrorKind> {
@@ -732,7 +820,71 @@ pub enum DecodeErrorKind {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
+    use nineveh_core::Network;
+    use nineveh_proto::transaction::{
+        TransactionInfo, WriteResource, WriteSetChange, write_set_change::Change,
+    };
+
     use super::*;
+
+    /// A function type in a generic argument: Move 2 writes it `|u64|u64`, and this
+    /// parser doesn't know it. Seen on devnet at version 119568627.
+    const FUNCTION_TYPE: &str = "0x6cb446c46fb4a2eeb2c0084d624721bd94e75172ba7e2501bd88bf67af0d0ebc\
+         ::ft::Holder<|u64|u64>";
+
+    fn resource_write(type_str: &str) -> Transaction {
+        Transaction {
+            version: 119_568_627,
+            info: Some(TransactionInfo {
+                success: true,
+                changes: vec![WriteSetChange {
+                    change: Some(Change::WriteResource(WriteResource {
+                        address: "0x1".into(),
+                        type_str: type_str.into(),
+                        data: "{}".into(),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    /// A stranger's resource, in a write set that can't be filtered server-side, used
+    /// to halt the project at that version. It is not this project's business.
+    #[test]
+    fn a_type_nothing_follows_is_skipped_not_halted_on() {
+        let lock = Lockfile::new(Network::Devnet, BTreeMap::new()).unwrap();
+        let selection = Selection::new();
+        let decoded = TransactionDecoder::new(&lock, &selection)
+            .decode(&resource_write(FUNCTION_TYPE))
+            .expect("a type nobody selected must not halt the project");
+        assert!(decoded.records.is_empty());
+    }
+
+    /// The other half, which matters more: a type the project *does* follow still
+    /// halts, rather than quietly going missing.
+    #[test]
+    fn a_type_something_follows_still_halts() {
+        let error = DecodeErrorKind::NotAStruct(FUNCTION_TYPE.into());
+        assert!(unreadable(error.clone(), FUNCTION_TYPE, |_| false).is_ok());
+        assert_eq!(
+            unreadable(error.clone(), FUNCTION_TYPE, |_| true),
+            Err(error)
+        );
+    }
+
+    #[test]
+    fn a_name_is_read_from_a_type_whose_arguments_are_not() {
+        let name = named(FUNCTION_TYPE).expect("the name parses though the argument does not");
+        assert_eq!(name.module, *"ft");
+        assert_eq!(name.name, *"Holder");
+        assert_eq!(named("not a type at all"), None);
+    }
 
     #[test]
     fn framework_names_are_valid() {
