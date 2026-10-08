@@ -69,6 +69,13 @@ async fn start(paths: &Paths, options: &RunOptions, replay: bool) -> Result<()> 
         .connect(options.database_url.expose_secret())
         .await
         .context("connecting to Postgres")?;
+    // Before anything reads them. `Store::open` migrates too, but the record log's
+    // cursor is read first — on a database that has never run Nineveh that is a
+    // missing-relation error rather than an empty one, and `run` is exactly the
+    // command somebody points at a fresh database. `up` has always done this.
+    nineveh_store::migrate(&pool)
+        .await
+        .context("preparing Nineveh's own tables")?;
 
     let (health, health_receiver) = watch::channel(None);
     let project = Arc::new(loaded.project);
