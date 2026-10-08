@@ -1,6 +1,6 @@
 # Nineveh
 
-The reactive backend for Aptos applications.
+The backend for Aptos applications.
 
 Point Nineveh at your contract and describe the state you want. You get a live,
 queryable database with real-time subscriptions, kept continuously in sync with the
@@ -74,6 +74,18 @@ Questions, or something behaving oddly? [Telegram](https://t.me/+kVwq6suLvZNlNGE
 ## How it works
 
 Nineveh is event sourcing with materialized read models:
+
+```mermaid
+flowchart TD
+  chain["Aptos chain<br/>events · resource writes · table items"] --> records["Records<br/>what arrived, kept"]
+  records --> reducers["Reducers<br/>deterministic · the only writer of state"]
+  reducers --> commit["One Postgres transaction<br/>state tables · change rows · version cursor"]
+  commit --> rest["REST API"]
+  commit --> feed["Change feed<br/>signed webhooks"]
+  rest --> app["Your app"]
+  feed --> app
+  commit -.->|"a crash resumes at the cursor"| chain
+```
 
 - **The chain is the source of truth.** Nineveh reads its events, resource changes and
   table items from the Aptos Transaction Stream.
