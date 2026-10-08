@@ -358,10 +358,21 @@ folded from transactions the contract really produced, before a schema exists. I
 revenue against a seller isn't what you'd expect that seller to have made, the rule is
 wrong, and it costs nothing to find out now.
 
+What it folds is a window of the chain's recent transactions, not everything your
+project holds, so the row count moves between runs and a quiet contract can fold to one
+row or none. That isn't the rule failing — press **Run again** after a few more trades
+and watch the numbers move.
+
 Then **Create table**. Nineveh builds it from the records it already has, without
 re-reading the chain, and the tables you already had answer reads throughout, frozen
-where they had reached until the new build swaps in. This project holds minutes of
-history, so that takes seconds:
+where they had reached until the new build swaps in.
+
+Expect to watch that happen. The new table opens empty, saying **Building this table**,
+because the rows don't exist until the fold reaches them; the Overview says *Rebuilding
+under a new config* with a percentage, and the project reads *Catching up* until the new
+build swaps in. Nothing is wrong and nothing is lost — your existing tables are still
+answering the whole time. This project holds minutes of history, so it is a short wait.
+Then:
 
 ```sh
 curl -H "$AUTH" "$BASE/v1/tables/sellers?order=revenue.desc&limit=5"
