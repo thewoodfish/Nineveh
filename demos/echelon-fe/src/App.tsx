@@ -247,10 +247,10 @@ export default function App() {
       </section>
 
       <section>
-        <h2>Changes, as they commit</h2>
+        <h2>Every change, kept and replayed</h2>
         <div className="card feed">
           {feed.length === 0 ? (
-            <p className="empty">Waiting for the chain to move…</p>
+            <p className="empty">Reading the stored changes…</p>
           ) : (
             feed.map((c) => (
               <div key={`${c.version}.${c.seq}`} className="line">
@@ -261,6 +261,13 @@ export default function App() {
             ))
           )}
         </div>
+        <p className="note">
+          Changes are stored as they commit, not only broadcast, so a feed can start
+          anywhere. This one opens just before the oldest row above — which is why it
+          arrived full rather than empty — and then stays open for whatever happens
+          next. A browser that drops its connection resumes from the last change it saw
+          and misses nothing in between.
+        </p>
       </section>
 
       <section>
