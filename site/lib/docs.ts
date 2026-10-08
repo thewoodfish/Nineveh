@@ -35,6 +35,12 @@ export const DOCS: Doc[] = [
     file: "first-backend.md",
   },
   {
+    slug: "by-hand",
+    title: "What you'd build instead",
+    blurb: "The same backend, written yourself",
+    file: "by-hand.md",
+  },
+  {
     slug: "reducers",
     title: "Reducers",
     blurb: "Saying what your tables hold",

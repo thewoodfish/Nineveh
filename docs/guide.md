@@ -83,6 +83,10 @@ In order, if you're new:
 4. **[Running a project](running.md)**: changing it, what a rebuild costs, limits, and
    what to do when something looks wrong.
 
+And if you are weighing this against writing it yourself:
+**[What you'd build instead](by-hand.md)** is the same backend done by hand, step by
+step, including the parts that only bite later.
+
 Two references, for when you need a specific answer:
 
 - **[Configuration](config.md)**: every key in `nineveh.yaml`, the file Studio writes
