@@ -6,8 +6,9 @@ webhooks for being told somewhere else. All three serve the same tables.
 Everything below uses your project's base URL and a key:
 
 ```sh
+KEY=…                                 # Settings → API keys, shown once
 BASE=https://api.nineveh.dev/projects/myproject
-AUTH="Authorization: Bearer nvk_…"    # Settings → API keys
+AUTH="Authorization: Bearer $KEY"     # the whole key, which starts with nvk_
 ```
 
 **Every read needs a key, and a key opens one project.** Nothing here is public: a
@@ -90,7 +91,7 @@ A browser resumes on its own: `EventSource` sends the last id it saw as
 `Last-Event-ID` when it reconnects, so a dropped connection costs nothing.
 
 ```js
-const feed = new EventSource(`${BASE}/v1/changes?apikey=nvk_…`);
+const feed = new EventSource(`${BASE}/v1/changes?apikey=${key}`);
 feed.addEventListener("change", (e) => apply(JSON.parse(e.data)));
 ```
 

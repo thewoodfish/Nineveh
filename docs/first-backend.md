@@ -158,8 +158,9 @@ Your tables are yours: every read needs a key, and a key opens one project. Make
 Studio under **Settings → API keys**, and keep it — it is shown once.
 
 ```sh
+KEY=…                                      # Settings → API keys, shown once
 BASE=https://api.nineveh.dev/projects/market
-AUTH="Authorization: Bearer nvk_…"         # Settings → API keys
+AUTH="Authorization: Bearer $KEY"          # the whole key, which starts with nvk_
 
 curl -H "$AUTH" $BASE/v1/tables            # what tables exist, and their columns
 curl -H "$AUTH" "$BASE/v1/tables/sold?limit=3"
