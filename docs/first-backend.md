@@ -348,15 +348,15 @@ Before you save it, run it. **Try it on real data** folds your rules over a wind
 the chain and shows you the rows they make, without building anything or writing
 anything down:
 
-![Studio folding the reducer over recent transactions: two seller rows, their revenue and their sale counts, and the button that builds the table](images/state-table-preview.jpg "A rule that compiles is not a rule that is right. Thirty thousand transactions, two sellers, and the numbers either look like your market or they don't.")
+![Studio folding the edited reducer over recent transactions: the rows it makes, keyed by seller, and the button that builds the table](images/state-table-preview.jpg "A rule that compiles is not a rule that is right. Thirty thousand transactions folded, and the numbers either look like your market or they don't. The key column leads, because the key is what a row is.")
 
 This is the step that tells you the rules are *right* rather than merely legal. A
 reducer that compiles can still add up the wrong field, key the wrong column, or fold a
 fee the wrong way round, and nothing downstream would complain — the rows would simply
-be wrong, quietly, for as long as the project ran. Here they are in front of you,
-against transactions the contract really produced, before a schema exists. Two sellers,
-their revenue, their sale counts. If those numbers aren't what your market looks like,
-the rule is wrong, and it costs nothing to find out now.
+be wrong, quietly, for as long as the project ran. Here the rows are in front of you,
+folded from transactions the contract really produced, before a schema exists. If the
+revenue against a seller isn't what you'd expect that seller to have made, the rule is
+wrong, and it costs nothing to find out now.
 
 Then **Create table**. Nineveh builds it from the records it already has, without
 re-reading the chain, and the tables you already had answer reads throughout, frozen
