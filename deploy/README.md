@@ -283,8 +283,14 @@ A mainnet project also streams the full firehose if it follows any resource or t
 | --- | --- |
 | `curl -s localhost:4000/health` | up, and can it reach Postgres — 503 when it can't |
 | `journalctl -u nineveh -f` | what it's doing |
-| `curl -s localhost:4000/control/v1/readers` | the shared streams, `slots_free`, and what they have pulled |
-| `journalctl -u nineveh \| grep 'stream draw'` | hourly: GiB and dollars a month at the current rate |
+| `journalctl -u nineveh \| grep 'stream draw'` | hourly, per network: GiB and dollars a month at the current rate |
+| `psql "$NINEVEH_DATABASE_URL" -c 'select name, network, running from nineveh.control_projects'` | what the plane is meant to be running |
+| `psql "$NINEVEH_DATABASE_URL" -c 'select schema_name, cursor from nineveh.projects'` | how far each build has got |
+
+`/control/v1/readers` reports the same streams in more detail, but every `/control/v1`
+route needs a signed-in session, so plain `curl` from the box answers `sign in to use
+Nineveh` rather than anything useful. On a hosted plane the journal and the database are
+the operator's way in; `curl` works only in local mode, where there is no sign-in.
 | `df -h` | the one that will bite you |
 
 Point an uptime check at `https://api.nineveh.dev/health`. It needs no auth and
