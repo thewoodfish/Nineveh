@@ -266,11 +266,16 @@ running total per seller would mean an extra write on every trade, and writes co
 so almost no contract keeps one. The information is all there in the events you are
 already following. Nobody has added it up.
 
-That is what a reducer is for. In Studio, **New state table**. It asks four short
-questions before it shows you any code:
+So decide what you want before you open anything: a table called **`sellers`**, one row
+each, holding what they have sold and what they have earned. That sentence is the whole
+specification, and the rest of this section is getting it.
 
-1. **What will you call it?** — already filled in, and it keeps up with your answers
-   below until you type over it.
+A reducer is what gets it. In Studio, **New state table**. It asks four short questions
+before it shows you any code:
+
+1. **What will you call it?** — type `sellers`. It arrives filled in, with a name made
+   from your answers below that keeps up with them until you type over it. Typing over
+   it now means the file Studio writes already calls the table what you do.
 2. **What are you folding?** — tick `sold`. You can tick more than one source; a table
    that goes up on one event and down on another needs two. One table here, so one tick.
 3. **What is one row?** — **one row per** `seller`, **adding up** `price`.
@@ -282,7 +287,7 @@ Studio writes it as a reducer you can read:
 
 ```ts
 // price on every sold record, added up per seller, in a u128 wide enough to hold the total.
-export const price_per_seller = table({
+export const sellers = table({
   key:     { seller: address },
   columns: {
     total_price: u128.default(0),
@@ -291,7 +296,7 @@ export const price_per_seller = table({
 })
 
 on(sold, (r) => {
-  const b = price_per_seller.row(r.seller)
+  const b = sellers.row(r.seller)
   b.total_price += u128(r.price)
   b.count += 1
 })
@@ -307,36 +312,33 @@ questions above it are only what it started from.
 
 ![Studio's reducer editor, with the generated file beside a panel listing the project's sources and tables](images/state-table-editor.jpg "The four answers collapse to one line each, and the file takes over. Every source and table you can name is listed beside it; Nineveh checks as you type and holds the save until it builds.")
 
-It is also not quite right, and it is named after how it was made rather than what it
-holds. `total_price` is what buyers paid, and the market keeps 2.5% of that, so it isn't
-what the seller got. Studio had no way to know: the fee is sitting right there in the
-event next to the price, and only you know what it means.
+It is also not quite right. `total_price` is what buyers paid, and the market keeps 2.5%
+of that, so it isn't what the seller got. Studio had no way to know: the fee is sitting
+right there in the event next to the price, and only you know what it means. And
+`total_price` and `count` are the fold's words for them, not yours.
 
-So take it over. Select everything in the editor and put this in its place — the pane is
-the project's whole reducers file, not one table, so pasting underneath would leave you
-with two tables where you wanted one.
+Edit four lines, in place, in the editor:
 
 ```ts
 export const sellers = table({
   key:     { seller: address },
   columns: {
-    sold:    u64.default(0),
-    revenue: u128.default(0),
+    revenue: u128.default(0),     // was total_price
+    sold:    u64.default(0),      // was count
   },
 })
 
-on(sold, (s) => {
-  const b = sellers.row(s.seller)
+on(sold, (r) => {
+  const b = sellers.row(r.seller)
+  b.revenue += u128(r.price - r.fee)
   b.sold    += 1
-  b.revenue += u128(s.price - s.fee)
 })
 ```
 
-Three decisions in there, and none of them was Studio's to make. The fee comes off,
-because revenue is what the seller kept. `count` becomes `sold`, because that is what it
-counts. And `price_per_seller` becomes `sellers`: the generated name describes the fold,
-and the name you want describes the row — this is a table of sellers, and `revenue` and
-`sold` are two things known about one.
+Two columns renamed, because `revenue` and `sold` are what a seller's row holds, and one
+subtraction, because revenue is what the seller kept. Neither was Studio's to decide: it
+can derive a correct fold from four answers, and it cannot know that the fee means
+anything.
 
 That gap is the whole reason reducers exist. Anything can hand you the records. The
 number your product actually shows is usually one piece of arithmetic away from them,
