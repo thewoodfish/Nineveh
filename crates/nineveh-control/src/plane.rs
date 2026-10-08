@@ -164,6 +164,16 @@ impl From<StoreError> for ControlError {
     }
 }
 
+/// Whether the operator has let `login` onto mainnet.
+///
+/// The one place the environment is read, so the answer the create call enforces and
+/// the answer Studio renders the network picker from cannot disagree. Studio asking
+/// the tier alone is how mainnet stayed greyed out while the server would have
+/// allowed it.
+pub(crate) fn mainnet_excepted(login: &str) -> bool {
+    std::env::var("NINEVEH_MAINNET_ACCOUNTS").is_ok_and(|allowed| listed(&allowed, login))
+}
+
 /// Whether `login` is one of the comma-separated names in `allowed`.
 ///
 /// Trimmed and case-insensitive, because this is typed into a unit file by a person
@@ -775,14 +785,8 @@ impl<C: Chain> ControlPlane<C> {
         if network != Network::Mainnet {
             return false;
         }
-        let Ok(allowed) = std::env::var("NINEVEH_MAINNET_ACCOUNTS") else {
-            return false;
-        };
-        if allowed.trim().is_empty() {
-            return false;
-        }
         match accounts::login(&self.pool, account).await {
-            Ok(Some(login)) if listed(&allowed, &login) => {
+            Ok(Some(login)) if mainnet_excepted(&login) => {
                 warn!(%login, %network, "account is outside its tier's networks by exception");
                 true
             }

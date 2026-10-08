@@ -50,7 +50,9 @@ use tracing::{error, info, warn};
 
 use crate::auth::{self, Access, SESSION_DAYS, SESSION_PREFIX};
 use crate::chain::Chain;
-use crate::plane::{Caller, ControlError, ControlPlane, ReaderInfo, ScaffoldRequest, Usage};
+use crate::plane::{
+    Caller, ControlError, ControlPlane, ReaderInfo, ScaffoldRequest, Usage, mainnet_excepted,
+};
 use crate::tier::{self, Limits};
 
 /// The control plane and how it's reached.
@@ -196,7 +198,9 @@ struct Me {
 struct LimitsView {
     name: &'static str,
     projects: usize,
-    networks: &'static [&'static str],
+    /// What this caller may follow: the tier's networks, plus any the operator has
+    /// excepted them onto. Studio offers exactly this list.
+    networks: Vec<&'static str>,
     look_back_hours: u64,
     log_bytes: i64,
     history_days: i32,
@@ -207,7 +211,7 @@ impl From<Limits> for LimitsView {
         Self {
             name: limits.name,
             projects: limits.projects,
-            networks: limits.networks,
+            networks: limits.networks.to_vec(),
             look_back_hours: limits.look_back.as_secs() / 3600,
             log_bytes: limits.log_bytes,
             history_days: limits.history_days,
@@ -245,6 +249,12 @@ async fn me<C: Chain>(
                 .account(&headers)
                 .await?
                 .ok_or_else(|| ControlError::Unauthorized("sign in to use Nineveh".into()))?;
+            let mut limits = LimitsView::from(tier::FREE);
+            // The picker is built from this, so an account the operator has excepted
+            // has to see the network as well as be allowed it.
+            if mainnet_excepted(&account.login) {
+                limits.networks.push(Network::Mainnet.as_str());
+            }
             Me {
                 mode: "hosted",
                 account: Some(AccountView {
@@ -253,7 +263,7 @@ async fn me<C: Chain>(
                     avatar_url: account.avatar_url,
                 }),
                 networks,
-                limits: Some(tier::FREE.into()),
+                limits: Some(limits),
             }
         }
     }))
