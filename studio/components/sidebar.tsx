@@ -22,7 +22,10 @@ export function Sidebar() {
     <aside className="flex w-60 shrink-0 flex-col border-r border-outline-variant bg-surface-container-low">
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-center gap-2">
-          <Link href="/" className="flex min-w-0 flex-1 items-center gap-2 px-1">
+          <Link
+            href="/"
+            className="flex min-w-0 flex-1 items-center gap-2 px-1"
+          >
             <Logo />
             <span className="text-[15px] font-semibold tracking-tight text-on-surface">
               Nineveh
@@ -65,7 +68,9 @@ function ChainLag() {
   const { data: status } = useStatus();
   const pipeline = status?.pipeline;
   if (!base || !pipeline) return null;
-  const behindBy = behind(pipeline.cursor, pipeline.chain_version);
+  // Where the chain is, not what a backfill was aiming at: see `chain_head`.
+  const head = pipeline.chain_head ?? pipeline.chain_version;
+  const behindBy = behind(pipeline.cursor, head);
   const caughtUp = behindBy === "0" || behindBy === null;
   return (
     <div className="mx-3 mb-2 rounded-md bg-surface-container px-3 py-2.5">
@@ -84,18 +89,22 @@ function ChainLag() {
       <dl className="mt-2 space-y-1 font-mono text-[11px] tnum">
         <div className="flex justify-between gap-2">
           <dt className="text-on-surface-variant">behind</dt>
-          <dd className={caughtUp ? "text-on-surface-variant" : "text-on-surface"}>
+          <dd
+            className={caughtUp ? "text-on-surface-variant" : "text-on-surface"}
+          >
             {formatInteger(behindBy)}
           </dd>
         </div>
         <div className="flex justify-between gap-2">
           <dt className="text-on-surface-variant">cursor</dt>
-          <dd className="truncate text-on-surface-variant">{formatInteger(pipeline.cursor)}</dd>
+          <dd className="truncate text-on-surface-variant">
+            {formatInteger(pipeline.cursor)}
+          </dd>
         </div>
         <div className="flex justify-between gap-2">
           <dt className="text-on-surface-variant">chain head</dt>
           <dd className="truncate text-on-surface-variant">
-            {formatInteger(pipeline.chain_version)}
+            {formatInteger(head)}
           </dd>
         </div>
       </dl>
@@ -113,10 +122,15 @@ function AccountMenu() {
     return (
       <div className="flex items-center gap-2.5 border-t border-outline-variant px-4 py-3">
         <span className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-container-high">
-          <Icon name="computer" className="text-[16px] text-on-surface-variant" />
+          <Icon
+            name="computer"
+            className="text-[16px] text-on-surface-variant"
+          />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm text-on-surface">Local mode</span>
+          <span className="block truncate text-sm text-on-surface">
+            Local mode
+          </span>
           <span className="block truncate text-[11px] text-on-surface-variant">
             {hosted ? "not signed in" : "loopback only, no sign-in"}
           </span>
@@ -127,15 +141,23 @@ function AccountMenu() {
   return (
     <div className="flex items-center gap-2.5 border-t border-outline-variant px-4 py-3">
       {account.avatar_url ? (
-        <img src={account.avatar_url} alt="" className="size-7 shrink-0 rounded-full" />
+        <img
+          src={account.avatar_url}
+          alt=""
+          className="size-7 shrink-0 rounded-full"
+        />
       ) : (
         <span className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-container-high">
           <Icon name="person" className="text-[16px] text-on-surface-variant" />
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm text-on-surface">{account.login}</span>
-        <span className="block truncate text-[11px] text-on-surface-variant">Signed in</span>
+        <span className="block truncate text-sm text-on-surface">
+          {account.login}
+        </span>
+        <span className="block truncate text-[11px] text-on-surface-variant">
+          Signed in
+        </span>
       </span>
       <button
         type="button"
@@ -226,18 +248,34 @@ function ProjectNav() {
             </span>
           </Link>
         ))}
-      <NavLink href={href("/state")} active={pathname === "/state"} icon="add_circle">
+      <NavLink
+        href={href("/state")}
+        active={pathname === "/state"}
+        icon="add_circle"
+      >
         New state table
       </NavLink>
       {/* Webhooks ahead of the feed: both are this project reaching outward, and the
           durable one is the one a developer comes looking for. */}
-      <NavLink href={href("/webhooks")} active={pathname === "/webhooks"} icon="webhook">
+      <NavLink
+        href={href("/webhooks")}
+        active={pathname === "/webhooks"}
+        icon="webhook"
+      >
         Webhooks
       </NavLink>
-      <NavLink href={href("/changes")} active={pathname === "/changes"} icon="bolt">
+      <NavLink
+        href={href("/changes")}
+        active={pathname === "/changes"}
+        icon="bolt"
+      >
         Change feed
       </NavLink>
-      <NavLink href={href("/settings")} active={pathname === "/settings"} icon="settings">
+      <NavLink
+        href={href("/settings")}
+        active={pathname === "/settings"}
+        icon="settings"
+      >
         Settings
       </NavLink>
     </nav>
@@ -261,10 +299,14 @@ function NavLink({
     <Link
       href={href}
       className={`state flex h-10 items-center gap-3 rounded-xl px-4 text-sm font-medium ${className} ${
-        active ? "bg-secondary-container text-on-secondary-container" : "text-on-surface-variant"
+        active
+          ? "bg-secondary-container text-on-secondary-container"
+          : "text-on-surface-variant"
       }`}
     >
-      {icon && <Icon name={icon} filled={active} className="shrink-0 text-[20px]" />}
+      {icon && (
+        <Icon name={icon} filled={active} className="shrink-0 text-[20px]" />
+      )}
       {children}
     </Link>
   );
@@ -275,7 +317,10 @@ function Logo() {
   // favicon, drawn so it still reads at this size.
   return (
     <svg viewBox="0 0 24 18" className="h-[15px] w-5 text-primary" aria-hidden>
-      <path fill="currentColor" d="M0 18 V7.74 L4.3 4.27 V18 Z M5 18 V7.2 A7 7 0 0 1 19 7.2 V18 H15.75 V7.2 A3.75 3.75 0 0 0 8.25 7.2 V18 Z M19.7 18 V4.27 L24 7.74 V18 Z" />
+      <path
+        fill="currentColor"
+        d="M0 18 V7.74 L4.3 4.27 V18 Z M5 18 V7.2 A7 7 0 0 1 19 7.2 V18 H15.75 V7.2 A3.75 3.75 0 0 0 8.25 7.2 V18 Z M19.7 18 V4.27 L24 7.74 V18 Z"
+      />
     </svg>
   );
 }

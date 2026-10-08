@@ -18,7 +18,10 @@ export type Health = {
   schema: string;
   cursor: string | null;
   start_version: string | null;
+  /** What a backfill or rebuild is working towards: the denominator of its progress. */
   chain_version: string | null;
+  /** Where the chain is now. Null from an older API, where the target was all there was. */
+  chain_head: string | null;
   lag_secs: number | null;
   versions_per_sec: number | null;
   retries: number;

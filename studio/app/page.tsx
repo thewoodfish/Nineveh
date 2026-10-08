@@ -4,7 +4,14 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { useState, type ReactNode } from "react";
 
-import { Card, filledButton, Icon, Notice, Offline, PhaseDot } from "@/components/ui";
+import {
+  Card,
+  filledButton,
+  Icon,
+  Notice,
+  Offline,
+  PhaseDot,
+} from "@/components/ui";
 import {
   API_URL,
   GEOMI_BILLING,
@@ -29,7 +36,8 @@ import { useHref, useProject } from "@/lib/project";
 export default function Home() {
   const { mode, name, error } = useProject();
   if (mode === "loading") return null;
-  if (mode === "offline") return <Offline error={error ?? "Nineveh isn't answering"} />;
+  if (mode === "offline")
+    return <Offline error={error ?? "Nineveh isn't answering"} />;
   if (mode === "control" && !name) return <Projects />;
   return <Overview />;
 }
@@ -42,10 +50,12 @@ function Projects() {
     return (
       <div className="mx-auto mt-24 max-w-lg px-6 text-center">
         <Icon name="database" className="text-[40px] text-on-surface-variant" />
-        <h1 className="mt-4 text-2xl leading-8 text-on-surface">Create your first backend</h1>
+        <h1 className="mt-4 text-2xl leading-8 text-on-surface">
+          Create your first backend
+        </h1>
         <p className="mt-3 text-sm text-on-surface-variant">
-          Paste an Aptos contract address, pick what to follow, and Nineveh builds live tables you
-          can query and subscribe to. No config to write.
+          Paste an Aptos contract address, pick what to follow, and Nineveh
+          builds live tables you can query and subscribe to. No config to write.
         </p>
         <Link href="/new" className={`mt-8 ${filledButton}`}>
           <Icon name="add" className="text-[18px]" />
@@ -91,14 +101,20 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
     ? progress(pipeline.start_version, pipeline.cursor, pipeline.chain_version)
     : null;
   const backfilling = done !== null && done < 0.9999;
-  const worrying = project.error && !(project.running && routine(project.error));
+  const worrying =
+    project.error && !(project.running && routine(project.error));
 
   return (
-    <Link href={`/?project=${encodeURIComponent(project.name)}`} className="group">
+    <Link
+      href={`/?project=${encodeURIComponent(project.name)}`}
+      className="group"
+    >
       <Card className="flex h-full flex-col p-5 transition-shadow group-hover:shadow-e2">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="truncate text-base font-medium text-on-surface">{project.name}</div>
+            <div className="truncate text-base font-medium text-on-surface">
+              {project.name}
+            </div>
             <div className="mt-1.5 flex items-center gap-2">
               <span className="rounded-xs bg-surface-container-high px-1.5 py-0.5 font-mono text-[11px] text-on-surface-variant">
                 {project.network}
@@ -113,7 +129,10 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
                 keeps the detail for whoever hovers it. */}
             {worrying && (
               <span title={project.error ?? ""} className="flex">
-                <Icon name="warning" className="text-[16px] text-on-warning-container" />
+                <Icon
+                  name="warning"
+                  className="text-[16px] text-on-warning-container"
+                />
               </span>
             )}
             <PhaseDot phase={project.state} label />
@@ -124,7 +143,9 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
           <div className="truncate font-mono text-2xl leading-none text-on-surface tnum">
             {formatInteger(pipeline?.cursor ?? null)}
           </div>
-          <div className="mt-1.5 text-xs text-on-surface-variant">last committed version</div>
+          <div className="mt-1.5 text-xs text-on-surface-variant">
+            last committed version
+          </div>
         </div>
 
         <div className="mt-auto pt-5">
@@ -151,7 +172,9 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
             {/* An idle project's throughput is zero by design, and a zero here reads
                 as a stall. */}
             {!project.idle && pipeline?.versions_per_sec != null && (
-              <span className="shrink-0">{formatInteger(pipeline.versions_per_sec)}/s</span>
+              <span className="shrink-0">
+                {formatInteger(pipeline.versions_per_sec)}/s
+              </span>
             )}
           </div>
         </div>
@@ -183,7 +206,9 @@ function Overview() {
       <PageHeader
         title="Overview"
         hint={
-          tables ? `${tables.length} state ${tables.length === 1 ? "table" : "tables"}` : undefined
+          tables
+            ? `${tables.length} state ${tables.length === 1 ? "table" : "tables"}`
+            : undefined
         }
       ></PageHeader>
 
@@ -199,10 +224,10 @@ function Overview() {
         {isCreditCap(failure) ? (
           <Notice tone="error" title="Out of monthly chain credit">
             <p>
-              The Aptos API key this backend streams with has used up its organization&apos;s
-              monthly credit, so the chain is refusing every request. Nothing is lost: the
-              project stopped where it was and resumes from its cursor once the credit is
-              back.
+              The Aptos API key this backend streams with has used up its
+              organization&apos;s monthly credit, so the chain is refusing every
+              request. Nothing is lost: the project stopped where it was and
+              resumes from its cursor once the credit is back.
             </p>
             <p className="mt-2">
               The credit refreshes at the start of next month.{" "}
@@ -222,13 +247,22 @@ function Overview() {
             {(phase === "halted" || phase === "failed") && (
               <Notice
                 tone="error"
-                title={phase === "halted" ? "The pipeline halted" : "The project failed"}
+                title={
+                  phase === "halted"
+                    ? "The pipeline halted"
+                    : "The project failed"
+                }
               >
-                <span className="font-mono text-xs whitespace-pre-wrap">{failure}</span>
+                <span className="font-mono text-xs whitespace-pre-wrap">
+                  {failure}
+                </span>
               </Notice>
             )}
             {pipeline?.phase === "retrying" && (
-              <Notice tone="warning" title={`Retrying (attempt ${pipeline.retries})`}>
+              <Notice
+                tone="warning"
+                title={`Retrying (attempt ${pipeline.retries})`}
+              >
                 <span className="font-mono text-xs">{pipeline.last_error}</span>
               </Notice>
             )}
@@ -250,13 +284,20 @@ function Overview() {
             <p className="mt-1 text-xs text-on-surface-variant">
               REST over every table, and a live change feed at{" "}
               <span className="font-mono">/v1/changes</span>.
-              {hosted && <> Send one of this project&apos;s API keys with each request.</>} Try it
-              in the{" "}
-              <Link href={href("/playground")} className="text-primary hover:underline">
+              {hosted && (
+                <>
+                  {" "}
+                  Send one of this project&apos;s API keys with each request.
+                </>
+              )}{" "}
+              Try it in the{" "}
+              <Link
+                href={href("/playground")}
+                className="text-primary hover:underline"
+              >
                 API
               </Link>{" "}
-              page
-              .
+              page .
             </p>
           </Card>
         )}
@@ -271,8 +312,12 @@ function Overview() {
                 {shortHex(`0x${status.build.fingerprint}`, 8, 6)}
               </span>
             </div>
-            <div>Created {new Date(status.build.created_at).toLocaleString()}</div>
-            <div>Last commit {new Date(status.build.updated_at).toLocaleString()}</div>
+            <div>
+              Created {new Date(status.build.created_at).toLocaleString()}
+            </div>
+            <div>
+              Last commit {new Date(status.build.updated_at).toLocaleString()}
+            </div>
           </Card>
         )}
       </div>
@@ -316,8 +361,8 @@ function Storage({ usage }: { usage: Usage }) {
             </span>
           </>
         )}
-        . Editing a rule replays these instead of re-reading the chain. Past the limit the
-        oldest go first; your state tables are never touched.
+        . Editing a rule replays these instead of re-reading the chain. Past the
+        limit the oldest go first; your state tables are never touched.
       </p>
     </Card>
   );
@@ -332,10 +377,16 @@ function Storage({ usage }: { usage: Usage }) {
 function Health({ status }: { status: Status }) {
   const pipeline = status.pipeline;
   const cursor = pipeline?.cursor ?? status.build?.cursor ?? null;
-  const chain = pipeline?.chain_version ?? null;
+  // "Chain head" and "behind" are about where the chain is; progress is about what the
+  // run is working towards, which stops moving on purpose.
+  const chain = pipeline?.chain_head ?? pipeline?.chain_version ?? null;
   const done =
     pipeline && pipeline.schema === status.schema
-      ? progress(pipeline.start_version, pipeline.cursor, pipeline.chain_version)
+      ? progress(
+          pipeline.start_version,
+          pipeline.cursor,
+          pipeline.chain_version,
+        )
       : null;
   const backfilling = done !== null && done < 0.9999;
   const behindBy = behind(cursor, chain);
@@ -365,13 +416,18 @@ function Health({ status }: { status: Status }) {
                   <span className="font-mono text-on-surface">
                     {formatInteger(pipeline?.start_version ?? null)}
                   </span>{" "}
-                  and <span className="font-mono text-on-surface">{formatInteger(chain)}</span> —
-                  the tables serve what has landed so far
+                  and{" "}
+                  <span className="font-mono text-on-surface">
+                    {formatInteger(chain)}
+                  </span>{" "}
+                  — the tables serve what has landed so far
                 </>
               ) : (
                 <>
                   versions behind the chain · committed through{" "}
-                  <span className="font-mono text-on-surface">{formatInteger(cursor)}</span>
+                  <span className="font-mono text-on-surface">
+                    {formatInteger(cursor)}
+                  </span>
                   {pipeline?.lag_secs != null && (
                     <> · last block {formatDuration(pipeline.lag_secs)} ago</>
                   )}
@@ -386,7 +442,10 @@ function Health({ status }: { status: Status }) {
                 : "bg-tertiary-container text-on-tertiary-container"
             }`}
           >
-            <Icon name={backfilling ? "history" : "check_circle"} className="text-[14px]" />
+            <Icon
+              name={backfilling ? "history" : "check_circle"}
+              className="text-[14px]"
+            />
             {backfilling ? "Backfilling" : "Caught up"}
           </span>
         </div>
@@ -425,7 +484,9 @@ function Supporting({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="px-6 py-3.5">
       <dt className="text-xs text-on-surface-variant">{label}</dt>
-      <dd className="mt-1 truncate font-mono text-sm text-on-surface tnum">{value}</dd>
+      <dd className="mt-1 truncate font-mono text-sm text-on-surface tnum">
+        {value}
+      </dd>
     </div>
   );
 }
@@ -440,7 +501,13 @@ function Supporting({ label, value }: { label: string; value: ReactNode }) {
  * that silence is worth remarking on, and it is phrased as a question rather than a
  * failure.
  */
-function Silent({ sources, status }: { sources: SourceInfo[] | null; status: Status }) {
+function Silent({
+  sources,
+  status,
+}: {
+  sources: SourceInfo[] | null;
+  status: Status;
+}) {
   // Dismissible, unlike the notices above it. Those report a condition — a halted
   // pipeline, a lost API — and closing one would claim it had been dealt with. This one
   // is advice, and advice you have read is in the way. It comes back on reload, because
@@ -476,7 +543,8 @@ function Silent({ sources, status }: { sources: SourceInfo[] | null; status: Sta
       }
     >
       <p>
-        The project has read {read.toLocaleString()} versions and found no records for{" "}
+        The project has read {read.toLocaleString()} versions and found no
+        records for{" "}
         {quiet.map((s, i) => (
           <span key={s.name}>
             {i > 0 && ", "}
@@ -486,10 +554,11 @@ function Silent({ sources, status }: { sources: SourceInfo[] | null; status: Sta
         .
       </p>
       <p className="mt-2">
-        That is what a silent contract looks like, and also what a type name that is
-        subtly wrong looks like — <span className="font-mono text-xs">NewBlock</span> and{" "}
-        <span className="font-mono text-xs">NewBlockEvent</span> are different types.
-        Check the name against the contract on a chain explorer.
+        That is what a silent contract looks like, and also what a type name
+        that is subtly wrong looks like —{" "}
+        <span className="font-mono text-xs">NewBlock</span> and{" "}
+        <span className="font-mono text-xs">NewBlockEvent</span> are different
+        types. Check the name against the contract on a chain explorer.
       </p>
     </Notice>
   );
@@ -506,7 +575,8 @@ function Rebuild({ status }: { status: Status }) {
   return (
     <Notice tone="neutral" title="Rebuilding under a new config">
       The current tables stay served until the rebuild in{" "}
-      <span className="font-mono">{rebuild.schema}</span> catches up and swaps in
+      <span className="font-mono">{rebuild.schema}</span> catches up and swaps
+      in
       {done !== null && <> — {(done * 100).toFixed(1)}% done</>}.
     </Notice>
   );

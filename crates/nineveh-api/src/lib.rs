@@ -49,8 +49,13 @@ pub struct Health {
     /// Where the build started, as a decimal string: with `cursor` and
     /// `chain_version`, how far a backfill has come.
     pub start_version: Option<String>,
-    /// The chain's version when the pipeline started, as a decimal string.
+    /// The chain's version when the pipeline started, as a decimal string: what a
+    /// backfill or a rebuild is working towards (ADR 0016), and the denominator of its
+    /// progress. It does not move while the run does.
     pub chain_version: Option<String>,
+    /// Where the chain is now, as a decimal string — what "behind" is measured from.
+    /// Falls back to `chain_version` when nothing is reading the tail to ask.
+    pub chain_head: Option<String>,
     /// Seconds between now and the last committed transaction's block time.
     pub lag_secs: Option<u64>,
     pub versions_per_sec: Option<u64>,

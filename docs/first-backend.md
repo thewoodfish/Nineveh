@@ -367,12 +367,18 @@ Then **Create table**. Nineveh builds it from the records it already has, withou
 re-reading the chain, and the tables you already had answer reads throughout, frozen
 where they had reached until the new build swaps in.
 
-Expect to watch that happen. The new table opens empty, saying **Building this table**,
-because the rows don't exist until the fold reaches them; the Overview says *Rebuilding
-under a new config* with a percentage, and the project reads *Catching up* until the new
-build swaps in. Nothing is wrong and nothing is lost — your existing tables are still
-answering the whole time. This project holds minutes of history, so it is a short wait.
-Then:
+Expect to watch that happen:
+
+![The new sellers table, empty, with a notice saying Nineveh is folding the project's history into it](images/state-table-building.jpg "Zero rows and the columns you declared. The Overview says Rebuilding under a new config with a percentage; the drawer reads Catching up.")
+
+The new table opens empty, because the rows don't exist until the fold reaches them.
+Nothing is wrong and nothing is lost — your existing tables answer the whole time, which
+is the point of building beside them rather than over them. This project holds minutes
+of history, so it is a short wait, and then the rows are there:
+
+![The sellers table live, with a row per seller holding their revenue and their sale count](images/state-table-live.jpg "The table the contract never kept, keyed by seller, updating as sales arrive. `reduce · key seller · 2 rows`.")
+
+Which is also what the API says:
 
 ```sh
 curl -H "$AUTH" "$BASE/v1/tables/sellers?order=revenue.desc&limit=5"

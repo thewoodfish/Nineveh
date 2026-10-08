@@ -450,6 +450,7 @@ impl<C: Chain> Runner<C> {
             pipeline.status(),
             self.start,
             self.tip,
+            self.shared.clone(),
             schema.to_owned(),
             self.health.clone(),
         ));
@@ -465,6 +466,7 @@ impl<C: Chain> Runner<C> {
                 schema: schema.to_owned(),
                 start_version: Some(self.start.get().to_string()),
                 chain_version: Some(self.tip.get().to_string()),
+                chain_head: Some(self.tip.get().to_string()),
                 ..Health::default()
             });
             health.phase = format!("{:?}", last.phase).to_lowercase();
@@ -483,10 +485,11 @@ impl<C: Chain> Runner<C> {
 
 /// Publish the pipeline's health on every change and at least every second (for lag),
 /// and log it every ten seconds.
-async fn report_progress(
+async fn report_progress<S: Source + 'static>(
     mut status: watch::Receiver<Status>,
     start: Version,
-    chain: Version,
+    target: Version,
+    following: Option<Arc<SharedTip<S>>>,
     schema: String,
     health: watch::Sender<Option<Health>>,
 ) {
@@ -518,12 +521,24 @@ async fn report_progress(
             let micros = u128::from(micros);
             u64::try_from(now.as_micros().saturating_sub(micros) / 1_000_000).ok()
         });
+        // Where the chain is now, not where it was when this run began. `target` is
+        // the latter: the version a backfill or a rebuild is working towards (ADR
+        // 0016), which is right for a percentage and wrong for a head, because it
+        // stops moving while the chain does not. A project that caught up half an hour
+        // ago would read as being ahead of the chain it is following. The shared
+        // reader knows where the chain is, being the thing reading it (ADR 0021), and
+        // asking it costs nothing.
+        let head = following
+            .as_ref()
+            .and_then(|reader| reader.position())
+            .map_or(target, |live| live.max(target));
         health.send_replace(Some(Health {
             phase: format!("{:?}", current.phase).to_lowercase(),
             schema: schema.clone(),
             cursor: current.cursor.map(|c| c.get().to_string()),
             start_version: Some(start.get().to_string()),
-            chain_version: Some(chain.get().to_string()),
+            chain_version: Some(target.get().to_string()),
+            chain_head: Some(head.get().to_string()),
             lag_secs: lag,
             versions_per_sec: rate,
             retries: current.retries,
@@ -538,7 +553,7 @@ async fn report_progress(
         info!(
             %schema,
             cursor = cursor.get(),
-            behind = chain.get().saturating_sub(cursor.get()),
+            behind = head.get().saturating_sub(cursor.get()),
             lag_secs = ?lag,
             versions_per_sec = ?rate,
             phase = ?current.phase,
