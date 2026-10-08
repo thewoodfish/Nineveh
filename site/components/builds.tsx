@@ -9,7 +9,7 @@ export function Builds() {
     <div className="grid gap-5 lg:grid-cols-3">
       <Card
         title="Leaderboards"
-        line="Rank every player, live, from the events your game already emits."
+        line="Rank every player, live — from the events your game emits and the state it only stores."
         query="players?order=wins.desc"
         wide
       >

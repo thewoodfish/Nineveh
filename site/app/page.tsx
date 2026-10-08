@@ -181,7 +181,7 @@ function Problem() {
               Turning that into the backend your frontend needs is still application logic, state
               management, database work and server code. And a contract announces less than it
               stores. It emits events for what it expected you to want, and keeps the rest in
-              storage because storage is what it needs to work: the table of open positions, the
+              storage because storage is what it needs to work: the SmartTable of open positions, the
               running sum it keeps for itself, the vote tally no event is fired for.
             </p>
             <p className="mt-5 max-w-[62ch] text-white/55">
@@ -254,7 +254,7 @@ function Machinery() {
             <Heading center>From on-chain state to application state.</Heading>
             <Lede center>
               Your contract is the source of truth. A reducer says what to do when something
-              arrives: when this event lands, this row changes. No processor to write, no
+              arrives: when this event lands or this resource changes, that row changes. No processor to write, no
               migrations, no schema to keep in step.
             </Lede>
           </div>
