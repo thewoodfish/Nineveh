@@ -99,12 +99,24 @@ chown -R nineveh:nineveh /opt/nineveh
 ```sh
 install -d -m 700 /etc/nineveh
 install -m 600 /opt/nineveh/src/deploy/nineveh.env.example /etc/nineveh/nineveh.env
-nano /etc/nineveh/nineveh.env             # fill in the keys and the OAuth pair
 ```
 
-`nano` rather than `$EDITOR`, which a fresh server doesn't set: unset, the line becomes
-the path on its own and the shell tries to execute the file, which reports `Permission
-denied` and looks like a problem with the file rather than with the command.
+Then fill in the keys and the OAuth pair. A fresh server has no editor you can count on
+— `nano: command not found` is the usual greeting, and `$EDITOR` is unset, which makes
+the line the path on its own, so the shell tries to execute the file and reports
+`Permission denied` as though the file were the problem. So write it rather than edit
+it:
+
+```sh
+cat >> /etc/nineveh/nineveh.env <<'EOF'
+APTOS_API_KEY_TESTNET=aptoslabs_...
+NINEVEH_DATABASE_URL=postgres:///nineveh
+EOF
+
+grep . /etc/nineveh/nineveh.env           # read it back before restarting
+```
+
+Appending keeps the file's `600`. `sed -i '/^NAME=/d'` takes a line out again.
 
 ## Start it
 
@@ -236,9 +248,10 @@ The free tier follows testnet and devnet. To let a single account start a mainne
 project — for a demo, not as a tier change — name its GitHub login:
 
 ```sh
-# /etc/nineveh/nineveh.env
+cat >> /etc/nineveh/nineveh.env <<'EOF'
 APTOS_API_KEY_MAINNET=aptoslabs_...
 NINEVEH_MAINNET_ACCOUNTS=yourlogin
+EOF
 ```
 
 ```sh
@@ -246,8 +259,16 @@ systemctl restart nineveh
 journalctl -u nineveh | grep "by exception"   # it says so, every time it applies
 ```
 
-To take it away: delete the line and restart. Nothing in the source changed, so there
-is nothing to revert and nothing to forget.
+To take it away:
+
+```sh
+sed -i '/^NINEVEH_MAINNET_ACCOUNTS=/d' /etc/nineveh/nineveh.env
+systemctl restart nineveh
+```
+
+Nothing in the source changed, so there is nothing to revert and nothing to forget.
+Leaving `APTOS_API_KEY_MAINNET` behind is harmless: without a name in the allowlist the
+tier refuses mainnet to everybody again.
 
 It widens **one account**, deliberately. Widening the tier instead would let every
 account that has ever signed up start a mainnet project on the organization's stream
