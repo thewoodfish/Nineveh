@@ -7,11 +7,13 @@ import { useState, type ReactNode } from "react";
 import { Card, filledButton, Icon, Notice, Offline, PhaseDot } from "@/components/ui";
 import {
   API_URL,
+  GEOMI_BILLING,
   type ProjectSummary,
   type SourceInfo,
   type Status,
   type Usage,
   control,
+  isCreditCap,
 } from "@/lib/api";
 import {
   behind,
@@ -172,6 +174,7 @@ function Overview() {
   const pipeline = status.pipeline;
   const phase = current?.state ?? pipeline?.phase ?? "serving";
   const cursor = pipeline?.cursor ?? status.build?.cursor ?? null;
+  const failure = current?.error ?? pipeline?.last_error ?? null;
 
   return (
     <div>
@@ -190,20 +193,46 @@ function Overview() {
             {error}. Showing the last known state.
           </Notice>
         )}
-        {(phase === "halted" || phase === "failed") && (
-          <Notice
-            tone="error"
-            title={phase === "halted" ? "The pipeline halted" : "The project failed"}
-          >
-            <span className="font-mono text-xs whitespace-pre-wrap">
-              {current?.error ?? pipeline?.last_error}
-            </span>
+        {/* The cap is a billing state, not a broken project, and it stops every
+            project on the key at once — so it gets its own notice rather than the
+            upstream sentence in a monospace box. */}
+        {isCreditCap(failure) ? (
+          <Notice tone="error" title="Out of monthly chain credit">
+            <p>
+              The Aptos API key this backend streams with has used up its organization&apos;s
+              monthly credit, so the chain is refusing every request. Nothing is lost: the
+              project stopped where it was and resumes from its cursor once the credit is
+              back.
+            </p>
+            <p className="mt-2">
+              The credit refreshes at the start of next month.{" "}
+              <a
+                href={GEOMI_BILLING}
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2"
+              >
+                Attaching a payment method
+              </a>{" "}
+              lifts it now.
+            </p>
           </Notice>
-        )}
-        {pipeline?.phase === "retrying" && (
-          <Notice tone="warning" title={`Retrying (attempt ${pipeline.retries})`}>
-            <span className="font-mono text-xs">{pipeline.last_error}</span>
-          </Notice>
+        ) : (
+          <>
+            {(phase === "halted" || phase === "failed") && (
+              <Notice
+                tone="error"
+                title={phase === "halted" ? "The pipeline halted" : "The project failed"}
+              >
+                <span className="font-mono text-xs whitespace-pre-wrap">{failure}</span>
+              </Notice>
+            )}
+            {pipeline?.phase === "retrying" && (
+              <Notice tone="warning" title={`Retrying (attempt ${pipeline.retries})`}>
+                <span className="font-mono text-xs">{pipeline.last_error}</span>
+              </Notice>
+            )}
+          </>
         )}
         {status.rebuild && <Rebuild status={status} />}
         <Silent sources={sources} status={status} />

@@ -68,6 +68,24 @@ pub enum IngestError {
     ReaderStopped { reason: String },
 }
 
+/// Whether an upstream message says the key's organization is out of monthly credit.
+///
+/// Geomi bills a Transaction Stream by bytes streamed and minutes held open, and caps
+/// what an organization may spend each month. Past the cap every call is refused with
+/// *"Blocked due to `MonthlyCredit` cap. Your organization has used up its monthly
+/// credit."* — a 429 over REST, `ResourceExhausted` over gRPC, which are the same
+/// codes a transient rate limit uses.
+///
+/// They have to be told apart, because this one does not clear. The credit refreshes
+/// at the start of the next month, so a pipeline that treats it as transient retries
+/// every 30 seconds for days while Studio says *Retrying* — the same failure the
+/// [`IngestError::ReaderStopped`] note describes, arriving by a different door. The
+/// message is the only thing that distinguishes them.
+pub(crate) fn is_credit_cap(message: &str) -> bool {
+    let message = message.to_ascii_lowercase();
+    message.contains("monthlycredit") || message.contains("monthly credit")
+}
+
 impl IngestError {
     /// Whether reconnecting and resuming from the committed cursor could succeed.
     ///
@@ -78,15 +96,19 @@ impl IngestError {
         use tonic::Code;
         match self {
             Self::Connect { .. } => true,
-            Self::Status(status) => matches!(
-                status.code(),
-                Code::Unavailable
-                    | Code::DeadlineExceeded
-                    | Code::ResourceExhausted
-                    | Code::Aborted
-                    | Code::Internal
-                    | Code::Unknown
-            ),
+            // The credit cap arrives as `ResourceExhausted`, and retrying it is a
+            // project spinning until the month turns over.
+            Self::Status(status) => {
+                matches!(
+                    status.code(),
+                    Code::Unavailable
+                        | Code::DeadlineExceeded
+                        | Code::ResourceExhausted
+                        | Code::Aborted
+                        | Code::Internal
+                        | Code::Unknown
+                ) && !is_credit_cap(status.message())
+            }
             Self::InvalidEndpoint { .. }
             | Self::InvalidApiKey
             | Self::ChainMismatch { .. }
@@ -98,6 +120,19 @@ impl IngestError {
             | Self::OutsideRange { .. }
             | Self::VersionOverflow
             | Self::ReaderStopped { .. } => false,
+        }
+    }
+
+    /// Whether this is the organization's monthly credit cap, which is a billing
+    /// problem rather than a broken project: see [`is_credit_cap`].
+    #[must_use]
+    pub fn is_credit_cap(&self) -> bool {
+        match self {
+            Self::Status(status) => is_credit_cap(status.message()),
+            // A reader that stopped carries the reason it stopped on, which may be
+            // this one (ADR 0021); every project on the network gets it.
+            Self::ReaderStopped { reason } => is_credit_cap(reason),
+            _ => false,
         }
     }
 }
@@ -136,5 +171,30 @@ mod tests {
         );
         assert!(detailed.is_retryable());
         assert!(!bare.is_retryable());
+    }
+
+    /// The same cap over gRPC, where it arrives as `ResourceExhausted` — the code a
+    /// transient throttle also uses.
+    #[test]
+    fn the_monthly_credit_cap_is_fatal_though_it_is_resource_exhausted() {
+        let capped = IngestError::from(tonic::Status::resource_exhausted(
+            "Blocked due to MonthlyCredit cap. Your organization has used up its \
+             monthly credit.",
+        ));
+        assert!(!capped.is_retryable());
+        assert!(capped.is_credit_cap());
+
+        let throttled = IngestError::from(tonic::Status::resource_exhausted("too many streams"));
+        assert!(throttled.is_retryable());
+        assert!(!throttled.is_credit_cap());
+
+        // A shared reader hands every project on the network the reason it stopped.
+        let relayed = IngestError::ReaderStopped {
+            reason: "the Transaction Stream returned ResourceExhausted: Blocked due to \
+                     MonthlyCredit cap"
+                .into(),
+        };
+        assert!(!relayed.is_retryable());
+        assert!(relayed.is_credit_cap());
     }
 }

@@ -10,6 +10,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use nineveh_core::{Address, ChainId, Network, Version};
+
+use crate::error::is_credit_cap;
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
@@ -66,15 +68,28 @@ pub enum RestError {
 impl RestError {
     /// Whether trying again later can succeed: timeouts, dropped connections, rate
     /// limits and server errors.
+    ///
+    /// A 429 is the exception that proves it: a rate limit clears in seconds, and the
+    /// monthly credit cap wears the same status code and does not clear until the
+    /// month does ([`is_credit_cap`]).
     #[must_use]
     pub fn is_retryable(&self) -> bool {
         match self {
             Self::Request { source, .. } => {
                 source.is_timeout() || source.is_connect() || source.is_request()
             }
-            Self::Status { status, .. } => *status == 429 || *status >= 500,
+            Self::Status {
+                status, message, ..
+            } => (*status == 429 || *status >= 500) && !is_credit_cap(message),
             Self::Client(_) | Self::InvalidApiKey | Self::Response { .. } => false,
         }
+    }
+
+    /// Whether this is the organization's monthly credit cap, which is a billing
+    /// problem rather than a broken project: see [`is_credit_cap`].
+    #[must_use]
+    pub fn is_credit_cap(&self) -> bool {
+        matches!(self, Self::Status { message, .. } if is_credit_cap(message))
     }
 }
 
@@ -464,5 +479,29 @@ mod tests {
         assert!(status(503).is_retryable());
         assert!(!status(400).is_retryable());
         assert!(!status(401).is_retryable());
+    }
+
+    /// The cap wears a rate limit's status code and lasts until the month turns over,
+    /// so retrying it is a project spinning for days. It halts instead.
+    #[test]
+    fn the_monthly_credit_cap_is_fatal_though_it_is_a_429() {
+        let capped = RestError::Status {
+            url: "https://api.devnet.aptoslabs.com/v1".into(),
+            status: 429,
+            message: "Blocked due to MonthlyCredit cap. Your organization has used up \
+                      its monthly credit. Your credit will refresh at the start of the \
+                      next month."
+                .into(),
+        };
+        assert!(!capped.is_retryable());
+        assert!(capped.is_credit_cap());
+
+        let throttled = RestError::Status {
+            url: "https://api.devnet.aptoslabs.com/v1".into(),
+            status: 429,
+            message: "Too many requests".into(),
+        };
+        assert!(throttled.is_retryable());
+        assert!(!throttled.is_credit_cap());
     }
 }

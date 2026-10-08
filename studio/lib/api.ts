@@ -26,6 +26,23 @@ export type Health = {
   last_error: string | null;
 };
 
+/** Where an organization's Geomi billing is managed. */
+export const GEOMI_BILLING = "https://geomi.dev/manage/billing";
+
+/**
+ * Whether a failure is the Geomi organization's monthly credit cap.
+ *
+ * The engine already treats this as fatal rather than retrying it
+ * (`nineveh-ingest`'s `is_credit_cap`), so what reaches here is a halted project.
+ * Matching the upstream wording again is the price of a status that carries only a
+ * string: what the reader needs to know is that the fix is billing, not patience, and
+ * the raw message says that in a sentence nobody reads.
+ */
+export function isCreditCap(error: string | null | undefined): boolean {
+  const text = error?.toLowerCase() ?? "";
+  return text.includes("monthlycredit") || text.includes("monthly credit");
+}
+
 export type Build = {
   cursor: string | null;
   fingerprint: string;
