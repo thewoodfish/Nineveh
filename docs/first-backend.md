@@ -307,10 +307,14 @@ questions above it are only what it started from.
 
 ![Studio's reducer editor, with the generated file beside a panel listing the project's sources and tables](images/state-table-editor.jpg "The four answers collapse to one line each, and the file takes over. Every source and table you can name is listed beside it; Nineveh checks as you type and holds the save until it builds.")
 
-It is also not quite right. `total_price` is what buyers paid, and the market keeps 2.5%
-of that, so it isn't what the seller got. Studio had no way to know: the fee is sitting
-right there in the event next to the price, and only you know what it means. Change
-three lines.
+It is also not quite right, and it is named after how it was made rather than what it
+holds. `total_price` is what buyers paid, and the market keeps 2.5% of that, so it isn't
+what the seller got. Studio had no way to know: the fee is sitting right there in the
+event next to the price, and only you know what it means.
+
+So take it over. Select everything in the editor and put this in its place — the pane is
+the project's whole reducers file, not one table, so pasting underneath would leave you
+with two tables where you wanted one.
 
 ```ts
 export const sellers = table({
@@ -327,6 +331,12 @@ on(sold, (s) => {
   b.revenue += u128(s.price - s.fee)
 })
 ```
+
+Three decisions in there, and none of them was Studio's to make. The fee comes off,
+because revenue is what the seller kept. `count` becomes `sold`, because that is what it
+counts. And `price_per_seller` becomes `sellers`: the generated name describes the fold,
+and the name you want describes the row — this is a table of sellers, and `revenue` and
+`sold` are two things known about one.
 
 That gap is the whole reason reducers exist. Anything can hand you the records. The
 number your product actually shows is usually one piece of arithmetic away from them,
@@ -349,8 +359,8 @@ you.
 That block is the whole of [Reducers](reducers.md), and it is where the rest of your
 time goes. The market's finished version, with a `buyers` table beside this one, is
 [`market.nineveh.ts`](https://github.com/thewoodfish/Nineveh/blob/main/examples/03-market/market.nineveh.ts)
-in the repo. Paste it over what's in the editor — that pane is the project's whole
-reducers file, not one table, so a file declaring two of them makes two.
+in the repo. Paste it over what's there the same way; it declares two tables, so you get
+two.
 
 ## 7. Now point it at your own contract
 
