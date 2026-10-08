@@ -129,12 +129,13 @@ function Hero() {
           Your backend for Aptos.
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/60">
-          Build a backend that reacts to on-chain events and state changes, without building
-          the infrastructure around it.
+          Live tables, an API and a change feed, built from everything your contract wrote —
+          not just the events it announced.
         </p>
         <p className="mx-auto mt-4 max-w-xl leading-relaxed text-pretty text-white/50">
-          Connect your Move contracts to application state, backend logic and APIs. On the
-          Aptos infrastructure you already know.
+          Events, resources and the entries inside a SmartTable, folded into state your
+          frontend can query and your backend can subscribe to. On the Aptos infrastructure
+          you already know.
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <Button href="https://studio.nineveh.dev" size="lg">
