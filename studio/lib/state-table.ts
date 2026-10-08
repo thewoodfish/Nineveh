@@ -140,6 +140,36 @@ export function keylessWith(sources: SourceInfo[]): string[] {
   return rest.filter((s) => !keys.some((field) => carries(s, field))).map((s) => s.name);
 }
 
+/**
+ * What a source could use as the key column, when it doesn't carry it by name.
+ *
+ * The same party is named differently by each event it appears in — a borrow says
+ * `account_addr`, a liquidation says `borrower_addr` — so matching on the name alone
+ * refuses tables that are perfectly expressible. Matching on the type alone would be
+ * worse: a liquidation carries *two* addresses, and picking the first would credit
+ * every liquidation to the liquidator, silently and plausibly.
+ *
+ * So the type narrows the list and a person chooses from it.
+ */
+export function keyCandidates(source: SourceInfo, key: FieldInfo): FieldInfo[] {
+  return source.fields.filter((f) => f.type === key.type && !f.nullable);
+}
+
+/** A source's own name for the key, defaulting to the field of that name if it has one. */
+export type KeyMapping = Record<string, string>;
+
+/**
+ * The field `source` should be keyed by, given what the person chose.
+ *
+ * Falls back to the key's own name, which is right whenever the source carries it —
+ * and is what every table built before this existed relied on.
+ */
+export function keyFieldFor(source: SourceInfo, key: FieldInfo, mapping: KeyMapping): string {
+  const chosen = mapping[source.name];
+  if (chosen && source.fields.some((f) => f.name === chosen)) return chosen;
+  return key.name;
+}
+
 const zero = (type: ColumnType): string => (isInteger(type) ? "0" : "");
 
 /** The handler's parameter: the record a rule is folding. */
@@ -414,10 +444,25 @@ function touched(table: StateTable): Column | null {
  * The key mapping is copied from the first rule because it belongs to the table, not to
  * the record: a `per day` table buckets every source's records by the same arithmetic.
  */
-export function alsoFolds(table: StateTable, extras: SourceInfo[]): StateTable {
+export function alsoFolds(
+  table: StateTable,
+  extras: SourceInfo[],
+  key?: FieldInfo,
+  mapping: KeyMapping = {},
+): StateTable {
   if (extras.length === 0) return table;
   const existing = touched(table);
   const keys = table.rules[0]?.keys ?? [];
+  // A source that names the key something else says so here, in the one place a rule
+  // can carry it: `keys` is what `row(…)` is rendered from, so nothing downstream has
+  // to learn about the mapping.
+  const keysFor = (extra: SourceInfo) => {
+    if (!key) return keys.map((k) => ({ ...k }));
+    const field = keyFieldFor(extra, key, mapping);
+    return field === key.name
+      ? keys.map((k) => ({ ...k }))
+      : [{ column: key.name, expression: `${RECORD}.${field}` }];
+  };
   return {
     ...table,
     // The description names what the table folds, so a source added here belongs in it.
@@ -433,7 +478,7 @@ export function alsoFolds(table: StateTable, extras: SourceInfo[]): StateTable {
         on: extra.name,
         deleted: false,
         when: "",
-        keys: keys.map((k) => ({ ...k })),
+        keys: keysFor(extra),
         sets: [{ column: TOUCHED.name, expression: "tx.timestamp" }],
         removes: false,
         note: `What a ${extra.name} record does to this row — this only records that one arrived.`,

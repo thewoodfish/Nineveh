@@ -34,8 +34,10 @@ import {
   countPer,
   dslTableBlock,
   dailyPer,
-  keyFieldsAcross,
+  keyCandidates,
+  keyFields,
   keylessWith,
+  type KeyMapping,
   latestPer,
   liveSet,
   sumPer,
@@ -352,16 +354,32 @@ function StateTableEditor() {
   // The sources beyond the first: each one gets a scaffolded handler, never a generated
   // one, because what a second source does to a row is the thing no template can know.
   const extras = folded.slice(1);
-  // Only keys every folded source can name — see `keyFieldsAcross`. With one source this
-  // is exactly its own keyable fields, so the single-source page is unchanged.
-  const keys = keyFieldsAcross(folded);
+  // The first source's keyable fields. A further source that calls the same thing
+  // something else says so in step 3 (`keyMap`), so the offer is no longer narrowed to
+  // the names every source happens to share — which refused tables that are perfectly
+  // expressible, and are what `row(…)` has always been able to write.
+  const keys = source ? keyFields(source) : [];
   // The amount is read off the first source: it is the one whose records the shape sums.
   const amounts = source ? amountFields(source) : [];
   const keyField = keys.find((f) => f.name === keyName) ?? keys[0];
+  // Which field each further source uses for the key, when it isn't the key's own name.
+  const [keyMap, setKeyMap] = useState<KeyMapping>({});
   const amountField = amounts.find((f) => f.name === amountName) ?? amounts[0];
-  // Which sources are the reason there is no key to offer, so the page can say whose
-  // fault it is instead of sending you off to write the key by hand.
-  const keyless = keylessWith(folded);
+  // Which sources genuinely cannot reach this row: not "spells it differently", which
+  // step 3 now asks about, but "has nothing of that type at all". That message was
+  // firing for the first case, which is why it read as wrong.
+  const unmappable = keyField
+    ? extras.filter((s) => keyCandidates(s, keyField).length === 0).map((s) => s.name)
+    : keylessWith(folded);
+  // The further sources that need a word from you, because they don't carry the key
+  // under its own name.
+  const needMapping = keyField
+    ? extras.filter(
+        (s) =>
+          !s.fields.some((f) => f.name === keyField.name && f.type === keyField.type) &&
+          keyCandidates(s, keyField).length > 0,
+      )
+    : [];
 
   const fold = (names: string[]) => {
     setFolding(names);
@@ -585,17 +603,15 @@ function StateTableEditor() {
                         ))}
                       </Select>
                     </label>
-                  ) : keyless.length > 0 ? (
-                    /* The common case once a second source is ticked, and a different
-                       problem from a source with no identifiers at all: the fix is to
-                       untick one, not to write the key by hand. */
+                  ) : unmappable.length > 0 ? (
+                    /* Not "spells it differently", which is asked about below, but
+                       "carries nothing of that type at all". Untick is the only fix. */
                     <p className="max-w-prose text-xs leading-relaxed text-on-surface-variant">
-                      <span className="font-mono">{keyless.join(", ")}</span>{" "}
-                      {keyless.length === 1 ? "names" : "name"} nothing that{" "}
-                      <span className="font-mono">{source.name}</span> also
-                      names, so there is no one row these could share. Untick{" "}
-                      {keyless.length === 1 ? "it" : "them"}, or fold{" "}
-                      {keyless.length === 1 ? "it" : "them"} into a table of
+                      <span className="font-mono">{unmappable.join(", ")}</span>{" "}
+                      {unmappable.length === 1 ? "carries" : "carry"} nothing of
+                      that type, so there is no one row these could share. Untick{" "}
+                      {unmappable.length === 1 ? "it" : "them"}, or fold{" "}
+                      {unmappable.length === 1 ? "it" : "them"} into a table of
                       their own.
                     </p>
                   ) : (
@@ -606,6 +622,34 @@ function StateTableEditor() {
                       the key yourself.
                     </p>
                   )}
+                  {/* The same party is named differently by each record it appears in
+                      — a borrow says `account_addr`, a liquidation `borrower_addr`.
+                      The type narrows the list; which one means the same thing is a
+                      judgement only you can make, and guessing it would credit a
+                      liquidation to the wrong account, plausibly and silently. */}
+                  {keyField &&
+                    needMapping.map((extra) => (
+                      <label
+                        key={extra.name}
+                        className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant"
+                      >
+                        On <span className="font-mono">{extra.name}</span>, that is
+                        <Select
+                          value={keyMap[extra.name] ?? ""}
+                          onChange={(e) =>
+                            setKeyMap((m) => ({ ...m, [extra.name]: e.target.value }))
+                          }
+                          className="font-mono"
+                        >
+                          <option value="">choose a field…</option>
+                          {keyCandidates(extra, keyField).map((f) => (
+                            <option key={f.name} value={f.name}>
+                              {f.name} ({f.type})
+                            </option>
+                          ))}
+                        </Select>
+                      </label>
+                    ))}
                   {amounts.length > 0 && (
                     <label className="flex flex-col gap-1.5 text-xs font-medium text-on-surface-variant">
                       Adding up
@@ -649,6 +693,7 @@ function StateTableEditor() {
                   extras={extras}
                   more={sources.length > folded.length}
                   keyField={keyField}
+                  keyMap={keyMap}
                   amountField={amountField}
                   existing={existing}
                   onPick={(shape, picked) => {
@@ -1167,6 +1212,7 @@ function Shapes({
   extras,
   more,
   keyField,
+  keyMap,
   amountField,
   existing,
   onPick,
@@ -1177,6 +1223,8 @@ function Shapes({
   /** Whether the project has a source not folded yet, so "tick another" is advice. */
   more: boolean;
   keyField: FieldInfo | undefined;
+  /** What each further source calls the key, when it isn't the key's own name. */
+  keyMap: KeyMapping;
   amountField: FieldInfo | undefined;
   existing: Table[];
   onPick: (started: string, table: StateTable) => void;
@@ -1213,6 +1261,8 @@ function Shapes({
       alsoFolds(
         table,
         extras.filter((s) => !used.includes(s)),
+        keyField,
+        keyMap,
       ),
     );
 
