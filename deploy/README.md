@@ -284,8 +284,13 @@ A mainnet project also streams the full firehose if it follows any resource or t
 | `curl -s localhost:4000/health` | up, and can it reach Postgres — 503 when it can't |
 | `journalctl -u nineveh -f` | what it's doing |
 | `journalctl -u nineveh \| grep 'stream draw'` | hourly, per network: GiB and dollars a month at the current rate |
-| `psql "$NINEVEH_DATABASE_URL" -c 'select name, network, running from nineveh.control_projects'` | what the plane is meant to be running |
-| `psql "$NINEVEH_DATABASE_URL" -c 'select schema_name, cursor from nineveh.projects'` | how far each build has got |
+| `sudo -u postgres psql -d nineveh -c 'select name, network, running from nineveh.control_projects'` | what the plane is meant to be running |
+| `sudo -u postgres psql -d nineveh -c 'select schema_name, cursor from nineveh.projects'` | how far each build has got |
+
+`sudo -u postgres` rather than `$NINEVEH_DATABASE_URL`: the variable is in the unit's
+environment, not your shell, so `psql "$NINEVEH_DATABASE_URL"` expands to nothing and
+falls back to a socket connection as `root` — which has no role, and says so in a way
+that looks like the database is broken.
 
 `/control/v1/readers` reports the same streams in more detail, but every `/control/v1`
 route needs a signed-in session, so plain `curl` from the box answers `sign in to use
