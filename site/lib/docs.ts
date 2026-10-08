@@ -35,12 +35,6 @@ export const DOCS: Doc[] = [
     file: "first-backend.md",
   },
   {
-    slug: "by-hand",
-    title: "What you'd build instead",
-    blurb: "The same backend, written yourself",
-    file: "by-hand.md",
-  },
-  {
     slug: "reducers",
     title: "Reducers",
     blurb: "Saying what your tables hold",
@@ -69,6 +63,12 @@ export const DOCS: Doc[] = [
     title: "Expressions",
     blurb: "The language values are written in",
     file: "expressions.md",
+  },
+  {
+    slug: "by-hand",
+    title: "What you'd build instead",
+    blurb: "The same backend, written yourself",
+    file: "by-hand.md",
   },
 ];
 
