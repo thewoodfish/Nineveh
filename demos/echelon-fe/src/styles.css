@@ -129,6 +129,12 @@ td.key { background: oklch(0.63 0.196 259 / 0.07); box-shadow: inset 2px 0 0 okl
   font-size: 12px; color: var(--ink-2);
 }
 .chip.owing { background: oklch(0.63 0.196 259 / 0.14); color: oklch(0.82 0.1 259); }
+/* The amount rides inside the chip, so the asset and its figure never separate. */
+.chip b {
+  margin-left: 7px; padding-left: 7px;
+  border-left: 1px solid oklch(1 0 0 / 0.14);
+  font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink);
+}
 
 /* ---- meter -------------------------------------------------------------- */
 

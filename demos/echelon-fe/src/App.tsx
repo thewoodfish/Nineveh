@@ -15,8 +15,11 @@ state:
   markets: { mirror: market }`;
 
 /** A SimpleMap arrives as { data: [{ key, value }] }. */
-type Entry = { key?: { inner?: string } };
+type Entry = { key?: { inner?: string }; value?: unknown };
 const entries = (map: unknown): Entry[] => (map as { data?: Entry[] } | null)?.data ?? [];
+
+/** A liability's value: what was borrowed, and the interest already rolled into it. */
+type Debt = { principal?: string; interest_accumulated?: string };
 
 function Meter({ used }: { used: number }) {
   const state = severity(used);
@@ -85,6 +88,7 @@ function Vaults({
   flashing: Set<string>;
 }) {
   const named = new Map(markets.map((m) => [String(m.address), String(m.asset_name)]));
+  const mantissa = new Map(markets.map((m) => [String(m.address), m.asset_mantissa]));
   // A market this project hasn't mirrored yet has no name to show, and the address is
   // what the chain said — better than inventing one.
   const label = (e: Entry) => named.get(e.key?.inner ?? "") ?? short(e.key?.inner ?? "?");
@@ -127,11 +131,15 @@ function Vaults({
                 {debt.length === 0 ? (
                   <span className="muted">—</span>
                 ) : (
-                  debt.map((e, i) => (
-                    <span key={i} className="chip owing">
-                      {label(e)}
-                    </span>
-                  ))
+                  debt.map((e, i) => {
+                    const owed = e.value as Debt | undefined;
+                    return (
+                      <span key={i} className="chip owing">
+                        {label(e)}
+                        <b>{exact(amount(owed?.principal, mantissa.get(e.key?.inner ?? "")))}</b>
+                      </span>
+                    );
+                  })
                 )}
               </td>
               <td className="num mono muted">{String(v._version)}</td>
@@ -229,8 +237,12 @@ export default function App() {
           <Vaults vaults={vaults} markets={markets} flashing={vaultFlash} />
         </div>
         <p className="note">
-          One row per account, appearing as accounts transact. This is the table a
-          liquidator bot assembles by polling every address it has ever seen.
+          One row per account, appearing as accounts transact — the table a liquidator
+          bot assembles by polling every address it has ever seen. The figure beside a
+          borrow is the <em>principal</em>, exactly as the chain stores it. Interest has
+          accrued on top of it since, and no event anywhere reports that: it is the
+          market&apos;s index moving, which is the whole reason this page follows the
+          resource rather than the events.
         </p>
       </section>
 

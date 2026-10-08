@@ -25,6 +25,9 @@ export async function rows(table: string, query = ""): Promise<Row[]> {
 /** A row change, as the feed sends it. */
 export type Change = { version: string; seq: number; table: string; op: string };
 
-export function changes(): EventSource {
-  return new EventSource(`${BASE}/v1/changes?apikey=${encodeURIComponent(KEY)}`);
+/** `after` is a `version.seq` position; without one the feed starts at the newest. */
+export function changes(after?: string): EventSource {
+  const query = new URLSearchParams({ apikey: KEY });
+  if (after) query.set("after", after);
+  return new EventSource(`${BASE}/v1/changes?${query}`);
 }
