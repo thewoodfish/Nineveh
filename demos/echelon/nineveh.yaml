@@ -1,0 +1,28 @@
+# Echelon's lending market on Aptos mainnet.
+#
+# Their own liquidator-bot guide says to index SupplyEvent to discover vault
+# addresses and then read each account's Vault resource. This follows the Vault
+# itself, so the vault is the row: every account's collaterals and liabilities,
+# current, without discovering anyone first.
+name: echelon
+network: mainnet
+start_version: 7534330475
+reducers: ./echelon.nineveh.ts
+
+sources:
+  # The two that carry state no event does.
+  vault:      { resource: "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Vault" }
+  market:     { resource: "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Market" }
+  # And the events, for what happened rather than what is.
+  supplied:   { event: "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::SupplyEvent" }
+  borrowed:   { event: "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::BorrowEvent" }
+  repaid:     { event: "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::RepayEvent" }
+  liquidated: { event: "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::LiquidateEvent" }
+
+state:
+  # One row per account: collaterals and liabilities as the chain holds them.
+  vaults:       { mirror: vault }
+  # One row per market object: cash, liability, shares, the interest index.
+  markets:      { mirror: market }
+  # Every liquidation, in order.
+  liquidations: { log: liquidated }

@@ -1,0 +1,308 @@
+{
+  "format": 3,
+  "network": "mainnet",
+  "structs": {
+    "0x1::object::ExtendRef": {
+      "fields": [
+        {
+          "name": "self",
+          "type": "address"
+        }
+      ]
+    },
+    "0x1::object::Object": {
+      "type_params": 1,
+      "fields": [
+        {
+          "name": "inner",
+          "type": "address"
+        }
+      ]
+    },
+    "0x1::simple_map::Element": {
+      "type_params": 2,
+      "fields": [
+        {
+          "name": "key",
+          "type": "T0"
+        },
+        {
+          "name": "value",
+          "type": "T1"
+        }
+      ]
+    },
+    "0x1::simple_map::SimpleMap": {
+      "type_params": 2,
+      "fields": [
+        {
+          "name": "data",
+          "type": "vector<0x1::simple_map::Element<T0, T1>>"
+        }
+      ]
+    },
+    "0x4dcae85fc5559071906cd5c76b7420fcbb4b0a92f00ab40ffc394aadbbff5ee9::fixed_point64::FixedPoint64": {
+      "fields": [
+        {
+          "name": "v",
+          "type": "u128"
+        }
+      ]
+    },
+    "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::BorrowEvent": {
+      "fields": [
+        {
+          "name": "account_addr",
+          "type": "address"
+        },
+        {
+          "name": "market_obj",
+          "type": "0x1::object::Object<0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Market>"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "user_liability",
+          "type": "u64"
+        },
+        {
+          "name": "total_cash",
+          "type": "u64"
+        },
+        {
+          "name": "total_liability",
+          "type": "u64"
+        }
+      ],
+      "event": true
+    },
+    "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Liability": {
+      "fields": [
+        {
+          "name": "principal",
+          "type": "u64"
+        },
+        {
+          "name": "interest_accumulated",
+          "type": "u64"
+        },
+        {
+          "name": "last_interest_rate_index",
+          "type": "0x4dcae85fc5559071906cd5c76b7420fcbb4b0a92f00ab40ffc394aadbbff5ee9::fixed_point64::FixedPoint64"
+        }
+      ]
+    },
+    "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::LiquidateEvent": {
+      "fields": [
+        {
+          "name": "liquidator_addr",
+          "type": "address"
+        },
+        {
+          "name": "borrower_addr",
+          "type": "address"
+        },
+        {
+          "name": "collateral_market_obj",
+          "type": "0x1::object::Object<0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Market>"
+        },
+        {
+          "name": "borrow_market_obj",
+          "type": "0x1::object::Object<0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Market>"
+        },
+        {
+          "name": "repay_amount",
+          "type": "u64"
+        },
+        {
+          "name": "seize_shares",
+          "type": "u64"
+        },
+        {
+          "name": "seize_shares_post_fee",
+          "type": "u64"
+        },
+        {
+          "name": "borrower_shares",
+          "type": "u64"
+        },
+        {
+          "name": "liquidator_shares",
+          "type": "u64"
+        },
+        {
+          "name": "liquidation_fee_coins",
+          "type": "u64"
+        },
+        {
+          "name": "total_reserve",
+          "type": "u64"
+        }
+      ],
+      "event": true
+    },
+    "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Market": {
+      "fields": [
+        {
+          "name": "extend_ref",
+          "type": "0x1::object::ExtendRef"
+        },
+        {
+          "name": "asset_name",
+          "type": "0x1::string::String"
+        },
+        {
+          "name": "asset_type",
+          "type": "u64"
+        },
+        {
+          "name": "asset_mantissa",
+          "type": "u64"
+        },
+        {
+          "name": "initial_liquidity",
+          "type": "u64"
+        },
+        {
+          "name": "total_shares",
+          "type": "u64"
+        },
+        {
+          "name": "total_liability",
+          "type": "u64"
+        },
+        {
+          "name": "total_reserve",
+          "type": "u64"
+        },
+        {
+          "name": "total_cash",
+          "type": "u64"
+        },
+        {
+          "name": "interest_rate_model_type",
+          "type": "u64"
+        },
+        {
+          "name": "interest_rate_index",
+          "type": "0x4dcae85fc5559071906cd5c76b7420fcbb4b0a92f00ab40ffc394aadbbff5ee9::fixed_point64::FixedPoint64"
+        },
+        {
+          "name": "interest_rate_last_update_seconds",
+          "type": "u64"
+        },
+        {
+          "name": "collateral_factor_bps",
+          "type": "u64"
+        },
+        {
+          "name": "efficiency_mode_id",
+          "type": "u8"
+        },
+        {
+          "name": "paused",
+          "type": "bool"
+        },
+        {
+          "name": "supply_cap",
+          "type": "u64"
+        },
+        {
+          "name": "borrow_cap",
+          "type": "u64"
+        }
+      ],
+      "resource": true,
+      "group": "0x1::object::ObjectGroup"
+    },
+    "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::RepayEvent": {
+      "fields": [
+        {
+          "name": "borrower_addr",
+          "type": "address"
+        },
+        {
+          "name": "repayer_addr",
+          "type": "address"
+        },
+        {
+          "name": "market_obj",
+          "type": "0x1::object::Object<0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Market>"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "user_liability",
+          "type": "u64"
+        },
+        {
+          "name": "total_cash",
+          "type": "u64"
+        },
+        {
+          "name": "total_liability",
+          "type": "u64"
+        }
+      ],
+      "event": true
+    },
+    "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::SupplyEvent": {
+      "fields": [
+        {
+          "name": "account_addr",
+          "type": "address"
+        },
+        {
+          "name": "market_obj",
+          "type": "0x1::object::Object<0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Market>"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "shares",
+          "type": "u64"
+        },
+        {
+          "name": "user_shares_increment",
+          "type": "u64"
+        },
+        {
+          "name": "user_shares",
+          "type": "u64"
+        },
+        {
+          "name": "total_cash",
+          "type": "u64"
+        },
+        {
+          "name": "total_shares",
+          "type": "u64"
+        }
+      ],
+      "event": true
+    },
+    "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Vault": {
+      "fields": [
+        {
+          "name": "efficiency_mode_id",
+          "type": "u8"
+        },
+        {
+          "name": "collaterals",
+          "type": "0x1::simple_map::SimpleMap<0x1::object::Object<0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Market>, u64>"
+        },
+        {
+          "name": "liabilities",
+          "type": "0x1::simple_map::SimpleMap<0x1::object::Object<0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Market>, 0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Liability>"
+        }
+      ],
+      "resource": true
+    }
+  }
+}

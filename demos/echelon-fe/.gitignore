@@ -1,0 +1,6 @@
+node_modules
+dist
+.env
+.env.local
+# The example is documentation, not a secret — the root's `.env.*` would hide it.
+!.env.example
