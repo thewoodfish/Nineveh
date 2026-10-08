@@ -9,10 +9,9 @@
 
 import { session, signedOut } from "./session";
 
-export const API_URL = (process.env.NEXT_PUBLIC_NINEVEH_API ?? "http://127.0.0.1:4000").replace(
-  /\/$/,
-  "",
-);
+export const API_URL = (
+  process.env.NEXT_PUBLIC_NINEVEH_API ?? "http://127.0.0.1:4000"
+).replace(/\/$/, "");
 
 export type Health = {
   phase: "starting" | "running" | "retrying" | "halted" | "stopped" | string;
@@ -202,7 +201,11 @@ export function rowsPath(table: string, query: RowsQuery): string {
   const params = new URLSearchParams();
   params.set("limit", String(query.limit));
   if (query.offset) params.set("offset", String(query.offset));
-  if (query.order) params.set("order", `${query.order.column}${query.order.desc ? ".desc" : ""}`);
+  if (query.order)
+    params.set(
+      "order",
+      `${query.order.column}${query.order.desc ? ".desc" : ""}`,
+    );
   for (const [column, value] of Object.entries(query.filters)) {
     if (value !== "") params.set(column, value);
   }
@@ -213,7 +216,8 @@ export function rowsPath(table: string, query: RowsQuery): string {
 export const getRows = (base: string, table: string, query: RowsQuery) =>
   request<RowsPage>(`${base}${rowsPath(table, query)}`);
 
-export const getPath = (base: string, path: string) => request<unknown>(`${base}${path}`);
+export const getPath = (base: string, path: string) =>
+  request<unknown>(`${base}${path}`);
 
 /** The identity of a row: its key columns' values. */
 export function rowKey(table: Table, row: Record<string, unknown>): string {
@@ -229,7 +233,15 @@ export type ProjectSummary = {
   network: Network;
   /** Whether it should run. */
   running: boolean;
-  state: "starting" | "running" | "retrying" | "stopped" | "halted" | "failed" | "idle" | string;
+  state:
+    | "starting"
+    | "running"
+    | "retrying"
+    | "stopped"
+    | "halted"
+    | "failed"
+    | "idle"
+    | string;
   error: string | null;
   pipeline: Health | null;
   /**
@@ -323,7 +335,13 @@ export type WebhookAttempt = {
 export type SavedTable = {
   name: string;
   kind: "reduce" | "mirror" | "log";
-  columns: { name: string; type: ColumnType; default: string; nullable: boolean; key: boolean }[];
+  columns: {
+    name: string;
+    type: ColumnType;
+    default: string;
+    nullable: boolean;
+    key: boolean;
+  }[];
   rules: {
     on: string;
     deleted: boolean;
@@ -349,7 +367,26 @@ export type CatalogItem = {
   unsupported: string | null;
 };
 
-export type Catalog = { address: string; modules: string[]; items: CatalogItem[] };
+/**
+ * Whether this contract can be followed from its first transaction.
+ *
+ * The plane answers it while inspecting, so the choice offered is one it will keep.
+ * `first_version` is null when the question couldn't be answered, and then the choice
+ * stays open and the create call decides, as it used to.
+ */
+export type History = {
+  first_version: string | null;
+  versions_behind: string | null;
+  allowed: boolean;
+  refused: string | null;
+};
+
+export type Catalog = {
+  address: string;
+  modules: string[];
+  items: CatalogItem[];
+  history: History;
+};
 
 export type Start = "auto" | "now";
 
@@ -358,7 +395,11 @@ const json = (body: unknown) => ({ body: JSON.stringify(body) });
 
 export type Me = {
   mode: "local" | "hosted";
-  account: { login: string; name: string | null; avatar_url: string | null } | null;
+  account: {
+    login: string;
+    name: string | null;
+    avatar_url: string | null;
+  } | null;
   /**
    * The networks the control plane holds a Geomi key for, so it can actually stream
    * them. Not the same question as the tier's `networks`, which is what an account is
@@ -430,19 +471,27 @@ export const control = {
     request<Usage>(`${CONTROL}/projects/${encodeURIComponent(name)}/usage`),
   logout: () => request<void>(`${CONTROL}/logout`, { method: "POST" }),
   sources: (name: string) =>
-    request<SourceInfo[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/sources`),
+    request<SourceInfo[]>(
+      `${CONTROL}/projects/${encodeURIComponent(name)}/sources`,
+    ),
   /** Check a config against the project's pinned layouts, without saving it. */
   check: (name: string, config: string, reducers?: string) =>
-    request<{ ok: boolean }>(`${CONTROL}/projects/${encodeURIComponent(name)}/check`, {
-      method: "POST",
-      ...json({ config, reducers }),
-    }),
+    request<{ ok: boolean }>(
+      `${CONTROL}/projects/${encodeURIComponent(name)}/check`,
+      {
+        method: "POST",
+        ...json({ config, reducers }),
+      },
+    ),
   /** The rows a table's rules would produce, without saving anything. */
   preview: (name: string, config: string, table: string, reducers?: string) =>
-    request<Preview>(`${CONTROL}/projects/${encodeURIComponent(name)}/preview`, {
-      method: "POST",
-      ...json({ config, table, reducers }),
-    }),
+    request<Preview>(
+      `${CONTROL}/projects/${encodeURIComponent(name)}/preview`,
+      {
+        method: "POST",
+        ...json({ config, table, reducers }),
+      },
+    ),
   /** A saved state table, to open in the editor. */
   stateTable: (name: string, table: string) =>
     request<SavedTable>(
@@ -450,7 +499,9 @@ export const control = {
     ),
   /** This project's webhook endpoints, with their secrets and delivery health. */
   webhooks: (name: string) =>
-    request<WebhookInfo[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/webhooks`),
+    request<WebhookInfo[]>(
+      `${CONTROL}/projects/${encodeURIComponent(name)}/webhooks`,
+    ),
   /** Send one delivery to an endpoint now, without moving its place in the feed. */
   testWebhook: (name: string, endpoint: string) =>
     request<WebhookAttempt>(
@@ -462,19 +513,31 @@ export const control = {
       `${CONTROL}/projects/${encodeURIComponent(name)}/webhooks/${encodeURIComponent(endpoint)}/rotate`,
       { method: "POST" },
     ),
-  keys: (name: string) => request<ApiKey[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/keys`),
+  keys: (name: string) =>
+    request<ApiKey[]>(`${CONTROL}/projects/${encodeURIComponent(name)}/keys`),
   createKey: (name: string, label: string) =>
     request<ApiKey>(`${CONTROL}/projects/${encodeURIComponent(name)}/keys`, {
       method: "POST",
       ...json({ label }),
     }),
   revokeKey: (name: string, id: number) =>
-    request<void>(`${CONTROL}/projects/${encodeURIComponent(name)}/keys/${id}`, { method: "DELETE" }),
+    request<void>(
+      `${CONTROL}/projects/${encodeURIComponent(name)}/keys/${id}`,
+      { method: "DELETE" },
+    ),
   projects: () => request<ProjectSummary[]>(`${CONTROL}/projects`),
-  project: (name: string) => request<ProjectDetail>(`${CONTROL}/projects/${encodeURIComponent(name)}`),
+  project: (name: string) =>
+    request<ProjectDetail>(`${CONTROL}/projects/${encodeURIComponent(name)}`),
   inspect: (network: Network, address: string) =>
-    request<Catalog>(`${CONTROL}/inspect?${new URLSearchParams({ network, address })}`),
-  scaffold: (draft: { name: string; network: Network; start: Start; picks: string[] }) =>
+    request<Catalog>(
+      `${CONTROL}/inspect?${new URLSearchParams({ network, address })}`,
+    ),
+  scaffold: (draft: {
+    name: string;
+    network: Network;
+    start: Start;
+    picks: string[];
+  }) =>
     request<{ config: string; reducers?: string }>(`${CONTROL}/scaffold`, {
       method: "POST",
       ...json(draft),
@@ -490,12 +553,21 @@ export const control = {
       ...json({ config, reducers }),
     }),
   start: (name: string) =>
-    request<ProjectSummary>(`${CONTROL}/projects/${encodeURIComponent(name)}/start`, { method: "POST" }),
+    request<ProjectSummary>(
+      `${CONTROL}/projects/${encodeURIComponent(name)}/start`,
+      { method: "POST" },
+    ),
   stop: (name: string) =>
-    request<ProjectSummary>(`${CONTROL}/projects/${encodeURIComponent(name)}/stop`, { method: "POST" }),
+    request<ProjectSummary>(
+      `${CONTROL}/projects/${encodeURIComponent(name)}/stop`,
+      { method: "POST" },
+    ),
   remove: (name: string) =>
-    request<void>(`${CONTROL}/projects/${encodeURIComponent(name)}`, { method: "DELETE" }),
+    request<void>(`${CONTROL}/projects/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+    }),
 };
 
 /** A project's API base URL under the control plane. */
-export const projectBase = (name: string) => `${API_URL}/projects/${encodeURIComponent(name)}`;
+export const projectBase = (name: string) =>
+  `${API_URL}/projects/${encodeURIComponent(name)}`;

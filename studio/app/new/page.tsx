@@ -9,10 +9,12 @@ import {
   ApiError,
   type Catalog,
   type CatalogItem,
+  type History,
   type Network,
   type Start,
   control,
 } from "@/lib/api";
+import { formatInteger } from "@/lib/format";
 import { useProject } from "@/lib/project";
 
 const KINDS: {
@@ -63,7 +65,8 @@ export default function NewProject() {
   // holds a Geomi key for, which is the operator's business and applies in local mode
   // too. Asking only the tier is how a project used to get created on a network the
   // plane couldn't stream, failing later with an `Unauthenticated` that named nothing.
-  const barred = (n: Network) => (limits ? !limits.networks.includes(n) : false);
+  const barred = (n: Network) =>
+    limits ? !limits.networks.includes(n) : false;
   const unkeyed = (n: Network) => served.length > 0 && !served.includes(n);
   const unavailable = (["mainnet", "testnet", "devnet"] as const).filter(
     (n) => barred(n) || unkeyed(n),
@@ -73,7 +76,9 @@ export default function NewProject() {
   // option is greyed out.
   useEffect(() => {
     if (!unavailable.includes(network)) return;
-    const first = (["testnet", "devnet", "mainnet"] as const).find((n) => !unavailable.includes(n));
+    const first = (["testnet", "devnet", "mainnet"] as const).find(
+      (n) => !unavailable.includes(n),
+    );
     if (first) setNetwork(first);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [network, unavailable.join(",")]);
@@ -102,7 +107,8 @@ export default function NewProject() {
     const given = params.get("address");
     if (given) setAddress(given);
     const net = params.get("network");
-    if (net === "mainnet" || net === "testnet" || net === "devnet") setNetwork(net);
+    if (net === "mainnet" || net === "testnet" || net === "devnet")
+      setNetwork(net);
     const from = params.get("start");
     if (from === "now" || from === "auto") setStart(from);
     // Once: afterwards the fields belong to whoever is looking at them.
@@ -116,9 +122,14 @@ export default function NewProject() {
     try {
       const found = await control.inspect(network, address.trim());
       setCatalog(found);
+      // Asked and answered before the choice is shown, so the refusal can't arrive
+      // at the bottom of the form.
+      if (!found.history.allowed) setStart("now");
       // Everything the contract offers: the raw tables are what Nineveh is for, and
       // narrowing them is a choice, not a chore.
-      setPicked(new Set(found.items.filter((i) => !i.unsupported).map((i) => i.id)));
+      setPicked(
+        new Set(found.items.filter((i) => !i.unsupported).map((i) => i.id)),
+      );
       setName(suggestName(found, projects?.map((p) => p.name) ?? []));
     } catch (e) {
       setError(failure(e));
@@ -131,8 +142,19 @@ export default function NewProject() {
     name,
     network,
     start,
-    picks: catalog?.items.filter((i) => picked.has(i.id)).map((i) => i.id) ?? [],
+    picks:
+      catalog?.items.filter((i) => picked.has(i.id)).map((i) => i.id) ?? [],
   };
+  const history = catalog?.history ?? {
+    first_version: null,
+    versions_behind: null,
+    allowed: true,
+    refused: null,
+  };
+  // Resources and tables are the picks that start life empty under "From now on".
+  const mirrors =
+    catalog?.items.filter((i) => picked.has(i.id) && i.kind !== "event")
+      .length ?? 0;
 
   const create = async () => {
     setCreating(true);
@@ -153,16 +175,20 @@ export default function NewProject() {
   // Said before the work rather than after it: inspecting a contract and picking
   // sources only to be refused at the last step is the worst possible place to learn
   // the tier is full.
-  const full = limits != null && projects != null && projects.length >= limits.projects;
+  const full =
+    limits != null && projects != null && projects.length >= limits.projects;
 
   return (
     <div>
       <PageHeader title="New project" />
       <div className="mx-auto flex max-w-4xl flex-col gap-8 px-8 pt-10 pb-16">
         {full && (
-          <Notice tone="warning" title={`The ${limits.name} tier runs ${limits.projects} projects`}>
-            You have {projects.length}. Delete one to make room for another — more projects are
-            coming soon.
+          <Notice
+            tone="warning"
+            title={`The ${limits.name} tier runs ${limits.projects} projects`}
+          >
+            You have {projects.length}. Delete one to make room for another —
+            more projects are coming soon.
           </Notice>
         )}
         {/* Until there's an address, it's the only thing on the page. */}
@@ -173,8 +199,9 @@ export default function NewProject() {
                 Point Nineveh at your contract
               </h2>
               <p className="mx-auto mt-3 max-w-lg text-on-surface-variant text-pretty">
-                Paste the address your Move modules are published at. Nineveh reads them off the
-                chain and shows you what it can follow — no config to write.
+                Paste the address your Move modules are published at. Nineveh
+                reads them off the chain and shows you what it can follow — no
+                config to write.
               </p>
             </>
           )}
@@ -205,13 +232,19 @@ export default function NewProject() {
               autoFocus
               className={`${field} min-w-0 flex-1 py-2.5 font-mono`}
             />
-            <Button type="submit" tone="primary" size="lg" disabled={inspecting || !address.trim()}>
+            <Button
+              type="submit"
+              tone="primary"
+              size="lg"
+              disabled={inspecting || !address.trim()}
+            >
               {inspecting ? "Reading modules…" : "Inspect"}
             </Button>
           </form>
           {!catalog && !inspecting && (
             <p className="mt-4 text-xs text-on-surface-variant">
-              Nothing is created yet. You&apos;ll see what the contract offers first.
+              Nothing is created yet. You&apos;ll see what the contract offers
+              first.
             </p>
           )}
         </section>
@@ -249,7 +282,9 @@ export default function NewProject() {
                   className={`${field} mt-3 mb-3 w-full`}
                 />
               )}
-              <div className={`flex flex-col gap-4 ${choosing ? "" : "hidden"}`}>
+              <div
+                className={`flex flex-col gap-4 ${choosing ? "" : "hidden"}`}
+              >
                 {KINDS.map(({ kind, title, becomes, hint }) => (
                   <Group
                     key={kind}
@@ -276,8 +311,9 @@ export default function NewProject() {
                   label="Project name"
                   hint={
                     <>
-                      Lowercase letters, digits and <span className="font-mono">_</span>. It names
-                      your API and your Postgres schema.
+                      Lowercase letters, digits and{" "}
+                      <span className="font-mono">_</span>. It names your API
+                      and your Postgres schema.
                     </>
                   }
                   className="max-w-sm"
@@ -293,8 +329,9 @@ export default function NewProject() {
                   <Choice
                     active={start === "auto"}
                     onClick={() => setStart("auto")}
+                    disabled={!history.allowed}
                     title="All of its history"
-                    body="From the contract's first transaction. Nineveh backfills first, which can take hours for a busy contract."
+                    body={historyBody(history)}
                   />
                   <Choice
                     active={start === "now"}
@@ -303,6 +340,21 @@ export default function NewProject() {
                     body="Live data only, starting at the chain's current version. Ready in seconds."
                   />
                 </div>
+                {/* A mirror has nothing in it until the chain writes to the resource
+                    again, which on a quiet contract can be a long wait that looks
+                    exactly like a broken project. Say so while it can still be acted
+                    on. */}
+                {start === "now" && mirrors > 0 && (
+                  <p className="max-w-prose text-xs leading-relaxed text-on-surface-variant">
+                    {mirrors === 1
+                      ? "The table you ticked that mirrors"
+                      : "The tables you ticked that mirror"}{" "}
+                    what the contract holds will be empty until it is written to
+                    again. Send the contract a transaction once the project is
+                    running and they fill: a table source learns its handle from
+                    any write to the parent, not only the one that created it.
+                  </p>
+                )}
               </div>
             </Step>
 
@@ -317,7 +369,9 @@ export default function NewProject() {
                   ? "Pinning layouts and starting…"
                   : `Create backend with ${draft.picks.length} ${draft.picks.length === 1 ? "table" : "tables"}`}
               </Button>
-              {creating && error && <span className="text-sm text-error">{error.message}</span>}
+              {creating && error && (
+                <span className="text-sm text-error">{error.message}</span>
+              )}
             </div>
             {creating && error?.details && (
               <pre className="overflow-x-auto rounded-sm bg-error-container p-3 font-mono text-xs text-on-error-container">
@@ -332,7 +386,13 @@ export default function NewProject() {
 }
 
 /** What the raw tables will be: one per event, resource and table it follows. */
-function Following({ catalog, picked }: { catalog: Catalog; picked: Set<string> }) {
+function Following({
+  catalog,
+  picked,
+}: {
+  catalog: Catalog;
+  picked: Set<string>;
+}) {
   const counts = { event: 0, resource: 0, table: 0 };
   let unsupported = 0;
   for (const item of catalog.items) {
@@ -359,17 +419,20 @@ function Following({ catalog, picked }: { catalog: Catalog; picked: Set<string> 
           </div>
         ))}
       {total === 0 && (
-        <div className="text-on-surface-variant">Nothing ticked: pick something below.</div>
+        <div className="text-on-surface-variant">
+          Nothing ticked: pick something below.
+        </div>
       )}
       {unsupported > 0 && (
         <div className="text-xs text-on-surface-variant">
-          {unsupported} more Nineveh can&apos;t follow yet, listed below with the reason.
+          {unsupported} more Nineveh can&apos;t follow yet, listed below with
+          the reason.
         </div>
       )}
       {total > 40 && (
         <div className="text-xs text-on-warning-container">
-          That&apos;s a lot of tables for one project. Narrowing it makes the first build quicker,
-          and you can add sources later.
+          That&apos;s a lot of tables for one project. Narrowing it makes the
+          first build quicker, and you can add sources later.
         </div>
       )}
       <div className="text-xs text-on-surface-variant">
@@ -398,7 +461,9 @@ function Step({
         </span>
         <div>
           <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-          {hint && <p className="mt-0.5 text-sm text-on-surface-variant">{hint}</p>}
+          {hint && (
+            <p className="mt-0.5 text-sm text-on-surface-variant">{hint}</p>
+          )}
         </div>
       </div>
       <div className="pl-9">{children}</div>
@@ -444,7 +509,8 @@ function Group({
         <div className="text-sm">
           <span className="font-medium">{title}</span>{" "}
           <span className="text-xs text-on-surface-variant">
-            {followable.filter((i) => picked.has(i.id)).length} of {items.length} · {hint}
+            {followable.filter((i) => picked.has(i.id)).length} of{" "}
+            {items.length} · {hint}
           </span>
         </div>
         {followable.length > 0 && (
@@ -462,7 +528,9 @@ function Group({
           <li key={item.id}>
             <label
               className={`flex items-start gap-3 px-4 py-2.5 text-sm ${
-                item.unsupported ? "opacity-50" : "cursor-pointer hover:bg-surface-container-high"
+                item.unsupported
+                  ? "opacity-50"
+                  : "cursor-pointer hover:bg-surface-container-high"
               }`}
             >
               <input
@@ -474,9 +542,17 @@ function Group({
               />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="font-mono text-[13px] font-medium">{item.name}</span>
-                  <span className="text-xs text-on-surface-variant">{item.module}</span>
-                  {item.generic && <span className="text-xs text-on-surface-variant">generic</span>}
+                  <span className="font-mono text-[13px] font-medium">
+                    {item.name}
+                  </span>
+                  <span className="text-xs text-on-surface-variant">
+                    {item.module}
+                  </span>
+                  {item.generic && (
+                    <span className="text-xs text-on-surface-variant">
+                      generic
+                    </span>
+                  )}
                   {item.variants.length > 0 && (
                     <span
                       className="text-xs text-on-surface-variant"
@@ -488,7 +564,9 @@ function Group({
                 </div>
                 <div className="truncate font-mono text-xs text-on-surface-variant">
                   {item.unsupported ??
-                    item.fields.map((f) => `${f.name}: ${shortType(f.type)}`).join(", ")}
+                    item.fields
+                      .map((f) => `${f.name}: ${shortType(f.type)}`)
+                      .join(", ")}
                 </div>
               </div>
               {!item.unsupported && (
@@ -513,20 +591,26 @@ function Choice({
   onClick,
   title,
   body,
+  disabled = false,
 }: {
   active: boolean;
   onClick: () => void;
   title: string;
   body: string;
+  /** Offered, and said to be unavailable: a choice removed explains nothing. */
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={`rounded-sm border px-4 py-3 text-left transition-colors ${
-        active
-          ? "border-primary bg-secondary-container ring-1 ring-primary"
-          : "border-outline-variant hover:border-outline"
+        disabled
+          ? "cursor-not-allowed border-outline-variant opacity-55"
+          : active
+            ? "border-primary bg-secondary-container ring-1 ring-primary"
+            : "border-outline-variant hover:border-outline"
       }`}
     >
       <div className="text-sm font-medium">{title}</div>
@@ -535,8 +619,28 @@ function Choice({
   );
 }
 
+/**
+ * What "All of its history" costs, or why it isn't on offer.
+ *
+ * The old copy warned that a backfill "can take hours for a busy contract", which the
+ * free tier's own look-back makes impossible — it was scaring people off the choice
+ * they should make.
+ */
+function historyBody(history: History): string {
+  if (history.refused) return history.refused;
+  if (history.versions_behind === null) {
+    return "From the contract's first transaction, so a table that mirrors the chain starts out filled.";
+  }
+  const behind = Number(history.versions_behind);
+  return `From the contract's first transaction, ${formatInteger(behind)} ${
+    behind === 1 ? "version" : "versions"
+  } back. A table that mirrors the chain starts out filled.`;
+}
+
 function shortAddress(address: string): string {
-  return address.length > 14 ? `${address.slice(0, 8)}…${address.slice(-4)}` : address;
+  return address.length > 14
+    ? `${address.slice(0, 8)}…${address.slice(-4)}`
+    : address;
 }
 
 /** `0xabc…::module::Type<…>` → `module::Type<…>`: the address is the contract's own. */
@@ -548,9 +652,11 @@ function shortType(type: string): string {
 function suggestName(catalog: Catalog, taken: string[]): string {
   const counts = new Map<string, number>();
   for (const item of catalog.items) {
-    if (!item.unsupported) counts.set(item.module, (counts.get(item.module) ?? 0) + 1);
+    if (!item.unsupported)
+      counts.set(item.module, (counts.get(item.module) ?? 0) + 1);
   }
-  const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "app";
+  const top =
+    [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "app";
   const base =
     top
       .toLowerCase()

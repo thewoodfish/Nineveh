@@ -3,8 +3,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use nineveh_config::Named;
-use nineveh_core::{Address, StructName, TypeTag};
+use nineveh_core::{Address, Network, StructName, TypeTag, Version};
 use nineveh_decode::{FieldAbi, ModuleAbi, StructAbi};
+
+use crate::tier::{Limit, Limits};
 use serde::Serialize;
 
 /// Everything at one address that a project can follow.
@@ -15,6 +17,56 @@ pub struct Catalog {
     /// The modules read, by name.
     pub modules: Vec<String>,
     pub items: Vec<Item>,
+    /// Whether this contract can be followed from its first transaction.
+    pub history: History,
+}
+
+/// Whether a project on this contract may start at the beginning, answered while the
+/// address is being inspected rather than when the project is created.
+///
+/// The tier limits how far back a project may start (ADR 0021: a deep backfill holds
+/// one of a handful of catch-up streams). Deciding it here is what lets Studio offer
+/// *All of its history* as a choice that is true, instead of refusing it at the bottom
+/// of the form after the sources are ticked and the project is named.
+#[derive(Debug, Clone, Serialize)]
+pub struct History {
+    /// The contract's first transaction, if the Indexer knows of one. `None` means the
+    /// question couldn't be answered, and the UI should leave the choice open.
+    pub first_version: Option<String>,
+    /// How far back that is from the chain's tip: the versions a backfill would read.
+    pub versions_behind: Option<String>,
+    /// Whether the caller's tier allows starting there.
+    pub allowed: bool,
+    /// Why not, in the tier's own words, when it isn't.
+    pub refused: Option<String>,
+}
+
+impl History {
+    /// What to say when the chain can't be asked: the create call decides, as it did
+    /// before this was offered.
+    #[must_use]
+    pub fn unknown() -> Self {
+        Self {
+            first_version: None,
+            versions_behind: None,
+            allowed: true,
+            refused: None,
+        }
+    }
+
+    /// Whether a contract whose first transaction is `first` may be followed from the
+    /// beginning, against a chain at `tip`.
+    #[must_use]
+    pub fn decide(first: Version, tip: Version, limits: &Limits, network: Network) -> Self {
+        let earliest = tip.get().saturating_sub(limits.look_back_versions(network));
+        let allowed = first.get() >= earliest;
+        Self {
+            first_version: Some(first.get().to_string()),
+            versions_behind: Some(tip.get().saturating_sub(first.get()).to_string()),
+            allowed,
+            refused: (!allowed).then(|| limits.describe(Limit::LookBack)),
+        }
+    }
 }
 
 /// One thing to follow: an event type, a resource, or a table held in a resource.
@@ -152,6 +204,9 @@ pub fn catalog(address: Address, modules: &[ModuleAbi]) -> Catalog {
         address: address.to_standard_string(),
         modules: modules.iter().map(|m| m.name.as_str().to_owned()).collect(),
         items,
+        // Reading the ABIs says nothing about when the contract was published; the
+        // plane fills this in from the chain.
+        history: History::unknown(),
     }
 }
 
@@ -341,6 +396,36 @@ pub fn snake_case(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tier::FREE;
+
+    /// The answer Studio needs before it offers the choice, not after the form is
+    /// filled in: six hours of testnet is about 4.75M versions
+    /// (`docs/research/spike-a-stream.md`).
+    #[test]
+    fn history_is_offered_for_a_contract_inside_the_look_back() {
+        let tip = Version::new(100_000_000);
+        let fresh = History::decide(Version::new(99_000_000), tip, &FREE, Network::Testnet);
+        assert!(fresh.allowed);
+        assert_eq!(fresh.refused, None);
+        assert_eq!(fresh.versions_behind.as_deref(), Some("1000000"));
+        assert_eq!(fresh.first_version.as_deref(), Some("99000000"));
+
+        let old = History::decide(Version::new(90_000_000), tip, &FREE, Network::Testnet);
+        assert!(!old.allowed);
+        assert!(
+            old.refused.is_some_and(|r| r.contains("6 hours")),
+            "the refusal says the tier's own number"
+        );
+    }
+
+    /// A chain younger than the look-back: everything on it is inside the window, and
+    /// the subtraction must not wrap.
+    #[test]
+    fn a_young_chain_allows_everything() {
+        let history = History::decide(Version::new(0), Version::new(10), &FREE, Network::Testnet);
+        assert!(history.allowed);
+        assert_eq!(history.versions_behind.as_deref(), Some("10"));
+    }
 
     #[test]
     fn snake_cases_move_names() {

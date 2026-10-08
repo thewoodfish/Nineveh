@@ -389,11 +389,11 @@ async fn inspect<C: Chain>(
     headers: HeaderMap,
     Query(params): Query<InspectParams>,
 ) -> Result<impl IntoResponse, ControlError> {
-    server.caller(&headers).await?;
+    let caller = server.caller(&headers).await?;
     Ok(Json(
         server
             .plane
-            .inspect(network(&params.network)?, &params.address)
+            .inspect(caller, network(&params.network)?, &params.address)
             .await?,
     ))
 }

@@ -28,7 +28,7 @@ use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
 
 use crate::auth;
-use crate::catalog::{Catalog, catalog};
+use crate::catalog::{Catalog, History, catalog};
 use crate::chain::{Chain, ChainError};
 use crate::deliver::Deliveries;
 use crate::pin::{PinError, pin, retry};
@@ -162,6 +162,13 @@ impl From<StoreError> for ControlError {
             other => Self::Store(other),
         }
     }
+}
+
+/// The address a request names.
+fn address_of(text: &str) -> Result<Address, ControlError> {
+    text.trim()
+        .parse()
+        .map_err(|_| ControlError::BadRequest(format!("`{text}` isn't an address")))
 }
 
 /// A project as the control API reports it.
@@ -684,11 +691,24 @@ impl<C: Chain> ControlPlane<C> {
     ///
     /// [`ControlError::NotFound`] if no modules are published there, or if the chain
     /// can't be read.
-    pub async fn inspect(&self, network: Network, address: &str) -> Result<Catalog, ControlError> {
-        let address: Address = address
-            .trim()
-            .parse()
-            .map_err(|_| ControlError::BadRequest(format!("`{address}` isn't an address")))?;
+    pub async fn inspect(
+        &self,
+        caller: Caller,
+        network: Network,
+        address: &str,
+    ) -> Result<Catalog, ControlError> {
+        let address = address_of(address)?;
+        let mut catalog = self.catalog_of(network, address).await?;
+        catalog.history = self.history(caller, network, address).await;
+        Ok(catalog)
+    }
+
+    /// A contract's catalog without the history question, which only the UI asks.
+    async fn catalog_of(
+        &self,
+        network: Network,
+        address: Address,
+    ) -> Result<Catalog, ControlError> {
         let modules = retry(|| self.chain.modules(network, address)).await?;
         if modules.is_empty() {
             return Err(ControlError::NotFound(format!(
@@ -697,6 +717,31 @@ impl<C: Chain> ControlPlane<C> {
             )));
         }
         Ok(catalog(address, &modules))
+    }
+
+    /// Whether this contract may be followed from its first transaction.
+    ///
+    /// Answered here so the choice Studio offers is one it can keep. The same bound is
+    /// enforced again when the project is created ([`Self::within_tier`]) — this is
+    /// the courtesy, that is the rule.
+    ///
+    /// Two chain reads, and neither is allowed to fail the inspection: a contract whose
+    /// first transaction the Indexer doesn't know, or a tip that didn't answer, leaves
+    /// the choice open and the create call to decide, which is what happened before
+    /// this was offered at all.
+    async fn history(&self, caller: Caller, network: Network, address: Address) -> History {
+        let Caller::Account(_) = caller else {
+            // Local mode meters nobody (see `within_tier`), so there is nothing to
+            // warn about and no reason to spend two calls finding out.
+            return History::unknown();
+        };
+        let (Ok(Some(first)), Ok(tip)) = (
+            retry(|| self.chain.first_transaction(network, address)).await,
+            retry(|| self.chain.tip(network)).await,
+        ) else {
+            return History::unknown();
+        };
+        History::decide(first, tip, &tier::FREE, network)
     }
 
     /// A config for the picks in `request`.
@@ -719,7 +764,10 @@ impl<C: Chain> ControlPlane<C> {
             .collect();
         let mut catalogs = Vec::new();
         for address in addresses {
-            catalogs.push(self.inspect(request.network, address).await?);
+            catalogs.push(
+                self.catalog_of(request.network, address_of(address)?)
+                    .await?,
+            );
         }
         let start = match &request.start {
             StartRequest::Auto => Start::Auto,
