@@ -491,6 +491,23 @@ function Closing() {
         </div>
       </section>
 
+      <section className="mx-auto w-full max-w-6xl px-6 pt-20 text-center">
+        <p className="font-mono text-xs tracking-[0.2em] text-white/40 uppercase">
+          Questions or contributions
+        </p>
+        <a
+          href="https://t.me/+kVwq6suLvZNlNGE0"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-block text-3xl font-bold tracking-tight text-white transition-colors hover:text-blue-300 sm:text-5xl"
+        >
+          Join us on Telegram
+        </a>
+        <p className="mt-4 font-mono text-sm break-all text-blue-300/80 sm:text-base">
+          t.me/+kVwq6suLvZNlNGE0
+        </p>
+      </section>
+
       <footer className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 pt-10 pb-12 text-sm text-white/40 sm:flex-row">
         <div className="flex items-center gap-2">
           <Logo className="size-4 text-blue-400" />
