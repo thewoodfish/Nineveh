@@ -68,7 +68,7 @@ Each source is one of:
 | --- | --- | --- |
 | `event` | `{ event: 0xabc::vault::DepositEvent }` | each event of that type |
 | `resource` | `{ resource: 0xabc::vault::Vault }` | each write and delete of that resource |
-| `table` | `{ table: 0xabc::vault::Vault.positions }` | each item written to or deleted from the `Table` or `SmartTable` in that field |
+| `table` | `{ table: 0xabc::vault::Vault.positions }` | each item written to or deleted from the `Table`, `TableWithLength` or `SmartTable` in that field |
 
 A generic struct named without type arguments (`0x1::coin::CoinStore`) matches every
 instantiation. With arguments (`0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>`), it
@@ -79,7 +79,9 @@ table's handle when the struct holding it is written, so two tables with the sam
 and value types, or another contract's table of the same types, never mix. The holding
 struct must be stored as a resource or as a table value.
 
-`BigOrderedMap` fields aren't supported yet. A small map keeps its entries inside the
+`BigOrderedMap` fields aren't supported yet, and neither is a table held inside
+another struct — `Profile.positions.inner`, where `positions` is a type of your own
+wrapping a table. The field a `table:` source names has to hold the table itself. A small map keeps its entries inside the
 parent struct rather than in a table of its own, and the engine doesn't read those yet,
 so follow the parent with a `resource:` source meanwhile.
 

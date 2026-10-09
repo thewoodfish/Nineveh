@@ -271,14 +271,18 @@ struct TableField {
 fn table_of(ty: &TypeTag) -> Option<TableField> {
     let tag = ty.as_struct()?;
     let name = &tag.name;
+    // `TableWithLength` is a `Table` that counts its entries: same handle, same items,
+    // which is why the decoder maps both to `Container::Table` (`framework::is_table`).
+    // Refusing it here was the catalog disagreeing with the engine, and the engine was
+    // right — a contract that reaches for the counted version got told its field
+    // couldn't be followed when it could.
     let unsupported = if name.is(Address::ONE, "table", "Table")
+        || name.is(Address::ONE, "table_with_length", "TableWithLength")
         || name.is(Address::ONE, "smart_table", "SmartTable")
     {
         None
     } else if name.is(Address::ONE, "big_ordered_map", "BigOrderedMap") {
         Some("BigOrderedMap fields aren't supported yet")
-    } else if name.is(Address::ONE, "table_with_length", "TableWithLength") {
-        Some("TableWithLength fields aren't supported yet")
     } else {
         return None;
     };
@@ -432,6 +436,33 @@ mod tests {
         let history = History::decide(Version::new(0), Version::new(10), &FREE, Network::Testnet);
         assert!(history.allowed);
         assert_eq!(history.versions_behind.as_deref(), Some("10"));
+    }
+
+    /// The catalog offers exactly what the decoder can follow — no more, and no less.
+    /// `TableWithLength` is the "less" that used to be refused.
+    #[test]
+    fn the_catalog_offers_the_containers_the_decoder_handles() {
+        let field = |ty: &str| table_of(&ty.parse().expect("a type"));
+
+        for counted in [
+            "0x1::table::Table<u64, u8>",
+            "0x1::table_with_length::TableWithLength<u64, u8>",
+            "0x1::smart_table::SmartTable<u64, u8>",
+        ] {
+            let found = field(counted).unwrap_or_else(|| panic!("{counted} is a table"));
+            assert_eq!(found.unsupported, None, "{counted}");
+        }
+
+        assert_eq!(
+            field("0x1::big_ordered_map::BigOrderedMap<u64, u8>")
+                .expect("recognised")
+                .unsupported,
+            Some("BigOrderedMap fields aren't supported yet"),
+        );
+        // A struct that merely holds a table is not itself one — which is what Aries'
+        // `iterable_table::IterableTable` is, and why it needs a path rather than this.
+        assert!(field("0x9770::iterable_table::IterableTable<u64, u8>").is_none());
+        assert!(field("u64").is_none());
     }
 
     #[test]
