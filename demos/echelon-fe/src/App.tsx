@@ -206,7 +206,8 @@ export default function App() {
           as the chain writes it.
         </h1>
         <p className="lede">
-          Every account&apos;s collateral and debt, and every market&apos;s totals.{" "}
+          Per-account collateral and debt, and the totals of the markets behind
+          them.{" "}
           <b>None of it arrived as an event.</b> Echelon&apos;s own liquidator guide
           says to index <code>SupplyEvent</code> for vault addresses and then read each
           account yourself — this follows the resource, so the vault <em>is</em> the row.

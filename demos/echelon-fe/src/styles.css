@@ -104,7 +104,36 @@ h2 {
   border-radius: 14px; overflow: hidden;
   box-shadow: 0 1px 2px oklch(0 0 0 / 0.3), 0 12px 32px oklch(0 0 0 / 0.22);
 }
-.card:has(table) { overflow-x: auto; }
+/* A table wider than the column scrolls, and used to do it with no sign that it did:
+   the right edge cut straight through a digit and nothing said there was more behind
+   it. On a page that asks you to check its figures against Echelon's own, a severed
+   number is the one crop we cannot afford.
+
+   This is the local/scroll background pair. The two solid covers ride the content and
+   slide away as it scrolls, uncovering a shadow at whichever edge still has columns
+   behind it. No JavaScript, so it is correct on first paint and on resize. */
+.card:has(table) {
+  overflow-x: auto;
+  background-image:
+    linear-gradient(to right, var(--card) 40%, transparent),
+    linear-gradient(to left, var(--card) 40%, transparent),
+    linear-gradient(to right, oklch(0 0 0 / 0.5), transparent),
+    linear-gradient(to left, oklch(0 0 0 / 0.5), transparent);
+  background-position: 0 0, 100% 0, 0 0, 100% 0;
+  background-repeat: no-repeat;
+  background-size: 36px 100%, 36px 100%, 16px 100%, 16px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* Prose wants a reading measure; a column of figures does not. On a wide screen the
+   tables reach into margin that was sitting empty, which is most of the scrolling
+   gone rather than merely signposted. */
+@media (min-width: 1240px) {
+  .card:has(table) { margin-inline: -100px; }
+}
+@media (min-width: 1500px) {
+  .card:has(table) { margin-inline: -200px; }
+}
 
 /* ---- tiles -------------------------------------------------------------- */
 
