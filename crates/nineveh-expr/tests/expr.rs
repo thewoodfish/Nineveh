@@ -422,10 +422,42 @@ reference!(u8_matches_rust, u8, IntType::U8);
 reference!(u32_matches_rust, u32, IntType::U32);
 reference!(u64_matches_rust, u64, IntType::U64);
 reference!(u128_matches_rust, u128, IntType::U128);
-reference!(i8_matches_rust, i8, IntType::I8);
-reference!(i32_matches_rust, i32, IntType::I32);
-reference!(i64_matches_rust, i64, IntType::I64);
-reference!(i128_matches_rust, i128, IntType::I128);
+/// The same, for a signed width, with the one place this language is deliberately not
+/// Rust.
+///
+/// Rust's `checked_rem` reports overflow for `MIN % -1`. That is not arithmetic: the
+/// exact remainder is zero, and zero fits every width. It comes from tying the
+/// remainder to the division, which really does overflow, because on x86 one
+/// instruction computes both. This language is specified on exactness — an operation
+/// fails when its *result* does not fit (ADR 0007) — and it evaluates in a wide
+/// sign-and-magnitude form before range-checking, so it answers 0 and keeps the
+/// division failing, which is the behaviour the principle asks for.
+macro_rules! reference_signed {
+    ($name:ident, $t:ty, $ty:expr) => {
+        proptest! {
+            #[test]
+            fn $name(a: $t, b: $t) {
+                let (sa, sb) = (lit(&a), lit(&b));
+                prop_assert_eq!(arith("+", &sa, &sb, $ty), a.checked_add(b).map(|v| v.to_string()));
+                prop_assert_eq!(arith("-", &sa, &sb, $ty), a.checked_sub(b).map(|v| v.to_string()));
+                prop_assert_eq!(arith("*", &sa, &sb, $ty), a.checked_mul(b).map(|v| v.to_string()));
+                // `MIN / -1` is `-MIN`, which no signed width holds: still an error.
+                prop_assert_eq!(arith("/", &sa, &sb, $ty), a.checked_div(b).map(|v| v.to_string()));
+                let remainder = if a == <$t>::MIN && b == -1 {
+                    Some("0".to_owned())
+                } else {
+                    a.checked_rem(b).map(|v| v.to_string())
+                };
+                prop_assert_eq!(arith("%", &sa, &sb, $ty), remainder);
+            }
+        }
+    };
+}
+
+reference_signed!(i8_matches_rust, i8, IntType::I8);
+reference_signed!(i32_matches_rust, i32, IntType::I32);
+reference_signed!(i64_matches_rust, i64, IntType::I64);
+reference_signed!(i128_matches_rust, i128, IntType::I128);
 
 proptest! {
     /// u256 against u128 operands, where the exact result is known from u128 math.

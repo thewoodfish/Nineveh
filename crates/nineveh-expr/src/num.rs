@@ -266,6 +266,42 @@ mod tests {
         );
     }
 
+    /// The one case where this arithmetic is deliberately not Rust's.
+    ///
+    /// `MIN / -1` is `-MIN`, which no signed width holds, so the division fails as it
+    /// does everywhere. The *remainder* of that same division is exactly zero, and zero
+    /// fits — so it is an answer, not an overflow. Rust reports overflow for both
+    /// because it ties them together: on x86 a single instruction computes the pair.
+    /// Here the value is computed exactly first and range-checked after, which is what
+    /// makes the two cases come apart.
+    #[test]
+    fn the_remainder_of_an_overflowing_division_still_fits() {
+        let min = Int::from_i128(i128::from(i8::MIN));
+        let minus_one = Int::from_i128(-1);
+
+        assert_eq!(
+            min.div(minus_one).unwrap().to_value(IntType::I8),
+            Err(IntError::OutOfRange),
+            "-128 / -1 is 128, which an i8 does not hold"
+        );
+        assert_eq!(
+            min.rem(minus_one).unwrap().to_value(IntType::I8),
+            Ok(Value::I8(0)),
+            "-128 % -1 is 0, which it does"
+        );
+
+        // The same at the widest signed width, where there is no wider type to borrow.
+        let wide = Int::from_i128(i128::MIN);
+        assert_eq!(
+            wide.div(minus_one).unwrap().to_value(IntType::I128),
+            Err(IntError::OutOfRange)
+        );
+        assert_eq!(
+            wide.rem(minus_one).unwrap().to_value(IntType::I128),
+            Ok(Value::I128(0))
+        );
+    }
+
     #[test]
     fn zero_is_never_negative() {
         assert_eq!(Int::from_i128(5).sub(Int::from_i128(5)).unwrap(), Int::ZERO);
