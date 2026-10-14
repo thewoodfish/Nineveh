@@ -236,11 +236,10 @@ fn explains_what_it_cant_follow() {
             .unwrap()
             .contains("BigOrderedMap")
     );
-    assert!(
-        reason("pool::Registry.legacy")
-            .unwrap()
-            .contains("TableWithLength")
-    );
+    // `TableWithLength` is followable: same handle and same items as a plain `Table`,
+    // with a count beside them, which is why the decoder maps both to one container.
+    // It is listed as a table source, not listed with a reason it cannot be one.
+    assert_eq!(reason("pool::Registry.legacy"), None);
     assert!(reason("pool::Pool.items").unwrap().contains("generic"));
     // Held in an `EventHandle`: an old-style event, whose camelCase field can't be a
     // column.
