@@ -71,7 +71,7 @@ impl RestError {
     ///
     /// A 429 is the exception that proves it: a rate limit clears in seconds, and the
     /// monthly credit cap wears the same status code and does not clear until the
-    /// month does ([`is_credit_cap`]).
+    /// month does ([`Self::is_credit_cap`]).
     #[must_use]
     pub fn is_retryable(&self) -> bool {
         match self {
@@ -86,7 +86,8 @@ impl RestError {
     }
 
     /// Whether this is the organization's monthly credit cap, which is a billing
-    /// problem rather than a broken project: see [`is_credit_cap`].
+    /// problem rather than a broken project: it wears the same status code as a rate
+    /// limit and does not clear until the month does.
     #[must_use]
     pub fn is_credit_cap(&self) -> bool {
         matches!(self, Self::Status { message, .. } if is_credit_cap(message))

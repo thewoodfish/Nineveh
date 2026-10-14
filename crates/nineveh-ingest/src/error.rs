@@ -124,7 +124,8 @@ impl IngestError {
     }
 
     /// Whether this is the organization's monthly credit cap, which is a billing
-    /// problem rather than a broken project: see [`is_credit_cap`].
+    /// problem rather than a broken project: it wears the same status code as a rate
+    /// limit and does not clear until the month does.
     #[must_use]
     pub fn is_credit_cap(&self) -> bool {
         match self {
