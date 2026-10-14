@@ -1,12 +1,13 @@
 // The requests a developer actually makes against their own state, written out rather
 // than assembled.
 //
-// Nineveh's REST surface is small on purpose: three routes, equality filters, one sort,
-// and a page. A query builder over that surface offers a shape for every combination and
-// a reason for none of them — and it quietly invites the two things the API can't do,
-// ranges and aggregates. So what's offered here is the handful of requests that surface
-// can answer, each named for what someone is building when they need it. The list is
-// short because the API is, and every entry is one the API really serves.
+// Nineveh's REST surface is small on purpose: three routes, a bounded set of
+// comparisons, up to four sort columns, and a page. A query builder over that surface
+// offers a shape for every combination and a reason for none of them — and it quietly
+// invites the thing the API still can't do, which is aggregate. So what's offered here
+// is the handful of requests that surface can answer, each named for what someone is
+// building when they need it. The list is short because the API is, and every entry is
+// one the API really serves.
 
 import type { Table } from "./api";
 import { isInteger } from "./state-table";
@@ -99,7 +100,7 @@ export function tableRecipes(table: Table): Recipe[] {
     recipes.push({
       id: "where",
       title: "Every row where a column equals something",
-      why: "Filters are equality, and several of them narrow together. There are no ranges: a column you need to compare is one to keep the comparison's answer in.",
+      why: "The plain filter. Several of them narrow together, and a column named twice is how you ask for a range.",
       needs: [
         { id: "column", label: "column", columns: filterable },
         { id: "value", label: "equals", placeholder: "the value to match" },
@@ -115,12 +116,34 @@ export function tableRecipes(table: Table): Recipe[] {
 
   if (numeric.length > 0) {
     recipes.push({
+      id: "range",
+      title: "Every row between two numbers",
+      why: "A column named twice, once with each bound. The operators are eq, neq, gt, gte, lt and lte, each one a single comparison against a single column — which is what an index can answer. There is no or, and nothing spanning two columns: that belongs in a reducer.",
+      needs: [
+        { id: "column", label: "column", columns: numeric },
+        { id: "from", label: "at least", placeholder: "lower bound" },
+        { id: "to", label: "under", placeholder: "upper bound" },
+      ],
+      defaults: { column: numeric[0] ?? "" },
+      path: (values) => {
+        const params = new URLSearchParams({ limit: String(PAGE) });
+        if (values.column) {
+          params.set(`${values.column}.gte`, values.from ?? "");
+          params.set(`${values.column}.lt`, values.to ?? "");
+        }
+        return `${at}?${params}`;
+      },
+    });
+    recipes.push({
       id: "top",
       title: "The top ten by a number",
-      why: "A leaderboard. Sorting happens in the database, so this stays one request however many rows the table holds.",
+      why: "A leaderboard. Sorting happens in the database, so this stays one request however many rows the table holds. The second column breaks ties, without which page two depends on what the planner felt like.",
       needs: [{ id: "column", label: "order by", columns: numeric }],
       defaults: { column: numeric[0] ?? "" },
-      path: (values) => `${at}?order=${encodeURIComponent(values.column ?? "")}.desc&limit=10`,
+      path: (values) => {
+        const by = [`${values.column ?? ""}.desc`, ...(table.key[0] ? [table.key[0]] : [])];
+        return `${at}?order=${encodeURIComponent(by.join(","))}&limit=10`;
+      },
     });
   }
 
