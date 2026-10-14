@@ -114,6 +114,9 @@ export type Change = {
 };
 
 /** One problem with a project, and where in the source it is (ADR 0011). */
+/** Where the written documentation lives, so a link to it is never hand-typed twice. */
+export const DOCS_URL = "https://www.nineveh.dev/docs";
+
 export type Problem = {
   message: string;
   /** A suggested fix, when the compiler has one. */

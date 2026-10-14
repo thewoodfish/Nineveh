@@ -39,6 +39,13 @@ export function PhaseDot({ phase, label = false }: { phase: string; label?: bool
       className="inline-flex items-center gap-1.5 text-xs text-on-surface-variant"
       title={p.hint ?? p.label}
     >
+      {/* The dot is a colour, and a colour is not a status to anyone using a screen
+          reader — nor is a `title`, which is announced unreliably and cannot be reached
+          by keyboard or touch at all. The words go in the document: the label always,
+          and the explanation with it where there is one. */}
+      <span className="sr-only">
+        {p.hint ?? p.label}
+      </span>
       <span className="relative flex size-2">
         {p.pulse && (
           <span

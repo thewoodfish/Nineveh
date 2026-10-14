@@ -191,6 +191,19 @@ function Pulse({ lit }: { lit: boolean }) {
   );
 }
 
+/**
+ * What a table's kind means, in a sentence.
+ *
+ * These three words decide what a table can answer, and until now nothing in Studio
+ * said so — the badge showed `mirror` to someone who had never met the idea. In the
+ * document rather than in a `title`, so it is read out rather than hovered for.
+ */
+const KINDS: Record<string, string> = {
+  reduce: "reduce — rows your own rules build: totals, counts, balances the contract never stored.",
+  mirror: "mirror — the latest value of each resource or table item, removed when the chain removes it.",
+  log: "log — every record, in order, never updated.",
+};
+
 function Kind({ kind }: { kind: string }) {
   const tones: Record<string, string> = {
     reduce: "bg-secondary-container text-primary",
@@ -200,8 +213,10 @@ function Kind({ kind }: { kind: string }) {
   return (
     <span
       className={`w-16 shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-medium ${tones[kind] ?? ""}`}
+      title={KINDS[kind]}
     >
-      {kind}
+      <span className="sr-only">{KINDS[kind] ?? kind}</span>
+      <span aria-hidden>{kind}</span>
     </span>
   );
 }

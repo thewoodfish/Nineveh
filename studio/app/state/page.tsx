@@ -17,13 +17,14 @@ import { SourceSchema } from "@/components/source-schema";
 import { Button, Card, Icon, Notice, Select } from "@/components/ui";
 import {
   ApiError,
-  type FieldInfo,
-  type ProjectDetail,
-  type Preview,
-  type SourceInfo,
-  type Table,
+  DOCS_URL,
   control,
   getTables,
+  type FieldInfo,
+  type Preview,
+  type ProjectDetail,
+  type SourceInfo,
+  type Table,
 } from "@/lib/api";
 import { useProject } from "@/lib/project";
 import {
@@ -757,7 +758,7 @@ function StateTableEditor() {
                   <p className="text-xs leading-relaxed text-on-surface-variant">
                     This is the whole reducers file, in the{" "}
                     <a
-                      href="https://www.nineveh.dev/docs/reducers"
+                      href={`${DOCS_URL}/reducers`}
                       target="_blank"
                       rel="noreferrer"
                       className="text-primary hover:underline"

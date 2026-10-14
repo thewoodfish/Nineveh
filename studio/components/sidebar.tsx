@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { DOCS_URL } from "@/lib/api";
 import { behind, formatDuration, formatInteger } from "@/lib/format";
 import { useStatus, useTables } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
@@ -53,6 +54,20 @@ export function Sidebar() {
         )
       )}
       <div className="mt-auto" />
+      {/* The one route out of the app and into the written docs. There was exactly one
+          documentation link in the whole of Studio before this, buried in the reducer
+          flow — for a product whose vocabulary (fold, cursor, mirror, log) is the model
+          and has to be learned. */}
+      <a
+        href={`${DOCS_URL}/studio`}
+        target="_blank"
+        rel="noreferrer"
+        className="state mx-3 mb-1 flex items-center gap-2.5 rounded-full px-3 py-2 text-sm text-on-surface-variant hover:text-on-surface"
+      >
+        <Icon name="menu_book" className="text-[18px]" />
+        Docs
+        <Icon name="open_in_new" className="ml-auto text-[14px] opacity-60" />
+      </a>
       <ChainLag />
       <AccountMenu />
     </aside>
