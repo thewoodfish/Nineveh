@@ -110,7 +110,15 @@ client_checks() {
     if [ ! -d node_modules ]; then
       npm ci --no-audit --no-fund || return 1
     fi
-    npm run typecheck && npm test && npm run build
+    npm run typecheck && npm test && npm run build || return 1
+    # The examples import the `dist/` just built, and are the package's spec: a change
+    # that makes one of them stop compiling is a change to think again about.
+    [ -d examples ] || return 0
+    cd examples || return 1
+    if [ ! -d node_modules ]; then
+      npm ci --no-audit --no-fund || return 1
+    fi
+    npm run build
   )
 }
 
