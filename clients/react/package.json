@@ -1,0 +1,50 @@
+{
+  "name": "@nineveh/react",
+  "version": "0.1.0",
+  "description": "React hooks for a Nineveh project: query state tables and subscribe to their changes.",
+  "license": "Apache-2.0",
+  "homepage": "https://nineveh.dev/docs/reading",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thewoodfish/Nineveh.git",
+    "directory": "clients/react"
+  },
+  "keywords": [
+    "nineveh",
+    "aptos",
+    "react",
+    "hooks",
+    "realtime"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --import ./test/dom.ts src/*.test.ts"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "21.0.1",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}
