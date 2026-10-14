@@ -76,12 +76,26 @@ const { data } = useTable('balances', { where: { owner: address }, limit: 50 })
 
 | | |
 | --- | --- |
-| `where` | equality filters, AND-ed. **There is no `gt`/`lt`/`in`** — the API builds `WHERE col = val AND …` and nothing else. |
-| `order` | one column: `'revenue'`, `'revenue.asc'`, `'revenue.desc'`. `_version` works too. One, not two. |
+| `where` | filters, AND-ed. A bare value is equality; an object compares: `{ revenue: { gte: 100, lt: 500 } }`. |
+| `order` | `'revenue.desc'`, or `['revenue.desc', 'seller']` to break the ties in the first. Four columns at most. |
 | `limit` | 50 by default, 1000 at most. A larger number is clamped, not refused. |
 | `offset` | for paging. |
 | `count` | `true` adds an exact `count(*)` over the filtered set. A second query — ask when you need it. |
 | `raw` | appended to the query string verbatim, so this package can never be the reason something the API supports is out of reach. |
+
+```tsx
+// a leaderboard: the top ten by revenue, ties broken so page two is stable
+useTable('sellers', { order: ['revenue.desc', 'seller'], limit: 10 })
+// a range is two comparisons on the same column
+useTable('balances', { where: { balance: { gte: 100, lt: 500 } } })
+```
+
+The operators are `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, and that is the whole set.
+Each is one comparison against one column, which is what a database can answer from an
+index on it. **No `like`, no `in`, no `or`, nothing spanning two columns** — if you want
+one of those, it belongs in a reducer, computed once as the row is written rather than
+searched for on every request. A boolean column takes `eq` and `neq` only; a JSON column
+cannot be filtered at all.
 
 It re-reads when the table or the query changes, and a slower earlier read never
 overwrites a later one. The query is compared by what it says, not by object identity,

@@ -32,7 +32,7 @@ mod tables;
 
 pub use tables::{ColumnInfo, Rows, TableInfo};
 
-use tables::{DEFAULT_LIMIT, MAX_LIMIT, Query};
+use tables::{DEFAULT_LIMIT, Filter, MAX_LIMIT, OPERATORS, Op, Query};
 
 /// The suffix of a rebuild's schema (ADR 0016), to report its progress.
 const SHADOW_SUFFIX: &str = "__next";
@@ -281,7 +281,26 @@ async fn rows(
             "order" => query.order = Some(value),
             "count" if value == "exact" => count = true,
             "count" => return Err(ApiError::BadRequest("`count` must be `exact`".into())),
-            _ => query.filters.push((key, value)),
+            // Anything else names a column, and a `.suffix` on it names how to compare:
+            // `?balance.gte=100`. The operator goes on the parameter's name rather than
+            // in front of its value, which keeps values untouched — a string column
+            // whose value happens to read like `gt.5` means what it says — and matches
+            // how `order` already spells `.desc`. A bare `?balance=100` is equality.
+            _ => {
+                let (column, op) = match key.rsplit_once('.') {
+                    Some((column, suffix)) => {
+                        let op = Op::parse(suffix).ok_or_else(|| {
+                            ApiError::BadRequest(format!(
+                                "`{suffix}` isn't a filter operator; they are {OPERATORS}"
+                            ))
+                        })?;
+                        (column.to_owned(), op)
+                    }
+                    // A column name cannot contain a dot, so there is nothing to split.
+                    None => (key, Op::Eq),
+                };
+                query.filters.push(Filter { column, op, value });
+            }
         }
     }
     let (select, count_sql) =

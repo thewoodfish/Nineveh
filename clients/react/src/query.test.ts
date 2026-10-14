@@ -38,3 +38,39 @@ test('raw is appended so nothing the API supports is unreachable', () => {
 test('values are encoded', () => {
   assert.equal(queryString({ where: { name: 'a b&c' } }), 'name=a+b%26c')
 })
+
+test('a bare value is equality, and an object says how to compare', () => {
+  assert.equal(queryString({ where: { seller: '0xabc' } }), 'seller=0xabc')
+  assert.equal(queryString({ where: { revenue: { gte: 100 } } }), 'revenue.gte=100')
+  // The operator is on the name, so a value that reads like one is still a value.
+  assert.equal(queryString({ where: { memo: 'gt.5' } }), 'memo=gt.5')
+  assert.equal(queryString({ where: { live: { neq: false } } }), 'live.neq=false')
+})
+
+test('a range is two comparisons on one column', () => {
+  assert.equal(
+    queryString({ where: { revenue: { gte: 100, lt: 500 } } }),
+    'revenue.gte=100&revenue.lt=500',
+  )
+})
+
+test('the same filters are the same string, however they were written', () => {
+  const one = queryString({ where: { revenue: { lt: 500, gte: 100 }, seller: '0xa' } })
+  const other = queryString({ where: { seller: '0xa', revenue: { gte: 100, lt: 500 } } })
+  assert.equal(one, other)
+  // Still the cache key a hook re-reads on, so operator order must not change it.
+  assert.equal(one, 'revenue.gte=100&revenue.lt=500&seller=0xa')
+})
+
+test('an operator left undefined is not sent as the word undefined', () => {
+  assert.equal(queryString({ where: { revenue: { gte: 100, lt: undefined } } }), 'revenue.gte=100')
+  assert.equal(queryString({ where: { revenue: {} } }), '')
+})
+
+test('order takes a list, to break the ties in its first column', () => {
+  assert.equal(queryString({ order: 'revenue.desc' }), 'order=revenue.desc')
+  assert.equal(
+    queryString({ order: ['revenue.desc', 'seller'] }),
+    'order=revenue.desc%2Cseller',
+  )
+})

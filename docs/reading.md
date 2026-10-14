@@ -47,13 +47,30 @@ Rows come back with the query that produced them:
 | --- | --- |
 | `limit` | how many rows, default 50, max 1000 |
 | `offset` | skip this many |
-| `order` | `?order=balance.desc`, a column and a direction |
+| `order` | `?order=balance.desc`, up to four columns: `?order=balance.desc,user` |
 | `count=exact` | also return the total, at the cost of a second query |
 | `<column>=<value>` | keep rows where the column equals that |
+| `<column>.<op>=<value>` | compare instead: `eq`, `neq`, `gt`, `gte`, `lt`, `lte` |
 
 ```sh
 curl -H "$AUTH" "$BASE/v1/tables/balances?user=0xabc…&order=balance.desc&limit=10"
+
+# a range is two comparisons on one column, and a leaderboard breaks its ties
+curl -H "$AUTH" "$BASE/v1/tables/balances?balance.gte=100&balance.lt=500"
+curl -H "$AUTH" "$BASE/v1/tables/sellers?order=revenue.desc,seller&limit=10"
 ```
+
+The operator goes on the parameter's name, not in front of its value, so a value is
+never reinterpreted: a string column holding `gt.5` means exactly that. Several
+parameters are AND-ed, and naming one column twice is how you ask for a range.
+
+That list of operators is the whole set, deliberately. Each one is a single comparison
+against a single column, which is what a database can answer from an index on that
+column. There is no `like`, no `in`, no `or`, and no condition spanning two columns —
+if you need one, it belongs in a reducer, computed once as the row is written rather
+than searched for on every request. A boolean column takes `eq` and `neq` only; which
+of two booleans is greater is not a question about your data. A JSON column cannot be
+filtered on at all.
 
 ### Two things about every row
 

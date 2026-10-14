@@ -264,6 +264,115 @@ async fn counts_are_asked_for_and_are_of_the_rows_that_are_there() {
     }
 }
 
+/// The operators and multi-column order, run against Postgres rather than inspected
+/// as SQL text: a clause the builder renders correctly can still be one the planner
+/// rejects, and a comparison on a `NUMERIC` column is the sort of thing that only
+/// shows up when a real value is bound to it.
+#[tokio::test]
+async fn filters_compare_and_order_breaks_ties() {
+    let Some(pool) = pool().await else { return };
+    let (app, schema) = serve(
+        &pool,
+        &[
+            Op::Deposit {
+                user: 1,
+                amount: 100,
+            },
+            Op::Deposit {
+                user: 2,
+                amount: 500,
+            },
+            Op::Deposit {
+                user: 3,
+                amount: 500,
+            },
+            Op::Deposit {
+                user: 4,
+                amount: 900,
+            },
+        ],
+    )
+    .await;
+
+    let balances = |body: &Value| -> Vec<String> {
+        body["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["balance"].as_str().unwrap().to_owned())
+            .collect()
+    };
+
+    // A bare parameter is still equality, as every client written before this expects.
+    let (status, eq) = get(&app, "/v1/tables/balances?balance=500").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(balances(&eq).len(), 2);
+
+    let (_, gt) = get(&app, "/v1/tables/balances?balance.gt=500&order=balance").await;
+    assert_eq!(balances(&gt), ["900"]);
+    let (_, gte) = get(&app, "/v1/tables/balances?balance.gte=500&order=balance").await;
+    assert_eq!(balances(&gte), ["500", "500", "900"]);
+    let (_, lt) = get(&app, "/v1/tables/balances?balance.lt=500&order=balance").await;
+    assert_eq!(balances(&lt), ["100"]);
+    let (_, lte) = get(&app, "/v1/tables/balances?balance.lte=500&order=balance").await;
+    assert_eq!(balances(&lte), ["100", "500", "500"]);
+    let (_, neq) = get(&app, "/v1/tables/balances?balance.neq=500&order=balance").await;
+    assert_eq!(balances(&neq), ["100", "900"]);
+
+    // Two of them on one column is a range, which is the thing equality could not ask.
+    let (_, range) = get(
+        &app,
+        "/v1/tables/balances?balance.gte=100&balance.lt=900&order=balance",
+    )
+    .await;
+    assert_eq!(balances(&range), ["100", "500", "500"]);
+
+    // A range over `u128` goes through NUMERIC, so it is not a 64-bit comparison in
+    // disguise: this bound is past what a BIGINT holds.
+    let (_, wide) = get(&app, "/v1/tables/balances?balance.lt=184467440737095516150").await;
+    assert_eq!(balances(&wide).len(), 4);
+
+    // The tie between the two 500s is broken by the second column, and the direction
+    // of that column is what decides which of them comes first.
+    let (_, asc) = get(&app, "/v1/tables/balances?order=balance.desc,user.asc").await;
+    let users = |body: &Value| -> Vec<String> {
+        body["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["user"].as_str().unwrap().to_owned())
+            .collect()
+    };
+    let (_, desc) = get(&app, "/v1/tables/balances?order=balance.desc,user.desc").await;
+    assert_eq!(balances(&asc), ["900", "500", "500", "100"]);
+    assert_eq!(balances(&desc), ["900", "500", "500", "100"]);
+    let tied_asc = &users(&asc)[1..3];
+    let mut tied_desc = users(&desc)[1..3].to_vec();
+    tied_desc.reverse();
+    assert_eq!(
+        tied_asc,
+        tied_desc.as_slice(),
+        "the tie is ordered, both ways"
+    );
+    assert!(tied_asc[0] < tied_asc[1], "ascending inside the tie");
+
+    // `URLSearchParams` percent-encodes the comma, so this is what the React SDK
+    // actually sends for `order: ['balance.desc', 'user.asc']`.
+    let (status, encoded) = get(&app, "/v1/tables/balances?order=balance.desc%2Cuser.asc").await;
+    assert_eq!(status, StatusCode::OK, "{encoded}");
+    assert_eq!(balances(&encoded), balances(&asc));
+
+    // Filter and multi-column order together, which is the leaderboard query.
+    let (_, both) = get(
+        &app,
+        "/v1/tables/balances?balance.gte=500&order=balance.desc,user.asc&limit=2",
+    )
+    .await;
+    assert_eq!(balances(&both), ["900", "500"]);
+
+    Store::reset(&pool, &schema).await.unwrap();
+}
+
 #[tokio::test]
 async fn bad_requests_say_what_is_wrong() {
     let Some(pool) = pool().await else { return };
@@ -299,6 +408,26 @@ async fn bad_requests_say_what_is_wrong() {
             "/v1/tables/vaults?shares=1",
             StatusCode::BAD_REQUEST,
             "JSON",
+        ),
+        (
+            "/v1/tables/balances?balance.gee=1",
+            StatusCode::BAD_REQUEST,
+            "isn't a filter operator",
+        ),
+        (
+            "/v1/tables/balances?balance.like=1",
+            StatusCode::BAD_REQUEST,
+            "isn't a filter operator",
+        ),
+        (
+            "/v1/tables/balances?order=balance,user,memo,_version,balance",
+            StatusCode::BAD_REQUEST,
+            "at most 4 columns",
+        ),
+        (
+            "/v1/tables/balances?order=balance,,user",
+            StatusCode::BAD_REQUEST,
+            "empty column name",
         ),
     ];
     for (uri, expected, message) in cases {

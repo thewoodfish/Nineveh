@@ -97,18 +97,46 @@ export type Status = {
   pipeline: Pipeline | null
 }
 
+/** A value a filter compares against. */
+export type Scalar = string | number | boolean
+
+/**
+ * How to compare one column. Several at once are AND-ed, which is how a range is asked
+ * for: `{ gte: 100, lt: 500 }`.
+ */
+export type Comparison = {
+  // `| undefined` on purpose, under `exactOptionalPropertyTypes`: a bound worked out
+  // from something that may not be there — `{ gte: min, lt: max }` — is the ordinary
+  // way these get built, and an operator left undefined is simply not sent.
+  eq?: Scalar | undefined
+  neq?: Scalar | undefined
+  gt?: Scalar | undefined
+  gte?: Scalar | undefined
+  lt?: Scalar | undefined
+  lte?: Scalar | undefined
+}
+
+/** A bare value means equality; an object says how to compare. */
+export type Filter = Scalar | Comparison
+
 /** What a read asks of a table. */
 export type TableQuery = {
   /**
-   * Equality filters, AND-ed: `{ seller: '0xabc…' }`.
+   * Filters, AND-ed across columns: `{ seller: '0xabc…', revenue: { gte: 100 } }`.
    *
-   * The API has no `gt`/`lt`/`in` — it builds `WHERE col = val AND …` and nothing
-   * else. Anything richer is a change to `nineveh-api`, not something to fake here by
-   * over-fetching.
+   * The operator set is closed — `eq`, `neq`, `gt`, `gte`, `lt`, `lte` — because each
+   * one is a single comparison against a single column, which is what a database can
+   * serve from an index. There is no `like`, no `in`, no `or`, and nothing spanning two
+   * columns: that belongs in a reducer, computed once as the row is written. A boolean
+   * column takes `eq` and `neq` only, and a JSON column cannot be filtered at all.
    */
-  where?: Record<string, string | number | boolean>
-  /** One column: `col`, `col.asc` or `col.desc`. `_version` works too. */
-  order?: string
+  where?: Record<string, Filter>
+  /**
+   * Columns to order by: `'revenue.desc'`, or `['revenue.desc', 'seller']` to break
+   * the ties in the first. Each is `col`, `col.asc` or `col.desc`; `_version` works
+   * too. At most four, which the server enforces.
+   */
+  order?: string | readonly string[]
   /** Defaults to 50 server-side, clamped to 1000. */
   limit?: number
   offset?: number
