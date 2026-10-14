@@ -1,8 +1,9 @@
-# @nineveh/react — SDK spec (draft to tear apart)
+# @nineveh/react — SDK spec
 
 A thin, typed, ergonomic wrapper over Nineveh's existing REST + SSE API.
 **No new backend capability** — it just makes the common things trivial.
-This is a draft of the *shape*, not a finished design. Push back on anything.
+This is the *shape*. The milestone it sits in, its sequencing and the open calls are
+in `plan.md`.
 
 Goal: a Nineveh-backed frontend in minutes. `useTable` for "how are things",
 `useLiveTable` for "tell me when they change". That's the whole product for most devs.
@@ -77,7 +78,7 @@ undefined while first-loading, then the rows.
 - **`where` is equality only.** `?<column>=<value>`, AND-ed. There are no `gt`/`lt`/`in`
   operators — the server builds `WHERE col = val AND …` and nothing else. So v1 `where`
   is `Record<string, string | number>`. Anything richer is a **core change**: tell me
-  what you need and I'll add it server-side, don't fake it client-side by over-fetching.
+  the fix goes server-side in `nineveh-api`, never faked client-side by over-fetching.
 - **`order` is one column**, `col`, `col.asc` or `col.desc`. `_version` is orderable
   too. No multi-column sort.
 - **Default order is `_version` descending** — most recently changed rows first — always
@@ -90,9 +91,9 @@ undefined while first-loading, then the rows.
   exact, but it is a second query over the filtered set — opt-in, never automatic.
 - JSON columns can't be filtered on; the server returns 400 if you try.
 
-**Open question for you:** `where` as a typed object vs. passing the raw filter string.
-I lean object, with a `raw?: string` escape hatch appended to the query so the SDK can
-never be the reason something in the API is unreachable. Your call.
+**Open:** `where` as a typed object vs. passing the raw filter string. Leaning object,
+with a `raw?: string` escape hatch appended to the query so the SDK can never be the
+reason something in the API is unreachable.
 
 ---
 
@@ -125,8 +126,7 @@ event-indexers don't give cleanly. **Lead the SDK's story here.**
 3. **`reset` means the tables were rebuilt** and a new build was swapped in. The feed
    continues from the new build's newest change, and everything you listed is from the
    old one. A client that ignores `reset` shows stale rows forever, with no error. The
-   hook **must** re-list on it. This is not optional and it's the one thing I'd check
-   first in review.
+   hook **must** re-list on it. Not optional, and the first thing to check in review.
 4. **A row's identity comes from the schema, not the row.** A listed row carries
    `_version` and its declared columns — *not* its key. A feed change carries a separate
    `key` object (`{"user": "0xabc…"}`). To match a change to a listed row you need the
@@ -136,7 +136,7 @@ event-indexers don't give cleanly. **Lead the SDK's story here.**
 
 ### Re-query or merge locally?
 
-**Already answered in `demos/echelon-fe/src/useLive.ts`, and I'd start there:** on each
+**Already answered in `demos/echelon-fe/src/useLive.ts`, which is where to start:** on each
 change it debounces 400ms and re-reads the tables, plus polls every 15s as a floor. The
 feed is used as a *signal that something changed*, not as the data. It's simpler, always
 exactly right, and it keeps `order`/`limit` correct for free — which local merging does
@@ -147,9 +147,8 @@ That demo also does something I want kept: it opens the feed just *before* the o
 blank and waiting for the chain to move. `after=beginning` would also work and would
 grow without bound; that window is exactly what's on the page.
 
-Local merge is the optimization, not the baseline. If you want it, I'd want it behind an
-option with the re-query path as the default. Your lane though — if you think merge-first
-is right, make the case.
+Local merge is the optimization, not the baseline: behind an option, with the re-query
+path the default, and the hook's contract written so adding it later isn't breaking.
 
 **Still genuinely open:** one shared SSE connection multiplexed across hooks, or one per
 hook? Shared scales better and the server already supports `?tables=a,b`. Lean shared.
@@ -191,15 +190,15 @@ are strings and why the SDK must never coerce them to `number`.
 from a current one, and how you dedupe a change you've already applied. Put it in the
 generated types.
 
-### Generated types are unblocked and yours
+### Generated types are unblocked
 
 `GET /v1/tables` already returns, per table: `name`, `kind` (`reduce`/`mirror`/`log`),
 `key` (column names in key order), and per column `name`, `type` (`u64`, `address`,
 `json`, …) and `nullable`. That's everything a `.d.ts` needs.
 
-So a `nineveh-gen-types <project-url>` that emits types from a live project needs **no
-Rust and nothing from me** — it's a TS script against one endpoint. I'd love it to exist
-and it's entirely in your lane. Biggest trust/ergonomics win available here.
+So a generator that emits types from a live project needs **no Rust** — a TS script
+against one endpoint. The biggest trust and ergonomics win available here, and item 2
+of `plan.md`.
 
 ---
 
@@ -215,7 +214,7 @@ Errors come back as `{"error": "…"}` with a status:
   retry with backoff, not surface it as a fatal error. Pairs with `reset` on the feed.
 - **401** — missing or wrong key.
 
-A `useStatus()` bonus hook is easy if you want it: `GET /v1/status` returns the project,
+A `useStatus()` hook is easy: `GET /v1/status` returns the project,
 network, current build cursor, any in-progress rebuild, and pipeline health. That's the
 "synced / N versions behind" badge, which is the other thing every one of these UIs wants.
 
@@ -249,12 +248,12 @@ market (with reducers: per-seller revenue, per-buyer spend) and arena. `./deploy
 `./play.sh` gives you a project with rows moving in it. The market one is the natural
 leaderboard.
 
-Stretch: a `create-nineveh-app` / quickstart template — the thing a dev actually clones.
-Single biggest "0→1 in 5 minutes" lever. Your call if in scope.
+A `create-nineveh-app` quickstart template — the thing a dev actually clones — is the
+single biggest "0→1 in five minutes" lever, and in scope as item 3 of `plan.md`.
 
 ---
 
-## Prior art — read this before writing anything
+## Prior art — read this before writing the package
 
 `demos/echelon-fe` is a React 19 + Vite app already doing this against a live project:
 
@@ -265,52 +264,20 @@ Single biggest "0→1 in 5 minutes" lever. Your call if in scope.
 - `src/useFlash.ts` — row-level change highlighting. The thing that makes "live" *feel*
   live, and the kind of ergonomic the SDK should probably own.
 
-It's two tables hard-coded rather than a general hook. Generalising it *is* the SDK. If
-you disagree with a choice in there, that's exactly the feedback I want — it was written
-to get a demo on screen, not to be a library.
+It's two tables hard-coded rather than a general hook. Generalising it *is* the SDK. It
+was written to get a demo on screen rather than to be a library, so nothing in it is
+settled.
 
 ---
 
-## Working boundary
+## What's ready
 
-- You own the design and the code of `@nineveh/react` + the examples — the whole
-  frontend surface, and the call on anything I've guessed at in this doc.
-- I hold the repo and the release. Changes land as a branch and a PR into `main` that I
-  review and merge; npm releases I cut from a tag.
-- I own the Rust core — ingest, reducers, correctness. Core changes route through me.
-- Rough edges you hit in the REST/SSE API are exactly the feedback I want. Several
-  things in this doc (operators in `where`, multi-column sort) are core changes I'd
-  rather make properly than have the SDK paper over.
+- REST + SSE stable and documented: https://nineveh.dev/docs/reading — the contract
+  this package wraps.
+- A live project with populated tables to build against:
+  `api.nineveh.dev/projects/echelon`, plus the four contracts in `examples/` with
+  `deploy.sh` and `play.sh` behind them for a project that's ours to break.
+- `GET /v1/tables` — the schema endpoint the type generator reads. Has everything.
 
-Saying that plainly up front rather than "it's all yours" and then asking for a PR in
-week two. The package carries the project's API promise under its name, so versioning and
-what ships when are part of a story I have to keep coherent. Everything up to the merge
-button is yours, you're named as its author and maintainer, and where a design call of
-yours and my taste disagree, the SDK's ergonomics win — that's the point of you being on
-it.
-
-### The mechanics
-
-- **Repo**: its own `nineveh-react` repo on my account, you with write access to push
-  branches and open PRs; `main` protected so changes arrive reviewed. A directory in the
-  main repo would be worse for you specifically: its CI has no path filters, so every PR
-  runs the full Rust matrix — fmt, clippy, nextest, MSRV, `cargo deny`, codegen drift —
-  and a TypeScript change would sit blocked behind Rust jobs you can't fix. Separate repo
-  means your CI is `tsc` and your tests, and it runs in a minute.
-- **npm**: I hold the `@nineveh` org and publish. Tell me when a change is release-worthy
-  and what it should be called — patch, minor, breaking — and I'll cut it. If the cadence
-  ever makes me the bottleneck, say so and we'll automate it off a tag from `main`.
-- **License**: Apache-2.0, the same as the core repo — one license across the project,
-  and the patent grant is the reason rather than a preference.
-- **Review**: light on anything purely frontend — it's your judgement, I'm not going to
-  bikeshed hooks. Close on the handful of places the API can bite you: the `reset` path,
-  feed resume and position, and the wide-integer handling. Those are where a plausible
-  implementation is silently wrong, and where I can tell from the core side.
-
-## What you need from me
-
-- [x] REST + SSE stable and documented: https://nineveh.dev/docs/reading
-- [x] A real live project with populated tables: `api.nineveh.dev/projects/echelon` —
-      I'll send you a key. `examples/` gives you more you control yourself.
-- [x] A table-schema endpoint for generated types: `GET /v1/tables`, has everything.
-- [ ] A key for you, and a second project if you want one that isn't echelon.
+Apache-2.0, like the rest of the project. Published as `@nineveh/react` from a tag;
+where the source lives is the first open call in `plan.md`.
