@@ -118,7 +118,11 @@ client_checks() {
     if [ ! -d node_modules ]; then
       npm ci --no-audit --no-fund || return 1
     fi
-    npm run build
+    npm run build || return 1
+    # The scaffolder is plain Node with no build step, so this is the check that it
+    # parses at all — a syntax error in it is only discoverable by running it.
+    [ -f ../create-nineveh-app/index.mjs ] || return 0
+    node --check ../create-nineveh-app/index.mjs
   )
 }
 

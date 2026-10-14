@@ -111,6 +111,9 @@ jobs:
         working-directory: clients/react/examples
       - run: npm run build
         working-directory: clients/react/examples
+      # The scaffolder has no build step; this is what catches a syntax error in it.
+      - run: node --check clients/create-nineveh-app/index.mjs
+        working-directory: .
 
   site:
     runs-on: ubuntu-latest

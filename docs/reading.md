@@ -3,6 +3,10 @@
 Three ways out: a REST API for asking questions, a change feed for being told, and
 webhooks for being told somewhere else. All three serve the same tables.
 
+This page is the HTTP contract. If you are reading from a React app, the hooks in
+**[Reading from React](react.md)** do all of it for you and generate the types for your
+tables — but what they do is exactly what is below.
+
 Everything below uses your project's base URL and a key:
 
 ```sh

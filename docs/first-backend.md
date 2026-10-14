@@ -399,7 +399,50 @@ in the repo. Paste it over what's there the same way — one file, two `export c
 two tables — and `buyers` is built beside `sellers` without going near the questions
 again.
 
-## 7. Now point it at your own contract
+## 7. Put it on a screen
+
+You have a backend. The last step is a page, and it is one command — in a fresh
+directory, outside this project:
+
+```sh
+npm create nineveh-app@latest
+```
+
+It asks for your project's URL and a read key, and then asks the *project* what it holds:
+the same `/v1/tables` you read in step 4 tells it your tables, their keys and their
+column types. So it writes a page showing one of your own tables — not a placeholder —
+with the types for all of them generated beside it.
+
+```sh
+cd my-app && npm run dev
+```
+
+A table of your rows, flashing as they change. Send another sale from step 3 with this
+open and watch the row move. That is the same change feed from step 5, which the page
+holds open for you:
+
+```tsx
+const { data, connected } = useLiveTable("sellers", {
+  order: ["revenue.desc", "seller"],
+  limit: 10,
+});
+```
+
+Two things it did quietly that are worth knowing about:
+
+**The types are real.** `src/nineveh-tables.d.ts` was generated from your project, so
+`row.revenue` is a `string` — a `u128` doesn't fit a JavaScript number — and
+`row.revenue * 2` doesn't compile. A column name that isn't yours doesn't either. After
+a config change, `npm run types` again.
+
+**The key is in `.env`,** already gitignored. It reaches the browser when you deploy and
+that's fine: reads only touch your state tables, never the chain, so an exposed read key
+spends no stream credit. Revoke it in Studio when the demo is done.
+
+The hooks, the operators and the rest are in
+**[Reading from React](react.md)**.
+
+## 8. Now point it at your own contract
 
 Same five minutes again: paste an address, tick what to follow, fold it into the table
 you want. Four things the market didn't teach you.
@@ -430,7 +473,7 @@ There are three more contracts in
 a counter, a guestbook, and an arena that uses Move 2 enums — and `play.sh` drives
 whichever of them you published.
 
-## 8. What you just learned
+## 9. What you just learned
 
 - A **source** is chain data you follow: events, resources, and the tables inside them.
   A **state table** is what you build from it.
@@ -442,7 +485,8 @@ whichever of them you published.
 - Changing a reducer replays your stored records rather than the chain: minutes for a
   project with real history, not another backfill. Adding a *source* is the expensive
   one, because no history exists for something you never followed.
-- Wide integers are strings. Parse them as `BigInt`.
+- Wide integers are strings. Parse them as `BigInt` — or generate the types and let the
+  compiler hold you to it.
 
 Next: **[Reducers](reducers.md)**, to write the fold yourself rather than starting from
-a template.
+a template, or **[Reading from React](react.md)** to build the page out.

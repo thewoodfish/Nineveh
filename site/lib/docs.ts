@@ -47,6 +47,12 @@ export const DOCS: Doc[] = [
     file: "reading.md",
   },
   {
+    slug: "react",
+    title: "Reading from React",
+    blurb: "The hooks, and types for your tables",
+    file: "react.md",
+  },
+  {
     slug: "running",
     title: "Running a project",
     blurb: "Changes, limits, and what to check",

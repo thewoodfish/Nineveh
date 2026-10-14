@@ -80,7 +80,10 @@ In order, if you're new:
 2. **[Reducers](reducers.md)**: how to say what your tables hold. This is the part
    you'll spend your time in.
 3. **[Reading your data](reading.md)**: the REST API, the change feed, webhooks.
-4. **[Running a project](running.md)**: changing it, what a rebuild costs, limits, and
+4. **[Reading from React](react.md)**: the same, from an app — the hooks, and generated
+   types for your own tables. `npm create nineveh-app` if you want rows on a screen
+   before you read anything.
+5. **[Running a project](running.md)**: changing it, what a rebuild costs, limits, and
    what to do when something looks wrong.
 
 And if you are weighing this against writing it yourself:

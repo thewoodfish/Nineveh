@@ -5,7 +5,7 @@
 // columns, so this needs nothing but the URL you already read rows from — no repo, no
 // Rust, no config. The mapping from a column type to a TypeScript one lives in the
 // package (`declaration`), where it is typed and tested; this file is argv and I/O.
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { argv, env, exit, stderr, stdout } from 'node:process'
 
@@ -13,10 +13,12 @@ import { declaration } from '../dist/declare.js'
 
 const USAGE = `nineveh-types — types for your project's tables
 
-  npx nineveh-types <project-url> [--key <key>] [--out <file>]
+  npx nineveh-types [project-url] [--key <key>] [--out <file>]
 
-  <project-url>   everything before /v1, e.g. https://api.nineveh.dev/projects/market
-                  or http://127.0.0.1:4000 for one served by \`nineveh run --serve\`
+  [project-url]   everything before /v1, e.g. https://api.nineveh.dev/projects/market
+                  or http://127.0.0.1:4000 for one served by \`nineveh run --serve\`.
+                  Left out, it is read from .env — VITE_NINEVEH_PROJECT or
+                  NINEVEH_PROJECT — along with the key.
   --key, -k       a project read key. Also read from NINEVEH_KEY.
   --out, -o       where to write it. Defaults to src/nineveh-tables.d.ts when there
                   is a src/, since that is what a tsconfig includes, else the cwd.
@@ -25,6 +27,26 @@ const USAGE = `nineveh-types — types for your project's tables
 It needs no importing: being inside your tsconfig's \`include\` is what counts. Put it
 somewhere the compiler reads, and \`useTable\` knows your tables.
 `
+
+/**
+ * `.env` in the current directory, as a plain object.
+ *
+ * Only what this needs: `KEY=value` lines, `#` comments, optional surrounding quotes.
+ * Not a dotenv implementation, and it never touches the environment — the values go
+ * straight into the options and nowhere else.
+ */
+function dotenv() {
+  if (!existsSync('.env')) return {}
+  const found = {}
+  for (const line of readFileSync('.env', 'utf8').split('\n')) {
+    const at = line.indexOf('=')
+    if (at <= 0 || line.trimStart().startsWith('#')) continue
+    const name = line.slice(0, at).trim()
+    const value = line.slice(at + 1).trim().replace(/^["']|["']$/g, '')
+    if (value !== '') found[name] = value
+  }
+  return found
+}
 
 function parse(args) {
   // Inside `src/` when there is one, because that is what a tsconfig includes. A
@@ -42,7 +64,15 @@ function parse(args) {
     else if (arg.startsWith('-')) return { error: `unknown option \`${arg}\`` }
     else rest.push(arg)
   }
-  if (rest.length === 0) return { error: 'no project URL' }
+  if (rest.length === 0) {
+    // Nothing on the command line, so look where a Vite app keeps it. npm does not read
+    // `.env` for a script, which is what makes `npm run types` need this to work at all.
+    const env_ = dotenv()
+    const project = env_.VITE_NINEVEH_PROJECT ?? env_.NINEVEH_PROJECT
+    if (project === undefined) return { error: 'no project URL, and none in .env' }
+    options.key ??= env_.VITE_NINEVEH_KEY ?? env_.NINEVEH_KEY
+    rest.push(project)
+  }
   if (rest.length > 1) return { error: `expected one project URL, got ${rest.length}` }
   return { ...options, project: rest[0].replace(/\/+$/, '') }
 }
