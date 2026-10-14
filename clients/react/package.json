@@ -31,10 +31,12 @@
     "README.md"
   ],
   "sideEffects": false,
+  "publishConfig": { "access": "public" },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --import ./test/dom.ts src/*.test.ts"
+    "test": "node --test --import ./test/dom.ts src/*.test.ts",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "peerDependencies": {
     "react": ">=18"

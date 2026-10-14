@@ -7,7 +7,11 @@
   "repository": { "type": "git", "url": "git+https://github.com/thewoodfish/Nineveh.git", "directory": "clients/create-nineveh-app" },
   "keywords": ["nineveh", "aptos", "react", "create", "starter"],
   "type": "module",
+  "publishConfig": { "access": "public" },
   "bin": { "create-nineveh-app": "./index.mjs" },
+  "scripts": {
+    "prepublishOnly": "node --check index.mjs"
+  },
   "files": ["index.mjs", "template", "README.md"],
   "engines": { "node": ">=20" }
 }
