@@ -16,13 +16,27 @@ import {
 import { subscribe } from "./feed";
 import { useProject } from "./project";
 
-/** Poll `load` every `ms`, keeping the last good value and the last error. `null` waits. */
+/**
+ * Poll `load` every `ms`. `null` waits.
+ *
+ * `pending` is the first load for the current `load`, still in flight — which is a
+ * different thing from `data` being null, and the difference is the whole point. Both
+ * are null before the first answer arrives, so a caller that only looked at `data`
+ * could not tell "reading this now" from "there is nothing here", and every one of them
+ * rendered nothing for both. That is why a cold Studio showed an empty page.
+ *
+ * The previous value is dropped when `load` changes, deliberately: that happens when the
+ * open project changes, and the last project's numbers under this project's heading
+ * would be worse than a skeleton. `pending` is what lets the caller draw the skeleton.
+ */
 export function usePoll<T>(load: (() => Promise<T>) | null, ms: number) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(load !== null);
   useEffect(() => {
     setData(null);
     setError(null);
+    setPending(load !== null);
     if (!load) return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -35,6 +49,9 @@ export function usePoll<T>(load: (() => Promise<T>) | null, ms: number) {
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : String(e));
       }
+      // Settled either way: an error is an answer, and a caller showing a skeleton
+      // until one arrives would otherwise shimmer forever against a dead plane.
+      if (alive) setPending(false);
       if (alive) timer = setTimeout(tick, ms);
     };
     void tick();
@@ -43,7 +60,7 @@ export function usePoll<T>(load: (() => Promise<T>) | null, ms: number) {
       clearTimeout(timer);
     };
   }, [load, ms]);
-  return { data, error };
+  return { data, error, pending };
 }
 
 /**
@@ -98,22 +115,28 @@ export function useTables(withCounts = false) {
   const { base } = useProject();
   const [tables, setTables] = useState<Table[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // As in `usePoll`: "no tables" and "haven't asked yet" are different answers, and the
+  // Tables page, the sidebar and the playground picker all have to tell them apart.
+  const [pending, setPending] = useState(true);
   const reload = useCallback(() => {
     if (!base) {
       setTables(null);
+      setPending(false);
       return;
     }
+    setPending(true);
     getTables(base, withCounts)
       .then((t) => {
         // Stable: `toSorted` keeps equal ranks in the order the config listed them.
         setTables(t.toSorted((a, b) => PRECEDENCE[a.kind] - PRECEDENCE[b.kind]));
         setError(null);
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setPending(false));
   }, [base, withCounts]);
   useEffect(reload, [reload]);
   useFeed({ onReset: reload });
-  return { tables, error, reload };
+  return { tables, error, reload, pending };
 }
 
 type FeedOptions = {

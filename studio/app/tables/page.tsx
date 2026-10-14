@@ -15,7 +15,7 @@ import { Suspense, useEffect } from "react";
 
 import { PageHeader } from "@/components/page-header";
 import { TableList } from "@/components/table-list";
-import { Offline } from "@/components/ui";
+import { Card, Empty, Ghost, Offline, Reading, filledButton } from "@/components/ui";
 import { useTables } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
 import Link from "next/link";
@@ -33,7 +33,7 @@ function Tables() {
   const href = useHref();
   const wanted = useSearchParams().get("name");
   const router = useRouter();
-  const { tables, error } = useTables(true);
+  const { tables, error, pending } = useTables(true);
 
   useEffect(() => {
     if (!wanted) return;
@@ -55,16 +55,29 @@ function Tables() {
         }
       />
       <div className="mx-auto max-w-6xl px-8 py-6">
-        {tables && tables.length === 0 ? (
-          <p className="text-sm text-on-surface-variant">
-            No state tables yet.{" "}
-            {mode === "control" && (
-              <Link href={href("/state")} className="text-primary hover:underline">
-                Build one from a source
-              </Link>
-            )}
-            .
-          </p>
+        {pending && !tables ? (
+          <Reading label="Reading this project's tables" className="space-y-3">
+            {[0, 1, 2].map((i) => (
+              <Card key={i} className="flex items-center gap-4 px-4 py-3">
+                <Ghost className="h-4 w-40" />
+                <Ghost className="h-3 w-16" />
+                <Ghost className="h-3 w-24" />
+              </Card>
+            ))}
+          </Reading>
+        ) : tables && tables.length === 0 ? (
+          <Empty
+            icon="table_rows"
+            title="No state tables yet"
+            why="A state table is what your app reads: Nineveh folds the chain into it and keeps it current. Until there is one, this project is following sources and storing records nobody is asking for."
+            action={
+              mode === "control" ? (
+                <Link href={href("/state")} className={filledButton}>
+                  Build one from a source
+                </Link>
+              ) : undefined
+            }
+          />
         ) : (
           tables && <TableList tables={tables} />
         )}

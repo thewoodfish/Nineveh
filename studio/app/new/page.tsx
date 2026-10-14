@@ -93,16 +93,6 @@ export default function NewProject() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<Failure | null>(null);
 
-  if (mode === "single") {
-    return (
-      <div className="mx-auto mt-24 max-w-md px-6 text-center text-sm text-on-surface-variant">
-        Creating projects needs the control plane. Run{" "}
-        <span className="font-mono text-on-surface">nineveh up</span> instead of{" "}
-        <span className="font-mono">nineveh run --serve</span>.
-      </div>
-    );
-  }
-
   useEffect(() => {
     const given = params.get("address");
     if (given) setAddress(given);
@@ -114,6 +104,20 @@ export default function NewProject() {
     // Once: afterwards the fields belong to whoever is looking at them.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Below every hook, and it has to stay there. React counts hook calls per render, so
+  // returning above one makes the first render (`mode` is still "loading") register a
+  // hook the next render (`mode` is "single") skips — which throws "Rendered fewer
+  // hooks than expected" and white-screens the page instead of showing this sentence.
+  if (mode === "single") {
+    return (
+      <div className="mx-auto mt-24 max-w-md px-6 text-center text-sm text-on-surface-variant">
+        Creating projects needs the control plane. Run{" "}
+        <span className="font-mono text-on-surface">nineveh up</span> instead of{" "}
+        <span className="font-mono">nineveh run --serve</span>.
+      </div>
+    );
+  }
 
   const inspect = async () => {
     setInspecting(true);
@@ -517,7 +521,7 @@ function Group({
           <button
             type="button"
             onClick={toggleAll}
-            className="text-xs font-medium text-primary hover:underline"
+            className="state rounded-xs px-1 text-xs font-medium text-primary hover:underline"
           >
             {all ? "None" : "All"}
           </button>
@@ -605,7 +609,7 @@ function Choice({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-sm border px-4 py-3 text-left transition-colors ${
+      className={`state rounded-sm border px-4 py-3 text-left transition-colors ${
         disabled
           ? "cursor-not-allowed border-outline-variant opacity-55"
           : active

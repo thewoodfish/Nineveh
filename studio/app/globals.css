@@ -370,6 +370,33 @@ dialog.sheet[open]::backdrop {
   font-variant-numeric: tabular-nums;
 }
 
+/* Something being read. A slow, shallow pulse on the surface's own tone rather than a
+   travelling highlight: a sweeping shimmer reads as a progress bar that never finishes,
+   and at this size it draws more attention than the content it stands for. */
+@keyframes reading {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.reading {
+  animation: reading 1.4s ease-in-out infinite;
+  background-color: var(--color-surface-container-high);
+}
+
+/* Motion is information here, so a reader who has asked for less of it still gets the
+   placeholder — just still. */
+@media (prefers-reduced-motion: reduce) {
+  .reading {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
 /* A row the feed just changed. */
 @keyframes flash {
   from {

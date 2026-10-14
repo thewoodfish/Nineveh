@@ -53,6 +53,99 @@ export function PhaseDot({ phase, label = false }: { phase: string; label?: bool
 }
 
 /**
+ * A surface with nothing on it yet.
+ *
+ * One shape for all of them, because there were four: a centred card with an icon, a
+ * headline and a CTA in one place, and a bare grey sentence in three others — and the
+ * bare ones were on the screens a brand-new project shows first.
+ *
+ * `why` is the part that earns the component. An empty state that says "no rows" tells
+ * the reader what they can already see; what they need is what this surface is for and
+ * what to do next, so `why` is required rather than optional.
+ */
+export function Empty({
+  icon,
+  title,
+  why,
+  action,
+}: {
+  icon: string;
+  title: string;
+  why: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <Card className="flex flex-col items-center px-6 py-10 text-center">
+      <Icon name={icon} className="text-[32px] text-on-surface-variant" />
+      <p className="mt-3 text-sm text-on-surface">{title}</p>
+      <p className="mt-1 max-w-sm text-sm text-on-surface-variant text-pretty">{why}</p>
+      {action && <div className="mt-5">{action}</div>}
+    </Card>
+  );
+}
+
+/**
+ * A placeholder for something still being read.
+ *
+ * Shaped like what is coming, not a generic block: the skeleton's job is to hold the
+ * layout still so the real content lands without the page jumping, and a shape that
+ * doesn't match the content fails at exactly that. `w` and `h` are Tailwind classes so
+ * each caller can match its own row.
+ *
+ * Announced as busy rather than silent. A screen reader gets "Reading…" once per region
+ * instead of a tree of empty boxes, which is the only form of this a non-sighted reader
+ * can perceive at all.
+ */
+export function Ghost({ className = "h-4 w-24" }: { className?: string }) {
+  return <span className={`reading block rounded-xs ${className}`} />;
+}
+
+/**
+ * A region waiting on its first read.
+ *
+ * One `aria-busy` wrapper with one accessible name, rather than a label per ghost: the
+ * ghosts themselves are decoration and stay hidden from assistive tech.
+ */
+export function Reading({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div aria-busy="true" aria-label={label} className={className}>
+      <span className="sr-only">{label}</span>
+      <div aria-hidden className="contents">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Rows of a table being read: the head is real, so only the body needs standing in for. */
+export function GhostRows({ rows = 6, columns = 4 }: { rows?: number; columns?: number }) {
+  // Varied widths, in a fixed cycle rather than at random: a column of identical bars
+  // reads as a loading graphic, and a re-render that reshuffled them would flicker.
+  const widths = ["w-28", "w-16", "w-36", "w-20", "w-24", "w-32"];
+  return (
+    <>
+      {Array.from({ length: rows }, (_, row) => (
+        <tr key={row}>
+          {Array.from({ length: columns }, (_, column) => (
+            <td key={column} className="border-b border-outline-variant px-3 py-2">
+              <Ghost className={`h-3.5 ${widths[(row + column) % widths.length]}`} />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
+
+/**
  * Material's filled card: a surface container lifted by *tone* rather than by a shadow.
  * Shadows are kept for things that genuinely float — menus, dialogs, the app bar once
  * the page scrolls under it.

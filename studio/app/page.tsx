@@ -7,10 +7,12 @@ import { useState, type ReactNode } from "react";
 import {
   Card,
   filledButton,
+  Ghost,
   Icon,
   Notice,
   Offline,
   PhaseDot,
+  Reading,
 } from "@/components/ui";
 import {
   API_URL,
@@ -35,17 +37,155 @@ import { useHref, useProject } from "@/lib/project";
 
 export default function Home() {
   const { mode, name, error } = useProject();
-  if (mode === "loading") return null;
+  // Not `null`. This is the first paint of the app and of every project switch, and an
+  // empty document here is why a cold Studio reads as broken rather than as starting.
+  if (mode === "loading") return <OverviewSkeleton />;
   if (mode === "offline")
     return <Offline error={error ?? "Nineveh isn't answering"} />;
   if (mode === "control" && !name) return <Projects />;
   return <Overview />;
 }
 
+/**
+ * A project that has stopped.
+ *
+ * Nineveh halts at a version on a deterministic error rather than skipping it, so this
+ * is a designed state and not an exception — but it used to render as the error's own
+ * `Display` string in a monospace span, which for a `thiserror` chain is a paragraph of
+ * Rust. The audience includes teams who do not write Rust, and the three things they
+ * need were all already on screen somewhere else: where it stopped, what stopped it,
+ * and that the fix is a config change rather than a support ticket.
+ *
+ * The raw chain stays, behind a disclosure. It is what you paste into an issue, and
+ * hiding it outright would trade one group's clarity for another's.
+ */
+function Halted({
+  phase,
+  failure,
+  cursor,
+  href,
+}: {
+  phase: string;
+  failure: string | null;
+  cursor: string | null;
+  href: (to: string) => string;
+}) {
+  // The first line of a `thiserror` chain is the outermost cause, which is the one
+  // written for a person; the rest is the chain under it.
+  const lines = (failure ?? "").split("\n").filter((l) => l.trim() !== "");
+  const [headline, ...rest] = lines;
+  const detail = rest.join("\n");
+
+  return (
+    <Notice
+      tone="error"
+      title={
+        phase === "halted"
+          ? cursor
+            ? `Stopped at version ${formatInteger(Number(cursor))}`
+            : "Stopped"
+          : "The project failed"
+      }
+    >
+      <p className="text-pretty">
+        {headline ?? "No reason was reported."}
+      </p>
+      <p className="mt-2 text-on-surface-variant text-pretty">
+        Nothing is lost. A project stops at the version it could not fold rather than
+        skipping it, so the rows served so far are correct and it resumes from here once
+        the cause is fixed.
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Link href={href("/state")} className={filledButton}>
+          Edit the rules
+        </Link>
+        <Link
+          href={href("/settings")}
+          className="text-sm text-primary hover:underline"
+        >
+          Project settings
+        </Link>
+      </div>
+      {detail !== "" && (
+        <details className="mt-4">
+          <summary className="state cursor-pointer rounded-xs text-xs text-on-surface-variant select-none">
+            Show technical detail
+          </summary>
+          <pre className="mt-2 overflow-x-auto rounded-sm bg-surface-container-high px-3 py-2 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+            {detail}
+          </pre>
+        </details>
+      )}
+    </Notice>
+  );
+}
+
+/**
+ * Overview before its status has arrived.
+ *
+ * Shaped like the Health card that lands here — one big figure, a sentence under it, a
+ * progress rail, then the demoted stats — because that card is the page's anchor and
+ * the layout must not jump when the real number appears.
+ */
+function OverviewSkeleton() {
+  return (
+    <Reading label="Reading this project">
+      <div className="flex items-baseline gap-3 border-b border-outline-variant px-8 py-4">
+        <Ghost className="h-5 w-28" />
+      </div>
+      <div className="flex max-w-6xl flex-col gap-6 px-8 py-6">
+        <Card className="p-6">
+          <Ghost className="h-3 w-24" />
+          <Ghost className="mt-4 h-12 w-56" />
+          <Ghost className="mt-3 h-4 w-80" />
+          <Ghost className="mt-5 h-1.5 w-full rounded-full" />
+          <div className="mt-5 flex gap-10 border-t border-outline-variant pt-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="space-y-2">
+                <Ghost className="h-2.5 w-16" />
+                <Ghost className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
+        </Card>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[0, 1].map((i) => (
+            <Card key={i} className="space-y-3 p-5">
+              <Ghost className="h-3 w-20" />
+              <Ghost className="h-6 w-32" />
+              <Ghost className="h-3 w-full" />
+            </Card>
+          ))}
+        </div>
+      </div>
+    </Reading>
+  );
+}
+
+/** The project list before it has arrived: the cards it is about to hold. */
+function ProjectsSkeleton() {
+  return (
+    <Reading label="Reading your projects">
+      <div className="flex items-baseline gap-3 border-b border-outline-variant px-8 py-4">
+        <Ghost className="h-5 w-24" />
+      </div>
+      <div className="grid max-w-6xl gap-4 px-8 py-6 sm:grid-cols-2 lg:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <Card key={i} className="space-y-3 p-5">
+            <Ghost className="h-4 w-32" />
+            <Ghost className="h-3 w-20" />
+            <Ghost className="h-3 w-28" />
+          </Card>
+        ))}
+      </div>
+    </Reading>
+  );
+}
+
 /** Every project under the control plane. */
 function Projects() {
   const { projects } = useProject();
-  if (!projects) return null;
+  if (!projects) return <ProjectsSkeleton />;
   if (projects.length === 0) {
     return (
       <div className="mx-auto mt-24 max-w-lg px-6 text-center">
@@ -125,19 +265,25 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
             </div>
           </div>
           <span className="flex shrink-0 items-center gap-1.5">
-            {/* The message itself is a wall of Rust; the card says something is wrong and
-                keeps the detail for whoever hovers it. */}
             {worrying && (
-              <span title={project.error ?? ""} className="flex">
-                <Icon
-                  name="warning"
-                  className="text-[16px] text-on-warning-container"
-                />
-              </span>
+              <Icon
+                name="warning"
+                className="text-[16px] text-on-warning-container"
+              />
             )}
             <PhaseDot phase={project.state} label />
           </span>
         </div>
+
+        {/* The reason, in the card. It used to live in a `title` on the glyph above —
+            hover-only, so unreachable by keyboard or touch and silent to a screen
+            reader, on the one card that needs attention. The full chain is on the
+            project's own page; one line here is what decides whether to open it. */}
+        {worrying && (
+          <p className="mt-3 line-clamp-2 text-xs text-on-warning-container text-pretty">
+            {(project.error ?? "").split("\n")[0]}
+          </p>
+        )}
 
         <div className="mt-5">
           <div className="truncate font-mono text-2xl leading-none text-on-surface tnum">
@@ -192,7 +338,7 @@ function Overview() {
   const href = useHref();
 
   if (error && !status) return <Offline error={error} />;
-  if (!status) return null;
+  if (!status) return <OverviewSkeleton />;
 
   const pipeline = status.pipeline;
   const phase = current?.state ?? pipeline?.phase ?? "serving";
@@ -245,18 +391,7 @@ function Overview() {
         ) : (
           <>
             {(phase === "halted" || phase === "failed") && (
-              <Notice
-                tone="error"
-                title={
-                  phase === "halted"
-                    ? "The pipeline halted"
-                    : "The project failed"
-                }
-              >
-                <span className="font-mono text-xs whitespace-pre-wrap">
-                  {failure}
-                </span>
-              </Notice>
+              <Halted phase={phase} failure={failure} cursor={cursor} href={href} />
             )}
             {pipeline?.phase === "retrying" && (
               <Notice
@@ -297,7 +432,7 @@ function Overview() {
               >
                 API
               </Link>{" "}
-              page .
+              page.
             </p>
           </Card>
         )}

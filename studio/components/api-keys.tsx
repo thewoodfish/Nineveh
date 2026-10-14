@@ -6,7 +6,7 @@ import { API_URL, type ApiKey, control } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
 
 import { ConfirmDialog, Dialog } from "./dialog";
-import { Button, Card, Field, Icon, field } from "./ui";
+import { Button, Card, Empty, Field, Icon, field } from "./ui";
 
 /**
  * A project's API keys (ADR 0018): what an app sends to reach this project's API. A
@@ -102,9 +102,13 @@ export function ApiKeys({ project, api }: { project: string; api: string }) {
         )}
 
         {keys && keys.length === 0 && !created && (
-          <p className="px-4 py-3 text-sm text-on-surface-variant">
-            No keys yet. Create one for each app that reads this project.
-          </p>
+          <div className="px-4 py-3">
+            <Empty
+              icon="key"
+              title="No keys yet"
+              why="A key is how an app reads this project, and each one can be revoked on its own — so give every app its own rather than sharing one."
+            />
+          </div>
         )}
         {keys && keys.length > 0 && (
           <ul className="divide-y divide-outline-variant">

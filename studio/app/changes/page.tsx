@@ -173,7 +173,7 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-2.5 py-0.5 text-xs transition-colors ${
+      className={`state rounded-full px-2.5 py-0.5 text-xs transition-colors ${
         active
           ? "bg-secondary-container text-on-secondary-container"
           : "bg-surface-container-high text-on-surface-variant hover:bg-on-surface/[0.08]"

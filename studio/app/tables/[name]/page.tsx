@@ -24,7 +24,18 @@ import { PageHeader } from "@/components/page-header";
 import { Palette } from "@/components/palette";
 import { ReducerEditor } from "@/components/reducer-editor";
 import { SourceSchema } from "@/components/source-schema";
-import { Button, Card, Icon, Live, Notice, Offline, filledButton } from "@/components/ui";
+import {
+  Button,
+  Card,
+  Ghost,
+  GhostRows,
+  Icon,
+  Live,
+  Notice,
+  Offline,
+  Reading,
+  filledButton,
+} from "@/components/ui";
 import { ApiError, type Change, type Problem, type Table, control, getRows } from "@/lib/api";
 import { definitionOf } from "@/lib/definition";
 import { FUNCTIONS } from "@/lib/language";
@@ -59,7 +70,7 @@ export default function TablePage() {
 function TableWorld() {
   const raw = useParams<{ name: string }>().name;
   const name = decodeURIComponent(Array.isArray(raw) ? (raw[0] ?? "") : raw);
-  const { tables, error } = useTables();
+  const { tables, error, pending } = useTables();
   const params = useSearchParams();
   const router = useRouter();
   const href = useHref();
@@ -79,6 +90,10 @@ function TableWorld() {
   const table = tables?.find((t) => t.name === name);
 
   if (error && !tables) return <Offline error={error} />;
+  // A skeleton rather than nothing. This branch is every first paint of the page and
+  // every project switch, and it used to render an empty document — which is how a
+  // working app comes to look broken.
+  if (pending && !tables) return <TableSkeleton name={name} />;
   if (!tables) return null;
   if (!table) {
     return (
@@ -95,6 +110,40 @@ function TableWorld() {
   }
 
   return <Inner key={table.name} table={table} tab={tab} go={go} />;
+}
+
+/**
+ * The table page before its tables have arrived.
+ *
+ * The name is real — it is in the URL — so the heading is not a placeholder, and the
+ * shape matches what lands: a header, the section rail, and the grid's rows. Holding
+ * the layout still is the job; a centred spinner would move everything once.
+ */
+function TableSkeleton({ name }: { name: string }) {
+  return (
+    <Reading label={`Reading ${name}`} className="flex h-full min-h-0 flex-col">
+      <div className="flex items-baseline gap-3 border-b border-outline-variant px-8 py-4">
+        <span className="font-mono text-[22px]">{name}</span>
+        <Ghost className="h-3 w-16" />
+      </div>
+      <div className="flex min-h-0 flex-1">
+        <div className="w-52 shrink-0 space-y-3 border-r border-outline-variant p-4">
+          {SECTIONS.map((s) => (
+            <Ghost key={s.tab} className="h-4 w-24" />
+          ))}
+        </div>
+        <div className="max-w-6xl flex-1 px-8 py-6">
+          <div className="overflow-hidden rounded-md border border-outline-variant bg-surface-container-low">
+            <table className="w-full border-separate border-spacing-0 text-sm">
+              <tbody>
+                <GhostRows rows={9} columns={5} />
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </Reading>
+  );
 }
 
 function Inner({ table, tab, go }: { table: Table; tab: Tab; go: (to: Tab) => void }) {

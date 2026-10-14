@@ -132,7 +132,7 @@ function Undo({
     <button
       type="button"
       onClick={onClick}
-      className="text-xs text-on-surface-variant hover:text-on-surface"
+      className="state rounded-xs px-1 text-xs text-on-surface-variant hover:text-on-surface"
     >
       {children}
     </button>
@@ -1447,7 +1447,7 @@ function Template({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="group flex flex-col rounded-sm border border-outline-variant bg-surface-container-low px-4 py-3.5 text-left shadow-e1 transition-all hover:-translate-y-px hover:border-primary hover:shadow-e3 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-outline-variant disabled:hover:shadow-e1"
+      className="state group flex flex-col rounded-sm border border-outline-variant bg-surface-container-low px-4 py-3.5 text-left shadow-e1 transition-all hover:-translate-y-px hover:border-primary hover:shadow-e3 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:border-outline-variant disabled:hover:shadow-e1"
     >
       <div className="text-sm font-semibold group-enabled:group-hover:text-on-secondary-container">
         {title}

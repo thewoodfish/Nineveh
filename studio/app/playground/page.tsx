@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { ApiConsole } from "@/components/api-console";
 import { PageHeader } from "@/components/page-header";
+import { Empty } from "@/components/ui";
 import { useTables } from "@/lib/hooks";
 
 /**
@@ -27,9 +28,11 @@ export default function Playground() {
       <PageHeader title="API" hint="Your app asking Nineveh for state" />
       <div className="flex min-h-0 flex-1 px-8 py-6">
         {tables && tables.length === 0 ? (
-          <p className="text-sm text-on-surface-variant">
-            This project has no state tables to query yet.
-          </p>
+          <Empty
+            icon="terminal"
+            title="Nothing to query yet"
+            why="This page runs real requests against your own tables and hands you the call that makes them. It needs a state table first."
+          />
         ) : (
           table && <ApiConsole table={table} pick={{ tables: tables ?? [], onPick: setName }} />
         )}

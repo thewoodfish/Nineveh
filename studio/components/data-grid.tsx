@@ -14,7 +14,7 @@ import { formatInteger } from "@/lib/format";
 import { useFeed } from "@/lib/hooks";
 import { useProject } from "@/lib/project";
 
-import { Button, Cell, Notice } from "./ui";
+import { Button, Cell, GhostRows, Icon, Notice } from "./ui";
 
 const PAGE = 50;
 
@@ -206,6 +206,21 @@ export function DataGrid({
       <div className="w-fit max-w-full">
         <div className="mb-3 flex min-h-9 items-center justify-end gap-3">
           {stale}
+          {/* Reachable whenever a filter is set, not only when one matched nothing.
+              Filtering down to rows you then want to get out of is the ordinary case,
+              and until now the only way back was blanking each input by hand. */}
+          {filtered && (
+            <Button
+              tone="text"
+              onClick={() => {
+                setDraft({});
+                setFilters({});
+                setOffset(0);
+              }}
+            >
+              Clear filters
+            </Button>
+          )}
           {action}
         </div>
 
@@ -237,6 +252,16 @@ export function DataGrid({
                   {columns.map((column, i) => (
                     <th
                       key={column.name}
+                      // Without this a screen reader is told the column's name and
+                      // nothing about the order it is in — and sort state here is
+                      // conveyed by a glyph that only appears once a column is active.
+                      aria-sort={
+                        order?.column === column.name
+                          ? order.desc
+                            ? "descending"
+                            : "ascending"
+                          : "none"
+                      }
                       className={`border-b border-outline-variant px-3 py-2 text-left font-medium whitespace-nowrap ${
                         i > 0 ? "border-l border-outline-variant" : ""
                       } ${table.key.includes(column.name) ? "bg-primary/10" : ""}`}
@@ -244,7 +269,7 @@ export function DataGrid({
                       <button
                         type="button"
                         onClick={() => sortBy(column.name)}
-                        className="inline-flex items-center gap-1 hover:text-primary"
+                        className="state group/sort inline-flex items-center gap-1 rounded-xs hover:text-primary"
                       >
                         <span className="font-mono text-[13px]">
                           {column.name}
@@ -260,29 +285,52 @@ export function DataGrid({
                         <span className="font-mono text-[11px] font-normal text-on-surface-variant">
                           {column.type}
                         </span>
-                        {order?.column === column.name && (
-                          <span className="text-xs">
-                            {order.desc ? "↓" : "↑"}
-                          </span>
-                        )}
+                        <Icon
+                          name={
+                            order?.column === column.name && !order.desc
+                              ? "arrow_upward"
+                              : "arrow_downward"
+                          }
+                          className={`text-[16px] ${
+                            order?.column === column.name
+                              ? "text-primary"
+                              : "text-on-surface-variant opacity-0 transition-opacity group-hover/sort:opacity-100"
+                          }`}
+                        />
                       </button>
                     </th>
                   ))}
-                  <th className="border-l border-b border-outline-variant px-3 py-2 text-left font-medium whitespace-nowrap">
+                  <th
+                    aria-sort={
+                      order?.column === "_version"
+                        ? order.desc
+                          ? "descending"
+                          : "ascending"
+                        : order
+                          ? "none"
+                          : "descending"
+                    }
+                    className="border-l border-b border-outline-variant px-3 py-2 text-left font-medium whitespace-nowrap"
+                  >
                     <button
                       type="button"
                       onClick={() => sortBy("_version")}
-                      className="inline-flex items-center gap-1 text-[13px] text-on-surface-variant hover:text-primary"
+                      className="state group/sort inline-flex items-center gap-1 rounded-xs text-[13px] text-on-surface-variant hover:text-primary"
                       title="Version of the row's last change"
                     >
-                      version{" "}
-                      {order?.column === "_version"
-                        ? order.desc
-                          ? "↓"
-                          : "↑"
-                        : order
-                          ? ""
-                          : "↓"}
+                      version
+                      <Icon
+                        name={
+                          order?.column === "_version" && !order.desc
+                            ? "arrow_upward"
+                            : "arrow_downward"
+                        }
+                        className={`text-[16px] ${
+                          order === undefined || order.column === "_version"
+                            ? "text-primary"
+                            : "opacity-0 transition-opacity group-hover/sort:opacity-100"
+                        }`}
+                      />
                     </button>
                   </th>
                   <th className="border-b border-outline-variant" />
@@ -306,6 +354,11 @@ export function DataGrid({
                           }
                           onKeyDown={(e) => e.key === "Enter" && applyFilters()}
                           onBlur={applyFilters}
+                          // Named, because there is one of these per column and the
+                          // placeholder is identical in all of them — so a screen
+                          // reader read out "filter equals" twenty-five times and never
+                          // said which column any of them belonged to.
+                          aria-label={`Filter ${column.name} by an exact value`}
                           placeholder="filter ="
                           className="w-full min-w-28 rounded-sm border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-xs font-normal text-on-surface transition-colors placeholder:text-on-surface-variant/50 hover:border-outline focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                         />
@@ -317,6 +370,9 @@ export function DataGrid({
                 </tr>
               </thead>
               <tbody>
+                {loading && rows.length === 0 && (
+                  <GhostRows rows={8} columns={columns.length + 2} />
+                )}
                 {rows.map((row) => {
                   const key = rowKey(table, row);
                   return (
@@ -355,28 +411,19 @@ export function DataGrid({
                       ? "Rows appear as records reach this table's rules."
                       : "Rows appear as the chain is folded into this table."}
                 </p>
-                {filtered && (
-                  <Button
-                    className="mt-4"
-                    onClick={() => {
-                      setDraft({});
-                      setFilters({});
-                      setOffset(0);
-                    }}
-                  >
-                    Clear filters
-                  </Button>
-                )}
+
               </div>
             )}
           </div>
 
           <footer className="flex items-center justify-between border-t border-outline-variant px-4 py-2.5 text-xs text-on-surface-variant">
             <span className="tabular-nums">
-              {rows.length === 0
-                ? "0 rows"
-                : `${formatInteger(offset + 1)}–${formatInteger(last)}`}
-              {count !== null && ` of ${formatInteger(count)}`}
+              {loading && rows.length === 0
+                ? "Reading…"
+                : rows.length === 0
+                  ? "0 rows"
+                  : `${formatInteger(offset + 1)}–${formatInteger(last)}`}
+              {!loading && count !== null && ` of ${formatInteger(count)}`}
             </span>
             <div className="flex gap-2">
               <PageButton
@@ -415,7 +462,7 @@ function PageButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="rounded-sm border border-outline-variant px-2.5 py-1 font-medium text-on-surface enabled:hover:bg-surface-container-high disabled:opacity-40"
+      className="state rounded-sm border border-outline-variant px-2.5 py-1 font-medium text-on-surface enabled:hover:bg-surface-container-high disabled:opacity-40"
     >
       {children}
     </button>
