@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { queryString } from './query.ts'
 import { useNinevehClient } from './provider.ts'
@@ -11,8 +11,8 @@ export type LiveOptions = {
   debounceMs?: number
   /**
    * Re-read on a timer as well, in milliseconds. Off by default: the feed reports a
-   * rebuild as `reset`, which this hook handles, so there is nothing left for a poll
-   * to catch.
+   * rebuild as `reset` and a dropped connection as a reopen, and this hook reads again
+   * on both, so there is nothing left for a poll to catch.
    */
   poll?: number
 }
@@ -46,14 +46,30 @@ export function useLiveTable<T extends Row = Row>(
   )
   const [connected, setConnected] = useState(false)
   const [lastChange, setLastChange] = useState<Change | null>(null)
+  const opened = useRef(false)
   const debounceMs = options?.debounceMs ?? 400
   const poll = options?.poll ?? 0
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
+    // Whether this subscription has had a connection before, which makes the next one
+    // a reconnection rather than the first.
+    opened.current = false
     const unsubscribe = client.subscribe({
       tables: [table],
-      onOpen: () => setConnected(true),
+      onOpen: () => {
+        setConnected(true)
+        // A connection that dropped and came back may have missed changes while it was
+        // away. Inside the feed's retention the server replays them from the position
+        // the browser resumes with; past it — a tab asleep for longer than a week —
+        // they have been pruned and no replay is coming, and nothing in the feed says
+        // so. Reading the table again is the one answer that is right either way, and
+        // it costs one query per reconnection.
+        //
+        // Not on the first open: the read that mounted this hook is newer than it.
+        if (opened.current) reload()
+        opened.current = true
+      },
       onError: () => setConnected(false),
       onChange: (change: Change) => {
         setLastChange(change)

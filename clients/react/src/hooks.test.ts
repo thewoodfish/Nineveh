@@ -233,3 +233,27 @@ test('a hook outside a provider says which thing is missing', async () => {
     )
   })
 })
+
+test('a connection that drops and comes back re-reads, because the gap may be unreplayable', async () => {
+  const server: Server = { rows: { sellers: [{ _version: '7', seller: '0xa' }] } }
+  const { wrap, readsOf } = project(server)
+  const hook = await renderHook(() => useLiveTable('sellers', undefined, { debounceMs: 5 }), wrap)
+  await hook.settle(tick)
+
+  const feed = FakeFeed.only()
+  await hook.settle(() => feed.emit('open'))
+  // The first open is not a reconnection: the read that mounted the hook is newer.
+  assert.equal(readsOf('sellers'), 1)
+
+  server.rows = { sellers: [{ _version: '9', seller: '0xa' }] }
+  await hook.settle(() => feed.emit('error'))
+  assert.equal(hook.current.connected, false)
+
+  // Back again. The server replays what it still holds, but a gap longer than the
+  // feed's retention has been pruned and nothing says so — so the hook asks.
+  await hook.settle(() => feed.emit('open'))
+  assert.equal(hook.current.connected, true)
+  assert.equal(readsOf('sellers'), 2)
+  assert.deepEqual(hook.current.data, [{ _version: '9', seller: '0xa' }])
+  await hook.unmount()
+})

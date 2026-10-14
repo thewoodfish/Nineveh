@@ -100,10 +100,18 @@ so a burst costs one read.
 `connected` is whether the feed is actually open, so a "live" dot can be honest. Every
 live hook on a page shares **one** connection.
 
-A rebuild — what a config change looks like — arrives as a `reset`, and
-every row you listed came from the build that just went. The hook handles it by reading
-again immediately, which is why it needs no polling fallback. If you want one anyway,
-`options.poll` takes an interval in milliseconds; it is off by default.
+Two things are read again immediately rather than on the debounce, because in both the
+rows on screen are not merely late but wrong:
+
+- **A rebuild**, which is what a config change looks like. It arrives as a `reset`, and
+  every row you listed came from the build that just went.
+- **A reconnection.** The feed keeps seven days on the free tier, so a connection that
+  comes back after a longer gap — a tab that was asleep — resumes at a position whose
+  changes have been pruned. The replay is short by however much, and nothing in the
+  feed says so, so the hook re-reads on every reopen.
+
+That is why there is no polling fallback. If you want one anyway, `options.poll` takes
+an interval in milliseconds; it is off by default.
 
 ### `useStatus(options?)`
 
