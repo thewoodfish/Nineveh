@@ -4,6 +4,7 @@ import { queryString } from './query.ts'
 import { useNinevehClient } from './provider.ts'
 import type { TableResult } from './useTable.ts'
 import { useRows } from './useTable.ts'
+import type { AnyRow, RowOf, TableName } from './schema.ts'
 import type { Change, Row, TableQuery } from './types.ts'
 
 export type LiveOptions = {
@@ -17,7 +18,7 @@ export type LiveOptions = {
   poll?: number
 }
 
-export type LiveResult<T extends Row = Row> = TableResult<T> & {
+export type LiveResult<T extends AnyRow = Row> = TableResult<T> & {
   /** Whether the change feed is open, so a UI can show a "live" dot honestly. */
   connected: boolean
   /** The last change seen for this table, for an activity view. */
@@ -33,13 +34,13 @@ export type LiveResult<T extends Row = Row> = TableResult<T> & {
  * `limit: 10` window, and only the server knows which. Merging is an optimization to
  * add behind an option later, not the baseline.
  */
-export function useLiveTable<T extends Row = Row>(
-  table: string,
-  query?: TableQuery,
+export function useLiveTable<T extends TableName>(
+  table: T,
+  query?: TableQuery<RowOf<T>>,
   options?: LiveOptions,
-): LiveResult<T> {
+): LiveResult<RowOf<T>> {
   const client = useNinevehClient()
-  const { data, loading, error, count, refetch, reload } = useRows<T>(
+  const { data, loading, error, count, refetch, reload } = useRows<RowOf<T>>(
     client,
     table,
     queryString(query),

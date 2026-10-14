@@ -172,6 +172,36 @@ const flashing = useFlash(data, ['seller'])
 
 `key` is the table's key columns, which `GET /v1/tables` reports in key order.
 
+## Types for your own tables
+
+`GET /v1/tables` already reports every table's kind, key and typed columns, so the
+package can turn your project into TypeScript:
+
+```sh
+npx nineveh-types https://api.nineveh.dev/projects/myproject --key nvk_…
+# wrote src/nineveh-tables.d.ts: 5 tables, 25 columns
+```
+
+That file augments the package with your tables. It needs no importing — what matters is
+that it sits inside your tsconfig's `include`, which is why it defaults to `src/`. A
+declaration file the compiler never reads changes nothing and says nothing about it.
+
+With it in place:
+
+```tsx
+useTable('sellres')                       // error: did you mean 'sellers'?
+useTable('sellers', { order: 'revenu' })  // error: did you mean 'revenue'?
+row.revenue * 2                           // error: revenue is a u128, so it is a string
+row.event_index * 2                       // fine: event_index is a u32, so it is a number
+```
+
+That last pair is the point. The string-versus-number call per column is the one thing a
+hand-written type gets wrong, and getting it wrong is silent until a balance goes past
+2^53.
+
+Nothing requires it. Without the file every hook still works and rows are `Row`, whose
+columns are `unknown` — generated types sharpen, they are not a dependency.
+
 ## Numbers are sometimes strings
 
 Move integers do not fit JSON numbers. The API renders integers up to 32 bits as JSON

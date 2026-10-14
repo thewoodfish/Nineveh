@@ -3,9 +3,10 @@ import { useEffect, useReducer, useState } from 'react'
 import type { NinevehClient } from './client.ts'
 import { queryString } from './query.ts'
 import { useNinevehClient } from './provider.ts'
+import type { AnyRow, RowOf, TableName } from './schema.ts'
 import type { Page, Row, TableQuery } from './types.ts'
 
-export type TableResult<T extends Row = Row> = {
+export type TableResult<T extends AnyRow = Row> = {
   /** Undefined until the first read lands, then the rows. */
   data: T[] | undefined
   loading: boolean
@@ -21,14 +22,16 @@ export type TableResult<T extends Row = Row> = {
  * Re-reads whenever the table or the query changes, and never lets a slower earlier
  * read overwrite a later one.
  */
-export function useTable<T extends Row = Row>(table: string, query?: TableQuery): TableResult<T> {
+export function useTable<T extends TableName>(
+  table: T,
+  query?: TableQuery<RowOf<T>>,
+): TableResult<RowOf<T>> {
   const client = useNinevehClient()
-  const rows = useRows<T>(client, table, queryString(query))
-  return rows
+  return useRows<RowOf<T>>(client, table, queryString(query))
 }
 
 /** The read half of both `useTable` and `useLiveTable`, keyed on the serialized query. */
-export function useRows<T extends Row = Row>(
+export function useRows<T extends AnyRow = Row>(
   client: NinevehClient,
   table: string,
   search: string,

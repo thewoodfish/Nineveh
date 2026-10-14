@@ -1,4 +1,5 @@
 import { queryString } from './query.ts'
+import type { AnyRow, RowOf, TableName } from './schema.ts'
 import type { Change, Page, Row, Status, TableInfo, TableQuery } from './types.ts'
 
 export type ClientOptions = {
@@ -105,19 +106,19 @@ export class NinevehClient {
   }
 
   /** `GET /v1/tables/:table` — one page of rows. */
-  rows<T extends Row = Row>(
-    table: string,
-    query?: TableQuery,
+  rows<T extends TableName>(
+    table: T,
+    query?: TableQuery<RowOf<T>>,
     signal?: AbortSignal,
-  ): Promise<Page<T>> {
-    return this.page<T>(table, queryString(query), signal)
+  ): Promise<Page<RowOf<T>>> {
+    return this.page<RowOf<T>>(table, queryString(query), signal)
   }
 
   /**
    * A read with the query already serialized, which is what the hooks hold: the string
    * is both the request and the key they re-read on.
    */
-  async page<T extends Row = Row>(
+  async page<T extends AnyRow = Row>(
     table: string,
     search: string,
     signal?: AbortSignal,

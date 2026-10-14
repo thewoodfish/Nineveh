@@ -40,13 +40,13 @@ export function Leaderboard() {
         </thead>
         <tbody>
           {result.data?.map((row, i) => (
-            <tr key={String(row.seller)}>
+            <tr key={row.seller}>
               <td className="rank">
                 <Rank place={i + 1} />
               </td>
               <td className="mono">{address(row.seller)}</td>
-              <td className="num">{String(row.sold)}</td>
-              <td className="num muted">{String(row.listed)}</td>
+              <td className="num">{row.sold}</td>
+              <td className="num muted">{row.listed}</td>
               <td className="num strong">{credits(row.revenue)}</td>
             </tr>
           ))}

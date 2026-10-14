@@ -27,15 +27,15 @@ export function Feed() {
     >
       <ul className="feed">
         {result.data?.map((row) => {
-          const id = `${String(row.version)}\u0000${String(row.event_index)}`
+          const id = `${row.version}\u0000${row.event_index}`
           return (
             <li key={id} className={flashing.has(id) ? 'flash' : undefined}>
-              <span className="item">{String(row.item)}</span>
+              <span className="item">{row.item}</span>
               <span className="price">{credits(row.price)}</span>
               <span className="muted">
                 {address(row.seller)} → {address(row.buyer)}
               </span>
-              <span className="muted mono at">@{String(row.version)}</span>
+              <span className="muted mono at">@{row.version}</span>
             </li>
           )
         })}

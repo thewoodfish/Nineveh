@@ -14,6 +14,13 @@ Everything else is scaffolding: [`shared.tsx`](src/shared.tsx) holds the panel, 
 address shortener and a `BigInt` formatter, so each example is only the thing it is
 showing. Nothing in `shared.tsx` is specific to Nineveh.
 
+Two more files earn their place. [`nineveh-tables.d.ts`](src/nineveh-tables.d.ts) is
+generated — `npx nineveh-types http://127.0.0.1:4000` against the market project below —
+and it is why `row.revenue` is a `string` here rather than `unknown`, and why a mistyped
+table name does not compile. [`types-check.ts`](src/types-check.ts) is that claim written
+as a test the compiler runs: every `@ts-expect-error` in it fails the build if the line it
+marks stops being an error.
+
 ## Run them
 
 ```sh

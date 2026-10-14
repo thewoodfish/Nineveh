@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import type { Row } from './types.ts'
+import type { AnyRow } from './schema.ts'
 
 /**
  * A feed position just before the oldest of these rows, fixed once they arrive.
@@ -18,7 +18,7 @@ import type { Row } from './types.ts'
  * Fixed once deliberately. The oldest row on screen moves as rows change, and a
  * position recomputed from live rows would reopen the feed every time they did.
  */
-export function useFeedStart(...rows: (readonly Row[] | undefined)[]): string | null {
+export function useFeedStart(...rows: (readonly AnyRow[] | undefined)[]): string | null {
   const [start, setStart] = useState<string | null>(null)
   const oldest = before(rows)
 
@@ -30,7 +30,7 @@ export function useFeedStart(...rows: (readonly Row[] | undefined)[]): string | 
 }
 
 /** The position one before the oldest `_version` across every row given. */
-function before(tables: (readonly Row[] | undefined)[]): string | undefined {
+function before(tables: (readonly AnyRow[] | undefined)[]): string | undefined {
   let min: bigint | undefined
   for (const rows of tables) {
     for (const row of rows ?? []) {

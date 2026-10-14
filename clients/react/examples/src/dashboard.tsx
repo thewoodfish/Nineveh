@@ -26,7 +26,12 @@ export function Dashboard() {
         </div>
         <div className="tile">
           <div className="label">{synced ? 'Chain' : 'Behind by'}</div>
-          <div className="value">{synced ? 'caught up' : `${credits(behind)} versions`}</div>
+          {/* `behind` is undefined until there is both a cursor and a head to compare,
+              which is the first second of a run and any project whose pipeline runs
+              elsewhere. Saying nothing beats saying zero. */}
+          <div className="value">
+            {synced ? 'caught up' : behind === undefined ? '—' : `${credits(behind)} versions`}
+          </div>
         </div>
         <div className="tile">
           <div className="label">Backfill</div>
@@ -39,7 +44,7 @@ export function Dashboard() {
         <Panel title="Sellers" note="By revenue." result={sellers} empty="No sales yet.">
           <ul className="plain">
             {sellers.data?.map((row) => (
-              <li key={String(row.seller)}>
+              <li key={row.seller}>
                 <span className="mono">{address(row.seller)}</span>
                 <b>{credits(row.revenue)}</b>
               </li>
@@ -49,7 +54,7 @@ export function Dashboard() {
         <Panel title="Buyers" note="By credits spent." result={buyers} empty="No buyers yet.">
           <ul className="plain">
             {buyers.data?.map((row) => (
-              <li key={String(row.buyer)}>
+              <li key={row.buyer}>
                 <span className="mono">{address(row.buyer)}</span>
                 <b>{credits(row.spent)}</b>
               </li>

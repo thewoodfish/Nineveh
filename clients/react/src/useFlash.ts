@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import type { Row } from './types.ts'
+import type { AnyRow } from './schema.ts'
 
 /**
  * The rows whose `_version` just moved, for a moment.
@@ -13,7 +13,7 @@ import type { Row } from './types.ts'
  * `key` is the table's key columns, which `GET /v1/tables` reports in key order.
  */
 export function useFlash(
-  rows: readonly Row[] | undefined,
+  rows: readonly AnyRow[] | undefined,
   key: string | readonly string[],
   ms = 1100,
 ): Set<string> {

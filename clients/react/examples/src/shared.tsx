@@ -52,9 +52,8 @@ export function Panel({
 }
 
 /** `0x1e8742…8d2a`, because a full address is 66 characters of noise. */
-export function address(value: unknown): string {
-  const text = String(value)
-  return text.length > 14 ? `${text.slice(0, 6)}…${text.slice(-4)}` : text
+export function address(value: string): string {
+  return value.length > 14 ? `${value.slice(0, 6)}…${value.slice(-4)}` : value
 }
 
 /**
@@ -64,11 +63,11 @@ export function address(value: unknown): string {
  * above 2^53 and does it silently. `BigInt` is the only safe way in, and these are
  * whole credits, so there is nothing to divide.
  */
-export function credits(value: unknown): string {
+export function credits(value: string): string {
   try {
-    return BigInt(String(value)).toLocaleString('en-US')
+    return BigInt(value).toLocaleString('en-US')
   } catch {
-    return String(value)
+    return value
   }
 }
 

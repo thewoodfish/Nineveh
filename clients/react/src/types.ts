@@ -16,7 +16,7 @@ export type Row = {
 }
 
 /** A page of rows, as `GET /v1/tables/:name` returns it. */
-export type Page<T extends Row = Row> = {
+export type Page<T extends AnyRow = Row> = {
   rows: T[]
   /** Only when `count: true` was asked for. */
   count?: number
@@ -48,7 +48,7 @@ export type TableInfo = {
 export type ChangeOp = 'insert' | 'update' | 'delete'
 
 /** One row change, as the feed sends it. `row` is null for a delete. */
-export type Change<T extends Row = Row> = {
+export type Change<T extends AnyRow = Row> = {
   /** Decimal string. */
   version: string
   seq: number
@@ -97,6 +97,8 @@ export type Status = {
   pipeline: Pipeline | null
 }
 
+import type { AnyRow, Columns, OrderBy } from './schema.ts'
+
 /** A value a filter compares against. */
 export type Scalar = string | number | boolean
 
@@ -119,8 +121,14 @@ export type Comparison = {
 /** A bare value means equality; an object says how to compare. */
 export type Filter = Scalar | Comparison
 
-/** What a read asks of a table. */
-export type TableQuery = {
+/**
+ * What a read asks of a table.
+ *
+ * `R` is the row shape, which is how a generated declaration makes a wrong column name
+ * an error: `where` keys and `order` columns both come from it. For the open `Row` they
+ * widen to `string`, which is what an ungenerated project sees.
+ */
+export type TableQuery<R = Row> = {
   /**
    * Filters, AND-ed across columns: `{ seller: '0xabc…', revenue: { gte: 100 } }`.
    *
@@ -130,13 +138,13 @@ export type TableQuery = {
    * columns: that belongs in a reducer, computed once as the row is written. A boolean
    * column takes `eq` and `neq` only, and a JSON column cannot be filtered at all.
    */
-  where?: Record<string, Filter>
+  where?: { [K in Columns<R>]?: Filter }
   /**
    * Columns to order by: `'revenue.desc'`, or `['revenue.desc', 'seller']` to break
    * the ties in the first. Each is `col`, `col.asc` or `col.desc`; `_version` works
    * too. At most four, which the server enforces.
    */
-  order?: string | readonly string[]
+  order?: OrderBy<R> | readonly OrderBy<R>[]
   /** Defaults to 50 server-side, clamped to 1000. */
   limit?: number
   offset?: number
