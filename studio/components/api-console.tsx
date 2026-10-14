@@ -19,6 +19,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { type Change, type Table, getPath } from "@/lib/api";
 import { type Recipe, projectRecipes, ready, tableRecipes } from "@/lib/api-recipes";
+import { hookFor } from "@/lib/react-snippet";
 import { useFeed } from "@/lib/hooks";
 import { useHref, useProject } from "@/lib/project";
 
@@ -191,6 +192,12 @@ function RecipeCard({
       ? `const res = await fetch('${url}', {\n  headers: { Authorization: \`Bearer \${process.env.NINEVEH_KEY}\` },\n})\nconst { rows } = await res.json()`
       : `const res = await fetch('${url}')\nconst { rows } = await res.json()`,
   };
+
+  // Offered only where a hook exists for the route, so the tab never promises one that
+  // doesn't. This is also the one place in the product that says `@nineveh/react` is
+  // there at all, which is most of why it is worth having.
+  const react = hookFor(path);
+  if (react !== undefined) snippets.react = react;
 
   const copy = (what: string) => {
     void navigator.clipboard?.writeText(snippets[what] ?? "");
