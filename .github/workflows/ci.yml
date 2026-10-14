@@ -85,6 +85,26 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
+  client:
+    name: "@nineveh/react"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/react
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: clients/react/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      # Last, because it is what gets published: a tree that typechecks and passes its
+      # tests can still fail to emit, and `files` ships only what this writes.
+      - run: npm run build
+
   site:
     runs-on: ubuntu-latest
     defaults:

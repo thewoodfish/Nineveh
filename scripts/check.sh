@@ -82,6 +82,7 @@ CHECKS=(
   "deny|full|cargo-deny|cargo deny check"
   "studio|full|npm|npm_checks studio"
   "site|full|npm|npm_checks site"
+  "client|full|npm|client_checks clients/react"
 )
 
 # `npm ci` is CI's reproducible install; locally it only earns its cost when the tree
@@ -95,6 +96,21 @@ npm_checks() {
       npm ci --no-audit --no-fund || return 1
     fi
     npm run typecheck && npm run build && no_adrs .
+  )
+}
+
+# The published client: typecheck, its own tests, then the build that produces what
+# `files` ships. No `no_adrs` — there is no built page to read it out of — so the rule
+# it enforces is kept by hand in the README and in the comments that reach `.d.ts`.
+client_checks() {
+  local dir="$1"
+  [ -d "$dir" ] || { echo "no $dir/ directory"; return 0; }
+  (
+    cd "$dir" || return 1
+    if [ ! -d node_modules ]; then
+      npm ci --no-audit --no-fund || return 1
+    fi
+    npm run typecheck && npm test && npm run build
   )
 }
 
@@ -155,7 +171,9 @@ for check in "${CHECKS[@]}"; do
   # Broken intra-doc links are warnings, and CI denies them.
   if [ "$name" = "docs" ]; then
     RUSTDOCFLAGS="-D warnings" bash -c "$cmd"
-  elif [[ "$cmd" == npm_checks* ]]; then
+  # A function in this file, not a program: `bash -c` would start a shell that has
+  # never heard of it.
+  elif [[ "$cmd" == npm_checks* || "$cmd" == client_checks* ]]; then
     $cmd
   else
     bash -c "$cmd"
@@ -178,5 +196,5 @@ if [ ${#FAILED[@]} -gt 0 ]; then
   printf 'FAILED:  %s\n' "$(IFS=', '; echo "${FAILED[*]}")"
   exit 1
 fi
-[ "$FAST" = 1 ] && echo "(--fast: docs, msrv, codegen, deny, studio and site weren't run)"
+[ "$FAST" = 1 ] && echo "(--fast: docs, msrv, codegen, deny, studio, site and client weren't run)"
 echo "green"
