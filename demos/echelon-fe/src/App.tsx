@@ -1,7 +1,11 @@
-import { configured, type Row } from "./api";
+import {
+  useChanges,
+  useFeedStart,
+  useFlash,
+  useLiveTable,
+  type Row,
+} from "@nineveh/react";
 import { amount, count, exact, severity, short, utilisation } from "./format";
-import { useFlash } from "./useFlash";
-import { useLive } from "./useLive";
 
 const CONFIG = `name: echelon
 network: mainnet
@@ -164,19 +168,21 @@ function Vaults({
 }
 
 export default function App() {
-  const { markets, vaults, error, connected, feed } = useLive();
+  // Two tables and the feed. They share one connection: the package opens it once, for
+  // the earliest position any of them asked for.
+  const market = useLiveTable("market", { limit: 50, order: "total_liability.desc" });
+  const vault = useLiveTable("vault", { limit: 100 });
+  // Just before the oldest row above, so the feed arrives full: these are the changes
+  // that produced what you are looking at, not whatever happens from now on.
+  const from = useFeedStart(market.data, vault.data);
+  const { changes } = useChanges({ tables: ["market", "vault"], keep: 60, after: from });
+
+  const markets = market.data ?? [];
+  const vaults = vault.data ?? [];
+  const error = market.error ?? vault.error;
+  const connected = market.connected;
   const marketFlash = useFlash(markets, "address");
   const vaultFlash = useFlash(vaults, "address");
-
-  if (!configured)
-    return (
-      <main className="wrap">
-        <h1>No key</h1>
-        <p className="lede">
-          Set <code>VITE_ECHELON_KEY</code> — see <code>.env.example</code>.
-        </p>
-      </main>
-    );
 
   // Deliberately no cross-asset total. Summing APT, USDC and WLFI token counts would
   // need prices this page doesn't have, and a headline number that is quietly wrong is
@@ -195,7 +201,7 @@ export default function App() {
         </a>
         <span className="eyebrow">
           <span className={`dot${connected ? "" : " off"}`} />
-          {error ?? (connected ? "Following Aptos mainnet" : "Connecting…")}
+          {error?.message ?? (connected ? "Following Aptos mainnet" : "Connecting…")}
         </span>
       </nav>
 
@@ -271,10 +277,10 @@ export default function App() {
       <section>
         <h2>Every change, kept and replayed</h2>
         <div className="card feed">
-          {feed.length === 0 ? (
+          {changes.length === 0 ? (
             <p className="empty">Reading the stored changes…</p>
           ) : (
-            feed.map((c) => (
+            changes.map((c) => (
               <div key={`${c.version}.${c.seq}`} className="line">
                 <span className={`op ${c.op}`}>{c.op}</span>
                 <span className="mono">{c.table}</span>

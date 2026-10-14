@@ -79,7 +79,9 @@ than by symmetry.
 
 `echelon-fe` is a standalone Vite app, and a second protocol should not be a second
 copy of it: the shell, the formatting, the feed and the styling are all identical, and
-only the tables, the columns and the sentences differ.
+only the tables, the columns and the sentences differ. Less of it is page-specific than
+it looks — reading, subscribing and the change highlight are all `@nineveh/react` now,
+so what a second demo would be duplicating is the copy and the columns.
 
 Make the page take a protocol description — the tables to read, the columns to show,
 the copy — selected at build time, and deploy the same build twice with different
@@ -89,10 +91,19 @@ exists, not in anticipation of it.
 ## Running one locally
 
 ```sh
-cd demos/echelon-fe
+cd clients/react && npm install && npm run build   # the SDK the page is built on
+cd ../../demos/echelon-fe
 cp .env.example .env     # the project's read key, from Studio → Settings → API keys
 npm install && npm run dev
 ```
+
+The first line is not optional. The page reads its data through
+[`@nineveh/react`](../clients/react), which it depends on as `file:../../clients/react`
+— so npm symlinks the package and resolves it to the `dist/` that `npm run build`
+writes. That directory is generated and untracked, so a fresh clone has none, and
+without it `npm install` here succeeds and the dev server then fails to resolve
+`@nineveh/react`. Rebuild it after changing the SDK, too: the page imports the built
+files, not the sources.
 
 The key reaches the browser, because the page calls the API directly. That is why each
 demo gets a key of its own: revoke it in Studio when the demo is done and nothing else

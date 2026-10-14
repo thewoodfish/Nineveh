@@ -11,6 +11,7 @@ import { NinevehClient } from './client.ts'
 import { NinevehProvider, useNinevehClient } from './provider.ts'
 import type { Row } from './types.ts'
 import { useChanges } from './useChanges.ts'
+import { useFeedStart } from './useFeedStart.ts'
 import { useFlash } from './useFlash.ts'
 import { useLiveTable } from './useLiveTable.ts'
 import { useStatus } from './useStatus.ts'
@@ -322,5 +323,47 @@ test('a rebuild empties the list, because it is no longer the history of these r
   assert.equal(hook.current.changes.length, 1)
   await hook.settle(() => feed.emit('reset'))
   assert.equal(hook.current.changes.length, 0)
+  await hook.unmount()
+})
+
+test('useFeedStart opens just before the oldest row, and does not move once it has', async () => {
+  let rows: Row[] | undefined = undefined
+  const hook = await renderHook(() => useFeedStart(rows))
+  assert.equal(hook.current, null, 'nothing to cover yet')
+
+  rows = [
+    { _version: '9007199254740993', a: 1 },
+    { _version: '9007199254740991', a: 2 },
+    { _version: '9007199254740999', a: 3 },
+  ]
+  await hook.rerender()
+  // One before the oldest, because `after` is exclusive: the change that wrote that
+  // row is the one that explains it. BigInt, because these are past 2^53.
+  assert.equal(hook.current, '9007199254740990.0')
+
+  // The oldest row on screen moves as rows change. The position must not: it is what
+  // the feed was opened with, and recomputing it would reopen the feed each time.
+  rows = [{ _version: '9007199254749999', a: 1 }]
+  await hook.rerender()
+  assert.equal(hook.current, '9007199254740990.0')
+  await hook.unmount()
+})
+
+test('useChanges holds the feed closed while the position is still being worked out', async () => {
+  const { wrap } = project({ rows: {} })
+  let after: string | null = null
+  const hook = await renderHook(() => useChanges({ tables: ['sellers'], after }), wrap)
+  await hook.settle(tick)
+
+  // A page waiting on its first read would otherwise open at the newest change and
+  // reopen with history a moment later: two connections to show one list.
+  assert.equal(FakeFeed.opened.length, 0)
+  assert.equal(hook.current.connected, false)
+
+  after = '900.0'
+  await hook.rerender()
+  await hook.settle(tick)
+  assert.equal(FakeFeed.opened.length, 1)
+  assert.equal(FakeFeed.only().params.get('after'), '900.0')
   await hook.unmount()
 })

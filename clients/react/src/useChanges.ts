@@ -11,11 +11,12 @@ export type ChangesOptions = {
    * feed. The newest change when absent, so the list starts empty and fills as things
    * happen.
    *
-   * Pass a position to open in the past and have the list arrive full. It is read once,
-   * when the subscription opens — a value derived from rows that are themselves moving
-   * would otherwise reopen the feed every time they did.
+   * Pass a position to open in the past and have the list arrive full; `useFeedStart`
+   * works one out from the rows on screen. `null` means the position is not known yet,
+   * and the feed is left closed until it is — without that, a page waiting on its
+   * first read opens at the newest change and has to reopen a moment later.
    */
-  after?: string
+  after?: string | null
   /** How many to keep, newest first. Defaults to 50. */
   keep?: number
 }
@@ -48,6 +49,9 @@ export function useChanges(options?: ChangesOptions): ChangesResult {
   const tables = options?.tables?.join(',')
 
   useEffect(() => {
+    // Not "no position, start at the newest" but "no position yet": whoever is working
+    // one out is not finished, and opening now would mean opening twice.
+    if (after === null) return
     const names = tables === undefined || tables === '' ? undefined : tables.split(',')
     const unsubscribe = client.subscribe({
       ...(names === undefined ? {} : { tables: names }),
