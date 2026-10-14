@@ -113,6 +113,26 @@ rows on screen are not merely late but wrong:
 That is why there is no polling fallback. If you want one anyway, `options.poll` takes
 an interval in milliseconds; it is off by default.
 
+### `useChanges(options?)`
+
+The feed itself, as a list: `{ changes, connected }`. For the view that shows changes
+as the content rather than using them as a signal.
+
+```tsx
+const { changes } = useChanges({ tables: ['sellers'], keep: 60 })
+…
+{changes.map((c) => <li key={`${c.version}.${c.seq}`}>{c.op} {c.table} @{c.version}</li>)}
+```
+
+Newest first, `keep` of them (50 by default), deduplicated by position — the same
+change can arrive twice when a connection resumes.
+
+Changes are **stored as they commit**, not only broadcast, so this can open in the past:
+`after` takes a `version.seq` position, or `'beginning'` for the whole stored feed,
+which is unbounded and usually not what you want. Pass a position and the list arrives
+full instead of filling up as you watch. Every hook still shares one connection — it
+opens at the earliest point any of them asked for.
+
 ### `useStatus(options?)`
 
 How the project is doing: `{ status, behind, synced, progress, loading, error, refetch }`.

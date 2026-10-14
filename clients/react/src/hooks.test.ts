@@ -10,6 +10,7 @@ import { renderHook, quietly } from '../test/render.ts'
 import { NinevehClient } from './client.ts'
 import { NinevehProvider, useNinevehClient } from './provider.ts'
 import type { Row } from './types.ts'
+import { useChanges } from './useChanges.ts'
 import { useFlash } from './useFlash.ts'
 import { useLiveTable } from './useLiveTable.ts'
 import { useStatus } from './useStatus.ts'
@@ -255,5 +256,71 @@ test('a connection that drops and comes back re-reads, because the gap may be un
   assert.equal(hook.current.connected, true)
   assert.equal(readsOf('sellers'), 2)
   assert.deepEqual(hook.current.data, [{ _version: '9', seller: '0xa' }])
+  await hook.unmount()
+})
+
+test('useChanges opens in the past, so the list arrives full rather than empty', async () => {
+  const { wrap } = project({ rows: {} })
+  const hook = await renderHook(() => useChanges({ tables: ['sellers'], after: '900.0' }), wrap)
+  await hook.settle(tick)
+
+  const feed = FakeFeed.only()
+  assert.equal(feed.params.get('after'), '900.0')
+
+  await hook.settle(() => {
+    feed.emit('open')
+    feed.emit('change', change({ version: '901', seq: 1 }))
+    feed.emit('change', change({ version: '902', seq: 1 }))
+  })
+  // Newest first: this is a feed read top-down, not an append-only log.
+  assert.deepEqual(
+    hook.current.changes.map((c) => c.version),
+    ['902', '901'],
+  )
+  assert.equal(hook.current.connected, true)
+  await hook.unmount()
+})
+
+test('useChanges keeps a change once, however many times it is sent', async () => {
+  const { wrap } = project({ rows: {} })
+  const hook = await renderHook(() => useChanges({ tables: ['sellers'], keep: 3 }), wrap)
+  await hook.settle(tick)
+  const feed = FakeFeed.only()
+
+  // A resumed connection replays from the last position the browser saw, and a reopen
+  // for an unrelated reason can start further back still, so the same change arriving
+  // twice is ordinary rather than exceptional.
+  await hook.settle(() => {
+    feed.emit('change', change({ version: '901', seq: 1 }))
+    feed.emit('change', change({ version: '901', seq: 1 }))
+    feed.emit('change', change({ version: '902', seq: 1 }))
+  })
+  assert.deepEqual(
+    hook.current.changes.map((c) => c.version),
+    ['902', '901'],
+  )
+
+  // `keep` is a window on the newest, not a buffer that grows.
+  await hook.settle(() => {
+    feed.emit('change', change({ version: '903', seq: 1 }))
+    feed.emit('change', change({ version: '904', seq: 1 }))
+  })
+  assert.deepEqual(
+    hook.current.changes.map((c) => c.version),
+    ['904', '903', '902'],
+  )
+  await hook.unmount()
+})
+
+test('a rebuild empties the list, because it is no longer the history of these rows', async () => {
+  const { wrap } = project({ rows: {} })
+  const hook = await renderHook(() => useChanges({ tables: ['sellers'] }), wrap)
+  await hook.settle(tick)
+  const feed = FakeFeed.only()
+
+  await hook.settle(() => feed.emit('change', change({ version: '901', seq: 1 })))
+  assert.equal(hook.current.changes.length, 1)
+  await hook.settle(() => feed.emit('reset'))
+  assert.equal(hook.current.changes.length, 0)
   await hook.unmount()
 })

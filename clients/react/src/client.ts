@@ -50,6 +50,15 @@ export class NinevehError extends Error {
 export type Subscription = {
   /** Which tables to hear about. Every table when absent. */
   tables?: readonly string[]
+  /**
+   * Where to start: a `version.seq` position, or `'beginning'` for the whole stored
+   * feed. The newest change when absent, which is what a live table wants.
+   *
+   * Changes are stored as they commit rather than only broadcast, so a feed can open
+   * in the past. That is what makes an activity view arrive full instead of empty —
+   * and `'beginning'` grows without bound, so a position is usually the better ask.
+   */
+  after?: string
   onChange?: (change: Change) => void
   /**
    * The tables were rebuilt and a new build was swapped in. Everything listed before
@@ -82,6 +91,8 @@ export class NinevehClient {
   private source: EventSource | undefined
   /** The tables the open connection asked for; undefined means all of them. */
   private open: ReadonlySet<string> | undefined
+  /** Where the open connection started, so a subscriber wanting more history reopens. */
+  private openedAt: string | undefined
   /** The last change delivered, as `version.seq`: where to resume from on a reopen. */
   private position: string | undefined
   private reopening = false
@@ -158,6 +169,7 @@ export class NinevehClient {
     this.source?.close()
     this.source = undefined
     this.open = undefined
+    this.openedAt = undefined
   }
 
   private async read<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -210,24 +222,27 @@ export class NinevehClient {
       this.close()
       return
     }
-    if (this.source !== undefined && this.covers(this.open)) return
+    if (this.source !== undefined && this.covers()) return
     if (this.reopening) return
     this.reopening = true
     queueMicrotask(() => {
       this.reopening = false
-      if (this.subscribers.size === 0 || (this.source !== undefined && this.covers(this.open))) {
+      if (this.subscribers.size === 0 || (this.source !== undefined && this.covers())) {
         return
       }
       this.connect()
     })
   }
 
-  /** Whether a connection carrying `open` hears everything the subscribers want. */
-  private covers(open: ReadonlySet<string> | undefined): boolean {
-    if (open === undefined) return true
+  /** Whether the open connection hears everything the subscribers want. */
+  private covers(): boolean {
     for (const subscriber of this.subscribers) {
+      // A connection that started later than a subscriber wants has already passed the
+      // history it is asking for, and a feed cannot be rewound — only reopened.
+      if (earlier(this.openedAt, subscriber.after) !== this.openedAt) return false
+      if (this.open === undefined) continue
       if (subscriber.tables === undefined) return false
-      if (subscriber.tables.some((table) => !open.has(table))) return false
+      if (subscriber.tables.some((table) => !this.open?.has(table))) return false
     }
     return true
   }
@@ -236,25 +251,31 @@ export class NinevehClient {
     this.close()
     const wanted = new Set<string>()
     let all = false
+    // Where to open: early enough for every subscriber. One connection serves them
+    // all, so it starts at the earliest point any of them asked for, and the ones that
+    // only wanted what happens next are handed some history they did not need — which
+    // for a live table is a burst of changes that debounces into one re-read.
+    let start = this.position
     for (const subscriber of this.subscribers) {
       if (subscriber.tables === undefined) all = true
       else for (const table of subscriber.tables) wanted.add(table)
+      start = earlier(start, subscriber.after)
     }
     const params = new URLSearchParams()
     // `EventSource` cannot set headers, so the key goes on the URL — the one place it
     // has to. Reads never touch the chain, which is what makes that acceptable.
     if (this.apiKey !== undefined) params.set('apikey', this.apiKey)
     if (!all && wanted.size > 0) params.set('tables', [...wanted].join(','))
-    // Resume where the last connection left off; without a position, start at the
-    // newest change. Rows are re-read on any change anyway, so a hook that joins late
-    // never needs history — it needs to know that something moved.
-    if (this.position !== undefined) params.set('after', this.position)
+    // Without a start, the newest change: a live table re-reads on any change, so a
+    // hook that joins late never needs history — it needs to know that something moved.
+    if (start !== undefined) params.set('after', start)
 
     // Non-null because `subscribe` refuses without it, and nothing connects unsubscribed.
     const Feed = this.eventSource ?? globalThis.EventSource
     const source = new Feed(`${this.project}/v1/changes?${params.toString()}`)
     this.source = source
     this.open = all ? undefined : wanted
+    this.openedAt = start
     source.addEventListener('open', () => {
       for (const subscriber of [...this.subscribers]) subscriber.onOpen?.()
     })
@@ -284,6 +305,43 @@ export class NinevehClient {
       this.schema = undefined
       for (const subscriber of [...this.subscribers]) subscriber.onReset?.()
     })
+  }
+}
+
+/**
+ * The earlier of two places to open the feed, so one connection can serve both.
+ *
+ * Three kinds of value, ordered: `'beginning'` is before everything, a `version.seq`
+ * position sits where it says, and `undefined` — the newest change — is after
+ * everything, which makes it the identity here rather than a missing value.
+ */
+export function earlier(a: string | undefined, b: string | undefined): string | undefined {
+  if (a === undefined) return b
+  if (b === undefined) return a
+  if (a === BEGINNING || b === BEGINNING) return BEGINNING
+  const left = position(a)
+  const right = position(b)
+  // An unparseable position is handed to the server as it is rather than silently
+  // reordered: the server validates it and says what is wrong with it.
+  if (left === undefined) return a
+  if (right === undefined) return b
+  if (left[0] !== right[0]) return left[0] < right[0] ? a : b
+  return left[1] <= right[1] ? a : b
+}
+
+/** The whole stored feed, which is what the server calls this. */
+const BEGINNING = 'beginning'
+
+/** `version.seq` as a pair to compare. Versions are past what a number holds. */
+function position(value: string): [bigint, number] | undefined {
+  const dot = value.lastIndexOf('.')
+  if (dot <= 0) return undefined
+  const seq = Number(value.slice(dot + 1))
+  if (!Number.isInteger(seq)) return undefined
+  try {
+    return [BigInt(value.slice(0, dot)), seq]
+  } catch {
+    return undefined
   }
 }
 

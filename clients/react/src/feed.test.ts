@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { beforeEach, test } from 'node:test'
 
 import { FakeFeed, feedSource, tick } from '../test/feed.ts'
-import { NinevehClient } from './client.ts'
+import { earlier, NinevehClient } from './client.ts'
 import type { Change } from './types.ts'
 
 /** A client whose feed is a fake, and whose reads answer with `tables`. */
@@ -175,4 +175,60 @@ test('subscribing with no EventSource to subscribe with says how to fix it', () 
   } finally {
     globalThis.EventSource = had
   }
+})
+
+test('positions order with beginning first and the newest change last', () => {
+  // `undefined` is the newest change, so it is the identity: whatever it is paired
+  // with is earlier than it.
+  assert.equal(earlier(undefined, undefined), undefined)
+  assert.equal(earlier(undefined, '10.1'), '10.1')
+  assert.equal(earlier('10.1', undefined), '10.1')
+  assert.equal(earlier('beginning', '10.1'), 'beginning')
+  assert.equal(earlier('beginning', undefined), 'beginning')
+  assert.equal(earlier('10.1', '10.4'), '10.1')
+  assert.equal(earlier('10.4', '10.1'), '10.1')
+  assert.equal(earlier('9.1', '10.1'), '9.1')
+  // Versions run past what a double holds exactly, so they compare as BigInt: as
+  // numbers these two are the same value.
+  assert.equal(earlier('9007199254740993.0', '9007199254740992.0'), '9007199254740992.0')
+  // Nonsense is passed through for the server to reject rather than reordered here.
+  assert.equal(earlier('nonsense', '10.1'), 'nonsense')
+})
+
+test('one connection opens early enough for every subscriber on the page', async () => {
+  const { client: c } = client()
+  c.subscribe({ tables: ['sellers'] })
+  c.subscribe({ tables: ['sellers'], after: '900.0' })
+  await tick()
+
+  // The live table asked for nothing and gets history it does not need; the activity
+  // view asked for history and gets it. One connection, and the earlier ask wins.
+  assert.equal(FakeFeed.only().params.get('after'), '900.0')
+})
+
+test('a subscriber wanting more history than the open connection carries reopens it', async () => {
+  const { client: c } = client()
+  c.subscribe({ tables: ['sellers'], after: '900.0' })
+  await tick()
+  assert.equal(FakeFeed.opened.length, 1)
+
+  // Later than what is open: already covered, since the feed runs forward from 900.0.
+  c.subscribe({ tables: ['sellers'], after: '950.0' })
+  await tick()
+  assert.equal(FakeFeed.opened.length, 1, 'a later position needs no reopen')
+
+  // Earlier: the open connection has already gone past it, and a feed cannot be
+  // rewound — only opened again further back.
+  c.subscribe({ tables: ['sellers'], after: 'beginning' })
+  await tick()
+  assert.equal(FakeFeed.opened.length, 2)
+  assert.equal(FakeFeed.opened[1]?.params.get('after'), 'beginning')
+})
+
+test('a live subscriber alone still opens at the newest change', async () => {
+  const { client: c } = client()
+  c.subscribe({ tables: ['sellers'] })
+  c.subscribe({ tables: ['buyers'] })
+  await tick()
+  assert.equal(FakeFeed.only().params.get('after'), null)
 })
