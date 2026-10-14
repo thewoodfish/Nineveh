@@ -77,13 +77,15 @@ In order, if you're new:
    it, drive it from the Aptos CLI, and query what comes out. Start here; everything
    else makes more sense after it. Half an hour, and it needs the Aptos CLI and a
    GitHub account.
-2. **[Reducers](reducers.md)**: how to say what your tables hold. This is the part
+2. **[Studio](studio.md)**: the dashboard, surface by surface — and the vocabulary,
+   since the words are the model. Read it if you'd rather click than write YAML.
+3. **[Reducers](reducers.md)**: how to say what your tables hold. This is the part
    you'll spend your time in.
-3. **[Reading your data](reading.md)**: the REST API, the change feed, webhooks.
-4. **[Reading from React](react.md)**: the same, from an app — the hooks, and generated
+4. **[Reading your data](reading.md)**: the REST API, the change feed, webhooks.
+5. **[Reading from React](react.md)**: the same, from an app — the hooks, and generated
    types for your own tables. `npm create nineveh-app` if you want rows on a screen
    before you read anything.
-5. **[Running a project](running.md)**: changing it, what a rebuild costs, limits, and
+6. **[Running a project](running.md)**: changing it, what a rebuild costs, limits, and
    what to do when something looks wrong.
 
 And if you are weighing this against writing it yourself:
