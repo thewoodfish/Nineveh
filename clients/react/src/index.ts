@@ -14,6 +14,8 @@ export { NinevehProvider, useNinevehClient } from './provider.ts'
 export type { NinevehProviderProps } from './provider.ts'
 export { declaration, tsType } from './declare.ts'
 export { MAX_LIMIT, queryString } from './query.ts'
+export { parseQuery, snippet } from './snippet.ts'
+export type { SnippetOptions } from './snippet.ts'
 export type { AnyRow, Columns, OrderBy, RowOf, TableName } from './schema.ts'
 
 /**

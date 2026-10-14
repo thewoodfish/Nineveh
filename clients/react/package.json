@@ -1,6 +1,6 @@
 {
   "name": "@nineveh/react",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "React hooks for a Nineveh project: query state tables and subscribe to their changes.",
   "license": "Apache-2.0",
   "homepage": "https://nineveh.dev/docs/reading",
