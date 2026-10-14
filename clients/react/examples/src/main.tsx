@@ -8,7 +8,7 @@ import { Holders } from './holders'
 import { Leaderboard } from './leaderboard'
 import './styles.css'
 
-const PROJECT = import.meta.env.VITE_NINEVEH_PROJECT ?? 'http://127.0.0.1:4000/projects/market'
+const PROJECT = import.meta.env.VITE_NINEVEH_PROJECT ?? 'http://127.0.0.1:4000'
 const KEY = import.meta.env.VITE_NINEVEH_KEY ?? ''
 
 const EXAMPLES = [

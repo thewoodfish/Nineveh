@@ -27,9 +27,18 @@ symlinks the package and resolves it to the `dist/` that `npm run build` writes 
 `dist/` is generated and untracked, so a fresh clone has none. Rebuild it after changing
 the SDK too: these import the built files, not the sources.
 
-By default they read `http://127.0.0.1:4000/projects/market`, which is a plane you are
-running in local mode — loopback, no key. For a hosted project, copy `.env.example` to
-`.env` and paste its URL and a read key.
+The base URL is everything before `/v1`, and which it is depends on how the project is
+served:
+
+| | Base URL |
+| --- | --- |
+| `nineveh run --serve` | `http://127.0.0.1:4000` — one project, at the root |
+| `nineveh up` | `http://127.0.0.1:4000/projects/market` — many, each under its name |
+| hosted | `https://api.nineveh.dev/projects/market` |
+
+The default is the first, and loopback in local mode needs no key, so for that leave
+both variables unset. Otherwise copy `.env.example` to `.env` and paste the URL and a
+read key.
 
 ## The project they expect
 
