@@ -7,13 +7,34 @@ questions asked of them.
 ## What you need first
 
 A Nineveh **project**: a backend that is already following a contract and has tables in
-it. It gives you two things — a URL and a read key — and those are the only inputs on
-this page.
+it. It gives you the two inputs on this page, and they are the only two.
 
-Don't have one? Make one in [Studio](https://studio.nineveh.dev): paste a contract
+**1. The project's API URL** — the address its tables are served from. It is everything
+before `/v1`:
+
+```text
+https://api.nineveh.dev/projects/myproject
+```
+
+Append `/v1/tables` to that and you get the list of tables, which is exactly what the
+hooks read. Studio's Overview shows this URL under *Your API*; it is the one to paste.
+
+**2. An API key for that project** — created in Studio under Settings, and shown once:
+
+```text
+nvk_a1b2c3d4e5f6…
+```
+
+**The key can only read.** Not because it is a restricted kind of key — there is one
+kind — but because the project's API is three `GET` routes and nothing else: the status,
+the list of tables, and the rows of one table. There is no write to authorise. A Nineveh
+table is a read-only projection of chain state, and the only thing that ever writes one
+is a reducer, inside the backend.
+
+Don't have a project? Make one in [Studio](https://studio.nineveh.dev): paste a contract
 address, tick what to follow, and it builds while you watch.
-[Your first backend](first-backend.md) is that walk-through. If someone has handed you a
-project's URL and key, you already have everything.
+[Your first backend](first-backend.md) is that walk-through. If someone has handed you
+a URL and a key, you already have everything.
 
 ## 1. Install
 
@@ -52,13 +73,15 @@ export function App() {
 }
 ```
 
-`project` is everything before `/v1`. A project served by `nineveh up` sits at
-`/projects/<name>`; one served by `nineveh run --serve` sits at the root, and in local
-mode over loopback it needs no key at all.
+`project` is the API URL from above — everything before `/v1`, because the hooks append
+the rest themselves. A project served by `nineveh up` sits at `/projects/<name>`; one
+served by `nineveh run --serve` sits at the root, and in local mode over loopback it
+needs no key at all.
 
-**The key reaches the browser, and that is intended.** Reads only ever touch your state
-tables in Postgres, never the chain, so an exposed read key spends no stream credit. Give
-each frontend its own and revoke it when it is done.
+**The key reaches the browser, and that is intended.** It can only read, and reads only
+ever touch your state tables in Postgres — never the chain — so an exposed key spends no
+stream credit and can change nothing. Give each frontend its own and revoke it when it
+is done; revoking one leaves the others working, which is the reason to do it that way.
 
 ## 3. Read a table
 
