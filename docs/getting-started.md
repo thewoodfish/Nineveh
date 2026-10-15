@@ -46,9 +46,8 @@ From nothing at all:
 npm create nineveh-app@latest
 ```
 
-It asks for the URL and the key, asks the *project* what it holds — `GET /v1/tables`
-reports every table's kind, key and typed columns — and writes a working page against
-one of your real tables, with the types for all of them generated beside it.
+It asks for the URL and the key, then writes a working app against one of your real
+tables, with types for all of them generated beside it.
 
 Into an app you already have:
 

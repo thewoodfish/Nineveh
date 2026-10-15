@@ -4,51 +4,9 @@
 webhooks. This page is the same thing from a React app, where `@nineveh/react` does the
 fetching, holds the change feed open, and keeps the types honest.
 
-Nothing here is a new capability. It is the common cases made short.
-
-## From nothing to rows on a screen
-
-```sh
-npm create nineveh-app@latest
-```
-
-It asks for your project's URL and a read key, then asks the *project* what it holds —
-`GET /v1/tables` reports every table's kind, key and typed columns — and writes a page
-showing one of your tables, with the types for all of them generated beside it.
-
-```sh
-cd my-app && npm run dev
-```
-
-That's the whole quickstart. The rest of this page is what to do once you want a second
-page.
-
-## In an app you already have
-
-```sh
-npm install @nineveh/react
-```
-
-Wrap it once:
-
-```tsx
-import { NinevehProvider } from "@nineveh/react";
-
-<NinevehProvider
-  project="https://api.nineveh.dev/projects/myproject"
-  apiKey={import.meta.env.VITE_NINEVEH_KEY}
->
-  <App />
-</NinevehProvider>
-```
-
-The `project` is everything before `/v1`. A project served by `nineveh up` is at
-`/projects/<name>`; one served by `nineveh run --serve` is at the root, and in local mode
-over loopback it needs no key at all.
-
-**The key reaches the browser, and that is intended.** Reads only ever touch your state
-tables in Postgres, never the chain, so an exposed read key spends no stream credit. Give
-each frontend its own and revoke it when it's done.
+Nothing here is a new capability; it is the common cases made short.
+[Getting started](getting-started.md) gets the first rows onto a screen — this page is
+every hook, and the query language they share.
 
 ## The hooks
 
