@@ -4,11 +4,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { useEffect, useState } from "react";
 
-import { Button, Card, Field, field, Notice, Segmented } from "@/components/ui";
+import {
+  CatalogGroups,
+  matching,
+} from "@/components/catalog-picker";
+import { Button, Field, field, Notice, Segmented } from "@/components/ui";
 import {
   ApiError,
   type Catalog,
-  type CatalogItem,
   type History,
   type Network,
   type Start,
@@ -16,32 +19,6 @@ import {
 } from "@/lib/api";
 import { formatInteger } from "@/lib/format";
 import { useProject } from "@/lib/project";
-
-const KINDS: {
-  kind: CatalogItem["kind"];
-  title: string;
-  becomes: string;
-  hint: string;
-}[] = [
-  {
-    kind: "event",
-    title: "Events",
-    becomes: "log",
-    hint: "a row per event, in order",
-  },
-  {
-    kind: "resource",
-    title: "Resources",
-    becomes: "mirror",
-    hint: "the latest value at each address",
-  },
-  {
-    kind: "table",
-    title: "Tables",
-    becomes: "mirror",
-    hint: "the latest value of each item",
-  },
-];
 
 type Failure = { message: string; details?: string };
 
@@ -286,27 +263,12 @@ export default function NewProject() {
                   className={`${field} mt-3 mb-3 w-full`}
                 />
               )}
-              <div
-                className={`flex flex-col gap-4 ${choosing ? "" : "hidden"}`}
-              >
-                {KINDS.map(({ kind, title, becomes, hint }) => (
-                  <Group
-                    key={kind}
-                    title={title}
-                    hint={`${becomes} table: ${hint}`}
-                    items={catalog.items.filter(
-                      (i) =>
-                        i.kind === kind &&
-                        `${i.module}::${i.name}`
-                          .toLowerCase()
-                          .includes(search.trim().toLowerCase()),
-                    )}
-                    becomes={becomes}
-                    picked={picked}
-                    setPicked={setPicked}
-                  />
-                ))}
-              </div>
+              <CatalogGroups
+                className={choosing ? "" : "hidden"}
+                items={matching(catalog.items, search)}
+                picked={picked}
+                setPicked={setPicked}
+              />
             </Step>
 
             <Step n={2} title="Name and history">
@@ -475,121 +437,6 @@ function Step({
   );
 }
 
-function Group({
-  title,
-  hint,
-  items,
-  becomes,
-  picked,
-  setPicked,
-}: {
-  title: string;
-  hint: string;
-  items: CatalogItem[];
-  becomes: string;
-  picked: Set<string>;
-  setPicked: (next: Set<string>) => void;
-}) {
-  if (items.length === 0) return null;
-  const followable = items.filter((i) => !i.unsupported);
-  const all = followable.every((i) => picked.has(i.id));
-  const toggleAll = () => {
-    const next = new Set(picked);
-    for (const i of followable) {
-      if (all) next.delete(i.id);
-      else next.add(i.id);
-    }
-    setPicked(next);
-  };
-  const toggle = (id: string) => {
-    const next = new Set(picked);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setPicked(next);
-  };
-  return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-high px-4 py-2.5">
-        <div className="text-sm">
-          <span className="font-medium">{title}</span>{" "}
-          <span className="text-xs text-on-surface-variant">
-            {followable.filter((i) => picked.has(i.id)).length} of{" "}
-            {items.length} · {hint}
-          </span>
-        </div>
-        {followable.length > 0 && (
-          <button
-            type="button"
-            onClick={toggleAll}
-            className="state rounded-xs px-1 text-xs font-medium text-primary hover:underline"
-          >
-            {all ? "None" : "All"}
-          </button>
-        )}
-      </div>
-      <ul className="divide-y divide-outline-variant">
-        {items.map((item) => (
-          <li key={item.id}>
-            <label
-              className={`flex items-start gap-3 px-4 py-2.5 text-sm ${
-                item.unsupported
-                  ? "opacity-50"
-                  : "cursor-pointer hover:bg-surface-container-high"
-              }`}
-            >
-              <input
-                type="checkbox"
-                disabled={!!item.unsupported}
-                checked={picked.has(item.id)}
-                onChange={() => toggle(item.id)}
-                className="mt-0.5 accent-primary"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="font-mono text-[13px] font-medium">
-                    {item.name}
-                  </span>
-                  <span className="text-xs text-on-surface-variant">
-                    {item.module}
-                  </span>
-                  {item.generic && (
-                    <span className="text-xs text-on-surface-variant">
-                      generic
-                    </span>
-                  )}
-                  {item.variants.length > 0 && (
-                    <span
-                      className="text-xs text-on-surface-variant"
-                      title="A Move enum: its table gets a column per field of any variant"
-                    >
-                      enum {item.variants.join(", ")}
-                    </span>
-                  )}
-                </div>
-                <div className="truncate font-mono text-xs text-on-surface-variant">
-                  {item.unsupported ??
-                    item.fields
-                      .map((f) => `${f.name}: ${shortType(f.type)}`)
-                      .join(", ")}
-                </div>
-              </div>
-              {!item.unsupported && (
-                <span
-                  className="hidden max-w-56 shrink-0 truncate font-mono text-xs text-on-surface-variant sm:block"
-                  title={`${item.suggested_name} (${becomes} table)`}
-                >
-                  → {item.suggested_name}{" "}
-                  <span className="text-on-surface-variant/50">{becomes}</span>
-                </span>
-              )}
-            </label>
-          </li>
-        ))}
-      </ul>
-    </Card>
-  );
-}
-
 function Choice({
   active,
   onClick,
@@ -645,11 +492,6 @@ function shortAddress(address: string): string {
   return address.length > 14
     ? `${address.slice(0, 8)}…${address.slice(-4)}`
     : address;
-}
-
-/** `0xabc…::module::Type<…>` → `module::Type<…>`: the address is the contract's own. */
-function shortType(type: string): string {
-  return type.replace(/0x[0-9a-f]{64}::/g, "");
 }
 
 /** The module most of the catalog lives in, as an unused project name. */
