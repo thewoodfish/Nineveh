@@ -1,8 +1,8 @@
 # Types for your own tables
 
-Every hook works without this page. Generated types sharpen them; they are not a
-dependency. What you get is the compiler knowing your project's table names, column
-names, and — the part that matters — which columns are numbers and which are strings.
+One generated file and the compiler knows your project: every table name, every column
+name, and — the part that matters — which columns are numbers and which are strings.
+None of it is required; all of it is one command.
 
 ## Generating them
 
@@ -11,9 +11,9 @@ npx nineveh-types https://api.nineveh.dev/projects/myproject --key nvk_…
 # wrote src/nineveh-tables.d.ts: 5 tables, 25 columns
 ```
 
-It asks the project what it holds and writes one declaration file. That file augments
-the package with your project's tables. It needs no importing — what matters is that it
-sits inside your tsconfig's `include`, which is why it defaults to `src/`. A declaration
+It asks the project what it holds and writes one declaration file. Nothing imports it —
+it only has to sit somewhere your `tsconfig.json` already includes, which is why it
+defaults to `src/`. Put it outside and nothing breaks and nothing works: a declaration
 file the compiler never reads changes nothing and doesn't say so.
 
 Commit it. It is generated, but it is also the contract your app is written against, and
@@ -22,10 +22,11 @@ a reviewer should see it change when the backend does.
 ## What stops compiling
 
 ```tsx
-useTable("sellres")                       // error: did you mean 'sellers'?
-useTable("sellers", { order: "revenu" })  // error: did you mean 'revenue'?
-row.revenue * 2                           // error: revenue is a u128, so it's a string
-row.event_index * 2                       // fine: event_index is a u32, so it's a number
+useTable("sellres")                       // did you mean 'sellers'?
+useTable("sellers", { order: "revenu" })  // did you mean 'revenue'?
+
+row.revenue * 2       // error: a u128 arrives as a string
+row.event_index * 2   // fine: a u32 arrives as a number
 ```
 
 That last pair is the point.

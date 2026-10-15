@@ -23,15 +23,18 @@ A bare value in `where` is equality; an object compares, with `eq`, `neq`, `gt`,
 `lt`, `lte`:
 
 ```tsx
-useTable("balances", { where: { balance: { gte: 100, lt: 500 } } });  // a range
-useTable("sellers", { order: ["revenue.desc", "seller"], limit: 10 }); // a leaderboard
+// a range
+useTable("balances", { where: { balance: { gte: 100, lt: 500 } } });
+
+// a leaderboard
+useTable("sellers", { order: ["revenue.desc", "seller"], limit: 10 });
 ```
 
-That operator list is the whole set, deliberately: each one is a single comparison
-against a single column, which is what a database answers from an index on it. No
-`like`, no `in`, no `or`, nothing spanning two columns — those belong in a
-[reducer](reducers.md), computed once as the row is written rather than searched for on
-every request.
+That list is the whole set, deliberately: every one of them is a single comparison
+against a single column, which is the kind of question that stays fast as a table grows.
+No `like`, no `in`, no `or`, nothing spanning two columns — those belong in a
+[reducer](reducers.md), worked out once as the row is written rather than searched for
+on every request.
 
 Two columns in `order` because one is rarely enough: a leaderboard on revenue has ties,
 and which row comes first inside a tie decides what page two shows.
@@ -55,11 +58,10 @@ actually open, so a "live" dot can be honest.
 
 Every live hook on a page shares **one** connection.
 
-Two things make it re-read immediately rather than on the debounce, because in both the
-rows on screen are wrong rather than merely late: a **rebuild**, which is what a config
-change looks like and arrives as a `reset`, and a **reconnection**, because the feed
-keeps seven days and a gap longer than that cannot be replayed. That is why there is no
-polling fallback.
+Changes are batched a few times a second. Two things skip the wait and re-read at once,
+because after either one the rows on screen are wrong rather than merely late: a
+**rebuild**, which is what changing your project's config looks like from here, and a
+**reconnection**, because a gap in the feed can be longer than the feed remembers.
 
 ### `useChanges` — what has been happening
 
@@ -69,10 +71,10 @@ For the view that shows changes as the content rather than using them as a signa
 const { changes } = useChanges({ tables: ["sales"], keep: 60 });
 ```
 
-Changes are stored as they commit, not only broadcast, so this can open in the past:
-`after` takes a `version.seq` position, or `'beginning'` for the whole stored feed.
-`useFeedStart(rows)` works a position out from the rows you are showing, so the list
-arrives full instead of filling up as you watch.
+Changes are kept, not only broadcast, so this can start in the past rather than from
+the moment the page loaded. `after` takes a position in the feed, or `'beginning'` for
+all of it. `useFeedStart(rows)` works a position out from the rows you are already
+showing, so the list arrives full instead of filling up while you watch.
 
 ### `useStatus` — is it keeping up
 
@@ -94,19 +96,11 @@ const flashing = useFlash(data, ["seller"]);
 The set of row keys whose `_version` just moved. `_version` is on every row and says
 which transaction last wrote it, so there is no value-diffing to get wrong.
 
-## Types for your own tables
+## Typing your own tables
 
-One command writes a declaration file for your project's tables, after which a mistyped
-column name stops compiling and a `u128` stops pretending to be a number:
-
-```sh
-npx nineveh-types https://api.nineveh.dev/projects/myproject --key nvk_…
-# wrote src/nineveh-tables.d.ts: 5 tables, 25 columns
-```
-
-Nothing requires it — without it every hook still works and rows are `Row`, whose
-columns are `unknown`. [Types](types.md) is what it generates, and the rule about wide
-integers that makes it worth generating.
+Without generated types every hook still works, and rows are `Row`, whose columns are
+`unknown`. With them, a mistyped table or column name stops compiling and every column
+arrives as the right type. One command does it: [Types](types.md).
 
 ## Without React
 
@@ -114,8 +108,16 @@ integers that makes it worth generating.
 
 ```ts
 const client = new NinevehClient({ project, apiKey });
-const page = await client.rows("sellers", { order: "revenue.desc", limit: 10 });
-const stop = client.subscribe({ tables: ["sellers"], onChange: (c) => console.log(c) });
+
+const page = await client.rows("sellers", {
+  order: "revenue.desc",
+  limit: 10,
+});
+
+const stop = client.subscribe({
+  tables: ["sellers"],
+  onChange: (change) => console.log(change),
+});
 ```
 
 `fetch` and `eventSource` can both be passed in, for a server render, a test, or a
@@ -124,9 +126,9 @@ polyfill that puts the key in a header. Node's own `EventSource` is behind
 
 ## What this doesn't do
 
-No writes: a Nineveh table is a read-only projection of chain state. No cache beyond
-each hook's own rows — at these sizes two components reading one table is two reads, and
-that is fine. No GraphQL yet.
+No writes — your tables are built inside the backend, and nothing out here can change
+them. No cache beyond each hook's own rows: at these sizes two components reading one
+table is two reads, and that is fine. No GraphQL yet.
 
-Four worked examples, each one file:
-[`clients/react/examples`](https://github.com/thewoodfish/Nineveh/blob/main/clients/react/examples/README.md).
+There are [four worked examples](https://github.com/thewoodfish/Nineveh/blob/main/clients/react/examples/README.md),
+each one file.

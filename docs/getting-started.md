@@ -51,7 +51,7 @@ leaderboard/
 ├─ src/
 │  ├─ App.tsx                 a live table, built from your real columns
 │  ├─ main.tsx                the provider, reading .env
-│  ├─ nineveh-tables.d.ts     generated: every table, every column, typed
+│  ├─ nineveh-tables.d.ts     generated: every table and column, typed
 │  └─ styles.css              yours to replace
 ├─ .env                       your URL and key, already gitignored
 └─ package.json               vite, react, @nineveh/react
