@@ -1,8 +1,8 @@
 # Getting started
 
-Rows from an Aptos contract on a screen, in a React app, in about five minutes. One
-package, three hooks. Everything after this page is the same three hooks with different
-questions asked of them.
+Rows from an Aptos contract on a screen, in a React app. One command scaffolds a
+working one against your own tables; the rest of this page is the same thing by hand,
+in an app you already have.
 
 ## What you need first
 
@@ -38,26 +38,58 @@ address, tick what to follow, and it builds while you watch.
 [Your first backend](first-backend.md) is that walk-through. If someone has handed you
 a URL and a key, you already have everything.
 
-## 1. Install
-
-From nothing at all:
+## 1. Scaffold it
 
 ```sh
 npm create nineveh-app@latest
 ```
 
-It asks for the URL and the key, then writes a working app against one of your real
-tables, with types for all of them generated beside it.
+It asks for a folder, the URL and the key, then asks the project what tables it holds
+and writes an app around one of them:
 
-Into an app you already have:
+```text
+leaderboard/
+├─ src/
+│  ├─ App.tsx                 a live table, built from your real columns
+│  ├─ main.tsx                the provider, reading .env
+│  ├─ nineveh-tables.d.ts     generated: every table, every column, typed
+│  └─ styles.css              yours to replace
+├─ .env                       your URL and key, already gitignored
+└─ package.json               vite, react, @nineveh/react
+```
+
+It installs and generates the types for you, so:
+
+```sh
+cd leaderboard && npm run dev
+```
+
+## 2. What you just made
+
+A working Aptos frontend. Not a placeholder with sample data in it — the table on screen
+is one of yours, the columns are the ones your contract actually writes, and it is live:
+when the chain changes a row, the row changes and flashes.
+
+From here it is an ordinary React app, and the two things worth doing first are both in
+`src/App.tsx`:
+
+- **Show a different table.** Change the name in `useLiveTable` — the generated types
+  will tell you which ones exist, and which columns each has.
+- **Show something the contract never stored.** A total, a count, a leaderboard. That is
+  a [reducer](reducers.md), written in Studio; the table it produces reads from here
+  exactly like any other.
+
+The rest of this page is the same thing done by hand, for an app you already have.
+
+## 3. Point it at your project
+
+In an app of your own, install the package:
 
 ```sh
 npm install @nineveh/react
 ```
 
-## 2. Point it at your project
-
-Wrap the app once:
+and wrap it once:
 
 ```tsx
 import { NinevehProvider } from "@nineveh/react";
@@ -84,7 +116,7 @@ ever touch your state tables in Postgres — never the chain — so an exposed k
 stream credit and can change nothing. Give each frontend its own and revoke it when it
 is done; revoking one leaves the others working, which is the reason to do it that way.
 
-## 3. Read a table
+## 4. Read a table
 
 ```tsx
 import { useTable } from "@nineveh/react";
@@ -117,7 +149,7 @@ answer with the three states a fetch has. The query is the REST query and no wid
 Two columns in `order` because one is rarely enough — a leaderboard on revenue has ties,
 and which row wins a tie decides what page two shows.
 
-## 4. Keep it current
+## 5. Keep it current
 
 Change one import and the same rows follow the chain:
 
@@ -135,7 +167,9 @@ A change tells the hook that something moved; it does not carry the new rows. On
 change they are read again, which is simpler and always right — a change can reorder
 rows or push one out of a `limit: 10` window, and only the server knows which.
 
-## 5. Make the compiler check your column names
+## 6. Let the compiler check your column names
+
+The scaffolder did this for you; in your own app it is one command:
 
 ```sh
 npx nineveh-types https://api.nineveh.dev/projects/myproject --key nvk_…
@@ -143,8 +177,8 @@ npx nineveh-types https://api.nineveh.dev/projects/myproject --key nvk_…
 ```
 
 From here `useTable("sellres")` stops compiling, and so does multiplying a `u128` as if
-it were a number. Nothing requires it — [Types](types.md) is what it does and why the
-integer rule matters.
+it were a number. Nothing requires it — [Types](types.md) is what it does, and why the
+rule about wide integers is the part that matters.
 
 ## Where to go next
 
