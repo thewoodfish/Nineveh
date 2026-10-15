@@ -219,6 +219,17 @@ function ProjectNav() {
         Overview
       </NavLink>
 
+      {/* Ahead of Tables, because that is the order the model runs in: the chain
+          writes, a source follows it, a reducer folds it into a table. Someone looking
+          for "where does this data come from" should meet the inputs first. */}
+      <NavLink
+        href={href("/sources")}
+        active={pathname === "/sources"}
+        icon="input"
+      >
+        Sources
+      </NavLink>
+
       <div className="flex items-center gap-1">
         {/* Lit only on the list itself. Inside a table it is that table's row that
             lights, and two lit rows in one group say less than one does. */}

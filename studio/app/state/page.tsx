@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -26,7 +27,7 @@ import {
   type SourceInfo,
   type Table,
 } from "@/lib/api";
-import { useProject } from "@/lib/project";
+import { useHref, useProject } from "@/lib/project";
 import {
   type StateTable,
   alsoFolds,
@@ -155,6 +156,7 @@ export default function StateTablePage() {
 
 function StateTableEditor() {
   const { name: project, mode, base } = useProject();
+  const href = useHref();
   const router = useRouter();
   // `?table=` opens a saved table to change, instead of designing a new one.
   const editing = useSearchParams().get("table");
@@ -557,6 +559,19 @@ function StateTableEditor() {
                     onToggle={toggleSource}
                     onFirst={foldFirst}
                   />
+                  {/* The moment the missing source is actually missed. A rule can only
+                      fold what the project follows, and until Sources existed the
+                      answer to "it isn't in this list" was to start again. */}
+                  <p className="text-xs text-on-surface-variant">
+                    Not the records you wanted?{" "}
+                    <Link
+                      href={href("/sources")}
+                      className="text-primary hover:underline"
+                    >
+                      Follow another source
+                    </Link>{" "}
+                    — it has to be followed before a rule can read it.
+                  </p>
                   {/* One schema per ticked source, because picking a key that works for
                       all of them means reading all of them. Each is shortened to its
                       first fields, so two of them still fit on a screen. */}

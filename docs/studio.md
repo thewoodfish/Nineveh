@@ -82,6 +82,34 @@ throughput in versions per second. Then cards for the API, storage and the build
 | **Stopped at version N** | A record the reducers could not fold. Nothing is lost: it stopped rather than skipping, so what it served is correct. | Fix the rule it names, and it resumes from there. |
 | **No rows, but it says Following** | Usually a source that has never matched. Studio raises this after 50,000 quiet versions and names the likely cause. | Check the source's type against the contract — a wrong event name matches nothing, silently. |
 
+## Sources
+
+**Sources** is what the project reads off the chain: each source, the Move type it
+follows, and how many records it has matched. One that has matched nothing says so in
+words rather than showing a zero, because a zero reads as a count and this is a
+question — usually a quiet contract, occasionally the wrong type. Open a source to see
+the fields a record carries, which is exactly what a rule on it can read.
+
+**Follow something new** adds to the list. Paste an address — the ones the project
+already follows are a click — and you get the same catalog **New project** shows, with
+everything already followed marked as such and un-tickable. The network isn't asked: a
+project follows one chain, and a source on another would be a project of its own.
+
+Saving writes the source, and the raw table it brings, into the project's config. It is
+spliced into the file rather than written over it, so your comments and your own
+`reduce` tables come back exactly as they were, indented the way you indent and written
+in the style the entries around them are written in. A name that clashes with one the
+project already uses is numbered rather than overwritten.
+
+**Then it rebuilds, and this is the expensive config change.** Nineveh keeps every
+record it has decoded, which is what makes editing a rule a local replay of minutes.
+A new source has no such history — nothing was following it — so the rebuild re-reads
+the project's whole version range from the Transaction Stream. Your tables keep serving
+the rows they have while that runs and swap over in one transaction when it finishes,
+but they stop advancing until then, and the change feed starts again from the new
+build, so anything reading it has to resync (ADRs 0016, 0022). The page says so, with
+the number of versions, before you press the button.
+
 ## Tables
 
 The sidebar lists every state table, `reduce` first, with a dot beside the ones
@@ -141,10 +169,12 @@ pause, and delete.
 
 ## What Studio cannot do yet
 
-- **Add a source to an existing project.** Sources are chosen when the project is
-  created. Changing them means editing `nineveh.yaml` and running the CLI, or creating
-  the project again.
-- **Edit the config in Studio.** The sheet shows it; it does not take changes.
+- **Stop following a source.** You can add one; taking one away still means editing
+  `nineveh.yaml` and running the CLI. It would be the cheap direction, too — a rebuild
+  that drops a source replays the records Nineveh already has.
+- **Edit the config in Studio.** The sheet shows it; it does not take changes. Adding a
+  source and writing a reducer are the two things that change it, and both go through a
+  form rather than the text.
 - **Aggregate.** The API compares and orders; it does not group or sum. A number you
   want to read is a number to keep in a `reduce` table, computed once as rows are
   written rather than searched for on every request.

@@ -480,6 +480,22 @@ export const control = {
     request<SourceInfo[]>(
       `${CONTROL}/projects/${encodeURIComponent(name)}/sources`,
     ),
+  /**
+   * Follow more of a contract: catalog ids, added to the project's config.
+   *
+   * The merge is the plane's, not Studio's. The config is the developer's file — their
+   * comments, their reduce tables — and splicing entries into text is the kind of job
+   * that has one right answer and a hundred wrong ones, so it lives next to the
+   * scaffolder that writes the same entries in the first place.
+   *
+   * Saving the config rebuilds the project (ADR 0016), which is why the only thing
+   * this returns is the project: its `rebuild` is where the progress shows up.
+   */
+  addSources: (name: string, picks: string[]) =>
+    request<ProjectDetail>(
+      `${CONTROL}/projects/${encodeURIComponent(name)}/sources`,
+      { method: "POST", ...json({ picks }) },
+    ),
   /** Check a config against the project's pinned layouts, without saving it. */
   check: (name: string, config: string, reducers?: string) =>
     request<{ ok: boolean }>(

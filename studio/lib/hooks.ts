@@ -33,10 +33,18 @@ export function usePoll<T>(load: (() => Promise<T>) | null, ms: number) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(load !== null);
+  const [nonce, setNonce] = useState(0);
+  // Two reasons to go again, and they want opposite things on screen. `load` changing
+  // is a different project, so the last one's numbers go (see above). `reload` is the
+  // same project asked again, right after something changed it — and a list that
+  // blanked to a skeleton the moment you added to it would be a worse answer than the
+  // one-second-stale one it already had.
   useEffect(() => {
     setData(null);
     setError(null);
     setPending(load !== null);
+  }, [load]);
+  useEffect(() => {
     if (!load) return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -59,8 +67,9 @@ export function usePoll<T>(load: (() => Promise<T>) | null, ms: number) {
       alive = false;
       clearTimeout(timer);
     };
-  }, [load, ms]);
-  return { data, error, pending };
+  }, [load, ms, nonce]);
+  const reload = useCallback(() => setNonce((n) => n + 1), []);
+  return { data, error, pending, reload };
 }
 
 /**
