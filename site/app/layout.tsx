@@ -46,7 +46,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${display.variable} ${mono.variable}`}>
+    // `data-theme` is written by the docs' inline script before React runs, so the
+    // server's `<html>` and the browser's differ by exactly that attribute, on purpose.
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${display.variable} ${mono.variable}`}
+    >
       <body>{children}</body>
     </html>
   );

@@ -139,31 +139,17 @@ which transaction last wrote it, so there is no value-diffing to get wrong.
 
 ## Types for your own tables
 
+One command writes a declaration file for your project's tables, after which a mistyped
+column name stops compiling and a `u128` stops pretending to be a number:
+
 ```sh
 npx nineveh-types https://api.nineveh.dev/projects/myproject --key nvk_…
 # wrote src/nineveh-tables.d.ts: 5 tables, 25 columns
 ```
 
-That file augments the package with your project's tables. It needs no importing — what
-matters is that it sits inside your tsconfig's `include`, which is why it defaults to
-`src/`. A declaration file the compiler never reads changes nothing and doesn't say so.
-
-With it in place, the mistakes stop compiling:
-
-```tsx
-useTable("sellres")                       // error: did you mean 'sellers'?
-useTable("sellers", { order: "revenu" })  // error: did you mean 'revenue'?
-row.revenue * 2                           // error: revenue is a u128, so it's a string
-row.event_index * 2                       // fine: event_index is a u32, so it's a number
-```
-
-That last pair is the point. **Integers up to 32 bits arrive as JSON numbers and
-anything wider as decimal strings**, because `Number()` over a `u64` loses digits above
-2⁵³ and does it silently. Which call to make per column is the one thing a hand-written
-type gets wrong, and getting it wrong is invisible until an amount gets large.
-
-Nothing requires the file. Without it every hook still works and rows are `Row`, whose
-columns are `unknown` — generated types sharpen, they are not a dependency.
+Nothing requires it — without it every hook still works and rows are `Row`, whose
+columns are `unknown`. [Types](types.md) is what it generates, and the rule about wide
+integers that makes it worth generating.
 
 ## Without React
 

@@ -7,40 +7,51 @@
 import { useEffect, useState } from "react";
 
 import type { Doc, Entry } from "@/lib/docs";
+import { GROUPS, type Group } from "@/lib/groups";
 
 export function DocsNav({
   docs,
   current,
-  headings,
 }: {
-  docs: { slug: string; title: string; blurb: string; href: string }[];
+  docs: { slug: string; title: string; href: string; group: Group }[];
   current: string;
-  headings: Entry[];
 }) {
-  const active = useActiveHeading(headings);
   return (
-    <nav aria-label="Documentation" className="flex flex-col gap-7 text-sm">
-      <ul className="flex flex-col gap-0.5">
-        {docs.map((doc) => {
-          const here = doc.slug === current;
-          return (
-            <li key={doc.slug}>
-              <a
-                href={doc.href}
-                aria-current={here ? "page" : undefined}
-                className={`block rounded-lg px-3 py-2 transition-colors ${
-                  here
-                    ? "bg-white/[0.07] text-white"
-                    : "text-white/55 hover:bg-white/[0.04] hover:text-white"
-                }`}
-              >
-                <span className="font-medium">{doc.title}</span>
-                <span className="mt-0.5 block text-xs text-white/35">{doc.blurb}</span>
-              </a>
-            </li>
-          );
-        })}
-      </ul>
+    <nav aria-label="Documentation" className="flex flex-col gap-7 text-[13.5px]">
+      {GROUPS.map((group) => {
+        const inGroup = docs.filter((d) => d.group === group);
+        if (inGroup.length === 0) return null;
+        return (
+          <div key={group}>
+            {/* The section's name, not a label above a heading: these are the four
+                parts of the documentation, and a reader scanning for "React" is
+                scanning for exactly this word. */}
+            <h2 className="px-3 pb-2 text-[11.5px] font-semibold tracking-[0.04em] text-ink-faint uppercase">
+              {group}
+            </h2>
+            <ul className="flex flex-col">
+              {inGroup.map((doc) => {
+                const here = doc.slug === current;
+                return (
+                  <li key={doc.slug}>
+                    <a
+                      href={doc.href}
+                      aria-current={here ? "page" : undefined}
+                      className={`block rounded-lg px-3 py-[7px] transition-colors ${
+                        here
+                          ? "bg-accent-wash font-medium text-accent"
+                          : "text-ink-soft hover:bg-ink-wash hover:text-ink-strong"
+                      }`}
+                    >
+                      {doc.title}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
     </nav>
   );
 }
@@ -51,8 +62,8 @@ export function OnThisPage({ headings }: { headings: Entry[] }) {
   if (headings.length === 0) return null;
   return (
     <nav aria-label="On this page" className="text-sm">
-      <p className="pb-3 text-xs font-medium text-white/40">On this page</p>
-      <ul className="flex flex-col border-l border-white/10">
+      <p className="pb-3 text-xs font-medium text-ink-faint">On this page</p>
+      <ul className="flex flex-col border-l border-ink-line">
         {headings.map((h) => (
           <li key={h.id}>
             <a
@@ -61,8 +72,8 @@ export function OnThisPage({ headings }: { headings: Entry[] }) {
                 h.level === 3 ? "pl-7 text-[12.5px]" : "pl-4 text-[13px]"
               } ${
                 active === h.id
-                  ? "border-blue-400 text-blue-200"
-                  : "border-transparent text-white/45 hover:border-white/25 hover:text-white/80"
+                  ? "border-accent font-medium text-accent"
+                  : "border-transparent text-ink-faint hover:border-ink-line-strong hover:text-ink-strong"
               }`}
             >
               {h.text}

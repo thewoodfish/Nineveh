@@ -54,11 +54,105 @@
   --shadow-card: 0 2px 6px oklch(0 0 0 / 0.42), 0 12px 32px oklch(0 0 0 / 0.32);
   --shadow-hero: 0 8px 24px oklch(0 0 0 / 0.45), 0 32px 80px oklch(0 0 0 / 0.45);
   --shadow-glow: 0 0 0 1px oklch(0.63 0.196 259 / 0.3), 0 20px 70px oklch(0.552 0.221 261 / 0.35);
+
+  /* The documentation's palette as utilities, so its components say `text-ink-soft`
+     rather than carrying a raw `oklch()` around. Each one is the live token, which is
+     redefined on `html[data-theme]` — and because custom properties resolve per
+     element, swapping `--ink` there swaps every step below with it. These are the one
+     set of colours the docs use; the landing page keeps its literal whites. */
+  --color-ink: oklch(var(--ink));
+  --color-ink-strong: oklch(var(--ink) / 0.86);
+  --color-ink-body: oklch(var(--ink) / 0.72);
+  --color-ink-soft: oklch(var(--ink) / 0.58);
+  --color-ink-faint: oklch(var(--ink) / 0.42);
+  --color-ink-line: oklch(var(--ink) / 0.09);
+  --color-ink-line-strong: oklch(var(--ink) / 0.16);
+  --color-ink-wash: oklch(var(--ink) / 0.05);
+  --color-ink-wash-strong: oklch(var(--ink) / 0.08);
+  --color-ground: var(--ground);
+  --color-ground-sunk: var(--ground-sunk);
+  --color-ground-raised: var(--ground-raised);
+  --color-panel: var(--panel);
+  --color-scrim: var(--scrim);
+  --color-accent: var(--accent);
+  --color-accent-quiet: var(--accent-quiet);
+  --color-accent-wash: var(--accent-wash);
+  --color-warm: var(--warm);
+}
+
+/*
+ * Two grounds, one world.
+ *
+ * The dark page has no grey scale: it is white at a stack of opacities over a blue
+ * ground, so nothing cuts a hole in the light behind it. Light keeps that rule and
+ * inverts the colour — ink at a stack of opacities over a near-white that still carries
+ * the page's hue. `--ink` is written as `L C H` rather than as a colour so every
+ * opacity below mixes from the one value, which is what stops a light theme drifting
+ * into a grey one.
+ *
+ * Light is the default. The docs set `data-theme` before first paint from what the
+ * reader last chose; everything else on the site draws its own dark ground literally
+ * and is unaffected either way.
+ */
+:root {
+  --ink: 0.19 0.028 262;
+  --ground: oklch(0.993 0.0025 262);
+  --ground-sunk: oklch(0.969 0.005 262);
+  --ground-raised: oklch(1 0 0);
+  --line: oklch(var(--ink) / 0.09);
+  --line-strong: oklch(var(--ink) / 0.16);
+  /* Read from the dark end of the scale on a light ground, the way the dark page reads
+     it from the light end. Same hue, same ramp, opposite direction. */
+  --accent: var(--color-blue-700);
+  --accent-quiet: var(--color-blue-600);
+  --accent-wash: oklch(0.63 0.196 259 / 0.085);
+  /* Clay still marks numbers that came off the chain. On white the note has to come
+     down the scale to stay readable; it is the same note, not another one. */
+  --warm: oklch(0.505 0.1 62);
+  --code-ground: oklch(0.971 0.0055 262);
+  /* A panel floats above the page, so it is opaque — the raised tokens above are
+     surfaces *in* the page and are translucent by design, which is no use to a dialog
+     with text behind it. The scrim is the same ink in both themes: what is under a
+     modal should recede, not change colour with the theme. */
+  --panel: oklch(1 0 0);
+  --scrim: oklch(0.14 0.02 262 / 0.42);
+  --rise: 0 1px 2px oklch(var(--ink) / 0.05), 0 6px 20px oklch(var(--ink) / 0.06);
+  --lift: 0 2px 4px oklch(0.14 0.02 262 / 0.07), 0 16px 48px oklch(0.14 0.02 262 / 0.14);
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  --ink: 1 0 0;
+  --ground: var(--color-page);
+  --ground-sunk: oklch(1 0 0 / 0.035);
+  --ground-raised: oklch(1 0 0 / 0.05);
+  --line: oklch(1 0 0 / 0.1);
+  --line-strong: oklch(1 0 0 / 0.18);
+  --accent: var(--color-blue-300);
+  --accent-quiet: var(--color-blue-400);
+  --accent-wash: oklch(0.63 0.196 259 / 0.18);
+  --warm: var(--color-clay-500);
+  --code-ground: oklch(0.112 0.019 263 / 0.85);
+  --panel: oklch(0.205 0.023 262);
+  --scrim: oklch(0.08 0.015 262 / 0.6);
+  --rise: 0 1px 2px oklch(0 0 0 / 0.4), 0 6px 20px oklch(0 0 0 / 0.3);
+  --lift: 0 2px 4px oklch(0 0 0 / 0.4), 0 16px 48px oklch(0 0 0 / 0.5);
+  color-scheme: dark;
+}
+
+/*
+ * The documentation's ground. The landing page keeps the dark body it draws its art
+ * on; this paints over it for the length of the docs, so the two can hold different
+ * themes without either having to know about the other.
+ */
+.docs {
+  min-height: 100dvh;
+  background: var(--ground);
+  color: oklch(var(--ink) / 0.72);
 }
 
 html {
   scroll-behavior: smooth;
-  color-scheme: dark;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -313,11 +407,29 @@ body {
  * number is pulled into the margin rather than left in the heading — the same rail the
  * landing page hangs version numbers on.
  */
+/* The opening paragraph is set like the prose it introduces, a size up: its links and
+   its code are the document's, not the header's. */
+.lede a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.lede code {
+  font-family: var(--font-mono);
+  font-size: 0.855em;
+  background: oklch(var(--ink) / 0.07);
+  border-radius: 4px;
+  padding: 0.1em 0.34em;
+  color: oklch(var(--ink) / 0.78);
+}
+
 .prose {
   max-width: 68ch;
   font-size: 1rem;
   line-height: 1.72;
-  color: oklch(1 0 0 / 0.68);
+  color: oklch(var(--ink) / 0.68);
 }
 
 .prose > * + * {
@@ -328,7 +440,7 @@ body {
 .prose h3,
 .prose h4 {
   position: relative;
-  color: white;
+  color: oklch(var(--ink));
   scroll-margin-top: 6rem;
 }
 
@@ -340,7 +452,7 @@ body {
   letter-spacing: -0.012em;
   margin-top: 3.25em;
   padding-top: 1.75rem;
-  border-top: 1px solid oklch(1 0 0 / 0.1);
+  border-top: 1px solid oklch(var(--ink) / 0.1);
 }
 
 .prose h2:first-child {
@@ -366,7 +478,7 @@ body {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--color-clay-500);
+  color: var(--warm);
   vertical-align: 0.12em;
 }
 
@@ -390,7 +502,7 @@ body {
   left: -1.15rem;
   width: 1rem;
   text-align: center;
-  color: oklch(1 0 0 / 0.22);
+  color: oklch(var(--ink) / 0.22);
   text-decoration: none;
   opacity: 0;
   transition: opacity 0.15s;
@@ -407,16 +519,16 @@ body {
 }
 
 .prose strong {
-  color: white;
+  color: oklch(var(--ink));
   font-weight: 600;
 }
 
 .prose em {
-  color: oklch(1 0 0 / 0.82);
+  color: oklch(var(--ink) / 0.82);
 }
 
 .prose a {
-  color: var(--color-blue-300);
+  color: var(--accent);
   text-decoration: underline;
   text-decoration-color: oklch(0.822 0.095 259 / 0.35);
   text-underline-offset: 3px;
@@ -424,7 +536,7 @@ body {
 }
 
 .prose a:hover {
-  text-decoration-color: var(--color-blue-300);
+  text-decoration-color: var(--accent);
 }
 
 .prose ul,
@@ -449,7 +561,7 @@ body {
   width: 4px;
   height: 4px;
   border-radius: 999px;
-  background: oklch(1 0 0 / 0.3);
+  background: oklch(var(--ink) / 0.3);
 }
 
 .prose ol > li {
@@ -457,7 +569,7 @@ body {
 }
 
 .prose ol > li::marker {
-  color: var(--color-clay-500);
+  color: var(--warm);
   font-family: var(--font-mono);
   font-size: 0.8em;
 }
@@ -465,15 +577,15 @@ body {
 .prose code {
   font-family: var(--font-mono);
   font-size: 0.855em;
-  background: oklch(1 0 0 / 0.08);
+  background: oklch(var(--ink) / 0.08);
   border-radius: 4px;
   padding: 0.12em 0.36em;
-  color: var(--color-blue-200);
+  color: var(--accent);
 }
 
 .prose pre {
-  background: oklch(0.112 0.019 263 / 0.85);
-  border: 1px solid oklch(1 0 0 / 0.1);
+  background: var(--code-ground);
+  border: 1px solid oklch(var(--ink) / 0.1);
   border-radius: 0.85rem;
   padding: 1.1rem 1.25rem;
   overflow-x: auto;
@@ -481,11 +593,26 @@ body {
   line-height: 1.75;
 }
 
+/*
+ * The two themes Shiki emitted, picked here rather than baked into the HTML. Every
+ * token carries both colours as custom properties, so switching the page's theme
+ * recolours a page full of code without re-rendering any of it.
+ */
+.prose .shiki,
+.prose .shiki span {
+  color: var(--shiki-light);
+}
+
+html[data-theme="dark"] .prose .shiki,
+html[data-theme="dark"] .prose .shiki span {
+  color: var(--shiki-dark);
+}
+
 .prose pre code {
   background: none;
   padding: 0;
   font-size: inherit;
-  color: oklch(1 0 0 / 0.78);
+  color: oklch(var(--ink) / 0.78);
 }
 
 /*
@@ -497,6 +624,69 @@ body {
  * room for it on the right so ordinary lines never run underneath, and the button is
  * opaque for the long lines that do.
  */
+/*
+ * One command, four ways of saying it. The tabs sit on the snippet's own top edge
+ * rather than above it, so the block stays one object; the chosen pane is the only one
+ * in flow, so the block is the height of one command whichever is chosen.
+ */
+.prose .snippet.pm {
+  border: 1px solid oklch(var(--ink) / 0.09);
+  border-radius: 0.85rem;
+  background: var(--code-ground);
+  overflow: hidden;
+}
+
+.prose .snippet.pm pre {
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.prose .pm-tabs {
+  display: flex;
+  gap: 0.125rem;
+  padding: 0.3rem 0.3rem 0;
+  border-bottom: 1px solid oklch(var(--ink) / 0.07);
+}
+
+.prose .pm-tab {
+  padding: 0.3rem 0.65rem;
+  border-radius: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: oklch(var(--ink) / 0.42);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition:
+    color 130ms ease,
+    background-color 130ms ease;
+}
+
+.prose .pm-tab:hover {
+  color: oklch(var(--ink) / 0.7);
+  background: oklch(var(--ink) / 0.05);
+}
+
+.prose .pm-tab[data-on] {
+  color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.prose .pm-tab:focus-visible {
+  outline: 2px solid var(--accent-quiet);
+  outline-offset: -2px;
+}
+
+.prose .pm-pane {
+  display: none;
+  position: relative;
+}
+
+.prose .pm-pane[data-on] {
+  display: block;
+}
+
 .prose .snippet {
   position: relative;
 }
@@ -513,10 +703,10 @@ body {
   place-items: center;
   width: 1.9rem;
   height: 1.9rem;
-  border: 1px solid oklch(1 0 0 / 0.08);
+  border: 1px solid oklch(var(--ink) / 0.08);
   border-radius: 0.55rem;
-  background: oklch(0.112 0.019 263);
-  color: oklch(1 0 0 / 0.3);
+  background: var(--code-ground);
+  color: oklch(var(--ink) / 0.4);
   cursor: pointer;
   transition:
     color 130ms ease,
@@ -524,24 +714,24 @@ body {
 }
 
 .prose .snippet:hover .copy {
-  color: oklch(1 0 0 / 0.5);
+  color: oklch(var(--ink) / 0.5);
 }
 
 .prose .snippet .copy:hover {
-  color: oklch(1 0 0 / 0.92);
-  border-color: oklch(1 0 0 / 0.2);
+  color: oklch(var(--ink) / 0.92);
+  border-color: oklch(var(--ink) / 0.2);
 }
 
 .prose .snippet .copy:focus-visible {
-  outline: 2px solid var(--color-blue-400);
+  outline: 2px solid var(--accent-quiet);
   outline-offset: 2px;
-  color: oklch(1 0 0 / 0.92);
+  color: oklch(var(--ink) / 0.92);
 }
 
 /* Copied: the tick takes over, and holds its colour after the pointer has left. */
 .prose .snippet .copy[data-copied],
 .prose .snippet:hover .copy[data-copied] {
-  color: var(--color-blue-300);
+  color: var(--accent);
   border-color: oklch(0.72 0.14 262 / 0.4);
 }
 
@@ -574,15 +764,15 @@ body {
   text-align: left;
   font-weight: 500;
   font-size: 0.8125rem;
-  color: oklch(1 0 0 / 0.45);
+  color: oklch(var(--ink) / 0.45);
   padding: 0 1rem 0.6rem 0;
-  border-bottom: 1px solid oklch(1 0 0 / 0.16);
+  border-bottom: 1px solid oklch(var(--ink) / 0.16);
   white-space: nowrap;
 }
 
 .prose tbody td {
   padding: 0.7rem 1rem 0.7rem 0;
-  border-bottom: 1px solid oklch(1 0 0 / 0.07);
+  border-bottom: 1px solid oklch(var(--ink) / 0.07);
   vertical-align: top;
 }
 
@@ -591,7 +781,7 @@ body {
 }
 
 .prose tbody td:first-child {
-  color: oklch(1 0 0 / 0.88);
+  color: oklch(var(--ink) / 0.88);
   white-space: nowrap;
 }
 
@@ -601,9 +791,9 @@ body {
 
 /* Notes and warnings in the source are blockquotes; they read as an aside, not a box. */
 .prose blockquote {
-  border-left: 2px solid var(--color-blue-500);
+  border-left: 2px solid var(--accent-quiet);
   padding-left: 1.15rem;
-  color: oklch(1 0 0 / 0.6);
+  color: oklch(var(--ink) / 0.6);
 }
 
 .prose blockquote p:first-child {
@@ -612,7 +802,7 @@ body {
 
 .prose hr {
   border: 0;
-  border-top: 1px solid oklch(1 0 0 / 0.1);
+  border-top: 1px solid oklch(var(--ink) / 0.1);
   margin-top: 3em;
 }
 
@@ -625,7 +815,7 @@ body {
 
 .prose img {
   border-radius: 0.75rem;
-  border: 1px solid oklch(1 0 0 / 0.1);
+  border: 1px solid oklch(var(--ink) / 0.1);
 }
 
 /* A screenshot sits in the text column like everything else. It is tempting to break it
@@ -647,6 +837,6 @@ body {
   margin-top: 0.85rem;
   font-size: 0.8125rem;
   line-height: 1.6;
-  color: oklch(1 0 0 / 0.42);
+  color: oklch(var(--ink) / 0.42);
 }
 
