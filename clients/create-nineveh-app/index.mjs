@@ -30,12 +30,12 @@ const flag = (name) => {
 }
 
 if (argv.includes('--help') || argv.includes('-h')) {
-  stdout.write(`create-nineveh-app — a React app on your Nineveh project
+  stdout.write(`create-nineveh-app — start a React app on a Nineveh project
 
   npm create nineveh-app@latest [folder] -- [options]
 
   --project <url>   the project, everything before /v1
-  --key <key>       a read key. Also NINEVEH_KEY. Blank for a local project.
+  --key <key>       the project's API key. Also NINEVEH_KEY. Blank for a local project.
   --table <name>    which table the first page shows. Defaults to the widest.
 
   Anything not given is asked for, unless there is nobody to ask — piped or scripted,
@@ -45,7 +45,13 @@ if (argv.includes('--help') || argv.includes('-h')) {
 }
 
 say()
-say(`  ${bold('Nineveh')} — a React app on your project`)
+say(`  ${bold('Nineveh')} — the application backend for Aptos`)
+say(
+  dim(
+    '  Scaffolding a React app on one of your projects: this asks the project what\n' +
+      '  tables it holds, writes a page against one of them, and types all of them.',
+  ),
+)
 say()
 
 // Opened only if something actually needs asking, and never when there is nobody to
@@ -70,9 +76,12 @@ if (existsSync(target) && (await readdir(target)).length > 0) {
 const project = (
   flag('project') ??
   env.NINEVEH_PROJECT ??
-  (await ask('Project URL?', 'http://127.0.0.1:4000'))
+  (await ask(`Project URL? ${dim('everything before /v1')}`, 'http://127.0.0.1:4000'))
 ).replace(/\/+$/, '')
-const key = flag('key') ?? env.NINEVEH_KEY ?? (await ask(`Read key? ${dim('blank for a local project')}`, ''))
+const key =
+  flag('key') ??
+  env.NINEVEH_KEY ??
+  (await ask(`API key? ${dim('blank for a local project')}`, ''))
 
 // --- ask the project what it holds ------------------------------------------------
 say()
@@ -86,7 +95,7 @@ try {
   if (!response.ok) {
     const hint =
       response.status === 401 || response.status === 403
-        ? 'that project needs a read key — Studio → Settings → API keys'
+        ? 'that project needs an API key — Studio → Settings → API keys'
         : response.status === 404
           ? 'the URL is everything before `/v1`. `nineveh up` serves a project at /projects/<name>'
           : (await response.text().catch(() => '')).slice(0, 160)
@@ -170,7 +179,7 @@ await writeFile(
 )
 await writeFile(
   join(target, '.env.example'),
-  `# Your project's URL, and a read key from Studio → Settings → API keys.\n` +
+  `# Your project's URL, and its API key from Studio → Settings → API keys.\n` +
     `# A local project in local mode needs no key.\n` +
     `VITE_NINEVEH_PROJECT=${project}\nVITE_NINEVEH_KEY=\n`,
 )

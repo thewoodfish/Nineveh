@@ -6,7 +6,7 @@ A React app on your [Nineveh](https://nineveh.dev) project, in about a minute.
 npm create nineveh-app@latest
 ```
 
-It asks for a folder, your project's URL and a read key, and then — this is the part
+It asks for a folder, your project's URL and its API key, and then — this is the part
 worth knowing — it **asks the project what it holds**. `GET /v1/tables` reports every
 table's kind, key and typed columns, so by the time the files are written it knows which
 table to show and what its columns are called. The first thing you see is your own rows,
@@ -48,12 +48,12 @@ npm create nineveh-app@latest my-app -- \
 | | |
 | --- | --- |
 | `--project` | the project, everything before `/v1`. `nineveh up` serves one at `/projects/<name>`; `nineveh run --serve` at the root. Also `NINEVEH_PROJECT`. |
-| `--key` | a read key, from Studio → **Settings → API keys**. Blank for a local project in local mode. Also `NINEVEH_KEY`. |
+| `--key` | the project's API key, from Studio → **Settings → API keys**. Blank for a local project in local mode. Also `NINEVEH_KEY`. |
 | `--table` | which table the first page shows. Defaults to the one with the most columns. Also `NINEVEH_TABLE`. |
 
 The key goes in `.env`, which the generated `.gitignore` already covers. It does reach
 the browser when you deploy, and that is fine: reads only ever touch your state tables,
-never the chain, so an exposed read key spends no stream credit. Give each frontend its
+never the chain, so an exposed key spends no stream credit. Give each frontend its
 own and revoke it when it's done.
 
 ## After a config change
