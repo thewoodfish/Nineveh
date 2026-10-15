@@ -84,10 +84,10 @@ export function Shots() {
   return (
     <Section id="studio" rule={false}>
       <Register at="studio">
-        <h3 className="font-display text-2xl font-semibold tracking-[-0.015em] text-balance text-white">
+        <h3 className="font-display text-2xl font-semibold tracking-[-0.015em] text-balance text-ink">
           And here it is, running.
         </h3>
-        <p className="mt-4 max-w-[62ch] leading-relaxed text-pretty text-white/55">
+        <p className="mt-4 max-w-[62ch] leading-relaxed text-pretty text-ink-soft">
           Studio creates the project, then shows you what it built: the tables you chose, the ones
           you folded yourself, every change as it commits, and whether the whole thing is keeping
           up. These are real screens against a contract running on devnet, not mockups — the rows
@@ -97,7 +97,7 @@ export function Shots() {
         <div
           role="tablist"
           aria-label="Studio screens"
-          className="mt-10 flex flex-wrap gap-1 border-b border-white/10"
+          className="mt-10 flex flex-wrap gap-1 border-b border-ink-line"
         >
           {SHOTS.map((s) => (
             <button
@@ -108,8 +108,8 @@ export function Shots() {
               onClick={() => setActive(s.id)}
               className={`-mb-px cursor-pointer border-b-2 px-4 py-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                 s.id === active
-                  ? "border-blue-400 text-white"
-                  : "border-transparent text-white/45 hover:text-white/75"
+                  ? "border-blue-400 text-ink"
+                  : "border-transparent text-ink-faint hover:text-ink-body"
               }`}
             >
               {s.tab}
@@ -118,7 +118,7 @@ export function Shots() {
         </div>
 
         <figure className="mt-8">
-          <div className="overflow-hidden rounded-xl border border-white/10 bg-deep shadow-hero">
+          <div className="overflow-hidden rounded-xl border border-ink-line bg-deep shadow-hero">
             {/* Eager, not lazy. Only one of these is mounted at a time and it is mounted
                 because somebody pressed its tab, so it is on screen before it exists —
                 and a lazily loaded image inserted already inside the viewport never has
@@ -133,7 +133,7 @@ export function Shots() {
               className="w-full"
             />
           </div>
-          <figcaption className="mt-4 max-w-[62ch] text-sm leading-relaxed text-white/45">
+          <figcaption className="mt-4 max-w-[62ch] text-sm leading-relaxed text-ink-faint">
             {shot.caption}
           </figcaption>
         </figure>

@@ -1,21 +1,24 @@
 "use client";
 
-// Light or dark, for the documentation only.
+// Light or dark, for the whole site.
 //
-// Light is the default, and the choice is remembered. It is set on `<html>` rather than
-// on a wrapper so the stylesheet can switch tokens in one place, and written by the
-// inline script in the docs layout before first paint — a theme applied in an effect
-// shows the wrong one for a frame, which on a whole page of text is a flash nobody
-// should have to see.
+// Light is the default, and the choice is remembered. It is set on `<html>` so the
+// stylesheet can switch every token in one place, and written by an inline script in
+// the root layout before first paint — a theme applied in an effect shows the wrong one
+// for a frame, which on a whole page is a flash nobody should have to see.
 
 import { useEffect, useState } from "react";
 
-export const THEME_KEY = "nineveh-docs-theme";
+export const THEME_KEY = "nineveh-theme";
 
 /**
  * Sets the stored theme before the page paints. Rendered as an inline script, so it
  * runs ahead of React and ahead of the first paint. Falls back to light — both when
  * nothing is stored and when storage throws, which is what a private window does.
+ *
+ * Light rather than the system's preference, deliberately: this is the theme the site
+ * is designed in, and a visitor whose laptop is set to dark should still meet it that
+ * way. The toggle is one click and it is remembered.
  */
 export const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(
   THEME_KEY,

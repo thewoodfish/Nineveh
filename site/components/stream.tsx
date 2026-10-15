@@ -91,63 +91,63 @@ export function Stream() {
   const revenue = rows[newest.seller]?.revenue ?? 0;
 
   return (
-    <div className="grid overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] lg:grid-cols-[0.95fr_1.05fr_1fr]">
+    <div className="grid overflow-hidden rounded-2xl border border-ink-line bg-ink-wash lg:grid-cols-[0.95fr_1.05fr_1fr]">
       {/* What the chain hands over. */}
-      <div className="border-b border-white/10 p-5 lg:border-r lg:border-b-0">
+      <div className="border-b border-ink-line p-5 lg:border-r lg:border-b-0">
         <Label title="Events and state" hint="as the chain commits them" />
         <ul className="mt-4 flex flex-col gap-1.5">
           {sales.map((one) => (
             <li
               key={one.n}
-              className="arrive flex items-baseline gap-2.5 rounded-lg bg-white/[0.05] px-3 py-2 font-mono text-[11px] sm:text-xs"
+              className="arrive flex items-baseline gap-2.5 rounded-lg bg-ink-wash px-3 py-2 font-mono text-[11px] sm:text-xs"
             >
-              <span className="text-white/35 tabular-nums">
+              <span className="text-ink-faint tabular-nums">
                 v{one.version.toLocaleString("en-US")}
               </span>
-              <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-white/60">
+              <span className="rounded bg-ink-wash-strong px-1.5 py-0.5 text-[10px] font-medium text-ink-soft">
                 Sold
               </span>
-              <span className="min-w-0 flex-1 truncate text-white/50">{one.item}</span>
-              <span className="text-white/75 tabular-nums">{one.price}</span>
+              <span className="min-w-0 flex-1 truncate text-ink-soft">{one.item}</span>
+              <span className="text-ink-body tabular-nums">{one.price}</span>
             </li>
           ))}
         </ul>
       </div>
 
       {/* The rule you wrote: the layer Nineveh is, and the only part of this you own. */}
-      <div className="border-b border-white/10 bg-blue-500/[0.07] p-5 lg:border-r lg:border-white/10 lg:border-b-0">
+      <div className="border-b border-ink-line bg-blue-500/[0.07] p-5 lg:border-r lg:border-ink-line lg:border-b-0">
         <Label title="Your reducer" hint="market.nineveh.ts" arrow />
         <pre className="mt-4 overflow-x-auto font-mono text-[11px] leading-[1.95] sm:text-xs">
-          <div className="text-white/70">
+          <div className="text-ink-body">
             {"on("}
-            <span className="text-blue-300">sold</span>
+            <span className="text-accent">sold</span>
             {", (s) => {"}
           </div>
-          <div className="text-white/45">{"  const row = sellers.row(s.seller)"}</div>
+          <div className="text-ink-faint">{"  const row = sellers.row(s.seller)"}</div>
           {/* Keyed on the tick, so the assignment flashes each time a record lands. */}
-          <div key={`sold-${count}`} className="settle rounded text-white/70">
+          <div key={`sold-${count}`} className="settle rounded text-ink-body">
             {"  row.sold    += 1"}
           </div>
-          <div key={`revenue-${count}`} className="settle rounded text-white/70">
+          <div key={`revenue-${count}`} className="settle rounded text-ink-body">
             {"  row.revenue += s.price - s.fee"}
           </div>
-          <div className="text-white/70">{"})"}</div>
+          <div className="text-ink-body">{"})"}</div>
         </pre>
-        <p className="mt-4 truncate font-mono text-[11px] text-white/40">
-          <span className="text-clay-400 tabular-nums">
+        <p className="mt-4 truncate font-mono text-[11px] text-ink-faint">
+          <span className="text-warm tabular-nums">
             {newest.price} - {newest.fee}
           </span>{" "}
           → revenue{" "}
-          <span className="text-white/75 tabular-nums">{revenue.toLocaleString("en-US")}</span>
+          <span className="text-ink-body tabular-nums">{revenue.toLocaleString("en-US")}</span>
         </p>
       </div>
 
       {/* What your app queries. */}
-      <div className="bg-white/[0.04] p-5">
+      <div className="bg-ink-wash p-5">
         <Label title="Application state" hint="sellers · key seller" arrow />
         <table className="mt-4 w-full font-mono text-[11px] sm:text-xs">
           <thead>
-            <tr className="text-left text-white/35">
+            <tr className="text-left text-ink-faint">
               <th className="pb-2 font-medium">seller</th>
               <th className="pb-2 text-right font-medium">sold</th>
               <th className="pb-2 text-right font-medium">revenue</th>
@@ -157,18 +157,18 @@ export function Stream() {
             {rows.map((row, i) => (
               <tr
                 key={SELLERS[i]}
-                className={`${i === newest.seller ? "settle" : ""} border-t border-white/[0.07]`}
+                className={`${i === newest.seller ? "settle" : ""} border-t border-ink-line-strong/[0.07]`}
               >
-                <td className="py-1.5 text-white/55">{SELLERS[i]}</td>
-                <td className="py-1.5 text-right text-white/55 tabular-nums">{row.sold}</td>
-                <td className="py-1.5 text-right font-medium text-white tabular-nums">
+                <td className="py-1.5 text-ink-soft">{SELLERS[i]}</td>
+                <td className="py-1.5 text-right text-ink-soft tabular-nums">{row.sold}</td>
+                <td className="py-1.5 text-right font-medium text-ink tabular-nums">
                   {row.revenue.toLocaleString("en-US")}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="mt-4 text-[11px] text-white/35">One row per seller, queryable over REST.</p>
+        <p className="mt-4 text-[11px] text-ink-faint">One row per seller, queryable over REST.</p>
       </div>
     </div>
   );
@@ -177,9 +177,9 @@ export function Stream() {
 function Label({ title, hint, arrow = false }: { title: string; hint: string; arrow?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <span className="flex items-center gap-2 text-xs font-semibold text-white/85">
+      <span className="flex items-center gap-2 text-xs font-semibold text-ink-strong">
         {arrow && (
-          <span className="text-blue-400" aria-hidden>
+          <span className="text-accent-quiet" aria-hidden>
             {/* The panes sit in a row on a wide screen and stack on a narrow one, so the
                 arrow points the way the eye actually travels. */}
             <span className="lg:hidden">↓</span>
@@ -188,7 +188,7 @@ function Label({ title, hint, arrow = false }: { title: string; hint: string; ar
         )}
         {title}
       </span>
-      <span className="truncate font-mono text-[11px] text-white/35">{hint}</span>
+      <span className="truncate font-mono text-[11px] text-ink-faint">{hint}</span>
     </div>
   );
 }
@@ -218,35 +218,35 @@ export function Feed() {
   const now = change(count - 1);
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-white/[0.045] ring-1 ring-white/10 backdrop-blur">
-      <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
+    <div className="overflow-hidden rounded-2xl bg-ink-wash ring-1 ring-ink-line backdrop-blur">
+      <div className="flex items-center gap-2 border-b border-ink-line px-4 py-2.5">
         <span className="size-2 rounded-full bg-blue-400/70" />
-        <span className="font-mono text-[11px] font-medium text-white/40">
+        <span className="font-mono text-[11px] font-medium text-ink-faint">
           GET /v1/changes?tables=sellers
         </span>
       </div>
       <div className="px-4 py-4 font-mono text-[11.5px] leading-[1.8]">
         {past.map((c) => (
-          <div key={c.n} className="flex gap-3 text-white/25">
+          <div key={c.n} className="flex gap-3 text-ink-faint">
             <span className="tabular-nums">id: {c.version}.0</span>
             <span>sellers</span>
             <span>update</span>
           </div>
         ))}
         {/* Keyed on the event, so a new frame animates in rather than mutating in place. */}
-        <div key={now.n} className="arrive mt-2 border-t border-white/[0.07] pt-2">
+        <div key={now.n} className="arrive mt-2 border-t border-ink-line-strong/[0.07] pt-2">
           <Field name="id">{`${now.version}.0`}</Field>
           <Field name="event">change</Field>
           <div>
-            <span className="text-blue-300">data:</span>
-            <span className="text-white/60">{" { "}</span>
+            <span className="text-accent">data:</span>
+            <span className="text-ink-soft">{" { "}</span>
             <Pair k="version" v={String(now.version)} />
-            <span className="text-white/60">, </span>
+            <span className="text-ink-soft">, </span>
             <Pair k="seq" v="0" bare />
           </div>
           <Indented>
             <Pair k="table" v="sellers" />
-            <span className="text-white/60">, </span>
+            <span className="text-ink-soft">, </span>
             <Pair k="op" v="update" />
           </Indented>
           <Indented>
@@ -256,10 +256,10 @@ export function Feed() {
             <Pair k="row" v={`{ "sold": "${now.sold}",`} bare />
           </Indented>
           <Indented deep>
-            <span className="text-emerald-300/90">&quot;revenue&quot;</span>
-            <span className="text-white/60">: </span>
-            <span className="text-emerald-300/90">&quot;{now.revenue}&quot;</span>
-            <span className="text-white/60">{" } }"}</span>
+            <span className="text-string">&quot;revenue&quot;</span>
+            <span className="text-ink-soft">: </span>
+            <span className="text-string">&quot;{now.revenue}&quot;</span>
+            <span className="text-ink-soft">{" } }"}</span>
           </Indented>
         </div>
       </div>
@@ -271,8 +271,8 @@ export function Feed() {
 function Field({ name, children }: { name: string; children: string }) {
   return (
     <div>
-      <span className="text-blue-300">{name}:</span>{" "}
-      <span className="text-white/60 tabular-nums">{children}</span>
+      <span className="text-accent">{name}:</span>{" "}
+      <span className="text-ink-soft tabular-nums">{children}</span>
     </div>
   );
 }
@@ -286,12 +286,12 @@ function Indented({ children, deep = false }: { children: ReactNode; deep?: bool
 function Pair({ k, v, bare = false }: { k: string; v: string; bare?: boolean }) {
   return (
     <>
-      <span className="text-emerald-300/90">&quot;{k}&quot;</span>
-      <span className="text-white/60">: </span>
+      <span className="text-string">&quot;{k}&quot;</span>
+      <span className="text-ink-soft">: </span>
       {bare ? (
-        <span className="text-white/60">{v}</span>
+        <span className="text-ink-soft">{v}</span>
       ) : (
-        <span className="text-emerald-300/90">&quot;{v}&quot;</span>
+        <span className="text-string">&quot;{v}&quot;</span>
       )}
     </>
   );

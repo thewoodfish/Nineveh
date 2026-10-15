@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { Button, Logo } from "./bits";
+import { ThemeToggle } from "./theme";
 
 /** The bar's links. `docs` sends you out of the landing page; the rest are anchors. */
 const LINKS = [
@@ -41,23 +42,23 @@ export function Nav() {
   return (
     <nav
       className={`sticky top-0 z-20 border-b transition-colors duration-500 ${
-        lifted ? "glass border-white/10" : "border-transparent"
+        lifted ? "glass border-ink-line" : "border-transparent"
       }`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-        <a href="/" className="flex items-center gap-2 text-white">
-          <Logo className="size-5 text-blue-400" />
+        <a href="/" className="flex items-center gap-2 text-ink">
+          <Logo className="size-5 text-accent-quiet" />
           <span className="text-[15px] font-semibold tracking-tight">Nineveh</span>
-          <span className="rounded border border-white/15 px-1.5 py-px text-[10px] font-medium tracking-wide text-white/45">
+          <span className="rounded border border-ink-line-strong px-1.5 py-px text-[10px] font-medium tracking-wide text-ink-faint">
             beta
           </span>
         </a>
-        <div className="flex items-center gap-6 text-sm">
+        <div className="flex items-center gap-5 text-sm">
           {LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className={`text-white/55 transition-colors hover:text-white ${
+              className={`text-ink-soft transition-colors hover:text-ink ${
                 link.anchor ? "hidden sm:block" : ""
               }`}
             >
@@ -68,21 +69,22 @@ export function Nav() {
             href="https://t.me/+kVwq6suLvZNlNGE0"
             target="_blank"
             rel="noreferrer"
-            className="hidden text-white/55 transition-colors hover:text-white sm:block"
+            className="hidden text-ink-soft transition-colors hover:text-ink sm:block"
           >
             Telegram
           </a>
           <a
             href="https://github.com/thewoodfish/Nineveh"
-            className="hidden text-white/55 transition-colors hover:text-white sm:block"
+            className="hidden text-ink-soft transition-colors hover:text-ink sm:block"
           >
             GitHub
           </a>
+          <ThemeToggle />
           <Button href="https://studio.nineveh.dev">Start building</Button>
         </div>
       </div>
       <div
-        className="h-px origin-left bg-gradient-to-r from-blue-500 to-blue-300 transition-transform duration-150"
+        className="h-px origin-left bg-accent transition-transform duration-150"
         style={{ transform: `scaleX(${progress})` }}
         aria-hidden
       />

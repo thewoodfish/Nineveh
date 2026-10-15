@@ -57,7 +57,7 @@ export function Core() {
 
         {/* The path, as one line on wide screens and a stack on narrow ones. Each rung
             carries its own note, so the drawing doesn't need a legend. */}
-        <ol className="mt-14 grid gap-px overflow-hidden rounded-xl bg-white/10 sm:grid-cols-2 lg:grid-cols-5">
+        <ol className="mt-14 grid gap-px overflow-hidden rounded-xl bg-ink-wash-strong sm:grid-cols-2 lg:grid-cols-5">
           {FLOW.map((step, i) => {
             const mine = i === 0 || i === FLOW.length - 1;
             return (
@@ -69,27 +69,27 @@ export function Core() {
                   />
                   <span
                     className={`font-mono text-[11px] font-semibold tracking-[0.04em] ${
-                      mine ? "text-clay-400" : "text-blue-200"
+                      mine ? "text-warm" : "text-accent"
                     }`}
                   >
                     {step.name}
                   </span>
                 </div>
-                <p className="text-sm leading-relaxed text-white/50">{step.note}</p>
+                <p className="text-sm leading-relaxed text-ink-soft">{step.note}</p>
               </li>
             );
           })}
         </ol>
-        <p className="mt-5 text-sm leading-relaxed text-white/45">
+        <p className="mt-5 text-sm leading-relaxed text-ink-faint">
           The two ends are yours. Everything between them is the part you would otherwise
           build.
         </p>
 
         <dl className="mt-20 grid gap-x-16 gap-y-10 sm:grid-cols-2">
           {FOLLOWS.map((item) => (
-            <div key={item.title} className="border-t border-white/10 pt-5">
-              <dt className="font-semibold text-white">{item.title}</dt>
-              <dd className="mt-3 text-sm leading-relaxed text-white/55">{item.body}</dd>
+            <div key={item.title} className="border-t border-ink-line pt-5">
+              <dt className="font-semibold text-ink">{item.title}</dt>
+              <dd className="mt-3 text-sm leading-relaxed text-ink-soft">{item.body}</dd>
             </div>
           ))}
         </dl>

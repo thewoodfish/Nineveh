@@ -1,5 +1,7 @@
-// The page's shared pieces. The page is dark throughout, so these have one look: white
-// for what matters, white at low opacity for what supports it, blue for what's alive.
+// The page's shared pieces. One look, in either theme: ink for what matters, ink at a
+// low opacity for what supports it, blue for what's alive. The page reads the ink off
+// `--ink`, so these say `text-ink-soft` rather than naming a colour that only works on
+// one ground.
 
 import type { ReactNode } from "react";
 
@@ -31,9 +33,11 @@ export function Button({
 }) {
   const tones = {
     primary:
-      "bg-blue-600 text-white shadow-card hover:bg-blue-500 hover:shadow-glow focus-visible:ring-blue-400",
+      "bg-blue-600 text-on-accent shadow-card hover:bg-blue-500 hover:shadow-glow focus-visible:ring-blue-400",
+    // An outline, not a second fill: two filled buttons side by side make the reader
+    // choose between them, and only one of these is the thing to do.
     quiet:
-      "border border-white/15 bg-white/[0.06] text-white/80 backdrop-blur hover:border-white/25 hover:bg-white/10 hover:text-white focus-visible:ring-white/30",
+      "border border-ink-line-strong text-ink-strong hover:border-ink hover:bg-ink-wash focus-visible:ring-ink-line-strong",
   };
   const sizes = { md: "px-4 py-2.5 text-sm", lg: "px-5 py-3 text-sm" };
   return (
@@ -67,7 +71,7 @@ export function Register({
     <div className="register">
       <a
         href={`#${at}`}
-        className="mark mb-5 block transition-colors hover:text-clay-300 2xl:mb-0"
+        className="mark mb-5 block transition-colors hover:text-warm 2xl:mb-0"
       >
         #{at}
       </a>
@@ -91,7 +95,7 @@ export function Section({
 }) {
   return (
     <section id={id} className="mx-auto w-full max-w-6xl px-6">
-      {rule && <hr className="border-0 border-t border-white/10" />}
+      {rule && <hr className="border-0 border-t border-ink-line" />}
       <div className="py-20 sm:py-28">{children}</div>
     </section>
   );
@@ -100,7 +104,7 @@ export function Section({
 export function Heading({ children, center = false }: { children: ReactNode; center?: boolean }) {
   return (
     <h2
-      className={`max-w-3xl font-display text-3xl leading-[1.12] font-semibold tracking-[-0.015em] text-balance text-white sm:text-4xl ${
+      className={`max-w-3xl font-display text-3xl leading-[1.12] font-semibold tracking-[-0.015em] text-balance text-ink sm:text-4xl ${
         center ? "mx-auto" : ""
       }`}
     >
@@ -112,7 +116,7 @@ export function Heading({ children, center = false }: { children: ReactNode; cen
 export function Lede({ children, center = false }: { children: ReactNode; center?: boolean }) {
   return (
     <p
-      className={`mt-5 max-w-[62ch] text-lg leading-relaxed text-pretty text-white/55 ${
+      className={`mt-5 max-w-[62ch] text-lg leading-relaxed text-pretty text-ink-soft ${
         center ? "mx-auto" : ""
       }`}
     >
@@ -124,12 +128,12 @@ export function Lede({ children, center = false }: { children: ReactNode; center
 /** A pane of code, coloured by a few plain rules. */
 export function Code({ title, lines }: { title: string; lines: string[] }) {
   return (
-    <div className="overflow-hidden rounded-2xl bg-white/[0.045] ring-1 ring-white/10 backdrop-blur">
-      <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
-        <span className="size-2 rounded-full bg-white/20" />
-        <span className="font-mono text-[11px] font-medium text-white/40">{title}</span>
+    <div className="overflow-hidden rounded-2xl bg-ink-wash ring-1 ring-ink-line backdrop-blur">
+      <div className="flex items-center gap-2 border-b border-ink-line px-4 py-2.5">
+        <span className="size-2 rounded-full bg-ink-line-strong" />
+        <span className="font-mono text-[11px] font-medium text-ink-faint">{title}</span>
       </div>
-      <pre className="overflow-x-auto px-4 py-4 font-mono text-[12.5px] leading-[1.8] text-white/75">
+      <pre className="overflow-x-auto px-4 py-4 font-mono text-[12.5px] leading-[1.8] text-ink-body">
         {lines.map((line, i) => (
           <div key={i}>{paint(line)}</div>
         ))}
@@ -141,7 +145,7 @@ export function Code({ title, lines }: { title: string; lines: string[] }) {
 /** Keys, strings and comments, told apart. */
 function paint(line: string) {
   if (line.trimStart().startsWith("#")) {
-    return <span className="text-white/30">{line || " "}</span>;
+    return <span className="text-ink-faint">{line || " "}</span>;
   }
   const parts: ReactNode[] = [];
   const pattern = /("[^"]*")|(\b[a-z_][a-z0-9_]*:)/gi;
@@ -150,7 +154,7 @@ function paint(line: string) {
     const index = match.index ?? 0;
     if (index > at) parts.push(line.slice(at, index));
     parts.push(
-      <span key={index} className={match[1] ? "text-emerald-300/90" : "text-blue-300"}>
+      <span key={index} className={match[1] ? "text-string" : "text-accent"}>
         {match[0]}
       </span>,
     );

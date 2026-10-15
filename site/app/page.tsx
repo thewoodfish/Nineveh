@@ -125,14 +125,14 @@ function Hero() {
   return (
     <div id="top" className="mx-auto max-w-6xl px-6 pt-16 pb-10 sm:pt-24">
       <div className="mx-auto max-w-3xl text-center">
-        <h1 className=" font-display text-4xl leading-[1.04] font-semibold tracking-[-0.022em] text-balance text-white sm:text-5xl">
+        <h1 className=" font-display text-4xl leading-[1.04] font-semibold tracking-[-0.022em] text-balance text-ink sm:text-5xl">
           Your backend for Aptos.
         </h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-white/60">
+        <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-pretty text-ink-soft">
           Live tables, an API and a change feed, built from everything your contract wrote —
           not just the events it announced.
         </p>
-        <p className="mx-auto mt-4 max-w-xl leading-relaxed text-pretty text-white/50">
+        <p className="mx-auto mt-4 max-w-xl leading-relaxed text-pretty text-ink-soft">
           Events, resources and the entries inside a SmartTable, folded into state your
           frontend can query and your backend can subscribe to. On the Aptos infrastructure
           you already know.
@@ -148,10 +148,10 @@ function Hero() {
       </div>
 
       <figure className="mt-16 sm:mt-20">
-        <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.035] p-1.5 shadow-hero backdrop-blur">
+        <div className="rounded-[1.4rem] border border-ink-line bg-ink-wash p-1.5 shadow-hero backdrop-blur">
           <Stream />
         </div>
-        <figcaption className="mt-4 text-center text-xs text-white/35">
+        <figcaption className="mt-4 text-center text-xs text-ink-faint">
           Every sale the contract emits, the four lines that fold it, and the table your app
           queries.
         </figcaption>
@@ -173,26 +173,26 @@ function Problem() {
 
         <div className="mt-10 grid items-start gap-12 lg:grid-cols-[1fr_auto] lg:gap-16">
           <div>
-            <p className="max-w-[62ch] text-lg leading-relaxed text-pretty text-white/55">
+            <p className="max-w-[62ch] text-lg leading-relaxed text-pretty text-ink-soft">
               Aptos already provides the infrastructure for reading and indexing on-chain data: RPC
               for point reads, the hosted Indexer for common assets, the Transaction Stream for
               everything a transaction touched.
             </p>
-            <p className="mt-5 max-w-[62ch] text-white/55">
+            <p className="mt-5 max-w-[62ch] text-ink-soft">
               Turning that into the backend your frontend needs is still application logic, state
               management, database work and server code. And a contract announces less than it
               stores. It emits events for what it expected you to want, and keeps the rest in
               storage because storage is what it needs to work: the SmartTable of open positions, the
               running sum it keeps for itself, the vote tally no event is fired for.
             </p>
-            <p className="mt-5 max-w-[62ch] text-white/55">
+            <p className="mt-5 max-w-[62ch] text-ink-soft">
               Read only the events and that half is invisible — not missing, invisible, which is
               worse, because what you do get still looks plausible.
             </p>
-            <p className="mt-5 max-w-[62ch] text-white/55">
+            <p className="mt-5 max-w-[62ch] text-ink-soft">
               So it gets assembled the same way in every project: a processor, a database, a server,
               a deploy pipeline. A week of work, and something to maintain forever.{" "}
-              <span className="font-medium text-white">
+              <span className="font-medium text-ink">
                 Nineveh simplifies the layer in the middle.
               </span>
             </p>
@@ -230,11 +230,11 @@ function Layers() {
           <Stack />
         </div>
 
-        <div className="mx-auto mt-20 max-w-3xl border-t border-white/10 pt-12 text-center">
-          <h3 className="font-display text-2xl font-semibold tracking-[-0.015em] text-white">
+        <div className="mx-auto mt-20 max-w-3xl border-t border-ink-line pt-12 text-center">
+          <h3 className="font-display text-2xl font-semibold tracking-[-0.015em] text-ink">
             A familiar backend experience for Aptos.
           </h3>
-          <p className="mx-auto mt-4 max-w-[58ch] leading-relaxed text-pretty text-white/55">
+          <p className="mx-auto mt-4 max-w-[58ch] leading-relaxed text-pretty text-ink-soft">
             Web developers have familiar abstractions for building application backends. Nineveh
             brings that simplicity to Aptos applications, while keeping Aptos as the source of
             truth.
@@ -263,21 +263,21 @@ function Machinery() {
           <div className="mt-16 grid items-start gap-6 lg:grid-cols-2">
             <div className="flex flex-col gap-5">
               <Code title="market.nineveh.ts" lines={REDUCER} />
-              <p className="text-sm leading-relaxed text-white/50">
+              <p className="text-sm leading-relaxed text-ink-soft">
                 That is the whole language:{" "}
-                <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                <code className="rounded bg-ink-wash-strong px-1 py-0.5 font-mono text-[12px] text-accent">
                   on
                 </code>
                 , a row, an assignment,{" "}
-                <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                <code className="rounded bg-ink-wash-strong px-1 py-0.5 font-mono text-[12px] text-accent">
                   delete
                 </code>
                 ,{" "}
-                <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                <code className="rounded bg-ink-wash-strong px-1 py-0.5 font-mono text-[12px] text-accent">
                   if
                 </code>{" "}
                 and{" "}
-                <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                <code className="rounded bg-ink-wash-strong px-1 py-0.5 font-mono text-[12px] text-accent">
                   return
                 </code>
                 . It reads like TypeScript, but nothing is executed: it compiles to a fold that
@@ -286,9 +286,9 @@ function Machinery() {
             </div>
             <div className="flex flex-col gap-5">
               <Code title="your API, a second later" lines={RESPONSE} />
-              <p className="text-sm leading-relaxed text-white/50">
+              <p className="text-sm leading-relaxed text-ink-soft">
                 Wide integers come back as strings, because a{" "}
-                <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                <code className="rounded bg-ink-wash-strong px-1 py-0.5 font-mono text-[12px] text-accent">
                   u128
                 </code>{" "}
                 doesn&apos;t fit a JavaScript number. Every table gets the same treatment.
@@ -306,27 +306,27 @@ function Machinery() {
                 But a frontend that has to stay current can only keep asking: on a timer,
                 diffing what comes back, guessing at the interval.
               </Lede>
-              <p className="mt-5 max-w-[62ch] leading-relaxed text-white/55">
+              <p className="mt-5 max-w-[62ch] leading-relaxed text-ink-soft">
                 The change feed turns that around. Every row a reducer writes leaves the same
                 commit as an event, in commit order, down a connection you already have open. Your
                 app finds out because something happened, not because it checked.
               </p>
               <ul className="mt-8 flex flex-col gap-4">
-                <li className="text-sm leading-relaxed text-white/55">
-                  <span className="font-semibold text-white/85">One commit.</span> Rows and the
+                <li className="text-sm leading-relaxed text-ink-soft">
+                  <span className="font-semibold text-ink-strong">One commit.</span> Rows and the
                   feed are written in a single transaction, so a change can&apos;t be announced
                   that isn&apos;t in the table, and a row can&apos;t land without saying so.
                 </li>
-                <li className="text-sm leading-relaxed text-white/55">
-                  <span className="font-semibold text-white/85">Resumable.</span> Each event&apos;s
+                <li className="text-sm leading-relaxed text-ink-soft">
+                  <span className="font-semibold text-ink-strong">Resumable.</span> Each event&apos;s
                   id is its version and sequence. A browser that reconnects sends{" "}
-                  <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px] text-blue-200">
+                  <code className="rounded bg-ink-wash-strong px-1 py-0.5 font-mono text-[12px] text-accent">
                     Last-Event-ID
                   </code>{" "}
                   and carries on. Nothing missed, nothing twice.
                 </li>
-                <li className="text-sm leading-relaxed text-white/55">
-                  <span className="font-semibold text-white/85">Or pushed to your server.</span>{" "}
+                <li className="text-sm leading-relaxed text-ink-soft">
+                  <span className="font-semibold text-ink-strong">Or pushed to your server.</span>{" "}
                   The same changes as signed webhooks, each endpoint with its own secret and its
                   own cursor, retried until they land.
                 </li>
@@ -347,11 +347,11 @@ function Machinery() {
             </div>
             {WORKFLOW.map((step, i) => (
               <li key={step.title} className="relative">
-                <div className="flex size-7 items-center justify-center rounded-full border border-white/15 bg-deep font-mono text-[11px] font-semibold text-blue-200">
+                <div className="flex size-7 items-center justify-center rounded-full border border-ink-line-strong bg-deep font-mono text-[11px] font-semibold text-accent">
                   {i + 1}
                 </div>
-                <h3 className="mt-5 font-semibold text-white">{step.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-white/50">{step.body}</p>
+                <h3 className="mt-5 font-semibold text-ink">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-ink-soft">{step.body}</p>
               </li>
             ))}
           </ol>
@@ -367,7 +367,7 @@ function Machinery() {
                 folded by the old rule. Nineveh rebuilds it beside the live one and swaps the two
                 when the new one catches up.
               </Lede>
-              <p className="mt-5 max-w-[62ch] leading-relaxed text-white/55">
+              <p className="mt-5 max-w-[62ch] leading-relaxed text-ink-soft">
                 The rebuild replays Nineveh&apos;s own record log rather than the chain, so most
                 rule changes don&apos;t mean buying the same history twice. The old table answers
                 reads throughout, frozen at the version it had reached, and starts advancing again
@@ -383,20 +383,20 @@ function Machinery() {
           </div>
           <dl className="mt-12 grid gap-x-16 gap-y-8 sm:grid-cols-2">
             {UNDERNEATH.map((part) => (
-              <div key={part.label} className="border-t border-white/10 pt-5">
-                <dt className="font-mono text-[11px] font-semibold tracking-[0.06em] text-clay-400">
+              <div key={part.label} className="border-t border-ink-line pt-5">
+                <dt className="font-mono text-[11px] font-semibold tracking-[0.06em] text-warm">
                   {part.label}
                 </dt>
-                <dd className="mt-3 text-sm leading-relaxed text-white/55">{part.body}</dd>
+                <dd className="mt-3 text-sm leading-relaxed text-ink-soft">{part.body}</dd>
               </div>
             ))}
           </dl>
 
-          <div className="mt-20 grid gap-10 border-t border-white/10 pt-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
+          <div className="mt-20 grid gap-10 border-t border-ink-line pt-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
             {GUARANTEES.map((g) => (
               <div key={g.title}>
-                <div className="text-sm font-semibold text-white">{g.title}</div>
-                <p className="mt-2 text-sm leading-relaxed text-white/50">{g.body}</p>
+                <div className="text-sm font-semibold text-ink">{g.title}</div>
+                <p className="mt-2 text-sm leading-relaxed text-ink-soft">{g.body}</p>
               </div>
             ))}
           </div>
@@ -423,7 +423,7 @@ function BuiltFor() {
         <div className="mt-14">
           <Builds />
         </div>
-        <p className="mt-8 text-center text-sm text-white/45">
+        <p className="mt-8 text-center text-sm text-ink-faint">
           Whatever your contract emits, you can fold it into a table shaped like the question you
           actually ask. None of these need a contract change.
         </p>
@@ -447,10 +447,10 @@ function Closing() {
             aria-hidden
           />
           <div className="relative">
-            <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-balance text-white sm:text-[2.7rem] sm:leading-[1.08]">
+            <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight text-balance text-on-accent sm:text-[2.7rem] sm:leading-[1.08]">
               Build the backend. Build the app.
             </h2>
-            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-pretty text-blue-50/90">
+            <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-pretty text-on-accent-soft">
               Start with Aptos. Let Nineveh handle the application layer. Backfills, cursors,
               retries and crash recovery included.
             </p>
@@ -466,23 +466,28 @@ function Closing() {
                 ],
                 ["Query it", "REST and a live change feed over tables you designed."],
               ].map(([title, body], i) => (
-                <li key={title} className="rounded-xl border border-white/20 bg-white/10 p-4">
-                  <span className="font-mono text-xs text-blue-100">0{i + 1}</span>
-                  <div className="mt-2 text-sm font-medium text-white">{title}</div>
-                  <p className="mt-1 text-xs leading-relaxed text-blue-50/75">{body}</p>
+                <li
+                  key={title}
+                  className="rounded-xl border border-on-accent-line bg-on-accent-wash p-4"
+                >
+                  <span className="font-mono text-xs text-on-accent-faint">0{i + 1}</span>
+                  <div className="mt-2 text-sm font-medium text-on-accent">{title}</div>
+                  <p className="mt-1 text-xs leading-relaxed text-on-accent-soft">{body}</p>
                 </li>
               ))}
             </ol>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
               <a
                 href="https://studio.nineveh.dev"
-                className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-blue-700 shadow-card transition-colors hover:bg-blue-50"
+                // Fixed, not themed: this button sits on the accent fill, which is the
+                // same blue in both themes, so it is white with blue on it in both.
+                className="inline-flex items-center justify-center rounded-xl bg-on-accent px-6 py-3 text-sm font-semibold text-blue-700 shadow-card transition-colors hover:bg-blue-50"
               >
                 Start building
               </a>
               <a
                 href="/docs"
-                className="inline-flex items-center justify-center rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                className="inline-flex items-center justify-center rounded-xl border border-on-accent-line px-6 py-3 text-sm font-semibold text-on-accent transition-colors hover:bg-on-accent-wash"
               >
                 Read the docs
               </a>
@@ -492,31 +497,28 @@ function Closing() {
       </section>
 
       <section className="mx-auto w-full max-w-6xl px-6 pt-20 text-center">
-        <p className="font-mono text-xs tracking-[0.2em] text-white/40 uppercase">
-          Questions or contributions
-        </p>
         <a
           href="https://t.me/+kVwq6suLvZNlNGE0"
           target="_blank"
           rel="noreferrer"
-          className="mt-4 inline-block text-3xl font-bold tracking-tight text-white transition-colors hover:text-blue-300 sm:text-5xl"
+          className="inline-block text-3xl font-bold tracking-tight text-ink transition-colors hover:text-accent sm:text-5xl"
         >
           Join us on Telegram
         </a>
-        <p className="mt-4 font-mono text-sm break-all text-blue-300/80 sm:text-base">
+        <p className="mt-4 font-mono text-sm break-all text-accent/80 sm:text-base">
           t.me/+kVwq6suLvZNlNGE0
         </p>
       </section>
 
-      <footer className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 pt-10 pb-12 text-sm text-white/40 sm:flex-row">
+      <footer className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 pt-10 pb-12 text-sm text-ink-faint sm:flex-row">
         <div className="flex items-center gap-2">
-          <Logo className="size-4 text-blue-400" />
-          <span className="font-medium text-white/80">Nineveh</span>
+          <Logo className="size-4 text-accent-quiet" />
+          <span className="font-medium text-ink-strong">Nineveh</span>
           <span>· an application backend for Aptos</span>
         </div>
         <a
           href="https://github.com/thewoodfish/Nineveh"
-          className="transition-colors hover:text-white"
+          className="transition-colors hover:text-ink"
         >
           GitHub
         </a>

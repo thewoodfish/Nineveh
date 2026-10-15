@@ -33,7 +33,10 @@ export const metadata: Metadata = {
  * It only stamps an explicit choice; "system" deliberately stamps nothing and leaves
  * the media query in charge.
  */
-const THEME_SCRIPT = `try{var t=localStorage.getItem("nineveh-theme");if(t==="dark"||t==="light")document.documentElement.dataset.theme=t}catch(e){}`;
+// Nothing stored means nobody has chosen, which resolves to light — not to the
+// machine's preference. "system" is an explicit choice and stamps nothing, leaving
+// the media query in charge.
+const THEME_SCRIPT = `try{var t=localStorage.getItem("nineveh-theme");if(t!=="system")document.documentElement.dataset.theme=t==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.theme="light"}`;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { IBM_Plex_Mono, Inter, Newsreader } from "next/font/google";
 import type { ReactNode } from "react";
 
+import { THEME_SCRIPT } from "@/components/theme";
+
 import "./globals.css";
 
 const inter = Inter({
@@ -53,6 +55,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       suppressHydrationWarning
       className={`${inter.variable} ${display.variable} ${mono.variable}`}
     >
+      <head>
+        {/* Before paint, so no page ever shows one theme and then the other. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>{children}</body>
     </html>
   );
