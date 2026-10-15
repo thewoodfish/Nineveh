@@ -422,18 +422,47 @@ async fn inspects_creates_runs_changes_and_deletes_a_project() {
         "a project read a moment ago is not idle: {demand:?}"
     );
 
-    // Following the shares table too rebuilds the project, and the old tables survive.
-    let changed = config
-        .replace(
-            "\nstate:\n",
-            &format!(
-                "  vault_shares:\n    table: \"{}\"\n\nstate:\n",
-                id("Vault.shares")
-            ),
-        )
-        .trim_end()
-        .to_owned()
-        + "\n  vault_shares:\n    mirror: vault_shares\n"
+    // Following the shares table too. Picking it is all it takes: the plane puts the
+    // source and its mirror in the config, which rebuilds the project — and the tables
+    // that were already there survive the rebuild with their rows (ADR 0016).
+    let (status, added) = call(
+        &app,
+        Method::POST,
+        &format!("/control/v1/projects/{name}/sources"),
+        Some(json!({ "picks": [id("Vault.shares")] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{added}");
+    let grown = added["config"].as_str().unwrap().to_owned();
+    assert!(
+        grown.contains(&format!("    table: \"{}\"", id("Vault.shares"))),
+        "the source is in the config it saved: {grown}"
+    );
+    assert!(
+        grown.contains("    mirror: vault_shares\n"),
+        "and so is the table it brings: {grown}"
+    );
+    wait_for_rows(&app, &name, "vault_shares", shares).await;
+    wait_for_rows(&app, &name, "deposit_event", count(model.deposits)).await;
+
+    // Picking it twice doesn't follow it twice, and the refusal names what already has
+    // it rather than leaving a second source with a numbered name.
+    let (status, refused) = call(
+        &app,
+        Method::POST,
+        &format!("/control/v1/projects/{name}/sources"),
+        Some(json!({ "picks": [id("Vault.shares")] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+    let error = refused["error"].as_str().unwrap();
+    assert!(error.contains("already followed"), "{error}");
+    assert!(error.contains("vault_shares"), "and by what: {error}");
+
+    // The author's own work, written onto the config the flow handed back: proof that
+    // what it saved is a config the rest of the API still takes.
+    let changed = grown.trim_end().to_owned()
+        + "\n"
         + &state_block(depositors)
         + "\nwebhooks:\n  my_backend:\n    url: https://example.invalid/hook\n    on: [deposit_event.inserted]\n";
     let (status, updated) = call(

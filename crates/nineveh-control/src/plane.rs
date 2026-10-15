@@ -1401,6 +1401,47 @@ impl<C: Chain> ControlPlane<C> {
             .collect())
     }
 
+    /// Follow more of a contract: `picks` from a catalog, added to `name`'s config.
+    ///
+    /// The config belongs to whoever wrote it, so the picks are spliced into its text
+    /// rather than written over it ([`crate::add_sources`]). Then it goes
+    /// through [`Self::update`] like any other config change, which pins the new
+    /// layouts and rebuilds into a shadow schema while the old build stays served
+    /// (ADR 0016).
+    ///
+    /// The network isn't a parameter: a project follows one chain, and a source on
+    /// another one would be a project of its own. The addresses come from the picks,
+    /// so a second contract can be added to a project that already follows one.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::update`], plus [`ControlError::Scaffold`] if nothing is picked, or a
+    /// pick isn't in the contract's catalog, can't be followed, or is one the project
+    /// already follows.
+    pub async fn add_sources(
+        self: &Arc<Self>,
+        caller: Caller,
+        name: &str,
+        picks: &[String],
+    ) -> Result<Detail, ControlError> {
+        let detail = self.get(caller, name).await?;
+        let config = compose(&detail.config, detail.reducers.as_deref())?;
+        let addresses: BTreeSet<&str> = picks
+            .iter()
+            .filter_map(|id| id.split("::").next())
+            .collect();
+        let mut catalogs = Vec::new();
+        for address in addresses {
+            catalogs.push(
+                self.catalog_of(config.network, address_of(address)?)
+                    .await?,
+            );
+        }
+        let text = crate::scaffold::add_sources(&detail.config, &config, picks, &catalogs)?;
+        self.update(caller, name, &text, detail.reducers.as_deref())
+            .await
+    }
+
     /// Check a config against the project's pinned layouts, without saving it: what
     /// the state-table editor shows while you type. New sources need saving, which
     /// pins their layouts.

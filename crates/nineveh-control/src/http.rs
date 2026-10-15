@@ -7,7 +7,9 @@
 //! - `GET  /control/v1/projects`, `POST /control/v1/projects` (`{"config": yaml}`).
 //! - `GET`, `PUT` (`{"config": yaml}`) and `DELETE /control/v1/projects/{name}`.
 //! - `POST /control/v1/projects/{name}/start` and `/stop`.
-//! - `GET  /control/v1/projects/{name}/sources`: what a rule on each source can read.
+//! - `GET  /control/v1/projects/{name}/sources`: what a rule on each source can read;
+//!   `POST` (`{"picks": [id, …]}`) follows more of a contract, adding each pick to the
+//!   config and rebuilding (ADR 0016).
 //! - `GET /health`: liveness and readiness, for a proxy or an uptime check. No auth.
 //! - `POST /control/v1/projects/{name}/check` (`{"config": yaml, "reducers": ts?}`):
 //!   check a config
@@ -77,7 +79,10 @@ pub fn router<C: Chain>(plane: Arc<ControlPlane<C>>, access: Access) -> Router {
             "/control/v1/projects/{name}",
             get(show::<C>).put(update::<C>).delete(remove::<C>),
         )
-        .route("/control/v1/projects/{name}/sources", get(sources::<C>))
+        .route(
+            "/control/v1/projects/{name}/sources",
+            get(sources::<C>).post(add_sources::<C>),
+        )
         .route("/control/v1/projects/{name}/usage", get(usage::<C>))
         .route("/control/v1/projects/{name}/check", post(check::<C>))
         .route("/control/v1/projects/{name}/preview", post(preview::<C>))
@@ -529,6 +534,24 @@ async fn sources<C: Chain>(
 ) -> Result<impl IntoResponse, ControlError> {
     let caller = server.caller(&headers).await?;
     Ok(Json(server.plane.sources(caller, &name).await?))
+}
+
+#[derive(Debug, Deserialize)]
+struct PicksBody {
+    /// Catalog item ids, as `GET /control/v1/inspect` lists them.
+    picks: Vec<String>,
+}
+
+async fn add_sources<C: Chain>(
+    State(server): Shared<C>,
+    headers: HeaderMap,
+    Path(name): Path<String>,
+    Json(body): Json<PicksBody>,
+) -> Result<impl IntoResponse, ControlError> {
+    let caller = server.caller(&headers).await?;
+    Ok(Json(
+        server.plane.add_sources(caller, &name, &body.picks).await?,
+    ))
 }
 
 async fn check<C: Chain>(

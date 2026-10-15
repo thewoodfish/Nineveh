@@ -4,7 +4,8 @@
 //!   events, resources, and tables held in resources.
 //! - [`scaffold`] turns picks from a catalog into a `nineveh.yaml`: a `log` table per
 //!   event and a `mirror` table per resource or table, so a developer has live tables
-//!   before writing any rule.
+//!   before writing any rule. [`add_sources`] does the same for a project that already
+//!   exists, splicing the new entries into the config it has.
 //! - [`pin`] pins a config's layouts in a lock and resolves `start_version: auto`.
 //! - [`Runner`] builds a project's state and keeps it current, rebuilding into a
 //!   shadow schema when the config changes (ADR 0016).
@@ -40,5 +41,5 @@ pub use plane::{
     Caller, ControlError, ControlPlane, Detail, ReaderInfo, ScaffoldRequest, StartRequest, Summary,
 };
 pub use runner::{RunError, RunOptions, Runner};
-pub use scaffold::{Draft, ScaffoldError, Start, scaffold};
+pub use scaffold::{Draft, ScaffoldError, Start, add_sources, scaffold};
 pub use tier::{FREE, Limit, Limits};
