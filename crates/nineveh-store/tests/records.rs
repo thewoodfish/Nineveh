@@ -319,3 +319,122 @@ async fn a_project_remembers_when_it_was_last_read() {
         "a deleted project takes its read history with it"
     );
 }
+
+/// One record at `ord`, attributed to `source`.
+fn at(ord: i32, source: &str) -> Logged {
+    Logged {
+        version: Version::new(100),
+        ord,
+        timestamp_micros: 1_789_774_040_929_309,
+        success: true,
+        sender: Some(Address::special(1).to_string()),
+        record: StoredRecord::of(&every_kind()[0], source),
+    }
+}
+
+/// What a project's sources have matched, as a sorted list.
+async fn tally(pool: &PgPool, project: &str) -> Vec<(String, i64)> {
+    let mut counts: Vec<(String, i64)> = records::matched(pool, project)
+        .await
+        .unwrap()
+        .into_iter()
+        .collect();
+    counts.sort();
+    counts
+}
+
+/// Adding a source re-reads the project's whole range with a wider selection, and then
+/// every version emits more records than it did — so the records already logged shift
+/// along and are overwritten by ones that are not the same record.
+///
+/// Counting only the rows Postgres reported as genuine inserts credited whichever
+/// source happened to land in the new slots at the tail, and nothing at all to the
+/// records that displaced others. Observed on devnet: a `cancelled` source reporting
+/// one record while the log table built from it — one row per record, by definition —
+/// held six.
+#[tokio::test]
+async fn a_source_added_later_is_credited_for_what_it_matched() {
+    let Some(pool) = pool().await else { return };
+    let name = project(7);
+
+    // Two records, both from the one source the project follows.
+    records::append(
+        &pool,
+        &name,
+        "lock-a",
+        &["sold".to_owned()],
+        &[at(0, "sold"), at(1, "sold")],
+        Version::new(100),
+    )
+    .await
+    .unwrap();
+    assert_eq!(tally(&pool, &name).await, [("sold".to_owned(), 2)]);
+
+    // `cancelled` is added, so the same version is read again and now emits three
+    // records — the new one first, which pushes both of the others along by one.
+    records::append(
+        &pool,
+        &name,
+        "lock-a",
+        &["cancelled".to_owned(), "sold".to_owned()],
+        &[at(0, "cancelled"), at(1, "sold"), at(2, "sold")],
+        Version::new(100),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        tally(&pool, &name).await,
+        [("cancelled".to_owned(), 1), ("sold".to_owned(), 2)],
+        "the new source is credited, and the old one is not credited twice"
+    );
+
+    // `matched` is cumulative and the log is prunable, so the two numbers part company
+    // once retention has run (`retain` takes rows off `record_count` and deliberately
+    // leaves `matched` alone, so a busy source doesn't read as silent). Nothing has
+    // been pruned here, and while that holds they must agree: every row in the log is
+    // counted against exactly one source, which is the invariant the bug broke.
+    let (count, _) = records::usage(&pool, &name).await.unwrap();
+    assert_eq!(
+        count,
+        tally(&pool, &name)
+            .await
+            .iter()
+            .map(|(_, n)| n)
+            .sum::<i64>(),
+        "three rows logged, three counted"
+    );
+
+    records::forget(&pool, &name).await.unwrap();
+}
+
+/// The other side of the same arithmetic: a version re-read after a crash writes the
+/// same records back, and must not count them again.
+#[tokio::test]
+async fn a_version_re_read_after_a_crash_is_not_counted_twice() {
+    let Some(pool) = pool().await else { return };
+    let name = project(8);
+    let rows = [at(0, "sold"), at(1, "sold"), at(2, "cancelled")];
+
+    for _ in 0..3 {
+        records::append(
+            &pool,
+            &name,
+            "lock-a",
+            &["cancelled".to_owned(), "sold".to_owned()],
+            &rows,
+            Version::new(100),
+        )
+        .await
+        .unwrap();
+    }
+
+    assert_eq!(
+        tally(&pool, &name).await,
+        [("cancelled".to_owned(), 1), ("sold".to_owned(), 2)],
+        "three passes over the same records still count them once"
+    );
+    let (count, _) = records::usage(&pool, &name).await.unwrap();
+    assert_eq!(count, 3, "and the log still holds three rows");
+
+    records::forget(&pool, &name).await.unwrap();
+}

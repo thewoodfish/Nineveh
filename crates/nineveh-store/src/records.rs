@@ -75,6 +75,104 @@ pub async fn state(pool: &PgPool, project: &str) -> Result<Option<LogState>, Sto
     }))
 }
 
+/// What writing one record did to the log's running totals.
+struct Appended {
+    /// 1 for a row that wasn't there, 0 for one that replaced another.
+    rows: i64,
+    /// The size this row added, which for a replacement is the difference.
+    bytes: i64,
+    /// The source to credit, unless this write changed nothing about which source
+    /// that slot belongs to — which is what a version re-read after a crash is.
+    credited: Option<String>,
+    /// The source whose record was in the slot before, when that was a different one.
+    displaced: Option<String>,
+}
+
+/// Write one record into the log, and say what it did to the totals.
+///
+/// `xmax = 0` is how Postgres reports whether the row was inserted or overwrote one
+/// that was already there, and the two cases mean different things. An overwrite is
+/// not always the same record arriving twice: a version re-read after a crash does
+/// rewrite its rows with identical bytes, but a project that has just gained a source
+/// re-reads its whole range with a wider selection, and then every version emits more
+/// records than it did, so each `ord` holds a record that has shifted along one or
+/// more places.
+///
+/// Counting only genuine inserts credited whichever source happened to land in the new
+/// slots at the tail and nothing at all to the records that displaced others, which is
+/// how a source could report having matched nothing while the log table built from it
+/// — one row per record, by definition — filled up. So an overwrite moves the count
+/// from the record that was in the slot to the one that is in it now.
+async fn write_one(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    project: &str,
+    logged: &Logged,
+) -> Result<Appended, StoreError> {
+    // sqlx is built without its `json` feature, so JSON crosses as text and
+    // Postgres does the cast — the same way the outbox writes `new_row`.
+    let json = serde_json::to_string(&logged.record).map_err(|e| StoreError::Corrupt {
+        table: "nineveh.records".into(),
+        reason: format!("encoding a record: {e}"),
+    })?;
+    let version = i64::try_from(logged.version.get()).map_err(|_| StoreError::Corrupt {
+        table: "nineveh.records".into(),
+        reason: "version past i64".into(),
+    })?;
+    let timestamp = i64::try_from(logged.timestamp_micros).unwrap_or(i64::MAX);
+    // `prior` is the row this one is about to replace, if there is one. The CTE reads
+    // it from the statement's own snapshot, so it is what was there before the upsert,
+    // which is the whole reason it can be subtracted.
+    let written = sqlx::query!(
+        r#"WITH prior AS (
+               SELECT record ->> 'source' AS source, pg_column_size(record) AS size
+               FROM nineveh.records
+               WHERE project = $1 AND version = $2 AND ord = $3
+           )
+           INSERT INTO nineveh.records
+               (project, version, ord, timestamp_micros, success, sender, record)
+           VALUES ($1, $2, $3, $4, $5, $6, $7::text::jsonb)
+           ON CONFLICT (project, version, ord) DO UPDATE
+               SET timestamp_micros = excluded.timestamp_micros,
+                   success          = excluded.success,
+                   sender           = excluded.sender,
+                   record           = excluded.record
+           RETURNING (xmax = 0) AS "inserted!",
+                     pg_column_size(record) AS "size!",
+                     (SELECT source FROM prior) AS "prior_source?",
+                     (SELECT size FROM prior) AS "prior_size?""#,
+        project,
+        version,
+        logged.ord,
+        timestamp,
+        logged.success,
+        logged.sender,
+        json,
+    )
+    .fetch_one(&mut **tx)
+    .await?;
+    let source = logged.record.source.clone();
+    if written.inserted {
+        return Ok(Appended {
+            rows: 1,
+            bytes: i64::from(written.size),
+            credited: Some(source),
+            displaced: None,
+        });
+    }
+    // An overwrite by the same source is a version re-read after a crash writing its
+    // own record back, and moves nothing: the slot already counts for that source.
+    let unchanged = written.prior_source.as_deref() == Some(source.as_str());
+    Ok(Appended {
+        // The row count is unchanged, but the bytes are not: the record that replaced
+        // this slot is a different one, and the usage meter is what decides how far
+        // back a project can be rebuilt for free.
+        rows: 0,
+        bytes: i64::from(written.size) - i64::from(written.prior_size.unwrap_or(0)),
+        credited: (!unchanged).then_some(source),
+        displaced: written.prior_source.filter(|_| !unchanged),
+    })
+}
+
 /// Append `records` and move the log's cursor to `through`, in one transaction.
 ///
 /// Appending is idempotent: a version re-read after a crash overwrites its own rows
@@ -93,52 +191,33 @@ pub async fn append(
     through: Version,
 ) -> Result<(), StoreError> {
     let mut tx = pool.begin().await?;
-    // What this batch adds to the log's running totals. A version re-read after a
-    // crash rewrites its own rows, and rewrites them with identical bytes, so only a
-    // genuine insert counts — `xmax = 0` is how Postgres reports which it was.
+    // What this batch adds to the log's running totals. `xmax = 0` is how Postgres
+    // reports whether a row was inserted or overwrote one that was already there, and
+    // the two cases are counted differently because they mean different things.
     let mut added_count: i64 = 0;
     let mut added_bytes: i64 = 0;
     // What each source matched in this batch, so a source that never matches anything
     // can be told apart from one whose contract is merely quiet right now.
-    let mut added_matches: BTreeMap<&str, i64> = BTreeMap::new();
+    //
+    // An overwrite is not always the same record arriving twice. A version re-read
+    // after a crash does rewrite its rows with identical bytes — but a project that
+    // has just gained a source re-reads its whole range with a wider selection, and
+    // then every version emits more records than it did, so each `ord` holds a record
+    // that has shifted along one or more places. Counting only genuine inserts credited
+    // whichever source happened to land in the new slots at the tail and ignored every
+    // record that displaced another, which is how a source could report nothing while
+    // the log table built from it filled up. So an overwrite moves the count from the
+    // record that was in that slot to the one that is now.
+    let mut added_matches: BTreeMap<String, i64> = BTreeMap::new();
     for logged in records {
-        // sqlx is built without its `json` feature, so JSON crosses as text and
-        // Postgres does the cast — the same way the outbox writes `new_row`.
-        let json = serde_json::to_string(&logged.record).map_err(|e| StoreError::Corrupt {
-            table: "nineveh.records".into(),
-            reason: format!("encoding a record: {e}"),
-        })?;
-        let version = i64::try_from(logged.version.get()).map_err(|_| StoreError::Corrupt {
-            table: "nineveh.records".into(),
-            reason: "version past i64".into(),
-        })?;
-        let timestamp = i64::try_from(logged.timestamp_micros).unwrap_or(i64::MAX);
-        let written = sqlx::query!(
-            r#"INSERT INTO nineveh.records
-                   (project, version, ord, timestamp_micros, success, sender, record)
-               VALUES ($1, $2, $3, $4, $5, $6, $7::text::jsonb)
-               ON CONFLICT (project, version, ord) DO UPDATE
-                   SET timestamp_micros = excluded.timestamp_micros,
-                       success          = excluded.success,
-                       sender           = excluded.sender,
-                       record           = excluded.record
-               RETURNING (xmax = 0) AS "inserted!", pg_column_size(record) AS "size!""#,
-            project,
-            version,
-            logged.ord,
-            timestamp,
-            logged.success,
-            logged.sender,
-            json,
-        )
-        .fetch_one(&mut *tx)
-        .await?;
-        if written.inserted {
-            added_count += 1;
-            added_bytes += i64::from(written.size);
-            *added_matches
-                .entry(logged.record.source.as_str())
-                .or_default() += 1;
+        let written = write_one(&mut tx, project, logged).await?;
+        added_count += written.rows;
+        added_bytes += written.bytes;
+        if let Some(credited) = written.credited {
+            *added_matches.entry(credited).or_default() += 1;
+        }
+        if let Some(displaced) = written.displaced {
+            *added_matches.entry(displaced).or_default() -= 1;
         }
     }
     let through_i64 = i64::try_from(through.get()).map_err(|_| StoreError::Corrupt {
@@ -146,7 +225,10 @@ pub async fn append(
         reason: "version past i64".into(),
     })?;
     // Postgres adds the per-source counts, so a re-read after a crash can't double
-    // them: only rows this transaction actually inserted are in `added_matches`.
+    // them: an overwrite of an identical record contributes nothing to `added_matches`.
+    // The floor at zero is for logs written before the arithmetic above was right,
+    // where a displaced record can be subtracted from a total that never counted it.
+    // A count is a count; it should not be able to read as less than none.
     let matches = serde_json::to_string(&added_matches).map_err(|e| StoreError::Corrupt {
         table: "nineveh.record_cursors".into(),
         reason: format!("encoding source counts: {e}"),
@@ -162,7 +244,7 @@ pub async fn append(
                    record_count = nineveh.record_cursors.record_count + excluded.record_count,
                    record_bytes = nineveh.record_cursors.record_bytes + excluded.record_bytes,
                    matched = (
-                       SELECT coalesce(jsonb_object_agg(source, total), '{}'::jsonb)
+                       SELECT coalesce(jsonb_object_agg(source, greatest(total, 0)), '{}'::jsonb)
                        FROM (
                            SELECT key AS source, sum(value::bigint) AS total
                            FROM (

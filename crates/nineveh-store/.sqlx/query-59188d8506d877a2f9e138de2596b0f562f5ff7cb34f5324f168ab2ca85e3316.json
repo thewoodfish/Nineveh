@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH prior AS (\n               SELECT record ->> 'source' AS source, pg_column_size(record) AS size\n               FROM nineveh.records\n               WHERE project = $1 AND version = $2 AND ord = $3\n           )\n           INSERT INTO nineveh.records\n               (project, version, ord, timestamp_micros, success, sender, record)\n           VALUES ($1, $2, $3, $4, $5, $6, $7::text::jsonb)\n           ON CONFLICT (project, version, ord) DO UPDATE\n               SET timestamp_micros = excluded.timestamp_micros,\n                   success          = excluded.success,\n                   sender           = excluded.sender,\n                   record           = excluded.record\n           RETURNING (xmax = 0) AS \"inserted!\",\n                     pg_column_size(record) AS \"size!\",\n                     (SELECT source FROM prior) AS \"prior_source?\",\n                     (SELECT size FROM prior) AS \"prior_size?\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "inserted!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 1,
+        "name": "size!",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "prior_source?",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "prior_size?",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int4",
+        "Int8",
+        "Bool",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "59188d8506d877a2f9e138de2596b0f562f5ff7cb34f5324f168ab2ca85e3316"
+}
