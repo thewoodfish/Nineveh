@@ -5,7 +5,7 @@ Every key in `nineveh.yaml`. A project's config names the chain data to follow
 The tables you fold yourself live in a [reducers file](reducers.md) beside it.
 
 **You don't normally write this file.** Studio writes it as you add sources, tables and
-webhooks, and the config page shows it to read rather than to edit. This page is here
+webhooks, and shows it under **Settings** to read rather than to edit. This page is here
 for when you want to know what Studio wrote.
 
 It's also the file you do write by hand if you
@@ -79,11 +79,15 @@ table's handle when the struct holding it is written, so two tables with the sam
 and value types, or another contract's table of the same types, never mix. The holding
 struct must be stored as a resource or as a table value.
 
-`BigOrderedMap` fields aren't supported yet, and neither is a table held inside
-another struct — `Profile.positions.inner`, where `positions` is a type of your own
-wrapping a table. The field a `table:` source names has to hold the table itself. A small map keeps its entries inside the
-parent struct rather than in a table of its own, and the engine doesn't read those yet,
-so follow the parent with a `resource:` source meanwhile.
+Two shapes a `table:` source can't follow yet:
+
+- **`BigOrderedMap`.** While it is small it keeps its entries inside the parent struct
+  rather than in a table of its own, and Nineveh doesn't read those.
+- **A table wrapped in a struct of your own** — `Profile.positions.inner`, where
+  `positions` is your type and the table is inside it. The field a `table:` source
+  names has to hold the table itself.
+
+Follow the parent with a `resource:` source meanwhile.
 
 Resources are needed alongside events: many contracts expose their real state only as
 resource writes, and state kept in tables never appears as a resource write at all.
@@ -209,8 +213,10 @@ webhooks:
 `on` may name any of the project's state tables — those `state:` declares and those a
 `reducers:` file does, since both are the same kind of table once they're built.
 
-URLs must use `https`; plain `http` is accepted only for `localhost`. Deliveries are
-signed with the endpoint's own secret, so URLs never carry credentials.
+URLs must use `https`; plain `http` is accepted only for a loopback host —
+`localhost`, `127.0.0.1` or `::1` — so a webhook can be pointed at your own machine
+while you build. Deliveries are signed with the endpoint's own secret, so URLs never
+carry credentials.
 
 `rows: false` sends only the key: "this row changed, come and look". That keeps
 deliveries small, and it's self-correcting: however the deliveries are retried or
