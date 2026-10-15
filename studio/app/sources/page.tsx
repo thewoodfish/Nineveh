@@ -288,12 +288,24 @@ function AddSource({
     ...new Set((sources ?? []).map((s) => s.follows.split("::")[0] ?? "")),
   ].filter(Boolean);
 
-  // The contract this project is already about, so the ordinary case is one click on
-  // Inspect. Filled, never submitted: nothing is read until you ask.
+  // The contract this project is already about.
   useEffect(() => {
     setAddress((current) => current || (known[0] ?? ""));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [known.join(",")]);
+
+  // And read it as soon as there is one. With nothing to type, a button saying Inspect
+  // was a click between the reader and the list they opened this panel for — opening it
+  // was the intent. It still reads the chain and still changes nothing; the button
+  // stays for reading again after a contract is upgraded, and for the other contract
+  // when a project follows two.
+  const [read, setRead] = useState("");
+  useEffect(() => {
+    if (!address || read === address) return;
+    setRead(address);
+    void inspect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, read]);
 
   const inspect = async () => {
     setInspecting(true);
@@ -335,45 +347,50 @@ function AddSource({
           Follow more of a contract
         </h2>
         <p className="mt-1 max-w-prose text-sm text-on-surface-variant">
-          Nineveh reads the modules at an address and shows what it can follow.
-          Nothing changes until you choose.
+          Nineveh reads the modules this project already follows and shows what
+          else is in them. Nothing changes until you choose.
         </p>
       </div>
 
-      <form
-        className="flex flex-col gap-3 sm:flex-row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void inspect();
-        }}
-      >
-        <input
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="0x…"
-          spellCheck={false}
-          aria-label="Contract address"
-          className={`${field} min-w-0 flex-1 py-2.5 font-mono`}
-        />
+      {/* The address is shown, not typed. Pasting a different contract in here would
+          quietly make this project about two things, and the rest of Studio is built
+          one project to one contract — `/new` asks for a single address too. It is
+          also a trap the server cannot save you from: the project's backfill starts at
+          the version its own contract was published at, so a contract published
+          earlier would come in missing the history before that, with nothing to say
+          so. A second contract is a second project. */}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex min-w-0 flex-1 items-center rounded-xs border border-outline-variant bg-surface-container px-3 py-2.5 font-mono text-sm break-all text-on-surface">
+          {address || "—"}
+        </div>
         <Button
-          type="submit"
           tone="tonal"
-          disabled={inspecting || !address.trim()}
+          disabled={inspecting || !address}
+          onClick={() => void inspect()}
         >
-          {inspecting ? "Reading modules…" : "Inspect"}
+          {inspecting ? "Reading modules…" : catalog ? "Read again" : "Inspect"}
         </Button>
-      </form>
+      </div>
 
-      {known.length > 0 && (
+      {known.length > 1 && (
         <div className="flex flex-wrap items-center gap-2 text-xs text-on-surface-variant">
-          Already following:
+          This project follows {known.length} contracts:
           {known.map((a) => (
             <button
               key={a}
               type="button"
-              onClick={() => setAddress(a)}
+              onClick={() => {
+                setAddress(a);
+                setCatalog(null);
+                setPicked(new Set());
+              }}
+              aria-pressed={a === address}
               title={`Read the modules at ${a}`}
-              className="state rounded-full border border-outline-variant px-2.5 py-1 font-mono text-[11px] text-on-surface"
+              className={`state rounded-full border px-2.5 py-1 font-mono text-[11px] ${
+                a === address
+                  ? "border-primary bg-secondary-container text-on-secondary-container"
+                  : "border-outline-variant text-on-surface"
+              }`}
             >
               {shortAddress(a)}
             </button>
