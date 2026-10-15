@@ -28,10 +28,9 @@ nvk_a1b2c3d4e5f6…
 ```
 
 **The key can only read.** Not because it is a restricted kind of key — there is one
-kind — but because the project's API is three `GET` routes and nothing else: the status,
-the list of tables, and the rows of one table. There is no write to authorise. A Nineveh
-table is a read-only projection of chain state, and the only thing that ever writes one
-is a reducer, inside the backend.
+kind — but because reading is all the API does: it lists your tables and returns their
+rows, and there is nothing else to ask it for. Your tables are written inside the
+backend, by [reducers](reducers.md), and nothing out here can touch them.
 
 Don't have a project? Make one in [Studio](https://studio.nineveh.dev): paste a contract
 address, tick what to follow, and it builds while you watch.
@@ -109,10 +108,9 @@ export function App() {
 `project` is the API URL from above — everything before `/v1`, because the hooks append
 the rest themselves.
 
-**The key reaches the browser, and that is intended.** It can only read, and reads only
-ever touch your state tables in Postgres — never the chain — so an exposed key spends no
-stream credit and can change nothing. Give each frontend its own and revoke it when it
-is done; revoking one leaves the others working, which is the reason to do it that way.
+**The key reaches the browser, and that is intended** — it can only read, so there is
+nothing for it to break. Make each frontend its own in Studio and revoke it when that
+frontend is done; revoking one leaves the rest working.
 
 ## 4. Read a table
 
