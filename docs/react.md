@@ -1,12 +1,11 @@
 # Reading from React
 
-[`docs/reading.md`](reading.md) is the HTTP contract — the REST API, the change feed,
-webhooks. This page is the same thing from a React app, where `@nineveh/react` does the
-fetching, holds the change feed open, and keeps the types honest.
+`@nineveh/react` does the fetching, holds the change feed open, and keeps the types
+honest. Five hooks, and the query language they share.
 
-Nothing here is a new capability; it is the common cases made short.
-[Getting started](getting-started.md) gets the first rows onto a screen — this page is
-every hook, and the query language they share.
+Nothing here is a new capability. Underneath, every one of these is a request to
+[the REST API and the change feed](reading.md), made short — and
+[Getting started](getting-started.md) is the one that gets the first rows onto a screen.
 
 ## The hooks
 
