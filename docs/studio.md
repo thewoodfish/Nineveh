@@ -90,16 +90,14 @@ words rather than showing a zero, because a zero reads as a count and this is a
 question — usually a quiet contract, occasionally the wrong type. Open a source to see
 the fields a record carries, which is exactly what a rule on it can read.
 
-**Follow something new** adds to the list. Paste an address — the ones the project
-already follows are a click — and you get the same catalog **New project** shows, with
-everything already followed marked as such and un-tickable. The network isn't asked: a
-project follows one chain, and a source on another would be a project of its own.
+**Follow something new** adds to the list. It reads the contract this project already
+follows — the address is shown rather than typed, because a different contract is a
+different project — and gives you the same catalog **New project** does, with everything
+already followed marked as such and un-tickable.
 
-Saving writes the source, and the raw table it brings, into the project's config. It is
-spliced into the file rather than written over it, so your comments and your own
-`reduce` tables come back exactly as they were, indented the way you indent and written
-in the style the entries around them are written in. A name that clashes with one the
-project already uses is numbered rather than overwritten.
+Saving adds the source, and the raw table it brings, to the project's config. Your
+comments and your own `reduce` tables come back exactly as they were; a name that
+clashes with one already in use is numbered rather than written over.
 
 **Then it rebuilds, and this is the expensive config change.** Nineveh keeps every
 record it has decoded, which is what makes editing a rule a local replay of minutes.
@@ -107,8 +105,8 @@ A new source has no such history — nothing was following it — so the rebuild
 the project's whole version range from the Transaction Stream. Your tables keep serving
 the rows they have while that runs and swap over in one transaction when it finishes,
 but they stop advancing until then, and the change feed starts again from the new
-build, so anything reading it has to resync (ADRs 0016, 0022). The page says so, with
-the number of versions, before you press the button.
+build, so anything reading it has to resync. The page says so, with the number of
+versions, before you press the button.
 
 ## Tables
 
@@ -145,13 +143,14 @@ followed.
 The language is small and total: [Reducers](reducers.md) and
 [Expressions](expressions.md) are the references.
 
-## API console
+## API
 
 Every request an app makes against this project, with the table to choose. Each one says
 what it is for, runs against your real data, and copies four ways: the URL, a `curl`, a
-`fetch`, and the **React** hook call from
-[`@nineveh/react`](react.md) — which is usually the one you want, since it holds the
-change feed open for you.
+`fetch`, and the React hook call from [`@nineveh/react`](react.md) — usually the one you
+want, since it holds the change feed open for you.
+
+Each table has the same thing under its own **API** tab, narrowed to that table.
 
 ## Webhooks
 
@@ -159,6 +158,15 @@ An endpoint Nineveh calls when a table changes, so your server stops asking whet
 anything has. Each one is signed, retried with backoff, and reports its own health: what
 it last answered, how long it took, and how far behind it is. **Send a test** proves the
 URL before you trust it.
+
+## Change feed
+
+Every change the project commits, across every table, as it happens — the newest at the
+top. Filter to one table, or pause the stream to read what went past.
+
+This is the same feed the API serves and webhooks are delivered from, shown raw. It is
+most useful for the question "is anything happening at all", which a table's own
+**Changes** tab answers only for that table.
 
 ## Settings
 

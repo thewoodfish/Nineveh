@@ -274,6 +274,17 @@ function ProjectNav() {
             </span>
           </Link>
         ))}
+      {/* The API console had one way in: a link in a sentence on Overview. It is where
+          you work out the request your app will make, against your own rows, so it is a
+          place — and a place belongs in the list of them. */}
+      <NavLink
+        href={href("/playground")}
+        active={pathname === "/playground"}
+        icon="terminal"
+      >
+        API
+      </NavLink>
+
       {/* Webhooks ahead of the feed: both are this project reaching outward, and the
           durable one is the one a developer comes looking for. */}
       <NavLink
