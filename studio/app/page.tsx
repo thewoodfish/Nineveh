@@ -413,12 +413,19 @@ function Overview() {
             <div className="text-[11px] font-medium tracking-[0.08em] text-on-surface-variant uppercase">
               Your API
             </div>
+            {/* The base, not an endpoint off it. This is the string `NinevehProvider`
+                and `nineveh-types` take, and showing `/v1/tables` here meant everyone
+                who needed it had to know which part to cut off. The paths that hang
+                off it are named underneath instead. */}
             <div className="mt-2 rounded-sm bg-surface-container-high px-3 py-2 font-mono text-sm break-all">
-              {`${API_URL}${current.api}/v1/tables`}
+              {`${API_URL}${current.api}`}
             </div>
             <p className="mt-1 text-xs text-on-surface-variant">
-              REST over every table, and a live change feed at{" "}
-              <span className="font-mono">/v1/changes</span>.
+              Everything hangs off that: <span className="font-mono">/v1/tables</span>{" "}
+              lists your tables, <span className="font-mono">/v1/tables/&lt;name&gt;</span>{" "}
+              reads one, and <span className="font-mono">/v1/changes</span> is the live
+              feed. It is also the URL the React SDK and{" "}
+              <span className="font-mono">nineveh-types</span> take.
               {hosted && (
                 <>
                   {" "}

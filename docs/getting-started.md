@@ -16,8 +16,10 @@ before `/v1`:
 https://api.nineveh.dev/projects/myproject
 ```
 
-Append `/v1/tables` to that and you get the list of tables, which is exactly what the
-hooks read. Studio's Overview shows this URL under *Your API*; it is the one to paste.
+Everything hangs off it: `/v1/tables` lists your tables — which is exactly what the
+hooks read — `/v1/tables/<name>` reads one, and `/v1/changes` is the live feed. Studio's
+Overview prints it under *Your API*, without any of those paths on the end, because this
+is the part you paste.
 
 **2. An API key for that project** — created in Studio under Settings, and shown once:
 
