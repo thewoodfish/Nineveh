@@ -19,7 +19,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": { "nineveh-types": "./bin/nineveh-types.mjs" },
+  "bin": { "nineveh-types": "bin/nineveh-types.mjs" },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
