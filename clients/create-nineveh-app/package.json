@@ -1,9 +1,9 @@
 {
   "name": "create-nineveh-app",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Start a React app on your Nineveh project: npm create nineveh-app@latest",
   "license": "Apache-2.0",
-  "homepage": "https://nineveh.dev/docs/reading",
+  "homepage": "https://nineveh.dev/docs",
   "repository": { "type": "git", "url": "git+https://github.com/thewoodfish/Nineveh.git", "directory": "clients/create-nineveh-app" },
   "keywords": ["nineveh", "aptos", "react", "create", "starter"],
   "type": "module",
