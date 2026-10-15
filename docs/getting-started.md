@@ -107,9 +107,7 @@ export function App() {
 ```
 
 `project` is the API URL from above — everything before `/v1`, because the hooks append
-the rest themselves. A project served by `nineveh up` sits at `/projects/<name>`; one
-served by `nineveh run --serve` sits at the root, and in local mode over loopback it
-needs no key at all.
+the rest themselves.
 
 **The key reaches the browser, and that is intended.** It can only read, and reads only
 ever touch your state tables in Postgres — never the chain — so an exposed key spends no
