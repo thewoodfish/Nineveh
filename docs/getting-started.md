@@ -172,9 +172,9 @@ npx nineveh-types https://api.nineveh.dev/projects/myproject --key nvk_…
 # wrote src/nineveh-tables.d.ts: 5 tables, 25 columns
 ```
 
-From here `useTable("sellres")` stops compiling, and so does multiplying a `u128` as if
-it were a number. Nothing requires it — [Types](types.md) is what it does, and why the
-rule about wide integers is the part that matters.
+Now a mistyped table or column name stops compiling, and every column arrives as the
+right type — which matters most for large numbers, where getting it wrong is silent.
+Nothing requires it; [Types](types.md) has the detail.
 
 ## Where to go next
 
