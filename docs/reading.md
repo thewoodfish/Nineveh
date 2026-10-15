@@ -124,21 +124,25 @@ from the old build; reload it.
 
 ## 3. Webhooks
 
-Declared in your config, so they're version-controlled with everything else:
+Nineveh calling your server, rather than your server asking Nineveh. Make one in Studio
+under **Webhooks → Add an endpoint**:
 
-```yaml
-webhooks:
-  my_backend:
-    url: https://myapp.example/hooks/nineveh
-    on: [balances.changed]
-    rows: true
-```
+![Studio's new endpoint dialog: a name, a URL, a grid of tables against insert, update and delete, and a choice of what each delivery carries](images/webhook-endpoint.jpg "Four decisions, and the one that catches people is the third: a log table is append-only, so its update and delete are greyed out rather than offered and never fired.")
 
-`on` takes `<table>.changed`, `.inserted`, `.updated` or `.deleted`. A `log` table is
-append-only — its rows are written once and never touched again — so `.updated` and
-`.deleted` on a log are subscriptions that can never fire. Studio won't offer them.
-Each POST carries
-up to 100 changes in order:
+Four things to decide:
+
+- **Name.** What its signing secret belongs to, and its place in the change order.
+- **URL.** `https`, or `http` to your own machine while you are building.
+- **Which changes it hears.** A row per table, a column per kind of change. A `log`
+  table is append-only — its rows are written once and never touched again — so its
+  update and delete are greyed out: they are subscriptions that could never fire.
+- **What each delivery carries.** The changed row, or only its key. The row is usually
+  what you want: it is enough to act on without asking for it.
+
+The endpoint is saved with the project, so it travels with it, and its signing secret is
+made for you.
+
+Each POST carries up to 100 changes in order:
 
 ```json
 {
@@ -166,7 +170,7 @@ if (Math.abs(Date.now() / 1000 - Number(t)) > 300) throw new Error("too old");
 ```
 
 The timestamp check is what stops someone replaying a request they captured earlier.
-Secrets live in **Settings → Webhooks** and can be rotated whenever you like.
+Each endpoint's secret is on the **Webhooks** page, next to the endpoint it signs, and can be rotated whenever you like.
 
 ### Delivery is at-least-once
 

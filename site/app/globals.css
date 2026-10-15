@@ -903,9 +903,14 @@ html[data-theme="dark"] .prose .shiki span {
   margin-bottom: 2.25rem;
 }
 
+/* Up to the column's width, never past its own: a figure narrower than the measure is
+   shown at the size it was captured rather than stretched into softness, and centred so
+   it still reads as a figure. */
 .prose .shot img {
   display: block;
-  width: 100%;
+  width: auto;
+  max-width: 100%;
+  margin-inline: auto;
 }
 
 .prose .shot figcaption {
